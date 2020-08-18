@@ -159,6 +159,11 @@ urlpatterns = [
         url(r'^/abort$', submission.abort_submission, name='submission_abort'),
     ])),
 
+        url(r'^submission/flag/(?P<case>\d+)', include([
+        url(r'^$', submission.flag_submission, name='submission_flag'),
+        url(r'^/abort$', submission.abort_submission, name='submission_abort'),
+    ])),
+
     url(r'^users/', include([
         url(r'^$', user.users, name='user_list'),
         url(r'^(?P<page>\d+)$', lambda request, page:

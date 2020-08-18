@@ -1,0 +1,12 @@
+archive: aplusb.zip
+checker: linecount
+test_cases:
+- checker: linecount
+  in: aplusb.1.in
+  out: aplusb.1.out
+  output_prefix_length: 0
+  points: 2
+- checker: linecount
+  in: aplusb.2.in
+  out: aplusb.2.out
+  points: 4

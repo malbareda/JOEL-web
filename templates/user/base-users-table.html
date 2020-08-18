@@ -4,7 +4,7 @@
     {% block after_rank_head %}{% endblock %}
     <th class="header username">{{ _('Username') }}</th>
     {% block before_point_head %}{% endblock %}
-
+    <th class="header username">{{ _('Organization') }}</th>
     <th class="header points">
         {% if sort_links %}<a href="{{ sort_links.performance_points }}">{% endif %}
         {{ _('Points') }}
@@ -18,8 +18,22 @@
 {% for rank, user in users %}
     <tr id="user-{{ user.user.username }}" {% block row_extra scoped %}{% endblock %}>
         <td>{{ rank }}</td>
-        {% block after_rank scoped %}{% endblock %}
+        {% with orgs=user.organizations.all() %}
+        <td>
+        {% if orgs and orgs[0].logo_override_image %}
+         <img src="{{orgs[0].logo_override_image}}" alt="flag" width="60" height="30"> 
+        {% endif %}
+        </td>
         <td class="user-name">{{ link_user(user) }} {% block user_data scoped %}{% endblock %}</td>
+        
+            
+                <td >
+                    {% for org in orgs -%}
+                        <a href="{{ org.get_absolute_url() }}">{{ org.name }}</a>
+                        {%- if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+        {% endwith %}
         {% block before_point scoped %}{% endblock %}
         {% block point scoped %}
             <td title="{{ user.performance_points|floatformat(2) }}" class="user-points">

@@ -1,0 +1,9 @@
+archive: secret.zip
+checker: linecount
+test_cases:
+- in: secret/1.in
+  out: secret/1.ans
+  points: 1
+- in: secret/2.in
+  out: secret/2.ans
+  points: 2

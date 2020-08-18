@@ -1,4 +1,5 @@
 import json
+import sys
 from collections import namedtuple
 from itertools import groupby
 from operator import attrgetter
@@ -21,7 +22,7 @@ from django.views.generic import DetailView, ListView
 
 from judge import event_poster as event
 from judge.highlight_code import highlight_code
-from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission
+from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionTestCase
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.problems import get_result_data, user_completed_ids, user_editable_ids, user_tester_ids
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
@@ -144,6 +145,8 @@ class SubmissionStatus(SubmissionDetailBase):
         submission = self.object
         context['last_msg'] = event.last()
 
+        sys.stderr.write("test\n")
+        print("testestetetete")
         context['batches'], statuses = group_test_cases(submission.test_cases.all())
         context['statuses'] = combine_statuses(statuses, submission)
 
@@ -181,6 +184,20 @@ def abort_submission(request, submission):
         raise PermissionDenied()
     submission.abort()
     return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
+
+@require_POST
+def flag_submission(request,case):
+    testcase = get_object_or_404(SubmissionTestCase, id=int(case)) 
+    #raise Exception("asdas")
+    subm = testcase.submission
+    qset = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True)
+    if not qset:
+        subm.flag = True
+        testcase.flag = True
+        subm.save()
+        testcase.save()
+    #SubmissionTestCase.objects.filter(id=case).update(feedback='flag')
+    return HttpResponseRedirect(reverse('submission_status', args=(testcase.submission.id,)))
 
 
 def filter_submissions_by_visible_problems(queryset, user):

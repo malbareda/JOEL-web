@@ -1,10 +1,12 @@
+
+
 {% if submission.contest_or_none %}
     {% set prefix_length = submission.contest_or_none.problem.output_prefix_override %}
 {% else %}
     {% set prefix_length = None %}
 {% endif %}
 {% set is_pretest = submission.is_pretested %}
-
+<body onload="foo()">
 {% if submission.status != 'IE' %}
     {% if submission.status == 'QU' %}
         <h4>{{ _('We are waiting for a suitable judge to process your submission...') }}</h4>
@@ -73,7 +75,7 @@
                     <span title="{{ case.long_status }}" class="case-{{ case.status }}">
                         {%- if case.status == 'SC' %}&mdash;{% else %}{{ case.status }}{% endif -%}
                     </span>
-                    {%- if case.feedback %}&nbsp;({{ case.feedback }}){% endif -%}
+                    {%- if case.feedback %}&nbsp;{{_('Score')}}: ({{ case.feedback }}){% endif -%}
                 </td>
 
                 <td>
@@ -89,13 +91,14 @@
                 <td>{% if case.status != 'SC' %}{{ case.memory|kbdetailformat }}]{% endif %}</td>
 
                 {% if not batch.id %}
-                    <td>({{ case.points|floatformat(0) }}/{{ case.total|floatformat(0) }})</td>
+                    <td>({{ case.points|floatformat(2) }}/{{ case.total|floatformat(2) }})</td>
                 {% endif %}
             </tr>
 
-            {% if print_case_output or case.extended_feedback %}
+            {% if print_case_output and case.extended_feedback %}
                 <tr id="{{ case.id }}-output" style="display:none" class="case-feedback toggled">
-                    {% if print_case_output %}
+                
+ <!--                   {% if print_case_output %}
                         <td colspan="5" class="case-output">
                             <div class="case-info">
                                 <strong>{{ _('Your output (clipped)') }}</strong>
@@ -107,13 +110,100 @@
                             </div>
                         </td>
                     {% endif %}
+ -->                
+                    <script>
+                    function validate(form) {
+
+                        
+                            return confirm('Si demanes ajuda es mostrara un cas de prova que hagis fallat. Només podràs fer això un cop per problema. Un cop hagis demanat ajuda no podràs tornar-ho a fer per cap altre enviament. Estàs segur?');
+                        
+                    }
+                    </script>
+                    {% if not case.flag %}  
+                    <td>  
+                    <form onsubmit="return validate(this);" action="{{ url('submission_flag',case.id) }}" method="post">
+                    {% csrf_token %}
+                    <input style="float:left" type="submit" value="{{ _('Help') }}" class="button">
+                    <br><br>
+                    </form></td>
+                    {% endif %}
                     {% if case.extended_feedback %}
+                    {% if case.flag and submission.problem.data_files.checker=="linecount" %}
                         <td colspan="5" class="case-ext-feedback">
-                            <div class="case-info">
-                                <strong>{{ _('Judge feedback') }}</strong>
-                                <pre class="case-output">{{ case.extended_feedback|linebreaksbr }}</pre>
+                            <div class="case-info" >
+                                <strong>{{ _('HELP') }}</strong>
+                                <br>
+                                {% set ninputs = (case.extended_feedback.split("\u2719")[2]|int ) %}
+                                {% set nouputs = (case.extended_feedback.split("\u2719")[3]|int ) %}
+
+                                {% set listinputs = (case.extended_feedback.split("\u2719")[0].split("\n")) %}
+                                {% set firstwa = (case.extended_feedback.split("\u2719")[1].split("\u2720")[0]) %}
+
+                                {% if ninputs == nouputs or (ninputs-1 == nouputs and firstwa|int+1 == listinputs|length) %}
+                                {% set p1 = "Prova amb l'input " ~ (listinputs[firstwa|int]) %}
+                                <pre class="case-output"><i><b>{{p1}}</i></b> </pre> 
+                                {% elif ninputs-1 == nouputs %}
+                                <pre class="case-output">Prova amb l'input<br><br></pre> 
+                                <pre class="case-output"><i><b>{{(listinputs[firstwa|int])}}</i></b></pre> 
+                                <pre class="case-output"><br>o l'input<br><br></pre> 
+                                <pre class="case-output"><i><b>{{(listinputs[firstwa|int+1])}}<i></b></pre> 
+                                
+                                {% elif ninputs is divisibleby nouputs %}
+                                {% set div = ninputs/nouputs %}
+                                <pre class="case-output">Prova amb l'input</pre> 
+                                {% for inpc in listinputs[firstwa|int*div:firstwa|int*div+firstwa|int]%}
+                                        <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                {% endfor %}
+                                {% elif (ninputs-1) is divisibleby nouputs %}
+                                {% set div = (ninputs-1)/nouputs %}
+                                <pre class="case-output">Prova amb l'input</pre> 
+                                {% for inpc in listinputs[firstwa|int*div:firstwa|int*div+firstwa|int]%}
+                                        <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                {% endfor %}
+                                <pre class="case-output">o</pre> 
+                                {% for inpc in listinputs[(firstwa|int*div)+1:(firstwa|int*div)+1+firstwa|int]%}
+                                        <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                {% endfor %}
+                                {% endif %}
+                            </div>
                             </div>
                         </td>
+                    {% endif %}
+                    {% if submission.problem.is_editable_by(request.user) %}
+                        {% set list1 = case.extended_feedback.split("\u2719") %}
+                        <td colspan="5" class="case-ext-feedback">
+                            <div class="case-info" >
+                                <strong>{{ _('Input') }}</strong>
+                                <br>
+                                
+                                <pre class="case-output">{{ list1[0]|linebreaksbr }}</pre> 
+                            </div>
+                            </div>
+                        </td>
+                        <td colspan="5" class="case-ext-feedback">
+                            <div class="case-info" >
+                                <strong>{{ _('Wrong Answers') }}</strong>
+                                <br>
+                                <table>
+                                    <tr>
+                                        <th>Cas fallit</th>
+                                        <th>Resposta esperada</th>
+                                        <th>Resposta Alumne</th>
+                                    </tr>
+                                    {% set list2 = list1[1].split("\u2721") %}
+                                    {% for wa in list2 %}
+                                    <tr>
+                                        {% set list3 = wa.split("\u2720") %}
+                                        {% for swa in list3 %}
+                                        <td class="case-output">{{ swa|linebreaksbr }}</td>
+                                        {% endfor %}
+                                    </tr>      
+                                    {% endfor %}
+				                </table>
+                            </div>
+                            </div>
+                        </td>
+                    {% endif %}
                     {% endif %}
                 </tr>
             {% endif %}
@@ -139,7 +229,7 @@
                 {% else %}
                     <b>{{ _('Final score:') }}</b>
                 {% endif %}
-                {{ submission.case_points|floatformat(0) }}/{{ submission.case_total|floatformat(0) }}
+                {{ submission.case_points|floatformat(2) }}/{{ submission.case_total|floatformat(-1) }}
                 {% if request.in_contest and submission.contest_or_none %}
                     {% with contest=submission.contest_or_none %}
                         ({{ _('%(points)s/%(total)s points', points=contest.points|roundfloat(3),
@@ -162,3 +252,4 @@
 {% else %}
     {% include "submission/internal-error-message.html" %}
 {% endif %}
+</body>

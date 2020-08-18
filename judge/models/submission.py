@@ -84,7 +84,7 @@ class Submission(models.Model):
     contest_object = models.ForeignKey('Contest', verbose_name=_('contest'), null=True, blank=True,
                                        on_delete=models.SET_NULL, related_name='+')
     is_locked = models.BooleanField(verbose_name=_('lock submission'), default=False)
-
+    flag =models.BooleanField(verbose_name=_('is flagged'), default=False)
     objects = TranslatedProblemForeignKeyQuerySet.as_manager()
 
     @classmethod
@@ -226,11 +226,13 @@ class SubmissionTestCase(models.Model):
     feedback = models.CharField(max_length=50, verbose_name=_('judging feedback'), blank=True)
     extended_feedback = models.TextField(verbose_name=_('extended judging feedback'), blank=True)
     output = models.TextField(verbose_name=_('program output'), blank=True)
+    flag =models.BooleanField(verbose_name=_('is flagged'), default=False)
 
     @property
     def long_status(self):
         return Submission.USER_DISPLAY_CODES.get(self.status, '')
 
+        
     class Meta:
         unique_together = ('submission', 'case')
         verbose_name = _('submission test case')
