@@ -21,13 +21,16 @@ def problem_directory_file(data, filename):
 
 CHECKERS = (
     ('standard', _('Standard')),
-    ('floats', _('Floats')),
-    ('floatsabs', _('Floats (absolute)')),
-    ('floatsrel', _('Floats (relative)')),
-    ('rstripped', _('Non-trailing spaces')),
-    ('sorted', _('Unordered')),
+    ('sorted', _('ffffffffffffffffffffffffffffffffffffffffff')),
     ('identical', _('Byte identical')),
     ('linecount', _('Line-by-line')),
+)
+
+CASEFORMAT = (
+    ('standard', _('Estàndard/fixe')),
+    ('stop', _('STOP al final')),
+    ('multicas', _('Linies per cada cas')),
+    ('indiv', _('Casos individuals')),
 )
 
 
@@ -38,10 +41,11 @@ class ProblemData(models.Model):
                                upload_to=problem_directory_file)
     generator = models.FileField(verbose_name=_('generator file'), storage=problem_data_storage, null=True, blank=True,
                                  upload_to=problem_directory_file)
-    output_prefix = models.IntegerField(verbose_name=_('output prefix length'), blank=True, null=True)
+    output_prefix = models.IntegerField(verbose_name=_('prefix length'), blank=True, null=True)
     output_limit = models.IntegerField(verbose_name=_('output limit length'), blank=True, null=True)
     feedback = models.TextField(verbose_name=_('init.yml generation feedback'), blank=True)
     checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, blank=True)
+    caseformat = models.CharField(max_length=10, verbose_name=_('case format'), choices=CASEFORMAT, default=CASEFORMAT[0][0])
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
 

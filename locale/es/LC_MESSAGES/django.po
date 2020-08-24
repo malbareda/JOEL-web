@@ -156,8 +156,8 @@ msgstr "Justicia"
 #, python-format
 msgid "%d contest successfully marked as visible."
 msgid_plural "%d contests successfully marked as visible."
-msgstr[0] "El concurso ha sido hecho visible con éxito"
-msgstr[1] "Los concursos han sido hechos visibles con éxito"
+msgstr[0] "El concurso  %d ha sido hecho visible con éxito"
+msgstr[1] "Los concursos %d han sido hechos visibles con éxito"
 
 #: judge/admin/contest.py:161
 msgid "Mark contests as visible"
@@ -167,8 +167,8 @@ msgstr "Marcar concursos como visibles"
 #, python-format
 msgid "%d contest successfully marked as hidden."
 msgid_plural "%d contests successfully marked as hidden."
-msgstr[0] "El concurso ha sido hecho invisible con éxito"
-msgstr[1] "Los concursos han sido hechos invisibles con éxito"
+msgstr[0] "El concurso %d ha sido hecho invisible con éxito"
+msgstr[1] "Los concursos %d han sido hechos invisibles con éxito"
 
 #: judge/admin/contest.py:168
 msgid "Mark contests as hidden"
