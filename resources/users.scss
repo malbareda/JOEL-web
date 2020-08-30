@@ -35,8 +35,12 @@ th.header.rank {
 }
 
 #users-table {
+    .flag{
+        text-align:center;
+    }
+
     .username {
-        width: 60%;
+        width: 35%;
     }
 
     .header {
@@ -46,6 +50,8 @@ th.header.rank {
     .rank, .points, .problems, .username {
         white-space: nowrap;
     }
+
+    
 
     tr {
         transition: background-color linear .2s;

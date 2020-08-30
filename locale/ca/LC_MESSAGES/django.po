@@ -5128,3 +5128,78 @@ msgstr "Perfil d'Admin"
 msgid "Check all"
 msgstr "Comprova-ho tot"
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########Especifics JOEL
+
+#templates/user/base-table.html
+msgid "Flag"
+msgstr "Bandera"
+
+#templates/submission/status-testcases
+msgid "Wrong Answers"
+msgstr "Casos Fallits"
+
+msgid "You have a Wrong Answer in Input"
+msgstr "Et falla un cas amb l'Input:"
+
+msgid "Help!"
+msgstr "Ajuda!"
+
+msgid "HELP"
+msgstr "AJUDA"
+
+msgid "Si demanes ajuda es mostrara un cas de prova que hagis fallat. Només podràs fer això un cop per problema. Un cop hagis demanat ajuda no podràs tornar-ho a fer per cap altre enviament. Estàs segur?"
+msgstr "Si demanes ajuda es mostrara un cas de prova que hagis fallat. Només podràs fer això un cop per problema. Un cop hagis demanat ajuda no podràs tornar-ho a fer per cap altre enviament. Estàs segur?"
+
+#models/problem_data.py
+msgid "Linea a Linea (només profes)"
+msgstr "Linea a Linea (només profes)"
+
+msgid "Format del Cas de Proves"
+msgstr "Format del Cas de Proves"
+
+msgid "Programame-like"
+msgstr "Programame-like"
+
+msgid "Estàndard/fixe"
+msgstr "Estàndard/fixe"
+
+msgid "STOP al final"
+msgstr "STOP al final"
+
+msgid "Linies per cada cas"
+msgstr "Linies per cada cas"
+
+msgid "Casos individuals"
+msgstr "Casos individuals"
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -182,6 +182,17 @@ class Problem(models.Model):
             (user.profile.id in self.editor_ids or
                 self.is_organization_private and self.organizations.filter(admins=user.profile).exists())
 
+    def is_evaluable_by(self, user):
+        #checks whether an user can see the extended feedback answers
+        if not user.is_authenticated:
+            return False
+        if user.has_perm('judge.edit_all_problem') or user.has_perm('judge.edit_public_problem') and self.is_public:
+            return True
+        if user.has_perm('judge.edit_own_problem') and (user.profile.id in self.editor_ids or self.is_organization_private and self.organizations.filter(admins=user.profile).exists()):
+            return True
+        return user.has_perm('judge.see_extended_answers')  
+        
+
     def is_accessible_by(self, user, skip_contest_problem_check=False):
         # Problem is public.
         if self.is_public:
@@ -411,6 +422,7 @@ class Problem(models.Model):
             ('see_private_problem', _('See hidden problems')),
             ('edit_own_problem', _('Edit own problems')),
             ('edit_all_problem', _('Edit all problems')),
+            ('see_extended_answers', _('Veure Informació per a Profes (Profe)')),
             ('edit_public_problem', _('Edit all public problems')),
             ('problem_full_markup', _('Edit problems with full markup')),
             ('clone_problem', _('Clone problem')),

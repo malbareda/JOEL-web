@@ -21,8 +21,9 @@ def problem_directory_file(data, filename):
 
 CHECKERS = (
     ('standard', _('Standard')),
-    ('sorted', _('ffffffffffffffffffffffffffffffffffffffffff')),
-    ('identical', _('Byte identical')),
+    ('rstripped', _('Compara contra fitxer')),
+    ('sorted', _('Linea a Linea (només profes)')),
+    ('identical', _('Programame-like')),
     ('linecount', _('Line-by-line')),
 )
 
@@ -45,7 +46,7 @@ class ProblemData(models.Model):
     output_limit = models.IntegerField(verbose_name=_('output limit length'), blank=True, null=True)
     feedback = models.TextField(verbose_name=_('init.yml generation feedback'), blank=True)
     checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, blank=True)
-    caseformat = models.CharField(max_length=10, verbose_name=_('case format'), choices=CASEFORMAT, default=CASEFORMAT[0][0])
+    caseformat = models.CharField(max_length=10, verbose_name=_('Format del Cas de Proves'), choices=CASEFORMAT, default=CASEFORMAT[0][0])
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
 

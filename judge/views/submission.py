@@ -191,7 +191,7 @@ def flag_submission(request,case):
     #raise Exception("asdas")
     subm = testcase.submission
     qset = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True)
-    if not qset:
+    if qset.count() < 3:
         subm.flag = True
         testcase.flag = True
         subm.save()

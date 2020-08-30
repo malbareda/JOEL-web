@@ -1,0 +1,9 @@
+archive: a.zip
+symlinks: {
+ out: /outputfiles/
+} 
+checker: rstripped
+test_cases:
+- in: a.1.in
+  out: a.1.out
+  points: 2

@@ -1,0 +1,6 @@
+archive: p40-2F.zip
+checker: linecount
+test_cases:
+- in: data/secret/1.in
+  out: data/secret/1.ans
+  points: 3

@@ -1,0 +1,9 @@
+archive: p92-1N.zip
+checker: linecount
+test_cases:
+- in: data/secret/1.in
+  out: data/secret/1.ans
+  points: 2
+- in: data/secret/2.in
+  out: data/secret/2.ans
+  points: 2
