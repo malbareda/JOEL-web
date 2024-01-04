@@ -1,6 +1,7 @@
 import itertools
 import json
 import os
+import random
 from datetime import datetime
 from operator import attrgetter, itemgetter
 
@@ -28,7 +29,7 @@ from django.views.generic import DetailView, FormView, ListView, TemplateView, V
 from reversion import revisions
 
 from judge.forms import CustomAuthenticationForm, DownloadDataForm, ProfileForm, newsletter_id
-from judge.models import Profile, Rating, Submission
+from judge.models import Profile, Rating, Submission, Achievement, AchievementObtained
 from judge.performance_points import get_pp_breakdown
 from judge.ratings import rating_class, rating_progress
 from judge.tasks import prepare_user_data
@@ -41,7 +42,7 @@ from judge.utils.unicode import utf8text
 from judge.utils.views import DiggPaginatorMixin, QueryStringSortMixin, TitleMixin, add_file_response, generic_message
 from .contests import ContestRanking
 
-__all__ = ['UserPage', 'UserAboutPage', 'UserProblemsPage', 'UserDownloadData', 'UserPrepareData',
+__all__ = ['GachaMain', 'GachaGo', 'UserPage', 'UserAboutPage', 'UserProblemsPage', 'UserDownloadData', 'UserPrepareData',
            'users', 'edit_profile']
 
 
@@ -57,6 +58,240 @@ class UserMixin(object):
 
     def render_to_response(self, context, **response_kwargs):
         return super(UserMixin, self).render_to_response(context, **response_kwargs)
+
+
+class GachaMain(TitleMixin, UserMixin, DetailView):
+    template_name = 'gacha/gachamain.html'
+
+    def get_object(self, queryset=None):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            return self.request.profile
+        return super(GachaMain, self).get_object(queryset)
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            if not self.request.user.is_authenticated:
+                return redirect_to_login(self.request.get_full_path())
+        try:
+            return super(GachaMain, self).dispatch(request, *args, **kwargs)
+        except Http404:
+            return generic_message(request, _('No such user'), _('No user handle "%s".') %
+                                   self.kwargs.get(self.slug_url_kwarg, None))
+
+    def get_title(self):
+        return (_('Gacha for %s') % self.object.user.username)
+
+    # TODO: the same code exists in problem.py, maybe move to problems.py?
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+
+    @cached_property
+    def in_contest(self):
+        return self.profile is not None and self.profile.current_contest is not None
+
+    def get_completed_problems(self):
+        if self.in_contest:
+            return contest_completed_ids(self.profile.current_contest)
+        else:
+            return user_completed_ids(self.profile) if self.profile is not None else ()
+
+    def get_context_data(self, **kwargs):
+        context = super(GachaMain, self).get_context_data(**kwargs)
+
+        context['hide_solved'] = int(self.hide_solved)
+        context['authored'] = self.object.authored_problems.filter(is_public=True, is_organization_private=False) \
+                                  .order_by('code')
+        rating = self.object.ratings.order_by('-contest__end_time')[:1]
+        context['rating'] = rating[0] if rating else None
+
+        context['rank'] = Profile.objects.filter(
+            is_unlisted=False, performance_points__gt=self.object.performance_points,
+        ).count() + 1
+
+        if rating:
+            context['rating_rank'] = Profile.objects.filter(
+                is_unlisted=False, rating__gt=self.object.rating,
+            ).count() + 1
+            context['rated_users'] = Profile.objects.filter(is_unlisted=False, rating__isnull=False).count()
+        context.update(self.object.ratings.aggregate(min_rating=Min('rating'), max_rating=Max('rating'),
+                                                     contests=Count('contest')))
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.hide_solved = request.GET.get('hide_solved') == '1' if 'hide_solved' in request.GET else False
+        return super(GachaMain, self).get(request, *args, **kwargs)
+
+
+class GachaGo(TitleMixin, UserMixin, DetailView):
+    template_name = 'gacha/gachago.html'
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return self.gacha_roll(request)
+
+    def gacha_roll(self, request):
+        profile = request.profile
+
+
+        gpoints = profile.points - profile.gacha_points
+        if gpoints < 5:
+            return generic_message(request, _('You don\'t have enough points'), _('You need 5 GachaPoints in order to make a gacha roll'))
+        profile.gacha_points+=5
+        rand = random.random()
+        if rand <0.65:
+            items = Achievement.objects.filter(quality=1)
+        elif rand<0.85:
+            items = Achievement.objects.filter(quality=2)
+        elif rand<0.95:
+            items = Achievement.objects.filter(quality=3)
+        else:
+            items = Achievement.objects.filter(quality=4)
+
+
+        pesos = []
+        for individualItem in items:
+            pesos.append(individualItem.rarity)
+
+
+        selach = random.choices(items,pesos)[0]
+ #       selach = random.choice(items)
+
+        #TREURE EL FILTRE EL IF I L'ELSE.
+        repetits = AchievementObtained.objects.filter(achievement=selach , user=profile)
+        #repetits = []
+        repetit = 0
+
+        #cosa= str(repetits)+" "+str(repetits.count())+" "+str(items.count())
+        #return HttpResponse(str(cosa))
+
+        
+        achobt = AchievementObtained()
+        achobt.achievement = selach
+        achobt.user = profile
+        achobt.save()	
+        
+            
+
+        if selach.category==-1:
+            moregp = int(selach.name.split()[0])
+            profile.gacha_points-=moregp
+        elif repetits.count() > 1:
+            profile.gacha_points-=2.5
+            repetit = 1
+
+        profile.save()
+        
+
+
+        
+
+        '''
+        profile.current_contest = participation
+        profile.save()
+        contest._updating_stats_only = True
+        contest.update_user_count()
+        '''
+        gachaArg = ""+str(achobt.id)+"-"+str(repetit)
+        return HttpResponseRedirect(reverse('gacha_result', kwargs={'result':achobt.id,'repe':repetit}))
+
+    def get_object(self, queryset=None):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            return self.request.profile
+        return super(GachaGo, self).get_object(queryset)
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            if not self.request.user.is_authenticated:
+                return redirect_to_login(self.request.get_full_path())
+        try:
+            return super(GachaGo, self).dispatch(request, *args, **kwargs)
+        except Http404:
+            return generic_message(request, _('No such user'), _('No user handle "%s".') %
+                                   self.kwargs.get(self.slug_url_kwarg, None))
+
+    def get_title(self):
+        return (_('My account') if self.request.user == self.object.user else
+                _('User %s') % self.object.user.username)
+
+    # TODO: the same code exists in problem.py, maybe move to problems.py?
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+
+    @cached_property
+    def in_contest(self):
+        return self.profile is not None and self.profile.current_contest is not None
+
+    def get_context_data(self, **kwargs):
+        context = super(GachaGo, self).get_context_data(**kwargs)
+
+        context['hide_solved'] = int(self.hide_solved)
+
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.hide_solved = request.GET.get('hide_solved') == '1' if 'hide_solved' in request.GET else False
+        return super(GachaGo, self).get(request, *args, **kwargs)
+
+class GachaResult(TitleMixin, UserMixin, DetailView):
+    template_name = 'gacha/gacharesult.html'
+
+
+    def get_object(self, queryset=None):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            return self.request.profile
+        return super(GachaResult, self).get_object(queryset)
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.kwargs.get(self.slug_url_kwarg, None) is None:
+            if not self.request.user.is_authenticated:
+                return redirect_to_login(self.request.get_full_path())
+        try:
+            return super(GachaResult, self).dispatch(request, *args, **kwargs)
+        except Http404:
+            return generic_message(request, _('No such user'), _('No user handle "%s".') %
+                                   self.kwargs.get(self.slug_url_kwarg, None))
+
+    def get_title(self):
+        return (_('Gacha Result'))
+
+    # TODO: the same code exists in problem.py, maybe move to problems.py?
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+
+    @cached_property
+    def in_contest(self):
+        return self.profile is not None and self.profile.current_contest is not None
+
+    def get_context_data(self, **kwargs):
+        context = super(GachaResult, self).get_context_data(**kwargs)
+
+        achid = self.kwargs['result']
+        ach = AchievementObtained.objects.get(id=int(achid))
+        repetit = int(self.kwargs['repe'])
+
+        context['achname'] = ach.achievement.name
+        context['achpic'] = ach.achievement.logo_override_image
+        context['achid'] = achid
+        context['achcat'] = ach.achievement.category
+        context['achq'] = ach.achievement.quality
+        context['achdesc'] = ach.achievement.desc
+        context['repetit'] = repetit
+
+        return context
+
+    def get(self, request, *args, **kwargs):
+
+        return super(GachaResult, self).get(request, *args, **kwargs)
+
 
 
 class UserPage(TitleMixin, UserMixin, DetailView):
@@ -172,6 +407,8 @@ class UserAboutPage(UserPage):
             'class': rating_class(rating.rating),
             'height': '%.3fem' % rating_progress(rating.rating),
         } for rating in ratings]))
+
+        context['stickers'] = self.object.achievements.filter(category=1).order_by('name').distinct()
 
         if ratings:
             user_data = self.object.ratings.aggregate(Min('rating'), Max('rating'))
@@ -357,6 +594,12 @@ def edit_profile(request):
                     if subscription.subscribed != form.cleaned_data['newsletter']:
                         subscription.update(('unsubscribe', 'subscribe')[form.cleaned_data['newsletter']])
 
+            request.profile.preferred_icon = request.POST.get('icon')
+            request.profile.preferred_theme = request.POST.get('theme')
+            request.profile.preferred_font = request.POST.get('font')
+            request.profile.user_color = request.POST.get('color')
+            request.profile.save()
+
             perm = Permission.objects.get(codename='test_site', content_type=ContentType.objects.get_for_model(Profile))
             if form.cleaned_data['test_site']:
                 request.user.user_permissions.add(perm)
@@ -374,6 +617,7 @@ def edit_profile(request):
             else:
                 form.fields['newsletter'].initial = subscription.subscribed
         form.fields['test_site'].initial = request.user.has_perm('judge.test_site')
+        
 
     tzmap = settings.TIMEZONE_MAP
     return render(request, 'user/edit-profile.html', {
@@ -383,6 +627,11 @@ def edit_profile(request):
         'has_math_config': bool(settings.MATHOID_URL),
         'TIMEZONE_MAP': tzmap or 'http://momentjs.com/static/img/world.png',
         'TIMEZONE_BG': settings.TIMEZONE_BG if tzmap else '#4E7CAD',
+        'stickers': request.profile.achievements.filter(category=1).order_by('name').distinct(),
+        'icons': request.profile.achievements.filter(category=2).order_by('name').distinct(),
+        'colors': request.profile.achievements.filter(category=3).order_by('name').distinct(),
+        'themes': request.profile.achievements.filter(category=4).order_by('name').distinct(),
+        'fonts': request.profile.achievements.filter(category=5).order_by('name').distinct(),
     })
 
 
@@ -467,7 +716,7 @@ def users(request):
 
 def user_ranking_redirect(request):
     try:
-        username = request.GET['handle']
+        username = request.GET['search']
     except KeyError:
         raise Http404()
     user = get_object_or_404(Profile, user__username=username)

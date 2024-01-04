@@ -22,6 +22,9 @@
         <tr>
             <th style="width:85%">{{ _('Name') }}</th>
             <th>{{ _('Members') }}</th>
+	    <th>{{ _('Total Points') }}</th>
+        <th>{{ _('Total Problems') }}</th>
+        <th>{{ _('Average Points') }}</th>
         </tr>
         </thead>
         <tbody>
@@ -29,6 +32,9 @@
             <tr>
                 <td><a href="{{ org.get_absolute_url() }}">{{ org.name }}</a></td>
                 <td><a href="{{ org.get_users_url() }}">{{ org.member_count }}</a></td>
+		        <td><a href="{{ org.get_users_url() }}">{{org.orgPoints}}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{org.orgProblems}}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{org.orgAverage}}</a></td>
             </tr>
         {% endfor %}
         </tbody>

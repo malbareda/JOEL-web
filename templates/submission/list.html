@@ -82,6 +82,19 @@
                     placeholder: '{{ _('Filter by language...') }}',
                     matcher: idAndTextMatcher,
                 }).css({'visibility': 'visible'});
+
+                $('#username').select2({
+                    multiple: 1,
+                    placeholder: '{{ _('Filter by user name...') }}',
+                    matcher: idAndTextMatcher,
+                }).css({'visibility': 'visible'});
+
+                $('#equip').select2({
+                    multiple: 1,
+                    placeholder: '{{ _('Filter by Equip...') }}',
+                    matcher: idAndTextMatcher,
+                }).css({'visibility': 'visible'});
+
             });
 
             // Draw the statistics graph.
@@ -135,6 +148,9 @@
                 };
                 var language_filter = $.map($('select#language option[selected]'), _collect);
                 var status_filter = $.map($('select#status option[selected]'), _collect);
+                var username_filter = $.map($('select#username option[selected]'), _collect);
+                var equip_filter = $.map($('select#equip option[selected]'), _collect);
+
 
                 var table = $('#submissions-table');
                 var statistics = $("#statistics-table");
@@ -147,6 +163,12 @@
                         return;
                     if (status_filter.length && 'status' in message &&
                         status_filter.indexOf(message.status) == -1)
+                        return;
+                    if (username_filter.length && 'username' in message &&
+                        username_filter.indexOf(message.username) == -1)
+                        return;
+                    if (equip_filter.length && 'equip' in message &&
+                        equip_filter.indexOf(message.equip) == -1)
                         return;
 
                     var id = message.id;
@@ -272,7 +294,7 @@
                 width: 78%
             }
 
-            #status, #language {
+            #status, #language , #username, #equip{
                 visibility: hidden;
             }
         </style>
@@ -312,6 +334,7 @@
                             <div class="filter-form-group">
                                 <label for="status"><i>{{ _('Status') }}</i></label>
                                 <select id="status" name="status" multiple>
+                                
                                     {% for id, name in all_statuses %}
                                         <option {% if id in selected_statuses %}selected{% endif %}
                                                 value="{{ id }}">{{ name }}</option>
@@ -327,6 +350,25 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            <div class="filter-form-group">
+                                <label for="username"><i>{{ _('User Name') }}</i></label><br>
+                                <select id="username" name="username" multiple>
+                                    {% for code, name in all_usernames %}
+                                        <option {% if code in selected_usernames %}selected{% endif %}
+                                                value="{{ code }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="filter-form-group">
+                                <label for="equip"><i>{{ _('Equip') }}</i></label><br>
+                                <select id="equip" name="equip" multiple>
+                                    {% for code, name in all_equips %}
+                                        <option {% if code in selected_equips %}selected{% endif %}
+                                                value="{{ code }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
                             <div class="form-submit-group">
                                 <a id="go" onclick="form.submit()" class="button">{{ _('Go') }}</a>
                             </div>
@@ -351,9 +393,7 @@
         </div>
 
         <div id="content-left" class="submission">
-            <div class="ws-closed">
-                <a href="javascript:void(0)">{{ _('You were disconnected. Refresh to show latest updates.') }}</a>
-            </div>
+
 
             <div id="submissions-table">
                 {% set profile_id = request.profile.id if request.user.is_authenticated else 0 %}
@@ -370,7 +410,18 @@
             {% endif %}
         </div>
     </div>
+
+
+
+
+
+    
 {% endblock %}
+
+
+
+
+
 
 {% block bodyend %}
     {# Don't load MathJax from common-content! #}

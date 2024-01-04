@@ -41,7 +41,7 @@
         transition: background-color linear 0.2s;
 
         &:hover {
-            background: #eaeaea;
+            background: var(--background_gray); /*#eaeaea;*/
         }
     }
 }

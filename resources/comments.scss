@@ -7,11 +7,11 @@
 
 a {
     &.upvote-link, &.downvote-link {
-        color: black;
+        color: var(--text-black);
     }
 
     &.voted {
-        text-shadow: 0 0 4px black, 0 0 9px blue;
+        text-shadow: 0 0 4px var(--text-black), 0 0 9px blue;
     }
 }
 
@@ -34,7 +34,7 @@ a {
 }
 
 .comment-header {
-    color: rgba(1, 1, 1, 1);
+    color: var(--text-black);
     background: rgba(0, 0, 0, 0.1);
     padding: 5px 10px 5px 5px;
     margin-left: 30px;
@@ -95,8 +95,8 @@ a {
 .comment-box {
     border-radius: $widget_border_radius;
     padding: 5px 10px 10px 15px;
-    border: 1px solid $border_gray;
-    background: rgba(0, 0, 0, 0.01);
+    border: 1px solid var(--border_gray);
+    background: var(--background-white);
 }
 
 .comment {

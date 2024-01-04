@@ -20,6 +20,7 @@ def user_editable_ids(profile):
     return set(Problem.get_editable_problems(profile.user).values_list('id', flat=True))
 
 
+
 def contest_completed_ids(participation):
     key = 'contest_complete:%d' % participation.id
     result = cache.get(key)

@@ -14,7 +14,7 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 from django_ace import AceWidget
-from judge.models import Contest, Language, Organization, PrivateMessage, Problem, Profile, Submission, \
+from judge.models import Contest, Language, Organization, PrivateMessage, Problem, Profile, Submission, ProblemTask, \
     WebAuthnCredential
 from judge.utils.subscription import newsletter_id
 from judge.widgets import HeavyPreviewPageDownWidget, MathJaxPagedownWidget, PagedownWidget, Select2MultipleWidget, \
@@ -261,6 +261,16 @@ class ProblemCloneForm(Form):
         code = self.cleaned_data['code']
         if Problem.objects.filter(code=code).exists():
             raise ValidationError(_('Problem with code already exists.'))
+        return code
+
+
+class TaskCloneForm(Form):
+    code = CharField(max_length=20, validators=[RegexValidator('^[a-z0-9]+$', _('Task code must be ^[a-z0-9]+$'))])
+
+    def clean_code(self):
+        code = self.cleaned_data['code']
+        if ProblemTask.objects.filter(name=code).exists():
+            raise ValidationError(_('Task with code already exists.'))
         return code
 
 

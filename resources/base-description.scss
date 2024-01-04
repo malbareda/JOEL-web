@@ -3,7 +3,7 @@
 @mixin content-description {
     line-height: 1.5em;
     font-size: 1em;
-    font-family: "Segoe UI", "Lucida Grande", Arial, sans-serif;
+    font-family: var(--global-font-family);
 
     p {
         margin: 1em 0 !important;
@@ -17,7 +17,7 @@
 
     h1, h2, h3, h4, h5, h6 {
         font-weight: normal;
-        color: #111;
+        color: var(--global-text);
         margin-bottom: 0.75em;
         padding: 0;
         background: 0;
@@ -70,13 +70,13 @@
         height: 0;
         border: 0;
         font-style: italic;
-        border-bottom: 1px solid $border_gray;
+        border-bottom: 1px solid var(--border_gray);
         margin: 25px 0 20px 0;
         padding: 0;
     }
 
     pre, code, kbd, samp, span.code {
-        color: #000;
+        color: var(--text-black);
         page-break-inside: avoid;
         font-family: $monospace-fonts;
         font-size: 0.98em;
@@ -86,8 +86,8 @@
         font-family: $monospace-fonts !important;
         margin: 0 2px;
         padding: 0 5px;
-        border: 1px solid $border_gray;
-        background-color: #f8f8f8;
+        border: 1px solid var(--border_gray);
+        background-color: var(--background_light_gray);
         border-radius: $widget_border_radius;
         font-size: 0.95em;
         color: #444;
@@ -101,16 +101,16 @@
             padding: 0;
             background: transparent;
             font-size: 1em;
-            color: black;
+            color: var(--text-black);
         }
 
         white-space: pre-wrap;
         word-wrap: break-word;
         margin: 1.5em 0 1.5em 0;
         padding: 1em;
-        border: 1px solid $border_gray;
-        background-color: #f8f8f8;
-        color: black;
+        border: 1px solid var(--border_gray);
+        background-color: var(--background_light_gray);
+        color: var(--text-black);
         border-radius: $widget_border_radius;
     }
 
@@ -124,13 +124,13 @@
 
     ins {
         background: #ff9;
-        color: #000;
+        color: var(--text-black);
         text-decoration: none;
     }
 
     mark {
         background: #ff0;
-        color: #000;
+        color: var(--text-black);
         font-style: italic;
         font-weight: bold;
     }

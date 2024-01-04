@@ -4,7 +4,7 @@
     display: block;
 
     .version {
-        font-family: $monospace-fonts;
+        font-family: var(--global-font-family);
     }
 
     .version-blank {

@@ -24,10 +24,12 @@ from django.views.generic import ListView, View
 from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.detail import SingleObjectMixin
 
+from django.contrib.auth.models import User
+
 from judge.comments import CommentedDetailView
-from judge.forms import ProblemCloneForm, ProblemSubmitForm
-from judge.models import ContestSubmission, Judge, Language, Problem, ProblemGroup, \
-    ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, SubmissionSource, \
+from judge.forms import ProblemCloneForm, ProblemSubmitForm, TaskCloneForm
+from judge.models import ContestSubmission, Judge, Language, Problem, ProblemGroup, ProblemTask, \
+    ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, SubmissionSource, Profile, Organization, \
     TranslatedProblemForeignKeyQuerySet
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
@@ -49,6 +51,28 @@ def get_contest_problem(problem, profile):
 def get_contest_submission_count(problem, profile, virtual):
     return profile.current_contest.submissions.exclude(submission__status__in=['IE']) \
                   .filter(problem__problem=problem, participation__virtual=virtual).count()
+
+
+class TaskMixin(object):
+    model = ProblemTask
+    slug_url_kwarg = 'task'
+    slug_field = 'name'
+
+    def get_object(self, queryset=None):
+        problem = super(TaskMixin, self).get_object(queryset)
+        return problem
+
+    def no_such_problem(self):
+        code = self.kwargs.get(self.slug_url_kwarg, None)
+        return generic_message(self.request, _('No such task'),
+                               _('Could not find a task with the code "%s".') % code, status=404)
+
+    def get(self, request, *args, **kwargs):
+        try:
+            return super(TaskMixin, self).get(request, *args, **kwargs)
+        except Http404:
+            return self.no_such_problem()
+
 
 
 class ProblemMixin(object):
@@ -157,6 +181,25 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
     def get_comment_page(self):
         return 'p:%s' % self.object.code
 
+    def get_completed_problems(self):
+        if self.in_contest:
+            return contest_completed_ids(self.profile.current_contest)
+        else:
+            return user_completed_ids(self.profile) if self.profile is not None else ()
+
+    def get_user_completed_problems(self, user):
+        if self.in_contest:
+            return contest_completed_ids(user.current_contest)
+        else:
+            return user_completed_ids(user) if user is not None else ()
+
+    def get_user_attempted_problems(self, user):
+        if self.in_contest:
+            return contest_attempted_ids(user.current_contest)
+        else:
+            return user_attempted_ids(user) if user is not None else ()
+
+
     def get_context_data(self, **kwargs):
         context = super(ProblemDetail, self).get_context_data(**kwargs)
         user = self.request.user
@@ -181,6 +224,9 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
         context['has_pdf_render'] = HAS_PDF
         context['completed_problem_ids'] = self.get_completed_problems()
         context['attempted_problems'] = self.get_attempted_problems()
+        context['all_users'] = Profile.objects.all()
+        context['tasks'] = ProblemTask.objects.all()
+
 
         can_edit = self.object.is_editable_by(user)
         context['can_edit_problem'] = can_edit
@@ -213,6 +259,201 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
                                           context['description'], 'problem')
         context['meta_description'] = self.object.summary or metadata[0]
         context['og_image'] = self.object.og_image or metadata[1]
+        return context
+
+class TaskDetail(TaskMixin, SolvedProblemMixin, CommentedDetailView):
+    context_object_name = 'thistask'
+    template_name = 'problem/task.html'
+
+    def get_comment_page(self):
+        return 'p:%s' % self.object.name
+
+
+
+    def get_completed_problems(self):
+        if self.in_contest:
+            return contest_completed_ids(self.profile.current_contest)
+        else:
+            return user_completed_ids(self.profile) if self.profile is not None else ()
+
+    def get_attempted_problems(self):
+        return user_attempted_ids(self.profile) if self.profile is not None else ()
+
+    def get_context_data(self, **kwargs):
+        context = super(TaskDetail, self).get_context_data(**kwargs)
+        user = self.request.user
+        authed = user.is_authenticated
+        context['title'] = self.object.full_name
+        context['taskname'] = self.object.full_name
+        context['all_users'] = Profile.objects.all()
+        context['tasks'] = ProblemTask.objects.all()
+        context['completed_problem_ids'] = self.get_completed_problems()
+        context['attempted_problems'] = self.get_attempted_problems()
+        return context
+
+
+
+
+class SolveStatus(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
+    context_object_name = 'problem'
+    template_name = 'problem/solvestatus.html'
+
+    def get_title(self):
+        return _('Solve status for {0}').format(self.object.name)
+
+    def get_content_title(self):
+        return format_html(_(u'Solve status for <a href="{1}">{0}</a>'), self.object.name,
+                           reverse('problem_detail', args=[self.object.code]))
+
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+        
+    def get_comment_page(self):
+        return 'p:%s' % self.object.code
+
+    def get_completed_problems(self):
+        if self.in_contest:
+            return contest_completed_ids(self.profile.current_contest)
+        else:
+            return user_completed_ids(self.profile) if self.profile is not None else ()
+
+    def get_user_completed_problems(self, user):
+        if self.in_contest:
+            return contest_completed_ids(user.current_contest)
+        else:
+            return user_completed_ids(user) if user is not None else ()
+
+    def get_user_attempted_problems(self, user):
+        if self.in_contest:
+            return contest_attempted_ids(user.current_contest)
+        else:
+            return user_attempted_ids(user) if user is not None else ()
+
+
+    def get_context_data(self, **kwargs):
+        context = super(SolveStatus, self).get_context_data(**kwargs)
+        user = self.request.user
+        authed = user.is_authenticated
+        context['has_submissions'] = authed and Submission.objects.filter(user=user.profile,
+                                                                          problem=self.object).exists()
+        contest_problem = (None if not authed or user.profile.current_contest is None else
+                           get_contest_problem(self.object, user.profile))
+        context['contest_problem'] = contest_problem
+        if contest_problem:
+            clarifications = self.object.clarifications
+            context['has_clarifications'] = clarifications.count() > 0
+            context['clarifications'] = clarifications.order_by('-date')
+            context['submission_limit'] = contest_problem.max_submissions
+            if contest_problem.max_submissions:
+                context['submissions_left'] = max(contest_problem.max_submissions -
+                                                  get_contest_submission_count(self.object, user.profile,
+                                                                               user.profile.current_contest.virtual), 0)
+
+        context['available_judges'] = Judge.objects.filter(online=True, problems=self.object)
+        context['show_languages'] = self.object.allowed_languages.count() != Language.objects.count()
+        context['has_pdf_render'] = HAS_PDF
+        context['completed_problem_ids'] = self.get_completed_problems()
+        context['attempted_problems'] = self.get_attempted_problems()
+        context['all_users'] = Profile.objects.all()
+        context['orgs'] = Organization.objects.all()
+
+
+        can_edit = self.object.is_editable_by(user)
+        context['can_edit_problem'] = can_edit
+        if user.is_authenticated:
+            tickets = self.object.tickets
+            if not can_edit:
+                tickets = tickets.filter(own_ticket_filter(user.profile.id))
+            context['has_tickets'] = tickets.exists()
+            context['num_open_tickets'] = tickets.filter(is_open=True).values('id').distinct().count()
+
+        try:
+            context['editorial'] = Solution.objects.get(problem=self.object)
+        except ObjectDoesNotExist:
+            pass
+        try:
+            translation = self.object.translations.get(language=self.request.LANGUAGE_CODE)
+        except ProblemTranslation.DoesNotExist:
+            context['title'] = self.get_content_title()
+            context['language'] = settings.LANGUAGE_CODE
+            context['description'] = self.object.description
+            context['translated'] = False
+        else:
+            context['title'] = self.get_content_title()
+            context['language'] = self.request.LANGUAGE_CODE
+            context['description'] = translation.description
+            context['translated'] = True
+
+        if not self.object.og_image or not self.object.summary:
+            metadata = generate_opengraph('generated-meta-problem:%s:%d' % (context['language'], self.object.id),
+                                          context['description'], 'problem')
+        context['meta_description'] = self.object.summary or metadata[0]
+        context['og_image'] = self.object.og_image or metadata[1]
+        return context
+
+
+
+class TaskSolveStatus(TaskMixin, SolvedProblemMixin, CommentedDetailView):
+    context_object_name = 'thistask'
+    template_name = 'problem/tasksolvestatus.html'
+
+    def get_title(self):
+        return _('Solve status for {0}').format(self.object.full_name)
+
+    def get_content_title(self):
+        return format_html(_(u'Solve status for <a href="{1}">{0}</a>'), self.object.full_name,
+                           reverse('problem_detail', args=[self.object.name]))
+    
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+        
+    def get_comment_page(self):
+        return 'p:%s' % self.object.name
+
+    def get_completed_problems(self):
+        if self.in_contest:
+            return contest_completed_ids(self.profile.current_contest)
+        else:
+            return user_completed_ids(self.profile) if self.profile is not None else ()
+
+    def get_user_completed_problems(self, user):
+        if self.in_contest:
+            return contest_completed_ids(user.current_contest)
+        else:
+            return user_completed_ids(user) if user is not None else ()
+
+    def get_user_attempted_problems(self, user):
+        if self.in_contest:
+            return contest_attempted_ids(user.current_contest)
+        else:
+            return user_attempted_ids(user) if user is not None else ()
+
+    def get_percent_completed_problems(self, user):
+        total = 0
+        cont = 0
+        for prob in self.object.problems.all():
+            total += 1
+            if prob.id in user_completed_ids(user):
+                cont+=1
+        print( user, int((cont*100)/total))
+        return int((cont*100)/total)
+
+    def get_context_data(self, **kwargs):
+        context = super(TaskSolveStatus, self).get_context_data(**kwargs)
+        user = self.request.user
+        authed = user.is_authenticated
+        
+        context['all_users'] = Profile.objects.all()
+        context['orgs'] = Organization.objects.all()
+        context['tasks'] = ProblemTask.objects.all()
+
+
         return context
 
 
@@ -276,6 +517,238 @@ class ProblemPdfView(ProblemMixin, SingleObjectMixin, View):
         response['Content-Type'] = 'application/pdf'
         response['Content-Disposition'] = 'inline; filename=%s.%s.pdf' % (problem.code, language)
         return response
+
+
+class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView, ProblemMixin):
+    model = Problem
+    context_object_name = 'problems'
+    template_name = 'organization/stats.html'
+    paginate_by = 500
+    sql_sort = frozenset(('points', 'ac_rate', 'user_count', 'code'))
+    manual_sort = frozenset(('name', 'group', 'solved', 'type'))
+    all_sorts = sql_sort | manual_sort
+    default_desc = frozenset(('points', 'ac_rate', 'user_count'))
+    default_sort = 'code'
+
+    def get_content_title(self, org):
+        return _('Stats for %s') % org.name
+
+    def get_user_completed_problems(self, user):
+        return user_completed_ids(user) if user is not None else ()
+
+    def get_user_attempted_problems(self, user):
+        return user_attempted_ids(user) if user is not None else ()
+            
+    def get_paginator(self, queryset, per_page, orphans=0,
+                      allow_empty_first_page=True, **kwargs):
+        paginator = DiggPaginator(queryset, per_page, body=6, padding=2, orphans=orphans,
+                                  allow_empty_first_page=allow_empty_first_page, **kwargs)
+        if not self.in_contest:
+            # Get the number of pages and then add in this magic.
+            # noinspection PyStatementEffect
+            paginator.num_pages
+
+            queryset = queryset.add_i18n_name(self.request.LANGUAGE_CODE)
+            sort_key = self.order.lstrip('-')
+            if sort_key in self.sql_sort:
+                queryset = queryset.order_by(self.order, 'id')
+            elif sort_key == 'name':
+                queryset = queryset.order_by(self.order.replace('name', 'i18n_name'), 'id')
+            elif sort_key == 'group':
+                queryset = queryset.order_by(self.order + '__name', 'id')
+            elif sort_key == 'solved':
+                if self.request.user.is_authenticated:
+                    profile = self.request.profile
+                    solved = user_completed_ids(profile)
+                    attempted = user_attempted_ids(profile)
+
+                    def _solved_sort_order(problem):
+                        if problem.id in solved:
+                            return 1
+                        if problem.id in attempted:
+                            return 0
+                        return -1
+
+                    queryset = list(queryset)
+                    queryset.sort(key=_solved_sort_order, reverse=self.order.startswith('-'))
+            elif sort_key == 'type':
+                if self.show_types:
+                    queryset = list(queryset)
+                    queryset.sort(key=lambda problem: problem.types_list[0] if problem.types_list else '',
+                                  reverse=self.order.startswith('-'))
+            paginator.object_list = queryset
+        return paginator
+
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+
+    def get_contest_queryset(self):
+        queryset = self.profile.current_contest.contest.contest_problems.select_related('problem__group') \
+            .defer('problem__description').order_by('problem__code') \
+            .annotate(user_count=Count('submission__participation', distinct=True)) \
+            .order_by('order')
+        queryset = TranslatedProblemForeignKeyQuerySet.add_problem_i18n_name(queryset, 'i18n_name',
+                                                                             self.request.LANGUAGE_CODE,
+                                                                             'problem__name')
+        return [{
+            'id': p['problem_id'],
+            'code': p['problem__code'],
+            'name': p['problem__name'],
+            'i18n_name': p['i18n_name'],
+            'group': {'full_name': p['problem__group__full_name']},
+            'points': p['points'],
+            'partial': p['partial'],
+            'user_count': p['user_count'],
+        } for p in queryset.values('problem_id', 'problem__code', 'problem__name', 'i18n_name',
+                                   'problem__group__full_name', 'points', 'partial', 'user_count')]
+
+    def get_normal_queryset(self):
+        filter = Q(is_public=True)
+        if self.profile is not None:
+            filter |= Q(authors=self.profile)
+            filter |= Q(curators=self.profile)
+            filter |= Q(testers=self.profile)
+        queryset = Problem.objects.filter(filter).select_related('group').defer('description', 'summary')
+        if not self.request.user.has_perm('see_organization_problem'):
+            filter = Q(is_organization_private=False)
+            if self.profile is not None:
+                filter |= Q(organizations__in=self.profile.organizations.all())
+            queryset = queryset.filter(filter)
+        if self.profile is not None and self.hide_solved:
+            queryset = queryset.exclude(id__in=Submission.objects.filter(user=self.profile, points=F('problem__points'))
+                                        .values_list('problem__id', flat=True))
+        if self.show_types:
+            queryset = queryset.prefetch_related('types')
+        if self.category is not None:
+            queryset = queryset.filter(group__id=self.category)
+        if self.task is not None:
+            queryset = queryset.filter(tasks_of_problem__id=self.task)
+        if self.selected_types:
+            queryset = queryset.filter(types__in=self.selected_types)
+        if 'search' in self.request.GET:
+            self.search_query = query = ' '.join(self.request.GET.getlist('search')).strip()
+            if query:
+                if settings.ENABLE_FTS and self.full_text:
+                    queryset = queryset.search(query, queryset.BOOLEAN).extra(order_by=['-relevance'])
+                else:
+                    queryset = queryset.filter(
+                        Q(code__icontains=query) | Q(name__icontains=query) |
+                        Q(translations__name__icontains=query, translations__language=self.request.LANGUAGE_CODE))
+        self.prepoint_queryset = queryset
+        if self.point_start is not None:
+            queryset = queryset.filter(points__gte=self.point_start)
+        if self.point_end is not None:
+            queryset = queryset.filter(points__lte=self.point_end)
+        return queryset.distinct()
+
+    def get_queryset(self):
+        if self.in_contest:
+            return self.get_contest_queryset()
+        else:
+            return self.get_normal_queryset()
+
+    def get_context_data(self, **kwargs):
+        context = super(ProblemsByOrganization, self).get_context_data(**kwargs)
+        org = Organization.objects.get(pk=self.kwargs.get('pk'))
+        context['hide_solved'] = 0 if self.in_contest else int(self.hide_solved)
+        context['show_types'] = 0 if self.in_contest else int(self.show_types)
+        context['full_text'] = 0 if self.in_contest else int(self.full_text)
+        context['category'] = self.category
+        context['task'] = self.task
+        context['categories'] = ProblemGroup.objects.all()
+        context['tasks'] = ProblemTask.objects.all()
+        if self.show_types:
+            context['selected_types'] = self.selected_types
+            context['problem_types'] = ProblemType.objects.all()
+        context['has_fts'] = settings.ENABLE_FTS
+        context['search_query'] = self.search_query
+        context['completed_problem_ids'] = self.get_completed_problems()
+        context['attempted_problems'] = self.get_attempted_problems()
+        context['title'] = self.get_content_title(org)
+        context['org'] = org
+
+        context.update(self.get_sort_paginate_context())
+        if not self.in_contest:
+            context.update(self.get_sort_context())
+            context['hot_problems'] = hot_problems(timedelta(days=1), settings.DMOJ_PROBLEM_HOT_PROBLEM_COUNT)
+            context['point_start'], context['point_end'], context['point_values'] = self.get_noui_slider_points()
+        else:
+            context['hot_problems'] = None
+            context['point_start'], context['point_end'], context['point_values'] = 0, 0, {}
+            context['hide_contest_scoreboard'] = self.contest.hide_scoreboard
+        return context
+
+    def get_noui_slider_points(self):
+        points = sorted(self.prepoint_queryset.values_list('points', flat=True).distinct())
+        if not points:
+            return 0, 0, {}
+        if len(points) == 1:
+            return points[0], points[0], {
+                'min': points[0] - 1,
+                'max': points[0] + 1,
+            }
+
+        start, end = points[0], points[-1]
+        if self.point_start is not None:
+            start = self.point_start
+        if self.point_end is not None:
+            end = self.point_end
+        points_map = {0.0: 'min', 1.0: 'max'}
+        size = len(points) - 1
+        return start, end, {points_map.get(i / size, '%.2f%%' % (100 * i / size,)): j for i, j in enumerate(points)}
+
+    def GET_with_session(self, request, key):
+        if not request.GET:
+            return request.session.get(key, False)
+        return request.GET.get(key, None) == '1'
+
+    def setup_problem_list(self, request):
+        self.hide_solved = self.GET_with_session(request, 'hide_solved')
+        #TODO MIRARSHO
+        self.show_types = True
+        self.full_text = self.GET_with_session(request, 'full_text')
+
+        self.search_query = None
+        self.category = None
+        self.task = None
+
+        self.selected_types = []
+
+        # This actually copies into the instance dictionary...
+        self.all_sorts = set(self.all_sorts)
+        if not self.show_types:
+            self.all_sorts.discard('type')
+
+        self.category = safe_int_or_none(request.GET.get('category'))
+        self.task = safe_int_or_none(request.GET.get('task'))
+
+
+        if 'type' in request.GET:
+            try:
+                self.selected_types = list(map(int, request.GET.getlist('type')))
+            except ValueError:
+                pass
+
+        self.point_start = safe_float_or_none(request.GET.get('point_start'))
+        self.point_end = safe_float_or_none(request.GET.get('point_end'))
+
+    def get(self, request, *args, **kwargs):
+        self.setup_problem_list(request)
+
+        try:
+            return super(ProblemsByOrganization, self).get(request, *args, **kwargs)
+        except ProgrammingError as e:
+            return generic_message(request, 'FTS syntax error', e.args[1], status=400)
+
+    def post(self, request, *args, **kwargs):
+        to_update = ('hide_solved', 'show_types', 'full_text')
+        for key in to_update:
+            if key in request.GET:
+                val = request
+
 
 
 class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
@@ -451,7 +924,8 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
 
     def setup_problem_list(self, request):
         self.hide_solved = self.GET_with_session(request, 'hide_solved')
-        self.show_types = self.GET_with_session(request, 'show_types')
+        #TODO MIRARSHO
+        self.show_types = True
         self.full_text = self.GET_with_session(request, 'full_text')
 
         self.search_query = None
@@ -491,6 +965,138 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
                 request.session.pop(key, None)
         return HttpResponseRedirect(request.get_full_path())
 
+
+class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
+    model = ProblemTask
+    title = gettext_lazy('Tasks')
+    context_object_name = 'tasks'
+    template_name = 'problem/tasklist.html'
+    paginate_by = 50
+    sql_sort = frozenset(('points', 'ac_rate', 'user_count', 'code'))
+    manual_sort = frozenset(('name', 'group', 'solved', 'type'))
+    all_sorts = sql_sort | manual_sort
+    default_desc = frozenset(('points', 'ac_rate', 'user_count'))
+    default_sort = 'code'
+
+    def get_paginator(self, queryset, per_page, orphans=0,
+                      allow_empty_first_page=True, **kwargs):
+        paginator = DiggPaginator(queryset, per_page, body=6, padding=2, orphans=orphans,
+                                  allow_empty_first_page=allow_empty_first_page, **kwargs)
+        #raise Exception("I want to know the value of this: " + str(queryset))
+        if not self.in_contest:
+            # Get the number of pages and then add in this magic.
+            # noinspection PyStatementEffect
+            paginator.num_pages
+
+            sort_key = self.order.lstrip('-')
+           
+            paginator.object_list = queryset
+        return paginator
+
+    @cached_property
+    def profile(self):
+        if not self.request.user.is_authenticated:
+            return None
+        return self.request.profile
+
+    def get_normal_queryset(self):
+        filter = Q(is_public=True)
+        if self.profile is not None:
+            filter |= Q(authors=self.profile)
+            filter |= Q(curators=self.profile)
+            filter |= Q(testers=self.profile)
+        queryset = ProblemTask.objects.all()
+        if self.selected_usernames:
+            #No es pot fer queryset per user, ha de ser per profile
+            #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
+            queryset = queryset.filter(authors__in=Profile.objects.filter(user__username__in=self.selected_usernames))
+        if self.selected_equips:
+            #No es pot fer queryset per user, ha de ser per profile
+            #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
+            queryset = queryset.filter(authors__organizations__in=Organization.objects.filter(name__in=self.selected_equips))
+        return queryset.distinct()
+
+    def get_queryset(self):
+        
+            return self.get_normal_queryset()
+
+    def get_context_data(self, **kwargs):
+        context = super(TaskList, self).get_context_data(**kwargs)
+        context['hide_solved'] = 0 if self.in_contest else int(self.hide_solved)
+        context['show_types'] = 0 if self.in_contest else int(self.show_types)
+        context['full_text'] = 0 if self.in_contest else int(self.full_text)
+        context['category'] = self.category
+        context['categories'] = ProblemGroup.objects.all()
+        if self.show_types:
+            context['selected_types'] = self.selected_types
+            context['problem_types'] = ProblemType.objects.all()
+        context['has_fts'] = settings.ENABLE_FTS
+        context['search_query'] = self.search_query
+        context['completed_problem_ids'] = self.get_completed_problems()
+        context['attempted_problems'] = self.get_attempted_problems()
+        context['alltasks'] = self.get_queryset()
+
+        #He d'accedir a User, no puc desde Profile. No m'agrada pero...
+        context['all_usernames'] = User.objects.all().values_list('username','username')
+        context['selected_usernames'] = self.selected_usernames
+
+        context['all_equips'] = Organization.objects.all().values_list('name','name')
+        context['selected_equips'] = self.selected_equips
+
+
+        context.update(self.get_sort_paginate_context())
+        return context
+
+  
+    def GET_with_session(self, request, key):
+        if not request.GET:
+            return request.session.get(key, False)
+        return request.GET.get(key, None) == '1'
+
+    def setup_problem_list(self, request):
+        self.hide_solved = self.GET_with_session(request, 'hide_solved')
+        #TODO MIRARSHO
+        self.show_types = True
+        self.full_text = self.GET_with_session(request, 'full_text')
+
+        self.search_query = None
+        self.category = None
+        self.selected_types = []
+
+        # This actually copies into the instance dictionary...
+        self.all_sorts = set(self.all_sorts)
+        if not self.show_types:
+            self.all_sorts.discard('type')
+
+        self.category = safe_int_or_none(request.GET.get('category'))
+        if 'type' in request.GET:
+            try:
+                self.selected_types = list(map(int, request.GET.getlist('type')))
+            except ValueError:
+                pass
+
+        self.point_start = safe_float_or_none(request.GET.get('point_start'))
+        self.point_end = safe_float_or_none(request.GET.get('point_end'))
+
+    def get(self, request, *args, **kwargs):
+        self.setup_problem_list(request)
+
+        self.selected_usernames = set(request.GET.getlist('username'))
+        self.selected_equips = set(request.GET.getlist('equip'))
+        try:
+            return super(TaskList, self).get(request, *args, **kwargs)
+        except ProgrammingError as e:
+            return generic_message(request, 'FTS syntax error', e.args[1], status=400)
+
+    def post(self, request, *args, **kwargs):
+        to_update = ('hide_solved', 'show_types', 'full_text')
+        for key in to_update:
+            if key in request.GET:
+                val = request.GET.get(key) == '1'
+                request.session[key] = val
+            else:
+                request.session.pop(key, None)
+        return HttpResponseRedirect(request.get_full_path())
 
 class LanguageTemplateAjax(View):
     def get(self, request, *args, **kwargs):
@@ -700,3 +1306,25 @@ class ProblemClone(ProblemMixin, PermissionRequiredMixin, TitleMixin, SingleObje
         problem.types.set(types)
 
         return HttpResponseRedirect(reverse('admin:judge_problem_change', args=(problem.id,)))
+
+
+class TaskClone(TaskMixin, PermissionRequiredMixin, TitleMixin, SingleObjectFormView):
+    title = _('Clone task')
+    template_name = 'problem/taskclone.html'
+    form_class = TaskCloneForm
+    permission_required = 'judge.clone_problem'
+
+    def form_valid(self, form):
+        task = self.object
+        newTask = ProblemTask()
+        newTask.name = form.cleaned_data['code']
+        newTask.full_name = task.full_name+" clon"
+        newTask.about = task.about
+        newTask.save()
+        
+        newTask.problems.set(task.problems.all())
+        newTask.authors.add(self.request.profile)
+        
+
+
+        return HttpResponseRedirect(reverse('admin:judge_problemtask_change', args=(newTask.id,)))

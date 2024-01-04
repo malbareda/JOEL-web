@@ -14,7 +14,7 @@ from judge.models.profile import Profile
 from judge.models.runtime import Language
 from judge.utils.unicode import utf8bytes
 
-__all__ = ['SUBMISSION_RESULT', 'Submission', 'SubmissionSource', 'SubmissionTestCase']
+__all__ = ['SUBMISSION_RESULT', 'Submission', 'SubmissionSource', 'SubmissionTestCase', 'SubmissionVote']
 
 SUBMISSION_RESULT = (
     ('AC', _('Accepted')),
@@ -209,6 +209,16 @@ class SubmissionSource(models.Model):
 
     def __str__(self):
         return 'Source of %s' % self.submission
+
+class SubmissionVote(models.Model):
+    voter = models.ForeignKey(Profile, related_name='voted_submissions', on_delete=models.CASCADE)
+    submission = models.ForeignKey(Submission, related_name='votes', on_delete=models.CASCADE)
+    score = models.IntegerField()
+
+    class Meta:
+        unique_together = ['voter', 'submission']
+        verbose_name = _('submission vote')
+        verbose_name_plural = _('submission votes')
 
 
 class SubmissionTestCase(models.Model):

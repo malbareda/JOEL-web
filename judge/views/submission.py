@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
 from django.db.models import Prefetch, Q
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
@@ -18,11 +18,14 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _, gettext_lazy
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 from django.views.generic import DetailView, ListView
+from django.contrib.auth.models import User
+
 
 from judge import event_poster as event
 from judge.highlight_code import highlight_code
-from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionTestCase
+from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionVote, SubmissionTestCase, Organization
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.problems import get_result_data, user_completed_ids, user_editable_ids, user_tester_ids
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
@@ -147,8 +150,17 @@ class SubmissionStatus(SubmissionDetailBase):
 
         sys.stderr.write("test\n")
         print("testestetetete")
+        print(submission.user.user.username)
+
         context['batches'], statuses = group_test_cases(submission.test_cases.all())
         context['statuses'] = combine_statuses(statuses, submission)
+        context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
+        voteyay = SubmissionVote.objects.filter(submission_id=submission.id, score=1).count()
+        voteyayp = SubmissionVote.objects.filter(submission_id=submission.id, score=10).count()
+        context['votesyay'] = voteyay+voteyayp*10
+        votenay = SubmissionVote.objects.filter(submission_id=submission.id, score=-1).count()
+        votenayp = SubmissionVote.objects.filter(submission_id=submission.id, score=-10).count()
+        context['votesnay'] = votenay+votenayp*10
 
         context['time_limit'] = submission.problem.time_limit
         try:
@@ -176,6 +188,48 @@ class SubmissionSourceRaw(SubmissionSource):
         return HttpResponse(submission.source.source, content_type='text/plain')
 
 
+@login_required
+def vote_submission(request, delta, submission) :
+    if abs(delta) != 1:
+        return HttpResponseBadRequest(_('Liant-la eh?'), content_type='text/plain')
+
+
+    if(request.profile.id!=Submission.objects.get(pk=submission).user.id):
+        if(request.user.has_perm('see_extended_answers')):
+            delta*=10
+        submission_id = submission
+        vote = SubmissionVote.objects.filter(submission_id=submission_id, voter=request.profile).first()
+        if vote is None:
+            vote = SubmissionVote()
+            vote.submission_id = submission_id
+            vote.voter = request.profile
+        elif vote.score != 0:
+            delta = 0    
+        vote.score = delta
+        vote.save()
+
+    return HttpResponseRedirect(reverse('submission_status', args=(submission,)))
+
+
+'''
+    try:
+        submission_id = int(request.POST['id'])
+    except ValueError:
+        return HttpResponseBadRequest()
+    else:
+        if not Submission.objects.filter(id=submission_id, hidden=False).exists():
+            raise Http404()
+'''
+
+def upvote_submission(request, submission):
+    return vote_submission(request, 1, submission)
+
+
+def downvote_submission(request, submission):
+    return vote_submission(request, -1, submission)
+
+
+
 @require_POST
 def abort_submission(request, submission):
     submission = get_object_or_404(Submission, id=int(submission))
@@ -190,8 +244,9 @@ def flag_submission(request,case):
     testcase = get_object_or_404(SubmissionTestCase, id=int(case)) 
     #raise Exception("asdas")
     subm = testcase.submission
+    allowedtips = subm.problem.data_files.allowed_tips
     qset = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True)
-    if qset.count() < 3:
+    if qset.count() < allowedtips and not subm.flag:
         subm.flag = True
         testcase.flag = True
         subm.save()
@@ -269,7 +324,15 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
             queryset = queryset.filter(language__in=Language.objects.filter(key__in=self.selected_languages))
         if self.selected_statuses:
             queryset = queryset.filter(result__in=self.selected_statuses)
-
+        if self.selected_usernames:
+            #No es pot fer queryset per user, ha de ser per profile
+            #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
+            queryset = queryset.filter(user__in=Profile.objects.filter(user__username__in=self.selected_usernames))
+        if self.selected_equips:
+            #No es pot fer queryset per user, ha de ser per profile
+            #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
+            queryset = queryset.filter(user__organizations__in=Organization.objects.filter(name__in=self.selected_equips))
+   
         return queryset
 
     def get_queryset(self):
@@ -306,6 +369,13 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
         context['all_statuses'] = self.get_searchable_status_codes()
         context['selected_statuses'] = self.selected_statuses
 
+        #He d'accedir a User, no puc desde Profile. No m'agrada pero...
+        context['all_usernames'] = User.objects.all().values_list('username','username')
+        context['selected_usernames'] = self.selected_usernames
+
+        context['all_equips'] = Organization.objects.all().values_list('name','name')
+        context['selected_equips'] = self.selected_equips
+
         context['results_json'] = mark_safe(json.dumps(self.get_result_data()))
         context['results_colors_json'] = mark_safe(json.dumps(settings.DMOJ_STATS_SUBMISSION_RESULT_COLORS))
 
@@ -323,6 +393,8 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
 
         self.selected_languages = set(request.GET.getlist('language'))
         self.selected_statuses = set(request.GET.getlist('status'))
+        self.selected_usernames = set(request.GET.getlist('username'))
+        self.selected_equips = set(request.GET.getlist('equip'))
 
         if 'results' in request.GET:
             return JsonResponse(self.get_result_data())
@@ -512,7 +584,7 @@ class AllSubmissions(InfinitePaginationMixin, SubmissionsListBase):
         return context
 
     def _get_result_data(self):
-        if self.in_contest or self.selected_languages or self.selected_statuses:
+        if self.in_contest or self.selected_languages or self.selected_statuses or self.selected_usernames:
             return super(AllSubmissions, self)._get_result_data()
 
         key = 'global_submission_result_data'

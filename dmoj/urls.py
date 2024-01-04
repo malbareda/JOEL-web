@@ -110,6 +110,19 @@ urlpatterns = [
     url(r'^problems/$', problem.ProblemList.as_view(), name='problem_list'),
     url(r'^problems/random/$', problem.RandomProblem.as_view(), name='problem_random'),
 
+    url(r'^tasks/$', problem.TaskList.as_view(), name='problem_tasks'),
+    url(r'^tasks/(?P<task>[^/]+)', include([
+        url(r'^$', problem.TaskDetail.as_view(), name='task_detail'),
+        url(r'^/solvestatus/', problem.TaskSolveStatus.as_view(), name='task_solve_status'),
+        url(r'^/clone', problem.TaskClone.as_view(), name='task_clone'),
+
+    ])),
+
+    url(r'^gacha/$', user.GachaMain.as_view(), name="gacha_main"),
+    url(r'^gacha/go/$', user.GachaGo.as_view(), name="gacha_go"),
+    url(r'^gacha/result/(?P<result>\d+)-(?P<repe>\d+)', user.GachaResult.as_view(), name="gacha_result"),
+
+
     url(r'^problem/(?P<problem>[^/]+)', include([
         url(r'^$', problem.ProblemDetail.as_view(), name='problem_detail'),
         url(r'^/editorial$', problem.ProblemSolution.as_view(), name='problem_editorial'),
@@ -119,8 +132,10 @@ urlpatterns = [
         url(r'^/clone', problem.ProblemClone.as_view(), name='problem_clone'),
         url(r'^/submit$', problem.ProblemSubmit.as_view(), name='problem_submit'),
         url(r'^/resubmit/(?P<submission>\d+)$', problem.ProblemSubmit.as_view(), name='problem_submit'),
+        url(r'^/solvestatus/', problem.SolveStatus.as_view(), name='solve_status'),
 
         url(r'^/rank/', paged_list_view(ranked_submission.RankedSubmissions, 'ranked_submissions')),
+        url(r'^/rankvote/', paged_list_view(ranked_submission.RankedVoteSubmissions, 'rankedvote_submissions')),
         url(r'^/submissions/', paged_list_view(submission.ProblemSubmissions, 'chronological_submissions')),
         url(r'^/submissions/(?P<user>\w+)/', paged_list_view(submission.UserProblemSubmissions, 'user_submissions')),
 
@@ -157,12 +172,14 @@ urlpatterns = [
     url(r'^submission/(?P<submission>\d+)', include([
         url(r'^$', submission.SubmissionStatus.as_view(), name='submission_status'),
         url(r'^/abort$', submission.abort_submission, name='submission_abort'),
+        url(r'^/upvote$', submission.upvote_submission, name='submission_upvote'),
+        url(r'^/downvote$', submission.downvote_submission, name='submission_downvote'),
     ])),
 
         url(r'^submission/flag/(?P<case>\d+)', include([
         url(r'^$', submission.flag_submission, name='submission_flag'),
-        url(r'^/abort$', submission.abort_submission, name='submission_abort'),
     ])),
+
 
     url(r'^users/', include([
         url(r'^$', user.users, name='user_list'),
@@ -170,7 +187,6 @@ urlpatterns = [
             HttpResponsePermanentRedirect('%s?page=%s' % (reverse('user_list'), page))),
         url(r'^find$', user.user_ranking_redirect, name='user_ranking_redirect'),
     ])),
-
     url(r'^user$', user.UserAboutPage.as_view(), name='user_page'),
     url(r'^edit/profile/$', user.edit_profile, name='user_edit_profile'),
     url(r'^data/prepare/$', user.UserPrepareData.as_view(), name='user_prepare_data'),
@@ -242,6 +258,7 @@ urlpatterns = [
         url(r'^/leave$', organization.LeaveOrganization.as_view(), name='leave_organization'),
         url(r'^/edit$', organization.EditOrganization.as_view(), name='edit_organization'),
         url(r'^/kick$', organization.KickUserWidgetView.as_view(), name='organization_user_kick'),
+        url(r'^/stats$', problem.ProblemsByOrganization.as_view(), name='problems_by_org'),
 
         url(r'^/request$', organization.RequestJoinOrganization.as_view(), name='request_organization'),
         url(r'^/request/(?P<rpk>\d+)$', organization.OrganizationRequestDetail.as_view(),
@@ -323,6 +340,7 @@ urlpatterns = [
             url(r'^solution$', preview.SolutionMarkdownPreviewView.as_view(), name='solution_preview'),
             url(r'^license$', preview.LicenseMarkdownPreviewView.as_view(), name='license_preview'),
             url(r'^ticket$', preview.TicketMarkdownPreviewView.as_view(), name='ticket_preview'),
+            url(r'^task$', preview.TaskMarkdownPreviewView.as_view(), name='task_preview'),
         ])),
 
         path('martor/', include([
@@ -375,6 +393,8 @@ urlpatterns = [
             {'location': '/about/', 'priority': 0.9},
         ]),
     }}),
+
+
 
     url(r'^judge-select2/', include([
         url(r'^profile/$', UserSelect2View.as_view(), name='profile_select2'),

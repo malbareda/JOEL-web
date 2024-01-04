@@ -25,7 +25,7 @@ from judge.models.runtime import Language
 from judge.ratings import rating_class
 from judge.utils.two_factor import webauthn_decode
 
-__all__ = ['Organization', 'Profile', 'OrganizationRequest', 'WebAuthnCredential']
+__all__ = ['Organization', 'Profile', 'OrganizationRequest', 'Achievement', 'AchievementObtained', 'WebAuthnCredential']
 
 
 class EncryptedNullCharField(EncryptedCharField):
@@ -33,6 +33,19 @@ class EncryptedNullCharField(EncryptedCharField):
         if not value:
             return None
         return super(EncryptedNullCharField, self).get_prep_value(value)
+
+class Achievement(models.Model):
+    name = models.CharField(max_length=128, verbose_name=_('achievement name'), unique=True)
+    desc = models.TextField(verbose_name=_('achievement description'))
+    rarity = models.FloatField(verbose_name=_('rarity'), default=1, help_text=_('raresa del Achievement. Una raresa de 1 significa que té una probabilitat normal en apareixer. Una de 2 significa que té el doble de probabilitats que la resta dintre de la seva categoria de qualitat,etc'))
+    quality = models.IntegerField(verbose_name=_('achievement quality'), default=1, help_text=_('Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari'))
+    category = models.IntegerField(verbose_name=_('achievement category'),default=1, help_text=('Categoria del Achievement. 1 es sticker. 2 icona, 3 color d\'usuari, 4 tema i 5 font'))
+    logo_override_image = models.CharField(verbose_name=_('achievement image'), default='', max_length=150,
+                                           blank=True,
+                                           help_text=_('this image will appear in the profile of those who completed the achievements.'))
+    def __str__(self):
+        return self.name
+                                        
 
 
 class Organization(models.Model):
@@ -75,6 +88,30 @@ class Organization(models.Model):
 
     def get_users_url(self):
         return reverse('organization_users', args=(self.id, self.slug))
+    
+    @cached_property
+    def orgPoints(self):
+        acc = 0
+        for mem in self.members.all():
+            acc+=mem.performance_points
+        return int(acc)
+    
+    @cached_property
+    def orgProblems(self):
+        acc = 0
+        for mem in self.members.all():
+            acc+=mem.problem_count
+        return int(acc)
+
+    @cached_property
+    def orgAverage(self):
+        pp = 0
+        for mem in self.members.all():
+            pp+=mem.performance_points
+        pc = self.members.all().count()
+        if pc==0:
+            return 0
+        return int(pp/pc)
 
     class Meta:
         ordering = ['name']
@@ -95,6 +132,12 @@ class Profile(models.Model):
                                  default=Language.get_default_language_pk)
     points = models.FloatField(default=0, db_index=True)
     performance_points = models.FloatField(default=0, db_index=True)
+    gacha_points = models.FloatField(default=0, db_index=True, help_text=_('Els punts gacha que ha gastat un usuari. No els punts que te. Els punts disponibles es calculen dinamicament entre la resta dels seus punts totals i aquest valor. Per donar gachapoints a un alumne, restar aquest valor. Permet negatius'))
+    achievements = models.ManyToManyField(Achievement, through='AchievementObtained')
+    user_color = models.TextField(verbose_name=_('user color'),null=True,help_text=_('background color of your name in the users list.'))
+    preferred_theme = models.TextField(verbose_name=_('preferred theme'),null=True,help_text=_('Your preferred theme for this web.'))
+    preferred_icon = models.TextField(verbose_name=_('preferred icon'),null=True,help_text=_('Your preferred icon for this web.'))
+    preferred_font = models.TextField(verbose_name=_('preferred font'),null=True,help_text=_('Your preferred font for this web.'))
     problem_count = models.IntegerField(default=0, db_index=True)
     ace_theme = models.CharField(max_length=30, choices=ACE_THEMES, default='github')
     last_access = models.DateTimeField(verbose_name=_('last access time'), default=now)
@@ -152,6 +195,9 @@ class Profile(models.Model):
         return self.user.username
 
     _pp_table = [pow(settings.DMOJ_PP_STEP, i) for i in range(settings.DMOJ_PP_ENTRIES)]
+
+    ##def calculate_gacha(self):
+
 
     def calculate_points(self, table=_pp_table):
         from judge.models import Problem
@@ -235,6 +281,11 @@ class Profile(models.Model):
         )
         verbose_name = _('user profile')
         verbose_name_plural = _('user profiles')
+
+class AchievementObtained(models.Model):
+    dateObtained = models.DateTimeField(verbose_name=_('Date when the Achievement was obtained'), default=now)
+    achievement = models.ForeignKey(Achievement, verbose_name=_('achievement'), related_name='users', on_delete=models.CASCADE)
+    user = models.ForeignKey(Profile, verbose_name=_('user'), related_name='achievementsobtained', on_delete=models.CASCADE)
 
 
 class WebAuthnCredential(models.Model):

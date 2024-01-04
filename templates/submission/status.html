@@ -88,7 +88,15 @@
     <hr class="half-hr">
     <br>
 
+    <p>
+    <a href="{{url('submission_upvote', submission.id)}}"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Thumb_up_icon_2.svg/512px-Thumb_up_icon_2.svg.png" width="30" 
+        height="30"></a> {{votesyay}} 
+    <a href="{{url('submission_downvote', submission.id)}}"><img src="https://cdn-icons-png.flaticon.com/512/25/25395.png" width="30" 
+        height="30"></a> {{votesnay}}
+    </p>
     <div id="test-cases">{% include "submission/status-testcases.html" %}</div>
+
+
 
     {% if not submission.is_graded %}
         {% if request.user == submission.user.user or perms.judge.abort_any_submission %}

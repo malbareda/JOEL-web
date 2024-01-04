@@ -1,23 +1,21 @@
-<b>Thanks for registering on the {{ site.name }}! We're glad to have you.</b>
+<b>Gracies per registrar-te a {{ site.name }}! </b>
 <br><br>
-The last step is activating your account. Please activate your {{ SITE_NAME }} account in the next {{ expiration_days }} days.
+L'ultim pas es activar la teva compta. Pots activar la teva compta a {{ SITE_NAME }} en els proxims {{ expiration_days }} dies.
 <br><br>
-Please click on the following link to activate your account:
+Activa la teva compta fent click aqui
 <p style="margin-left:1em">
       <a href="http://{{ site.domain }}/accounts/activate/{{ activation_key }}/">http://{{ site.domain }}/accounts/activate/{{ activation_key }}</a>
 </p>
 
-Alternatively, you can reply to this message to activate your account.
-Your reply must keep the following text intact for this to work:
-
+Tambe pots contestar al missatge amb el seguent text:
 <pre style="margin-left:1em">
 {{ activation_key }}
 </pre>
 
 {% if SITE_ADMIN_EMAIL %}
-See you soon!
+Fins aviat!
 <br>
-If you have problems activating your account, feel free to send us an email at <a href="mailto:{{ SITE_ADMIN_EMAIL }}">{{ SITE_ADMIN_EMAIL }}</a>.
+Si tens qualsevol problema, siusplau envia un correu a <a href="mailto:{{ SITE_ADMIN_EMAIL }}">{{ SITE_ADMIN_EMAIL }}</a>.
 {% else %}
-See you soon!
+Fins aviat!
 {% endif %}

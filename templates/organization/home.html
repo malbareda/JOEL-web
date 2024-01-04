@@ -54,6 +54,10 @@
     <div>
         <a href="{{ organization.get_users_url() }}">{{ _('View members') }}</a>
     </div>
+
+    <div>
+        <a href="{{ url('problems_by_org', organization.id, organization.slug) }}">{{ _('Organization Statistics') }}</a>
+    </div>
 {% endblock %}
 
 {% block description %}

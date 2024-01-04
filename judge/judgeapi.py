@@ -90,6 +90,7 @@ def judge_submission(submission, rejudge=False, batch_rejudge=False, judge_id=No
             'source': submission.source.source,
             'judge-id': judge_id,
             'priority': BATCH_REJUDGE_PRIORITY if batch_rejudge else (REJUDGE_PRIORITY if rejudge else priority),
+            'cosa':submission.problem.data_files.caseformat,
         })
     except BaseException:
         logger.exception('Failed to send request to judge')

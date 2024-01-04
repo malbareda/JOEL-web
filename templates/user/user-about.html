@@ -59,6 +59,15 @@
                 </div>
             </div>
         {% endif %}
+        {% if stickers %}
+            <h4>{{_('Stickers')}}</h4>
+            <div class="sticker-container" style="display:flex;flex-wrap: wrap;">
+                {% for stick in stickers %}
+                    <div class="sticker" style="background-image: url({{stick.logo_override_image}}); background-size:cover;width:200px; height:200px;">
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
 {% endblock %}
 

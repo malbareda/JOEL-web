@@ -295,6 +295,50 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                             <td><label class="inline-header grayed">{{ _('Editor theme') }}:</label></td>
                             <td><span class="fullwidth">{{ form.ace_theme }}</span></td>
                         </tr>
+                        <tr>
+                            <td><label class="inline-header grayed">{{ _('User color') }}:</label></td>
+                            <td><span class="fullwidth">
+                            <select name="color" class="fullwidth">
+                                <option value>   </option>
+                                {% for coior in colors %}
+                                <option value="{{coior.name}}"> {{coior.name}} </option>
+                                {% endfor %}
+                            </select>
+                            </span></td>
+                        </tr>
+                        <tr>
+                            <td><label class="inline-header grayed">{{ _('User icon') }}:</label></td>
+                            <td><span class="fullwidth">
+                              <select name="icon" class="fullwidth">
+                              <option value>   </option>
+                                {% for icon in icons %}
+                                <option value="{{icon.logo_override_image}}"> {{icon.name}} </option>
+                                {% endfor %}
+                            </select>
+                            </span></td>
+                        </tr>
+                        <tr>
+                            <td><label class="inline-header grayed">{{ _('Web theme') }}:</label></td>
+                            <td><span class="fullwidth">
+                            <select name="theme" class="fullwidth">
+                                <option value>   </option>
+                                {% for theme in themes %}
+                                <option value="{{theme.name}}"> {{theme.name}} </option>
+                                {% endfor %}
+                            </select>
+                            </span></td>
+                        </tr>
+                        <tr>
+                            <td><label class="inline-header grayed">{{ _('Web font') }}:</label></td>
+                            <td><span class="fullwidth">
+                            <select name="font" class="fullwidth">
+                                <option value>   </option>
+                                {% for f in fonts %}
+                                <option value="{{f.name}}"> {{f.name}} </option>
+                                {% endfor %}
+                            </select>
+                            </span></td>
+                        </tr>
                         {% if has_math_config %}
                             <tr>
                                 <td><label class="inline-header grayed">{{ _('Math engine') }}:</label></td>

@@ -1,0 +1,188 @@
+{% extends "common-content.html" %}
+{% block content_media %}
+ 
+    <style>
+        .title-state {
+            font-size: 2em;
+            float: left;
+            width: 1.1em;
+            display: block;
+            margin-top: 0.16em;
+        }
+
+        .info-float a {
+            vertical-align: middle;
+        }
+
+        .problem-clarification {
+            border-bottom: 1px solid #ccc;
+            margin-top: 1em;
+            margin-bottom: 1em;
+        }
+
+        .clarifications-area h2 {
+            margin-bottom: 20px;
+        }
+
+        .problem-clarification .body {
+            display: inline-block;
+            padding-left: 3em;
+        }
+
+        #content-right {
+            max-width: 12.5em;
+            min-width: 12.5em;
+        }
+
+        #problem-types, #allowed-langs, #available-judges {
+            padding-top: 1em;
+        }
+
+        .problem-info-entry {
+            padding-top: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content_js_media %}
+    {% include "comments/media-js.html" %}
+{% endblock %}
+
+{% block header %}
+   
+{% endblock %}
+
+
+{% block info_float %}
+    
+    <div><a href="{{ url('admin:judge_problemtask_change', thistask.id) }}">{{ _('Edit Task') }}</a></div>
+
+    <div><a href="{{ url('task_solve_status', thistask.name) }}">{{ _('Solve Status') }}</a></div>
+    {% if perms.judge.clone_problem %}
+    <div>
+        <a href="{{ url('task_clone', thistask.name) }}">{{ _('Clone task') }}</a>
+    </div>
+    {% endif %}
+
+        {% with authors=thistask.authors.all() %}
+            {% if authors %}
+                <div class="problem-info-entry">
+                    <i class="fa fa-pencil-square-o fa-fw"></i><span
+                        class="pi-name">{% trans trimmed count=authors|length %}
+                    Author:
+                    {% pluralize count %}
+                    Authors:
+                {% endtrans %}</span>
+                    <div class="pi-value authors-value">{{ link_users(authors) }}</div>
+                </div>
+            {% endif %}
+        {% endwith %}
+
+{% endblock %}
+
+
+
+{% block comments %}
+
+    {% block js_media %}
+        <script src="{{ static('libs/tablesorter.js') }}" type="text/javascript"></script>
+        <script type="text/javascript">
+            $(function () {
+                $(".solvedtable").tablesorter();
+            });
+        </script>
+    {% endblock %}
+
+
+    <h2>{{_('All Users')}}</h2>
+    <br>
+        <div>
+        {{thistask.about}}
+        </div>
+        <table class="solvedtable table">
+            <thead>
+            <tr>
+            {% if request.user.is_authenticated %}
+                <th class="header flag">{{ _('Status') }}</th>
+            {% endif %}
+                <th class="header username">{{ _('Problem') }}</th>
+                <th class="header username">{{ _('Points') }}</th>
+
+		<th class="header username">{{ _('AC %%') }}</th>
+		<th class="header username">{{ _('Users') }}</th>
+	
+            </tr>
+            </thead>
+
+            <tbody>
+            
+            {% for problem in thistask.problems.all() %}
+                <tr>
+                    
+                 
+                    {% if request.user.is_authenticated %}
+                            {% if problem.id in completed_problem_ids %}
+                                <td solved="1">
+                                    <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
+                                        {% if problem.is_public or request.in_contest %}
+                                            <i class="solved-problem-color fa fa-check-circle"></i>
+                                        {% else %}
+                                            <i class="solved-problem-color fa fa-lock"></i>
+                                        {% endif %}
+                                    </a>
+                                </td>
+                            {% elif problem.id in attempted_problems %}
+                                <td solved="0">
+                                    <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
+                                        {% if problem.is_public or request.in_contest %}
+                                            <i class="attempted-problem-color fa fa-minus-circle"></i>
+                                        {% else %}
+                                            <i class="attempted-problem-color fa fa-lock"></i>
+                                        {% endif %}
+                                    </a>
+                                </td>
+                            {% else %}
+                                <td solved="-1">
+                                    {% if problem.is_public or request.in_contest %}
+                                        <i class="unsolved-problem-color fa fa-minus-circle"></i>
+                                    {% else %}
+                                        <i class="unsolved-problem-color fa fa-lock"></i>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        {% endif %}
+                    
+                    
+                
+                    <td><a href="{{ url('problem_detail', problem.code) }}">{{problem.name}}</a></td>
+                    <td>{{problem.points}}</td>
+
+                            <td class="ac-rate">{{ problem.ac_rate|floatformat(1) }}%</td>
+
+                        <td class="users">
+                            <a href="{{ url('ranked_submissions', problem.code) }}">
+
+                                    {{ problem.user_count }}
+                                                            </a>
+                        </td>
+
+
+                        
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        
+{% endblock %}
+
+
+{% block bodyend %}
+    {{ super() }}
+    {% include "comments/math.html" %}
+{% endblock %}
+
+
+
+

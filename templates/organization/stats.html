@@ -1,0 +1,217 @@
+{% extends "common-content.html" %}
+
+{% block media %}
+    <link rel="stylesheet" href="{{ static('libs/nouislider.min.css') }}">
+    <noscript>
+        <style>#category, #types {
+            visibility: visible;
+        }
+        </style>
+    </noscript>
+    {% if not request.in_contest %}
+        <style>
+            #problem-table th {
+                padding: 0;
+            }
+
+            a.hot-problem-link:hover > .hot-problem-count {
+                visibility: visible;
+            }
+
+            span.hot-problem-count {
+                color: #555;
+                font-size: 0.75em;
+                vertical-align: super;
+                visibility: hidden;
+                padding-left: 0.25em;
+                position: relative;
+            }
+
+            ul.problem-list {
+                padding: 0 !important;
+            }
+        </style>
+    {% endif %}
+{% endblock %}
+
+{% block js_media %}
+    <script>
+        window.point_start = {{point_start}};
+        window.point_end = {{point_end}};
+        window.point_values = {{point_values|json|safe}};
+    </script>
+    {% compress js %}
+        <script src="{{ static('libs/nouislider.min.js') }}" type="text/javascript"></script>
+        <script>
+            $(function () {
+                var $form = $('form#filter-form');
+                var $search = $('#search');
+                var $category = $('#category');
+                var $task = $('#task');
+
+                function prep_form() {
+                    $search.prop('disabled', !$search.val());
+                    $category.prop('disabled', !$category.val());
+                    $task.prop('disabled', !$task.val());
+
+                }
+
+                function clean_submit() {
+                    prep_form();
+                    $form.submit();
+                }
+
+                $category.select2().css({'visibility': 'visible'}).change(clean_submit);
+                $task.select2().css({'visibility': 'visible'}).change(clean_submit);
+
+                $('#types').select2({multiple: 1, placeholder: '{{ _('Filter by type...') }}'})
+                    .css({'visibility': 'visible'});
+
+                // This is incredibly nasty to do but it's needed because otherwise the select2 steals the focus
+                $search.keypress(function (e) {
+                    if (e.keyCode == 13)
+                        $('#go').click();
+                });
+
+                $('#random').click(function (e) {
+                    var action = $form.attr('action');
+                    $form.attr('action', '{{ url('problem_random') }}').attr('target', '_blank').submit();
+                    $form.attr('action', action).attr('target', '');
+                    e.preventDefault();
+                });
+
+                $('#go').click(clean_submit);
+
+                $('input#full_text, input#hide_solved, input#show_types').click(function () {
+                    prep_form();
+                    ($('<form>').attr('action', window.location.pathname + '?' + $form.serialize())
+                        .append($('<input>').attr('type', 'hidden').attr('name', 'csrfmiddlewaretoken')
+                            .attr('value', $.cookie('csrftoken')))
+                        .attr('method', 'POST').appendTo($('body')).submit());
+                });
+
+                var info_float = $('.info-float');
+                var container = $('#content-right');
+                if (window.bad_browser) {
+                    container.css('float', 'right');
+                } else if (!featureTest('position', 'sticky')) {
+                    fix_div(info_float, 55);
+                    $(window).resize(function () {
+                        info_float.width(container.width());
+                    });
+                    info_float.width(container.width());
+                }
+
+                var intFormatter = {
+                    to: function (value) {
+                        return value;
+                    },
+                    from: function (value) {
+                        return +value;
+                    }
+                };
+                var $slider = $('#point-slider');
+                if ($slider.length) {
+                    var $start = $('#point-start');
+                    var $end = $('#point-end');
+
+                    noUiSlider.create($slider[0], {
+                        start: [point_start, point_end],
+                        connect: true,
+                        snap: true,
+                        tooltips: [intFormatter, intFormatter],
+                        range: point_values
+                    }).on('change', function (values) {
+                        var start = +values[0], end = +values[1];
+                        $start.prop('disabled', start === point_values.min).val(start);
+                        $end.prop('disabled', end === point_values.max).val(end);
+                    });
+                }
+            });
+        </script>
+    {% endcompress %}
+        {% compress js %}
+            <script src="{{ static('libs/tablesorter.js') }}" type="text/javascript"></script>
+            <script type="text/javascript">
+            $(document).ready(function(){
+
+                    $('#problem-table').tablesorter();
+
+            });
+            </script>
+        {% endcompress %}
+{% endblock %}
+
+
+
+{% block body %}
+    {% if page_obj.has_other_pages() %}
+        <div style="margin-bottom: 7px; margin-top: 11px;">
+            {% include "list-pages.html" %}
+        </div>
+    {% endif %}
+
+
+        {% block before_table %}{% endblock %}
+        {% if not request.in_contest %}
+            <div id="content-right" class="problems">
+                <div class="info-float">
+                    {% include "problem/search-form.html" %}
+                    
+                </div>
+            </div>
+        {% endif %}
+
+        
+        <div id="content-left" class="problems h-scrollable-table">
+            <table id="problem-table" class="table striped tablesorter">
+                <thead>
+                <tr>
+                    <th > {{_('User')}}</th>
+                    
+                    {% for problem in problems %}
+                        <th class="problem">
+                            <a href="{{ url('problem_detail', problem.code) }}">{{ problem.i18n_name or problem.name }}</a>
+                        </th>
+                    {% endfor %}
+                    <th> {{_('Problems Solved')}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for member in org.members.all() %}
+                    {% set count = namespace(value=0) %}
+                    <tr>
+                        <td>{{ link_user(member) }}</td>
+                        
+                        {% for problem in problems %}
+                            {% if problem.id in view.get_user_completed_problems(member) %}
+                                {% set count.value = count.value + 1 %}
+                                <td style="background-color:green;">
+                                    <a href="{{ url('user_submissions', problem.code, member.username) }}" style="display: block;width: 100%; color:green">
+                                        A
+                                    </a>
+                                </td>
+                            {% elif problem.id in view.get_user_attempted_problems(member) %}
+                                <td style="background-color:orange;">
+                                    <a href="{{ url('user_submissions', problem.code, member.username) }}" style="display: block;width: 100%; color:orange">
+                                         A
+                                    </a>
+                                </td>
+                            {% else %}
+                                <td >
+                                    <div></div>
+                                </td>
+                            {% endif %}
+                        {% endfor %}
+                        <td>{{ count.value }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if page_obj.has_other_pages() %}
+                <div style="margin-top:10px;">{% include "list-pages.html" %}</div>
+            {% endif %}
+        </div>
+
+    <br>
+{% endblock %}

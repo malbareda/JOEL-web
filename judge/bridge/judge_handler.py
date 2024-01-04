@@ -216,7 +216,7 @@ class JudgeHandler(ZlibPacketHandler):
         else:
             self.send({'name': 'disconnect'})
 
-    def submit(self, id, problem, language, source):
+    def submit(self, id, problem, language, source, cosa):
         data = self.get_related_submission_data(id)
         self._working = id
         self._no_response_job = threading.Timer(20, self._kill_if_no_response)
@@ -226,6 +226,8 @@ class JudgeHandler(ZlibPacketHandler):
             'problem-id': problem,
             'language': language,
             'source': source,
+            'algo':"A",
+            'cosa': cosa,
             'time-limit': data.time,
             'memory-limit': data.memory,
             'short-circuit': data.short_circuit,

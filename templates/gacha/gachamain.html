@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block media %}
+    {% block user_media %}{% endblock %}
+
+    <style>
+        .user-gravatar {
+            display: block;
+            padding-right: 15px;
+            width: 135px;
+        }
+
+        .user-gravatar img {
+            width: 135px;
+            height: 135px;
+            display: block;
+            border-radius: 6px;
+        }
+
+        .page-title {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+        }
+    </style>
+{% endblock %}
+
+{% block js_media %}
+    {% block user_js_media %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+
+    {% set gpoints = user.points - user.gacha_points %}
+    <p>Punts Disponibles: {{gpoints|float}}</p>
+    <form action="{{ url('gacha_go') }}" method="post"
+                          class="contest-join-pseudotab unselectable button">
+                        {% csrf_token %}
+                        <input type="submit" value="{{ _('Use 5 GachaPoints') }}">
+    </form>
+{% endblock %}

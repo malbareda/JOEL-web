@@ -21,10 +21,11 @@
                     <label for="hide_solved">{{ _('Hide solved problems') }}</label>
                 </div>
             {% endif %}
+            <!-- TODO MIRARSHO-->
             <div>
-                <input id="show_types" type="checkbox" name="show_types" value="1"
-                        {% if show_types %} checked{% endif %}>
-                <label for="show_types">{{ _('Show problem types') }}</label>
+                <input id="show_types" style="display:none" type="checkbox" name="show_types" value="1"
+                        checked>
+                <label style="display:none" for="show_types">{{ _('Show problem types') }}</label>
             </div>
             <div class="filter-form-group">
                 <label for="category"><i>{{ _('Category') }}</i></label>
@@ -37,6 +38,21 @@
                     {% for group in categories %}
                         <option value="{{ group.id }}"{% if group.id == category %} selected{% endif %}>
                             {{ group.full_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-form-group">
+                <label for="task"><i>{{ _('task') }}</i></label>
+                <select id="task" name="task">
+                    {% if task %}
+                        <option value="" selected="selected">{{ _('All') }}</option>
+                    {% else %}
+                        <option value="">{{ _('All') }}</option>{% endif %}
+                    <option disabled="disabled">---</option>
+                    {% for t in tasks %}
+                        <option value="{{ t.id }}"{% if t.id == task %} selected{% endif %}>
+                            {{ t.full_name }}
                         </option>
                     {% endfor %}
                 </select>

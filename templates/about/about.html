@@ -1,0 +1,61 @@
+{% extends "common_content.html" %}
+{% block js_media %}
+    {% block user_js_media %}{% endblock %}
+{% endblock %}
+
+
+{% block body %}
+{% block description %}
+<div><p>The DMOJ is a modern contest platform and archive of programming problems. It's also entirely <a href="//github.com/DMOJ" rel="nofollow">open source</a>.</p>
+<p>We host problems from past CCC, CCO, COCI, IOI and JOI competitions, as well as various problems from other sources. We also run our own DMOJ Monthly Open Programming Competition (DMOPC) for anyone interested in competitive programming.</p>
+<p>The DMOJ was inspired by the <a rel="nofollow" href="http://wcipeg.com">PEG online judge</a>.</p>
+<p>We also ask that new users <a href="/about/comments/">read the guidelines</a> on participating in discussions in the community.</p>
+<h4>I got some feedback from the judge that I don't understand.</h4>
+<p>Check out our page on <a href="/about/codes/">status codes</a> and their explanations.</p>
+<h4>My points don't add up!</h4>
+<p>The DMOJ uses a weighted points system - solving a problem worth, say 5 points, doesn't necessarily mean that your PP will go up by 5 points. Rather, your hardest problems are worth more, and your easier problems are worth less. This is to encourage you to try the harder problems.</p>
+<blockquote><p>But what if I can't solve hard problems yet?</p>
+</blockquote>
+<p>There is also a bonus points system, based on how many problems you've attempted. For more information, see <a href="/post/103-point-system-rework">this blog post</a>.</p>
+<h4>How do I get a coloured username?</h4>
+<p>Simple! Just write a rated contest! These contests can easily be distinguished by the <span class="contest-tags"><span style="background-color: #e54c14; color: #ffffff" class="contest-tag"><i class="fa fa-bar-chart"></i>rated</span> tag in the contest list, and will also say so on the contest page.</span></p>
+<p>The colours correspond to the following ratings:</p>
+<table>
+<tr colspan="3"><th>Ratings Chart</th></tr>
+<tr class="rating rate-newbie"><td>&lt;1000</td><td><span class="rate-box"></span></td><td>Newbie</td></tr>
+<tr class="rating rate-amateur"><td>1000-1199</td><td><span class="rate-box"></span></td><td>Amateur</td></tr>
+<tr class="rating rate-expert"><td>1200-1499</td><td><span class="rate-box"></span></td><td>Expert</td></tr>
+<tr class="rating rate-candidate-master"><td>1500-1799</td><td><span class="rate-box"></span></td><td>Candidate Master</td></tr>
+<tr class="rating rate-master"><td>1800-2199</td><td><span class="rate-box"></span></td><td>Master</td></tr>
+<tr class="rating rate-grandmaster"><td>2200-2999</td><td><span class="rate-box"></span></td><td>Grandmaster</td></tr>
+<tr class="rating rate-target"><td>=3000</td><td><span class="rate-box rate-target"><span style="height: 1em"></span></span></td><td>Target</td></tr></table><p>Finally, a <strong>black</strong> username is for administrators, like <span class="rating rate-master admin"><a href="/user/quantum">quantum</a></span>, <span class="rating rate-master admin"><a href="/user/Xyene">Xyene</a></span>, <span class="rating rate-grandmaster admin"><a href="/user/FatalEagle">FatalEagle</a></span>, <span class="rating rate-candidate-master admin"><a href="/user/WallE256">WallE256</a></span>, and <span class="rating rate-candidate-master admin"><a href="/user/Kirito">Kirito</a></span>.</p>
+<h4>Help! I got an Internal Error!</h4>
+<p>Usually, an internal error will not go away in seconds. The administrators and/or problem setters will generally be notified and will usually post a comment on the problem once it has been fixed.</p>
+<p>Until then, we encourage you to not submit. Doing so will only create more error messages on our end, and might prevent us from finding other problems that are also broken.</p>
+<h4>What does -9999 score on a contest mean?</h4>
+<p>It means that you have been suspected of cheating on a contest. If you believe that this judgement has been made in error, you are encouraged to email us at <code>contact -at- dmoj.ca</code> or <a href="//slack.dmoj.ca" rel="nofollow">join the Slack</a>.</p>
+<h4>I have an issue, how can I get in contact with an administrator?</h4>
+<p>Administrators of DMOJ may be reached through <a href="https://slack.dmoj.ca"><img src="https://camo.algome.me/83e3e412899a5a030f346d528bc5241d3f1c28f0/68747470733a2f2f736c61636b2e646d6f6a2e63612f62616467652e737667" alt="Slack" style="vertical-align: bottom"></a>. Alternatively, you may use the email address <code>contact -at- dmoj.ca</code>. If you have an issue, don�t hesitate to get in touch.</p>
+<h4>My school or organization is not listed. How can I add it?</h4>
+<p>Get in touch with an administrator and we'll be happy to add it for you, see above.</p>
+<h4>Can I contribute to the DMOJ?</h4>
+<p>Of course! There�s plenty to be done, from <a href="//translate.dmoj.ca" rel="nofollow">translating the site</a> to <a href="//github.com/DMOJ/site/issues" rel="nofollow">reporting and fixing bugs</a>, as well the most important task of all: adding more problems! (see below)</p>
+<h4>Some problems I�d like to practice on are missing!</h4>
+<p>You may contact a moderator if you�d like a contest added to the judge, or you may add them yourself (see below) � the DMOJ problem format is <a href="//docs.dmoj.ca" rel="nofollow">well documented</a>. In either case, please contact a moderator to get started.</p>
+<h4>I would like to set a problem on the DMOJ. How can I do so?</h4>
+<p>As a security precaution, you must have <a href="/post/144-2-factor-authentication">two-factor authentication</a> enabled. Afterwards, you should read through <a href="https://docs.google.com/document/d/1lZ-0Rv4CX0OX0kuRx11oSu89QeJ-GfH7JL6VcnzGhJA/edit?usp=sharing" rel="nofollow">this document</a> and complete the <a href="https://docs.google.com/forms/d/e/1FAIpQLSeU59cCdTbbGAwuGnLzcps6xbp1c-GF9pbwtsJg9z5xtZ8Eiw/viewform" rel="nofollow">Problem Setter Quiz</a>.</p>
+<h4>Can I host a contest on the DMOJ?</h4>
+<p>Yes, and we�d love to help you get it up and running! Experienced or enthusiastic coders can contact us to host their own <em>public</em> contest free of charge on the DMOJ. If you're an educational organization and would like to host a <em>private</em> contest for your members, we can help you out. Note, however, that there is a small fee due to the costs of supporting the DMOJ. In either case, please contact a moderator.</p>
+<h4>Can I set up the DMOJ for my own school?</h4>
+<p>So you want to set up a clone of the DMOJ, great � but <a href="/about/clones/">read this first</a>.</p>
+<h4>Moderation Team</h4>
+<p>Below are the contacts for the staff members who actively moderate the site.
+For general purposes, we request that you please email <code>contact -at- dmoj.ca</code>.</p>
+</div>
+{% endblock %}
+{% endblock %}
+
+{% block bodyend %}
+    {{ super() }}
+    {% include "comments/math.html" %}
+{% endblock %}

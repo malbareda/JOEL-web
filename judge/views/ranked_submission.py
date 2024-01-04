@@ -2,11 +2,37 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext as _
 
+from django.db.models import Count, Q
+
 from judge.utils.problems import get_result_data
 from judge.utils.raw_sql import join_sql_subquery
 from judge.views.submission import ForceContestMixin, ProblemSubmissions
 
-__all__ = ['RankedSubmissions', 'ContestRankedSubmission']
+__all__ = ['RankedSubmissions', 'ContestRankedSubmission', 'RankedVoteSubmissions']
+
+class RankedVoteSubmissions(ProblemSubmissions):
+    tab = 'best_submissions_list'
+    dynamic_update = False
+
+    def get_queryset(self):
+        queryset = super(RankedVoteSubmissions, self).get_queryset().filter(user__is_unlisted=False)
+        
+        return queryset.annotate(yay=Count('votes', filter=Q(votes__score=1)),nay=Count('votes', filter=Q(votes__score=-1)), votesum=Count('votes', filter=Q(votes__score=1))-Count('votes', filter=Q(votes__score=-1))).order_by('-votesum','-yay', 'nay')
+
+        a = "aa"
+        #raise Exception("I want to know the value of this: " + a)
+
+        return queryset.order_by('time')
+
+    def get_title(self):
+        return _('Best solutions for %s') % self.problem_name
+
+    def get_content_title(self):
+        return format_html(_('Best solutions for <a href="{1}">{0}</a>'), self.problem_name,
+                           reverse('problem_detail', args=[self.problem.code]))
+
+    def _get_result_data(self):
+        return get_result_data(super(RankedVoteSubmissions, self).get_queryset().order_by())
 
 
 class RankedSubmissions(ProblemSubmissions):

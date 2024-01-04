@@ -45,8 +45,9 @@ class ProblemData(models.Model):
     output_prefix = models.IntegerField(verbose_name=_('prefix length'), blank=True, null=True)
     output_limit = models.IntegerField(verbose_name=_('output limit length'), blank=True, null=True)
     feedback = models.TextField(verbose_name=_('init.yml generation feedback'), blank=True)
-    checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, blank=True)
+    checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, default=CHECKERS[4][0], blank=True)
     caseformat = models.CharField(max_length=10, verbose_name=_('Format del Cas de Proves'), choices=CASEFORMAT, default=CASEFORMAT[0][0])
+    allowed_tips = models.IntegerField(verbose_name=_('Number of allowed tips'), blank=True, default=1)
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
 

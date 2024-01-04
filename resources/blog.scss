@@ -7,7 +7,7 @@
     margin-right: 0;
 
     .post {
-        border-bottom: 2px solid $border_gray;
+        border-bottom: 2px solid var(--border_gray);
         padding-top: 0.5em;
 
         .title {
@@ -15,10 +15,10 @@
             font-size: 1.7em;
 
             a {
-                color: #5b80b9 !important;
+                color: var(--title_blue) !important;
 
                 &:hover {
-                    color: #0645ad !important;
+                    color: var(--title_hover) !important;
                 }
             }
         }
@@ -52,7 +52,7 @@
     .contest {
         padding: 1.25em 0 1.5em 0;
         text-align: center;
-        border-bottom: 1px solid $border_gray;
+        border-bottom: 1px solid var(--border_gray);
 
         &:last-child {
             border-bottom: none;
@@ -63,10 +63,10 @@
             font-weight: 500;
 
             a {
-                color: #5b80b9 !important;
+                color: var(--title_blue) !important;
 
                 &:hover {
-                    color: #0645ad !important;
+                    color:--var(--title_hover) !important;
                 }
             }
         }

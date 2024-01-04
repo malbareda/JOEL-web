@@ -19,7 +19,7 @@ from judge.models.runtime import Language
 from judge.user_translations import gettext as user_gettext
 from judge.utils.raw_sql import RawSQLColumn, unique_together_left_join
 
-__all__ = ['ProblemGroup', 'ProblemType', 'Problem', 'ProblemTranslation', 'ProblemClarification',
+__all__ = ['ProblemGroup', 'ProblemType', 'ProblemTask', 'Problem', 'ProblemTranslation', 'ProblemClarification',
            'License', 'Solution', 'TranslatedProblemQuerySet', 'TranslatedProblemForeignKeyQuerySet']
 
 
@@ -34,6 +34,8 @@ class ProblemType(models.Model):
         ordering = ['full_name']
         verbose_name = _('problem type')
         verbose_name_plural = _('problem types')
+
+
 
 
 class ProblemGroup(models.Model):
@@ -112,7 +114,7 @@ class Problem(models.Model):
                                          'These users will be able to view the private problem, but not edit it.'))
     types = models.ManyToManyField(ProblemType, verbose_name=_('problem types'),
                                    help_text=_('The type of problem, '
-                                               "as shown on the problem's page."))
+                                               "as shown on the problem's page."))                                    
     group = models.ForeignKey(ProblemGroup, verbose_name=_('problem group'), on_delete=CASCADE,
                               help_text=_('The group of problem, shown under Category in the problem list.'))
     time_limit = models.FloatField(verbose_name=_('time limit'),
@@ -165,6 +167,14 @@ class Problem(models.Model):
 
     @cached_property
     def types_list(self):
+        return list(map(user_gettext, map(attrgetter('full_name'), self.types.all())))
+
+    @cached_property
+    def authors_list(self):
+        return list(self.authors.all())
+
+    @cached_property
+    def authors2_list(self):
         return list(map(user_gettext, map(attrgetter('full_name'), self.types.all())))
 
     def languages_list(self):
@@ -432,6 +442,37 @@ class Problem(models.Model):
         )
         verbose_name = _('problem')
         verbose_name_plural = _('problems')
+
+
+class ProblemTask(models.Model):
+    name = models.CharField(max_length=20, verbose_name=_('task code'), unique=True,
+                            validators=[RegexValidator('^[a-z0-9]+$', _('Task code must be ^[a-z0-9]+$'))],
+                            help_text=_('A short, unique code for the task, '
+                                        'used in the url after /task/'))
+    full_name = models.CharField(max_length=100, verbose_name=_('task name'))
+    authors = models.ManyToManyField(Profile, verbose_name=_('creators'), blank=True, related_name='authored_tasks',
+                                     help_text=_('These users will be able to edit the task, '
+                                                 'and be listed as authors.'))
+    about = models.TextField(verbose_name=_('task description'), default='')
+    problems = models.ManyToManyField(Problem, verbose_name=_('Problems in task'), related_name='tasks_of_problem', help_text=_('the problems this task has.'))           
+
+    def __str__(self):
+        return self.full_name
+
+    def get_absolute_url(self):
+        return reverse('task_detail', args=(self.name,))
+
+    @cached_property
+    def numberOfProblems(self):
+        acc = 0
+        for mem in self.problems.all():
+            acc+=1
+        return int(acc)
+
+    class Meta:
+        ordering = ['full_name']
+        verbose_name = _('task')
+        verbose_name_plural = _('tasks')
 
 
 class ProblemTranslation(models.Model):

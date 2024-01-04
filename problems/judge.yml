@@ -6,7 +6,7 @@ key: "holahola"
 # This directory /not/ scanned recursively, and any directory containing an init.yml file is assumed to
 # be a problem directory.
 problem_storage_root:
-  - /home/marc/site/problems
+  - /home/ubuntu/educational-online-judge/problems
 # All configuration for language executors
 # If you're unsure of what values a language needs, your best bet is to consult the source of the executor:
 # <https://github.com/DMOJ/judge/tree/master/dmoj/executors>

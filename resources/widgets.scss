@@ -28,7 +28,7 @@
 
 // Bootstrap-y buttons
 .button, button, input[type=submit] {
-    color: white !important;
+    color:var(--text-white) !important;
     text-decoration: none !important;
     cursor: pointer;
     vertical-align: middle;
@@ -36,8 +36,8 @@
     font-weight: 400;
     line-height: 1.4;
     background: rgb(51, 122, 183) none repeat scroll 0 (0% / auto) padding-box border-box;
-    background: -webkit-linear-gradient(top, #337ab7 0, #265a88 100%) repeat-x;
-    background: linear-gradient(to bottom, #337ab7 0, #265a88 100%) repeat-x;
+    background: -webkit-linear-gradient(top, var(--button_grad) 0,var(--button_blue) 100%) repeat-x;
+    background: linear-gradient(to bottom, var(--button_grad) 0,var(--button_blue) 100%) repeat-x;
     border-radius: $widget_border_radius;
     padding: 6px 12px;
     display: block;
@@ -48,7 +48,7 @@
     font-size: $base_font_size;
 
     &:hover {
-        background: #265a88;
+        background: var(--button_blue);
     }
 
     &.disabled {
@@ -63,12 +63,12 @@
 }
 
 button:hover, button:hover, input[type=submit]:hover {
-    background: #265a88;
+    background: var(--button_blue);
 }
 
 .button:active, button:active, input[type=submit]:hover {
     border-color: #245580;
-    background: #265a88;
+    background: var(--button_blue);
 }
 
 .inline-button {
@@ -81,8 +81,8 @@ input {
     &[type=text], &[type=password], &[type=email], &[type=number] {
         padding: 4px 8px;
         color: #555;
-        background: #FFF none;
-        border: 1px solid $border_gray;
+        background: var(--background_input) none;
+        border: 1px solid var(--border_gray);
         border-radius: $widget_border_radius;
         box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset;
         transition: border-color 0.15s ease-in-out 0s, box-shadow 0.15s ease-in-out 0s;
@@ -105,8 +105,8 @@ input {
 textarea {
     padding: 4px 8px;
     color: #555;
-    background: #FFF none;
-    border: 1px solid $border_gray;
+    background: var(--background_input) none;
+    border: 1px solid var(--border_gray);
     border-radius: $widget_border_radius;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset;
     transition: border-color 0.15s ease-in-out 0s, box-shadow 0.15s ease-in-out 0s;
@@ -147,7 +147,7 @@ input {
     font-size: 12px;
     color: #767676;
     cursor: pointer;
-    background-color: #FFF;
+    background-color: var(--background_input);
     border: 1px solid #E1E1E8;
     border-radius: 0 $widget_border_radius;
     position: absolute;
@@ -161,16 +161,16 @@ input {
 
 // Bootstrap-y tabs
 .ul_tab_a_active {
-    color: black;
+    color: var(--text-black);
     cursor: default;
-    background-color: #fff;
-    border: 1px solid $border_gray;
+    background-color: var(--background-white);
+    border: 1px solid var(--border_gray);
     border-bottom-color: transparent;
     border-image: none;
 }
 
 .tabs {
-    border-bottom: 1px solid $border_gray;
+    border-bottom: 1px solid var(--border_gray);
     margin: 0 0 8px;
     width: 100%;
     display: flex;
@@ -191,17 +191,17 @@ input {
 
         &.active {
             a, span {
-                border-top-color: $highlight_blue !important;
+                border-top-color: var(--highlight_blue) !important;
             }
 
             .tab-icon {
-                color: black;
+                color:var(--text-black);
             }
         }
     }
 
     h2 {
-        color: #393630;
+        color: var(--global-text);
     }
 
     > ul {
@@ -247,7 +247,7 @@ input {
 
 // Bootstrap-y pagination
 ul.pagination a:hover {
-    color: #FFF;
+    color: var(--text-white);
     background: rgba(0, 0, 0, 0.55);
 }
 
@@ -284,8 +284,8 @@ ul.pagination {
                     padding: 4px 12px;
                     line-height: 1.42857;
                     text-decoration: none;
-                    color: #FFF;
-                    background-color: $widget_black;
+                    color: var(--text-white);
+                    background-color: var(--widget_black);
                     border: 1px solid #505050;
                     margin-left: -1px;
                 }
@@ -295,13 +295,13 @@ ul.pagination {
         .disabled-page > {
             a {
                 color: #888;
-                background-color: $widget_black;
+                background-color: var(--widget_black);
                 border-color: #282828;
             }
 
             span {
                 color: #888;
-                background-color: $widget_black;
+                background-color: var(--widget_black);
                 border-color: #505050;
             }
         }
@@ -309,16 +309,16 @@ ul.pagination {
         .active-page > {
             a {
                 z-index: 2;
-                color: #FFF;
-                background-color: $highlight_blue;
+                color: var(--text-white);
+                background-color: var(--highlight_blue);
                 border-color: transparent;
                 cursor: default;
             }
 
             span {
                 z-index: 2;
-                color: #FFF;
-                background-color: $highlight_blue;
+                color: var(--text-white);
+                background-color: var(--highlight_blue);
                 border-color: transparent;
                 cursor: default;
             }
@@ -421,7 +421,7 @@ ul.select2-selection__rendered {
 
 .sidebox h3 {
     margin: 0 -5px;
-    background: $widget_black;
+    background: var(--widget_black);
     border-radius: $widget_border_radius $widget_border_radius 0 0;
     color: white;
     padding-top: 5px;
@@ -437,7 +437,7 @@ ul.select2-selection__rendered {
 }
 
 .sidebox-content {
-    border: 1px solid $border_gray;
+    border: 1px solid var(--border_gray);
     border-top: none;
     margin: 0 -5px;
     padding: 1px 0.5em 3px;
@@ -462,7 +462,7 @@ ul.select2-selection__rendered {
 .ws-closed {
     position: sticky;
     top: 42px;
-    background: $announcement_red;
+    background: var(--announcement_red);
     border-radius: 5px 5px 0 0;
     display: none;
 }

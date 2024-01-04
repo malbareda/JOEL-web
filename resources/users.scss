@@ -93,7 +93,7 @@ th.header.rank {
 }
 
 a.user-redirect {
-    color: #2980b9;
+    color: var(--highlight_blue);
     vertical-align: middle;
     font-size: 1.2em;
     position: absolute;
@@ -137,11 +137,11 @@ a.edit-profile {
 
 .user-info-cell {
     padding-left: 15px;
-    border-left: 1px solid #CCC;
+    border-left: 1px solid var(--border_gray);
 }
 
 .contest-history-cell {
-    border-left: 1px solid #CCC;
+    border-left: 1px solid var(--border_gray);
     padding: 0 0.5em;
 }
 
@@ -235,7 +235,7 @@ a.edit-profile {
 
 #pp-load-link-wrapper {
     text-align: center;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border_gray);
 }
 
 #pp-load-more-link {
@@ -258,7 +258,7 @@ a.edit-profile {
     display: none;
     position: absolute;
     background: rgba(0, 0, 0, 0.7);
-    color: white;
+    color: var(--text-white);
     padding: 3px;
     border-radius: 3px;
     transition: all .1s ease;
@@ -266,6 +266,6 @@ a.edit-profile {
     transform: translate(-50%, 0);
 
     &.rate-group {
-        color: white;
+        color: var(--text-white);
     }
 }

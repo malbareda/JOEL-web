@@ -25,6 +25,8 @@
             <h3>{{ _('Pretest Execution Results') }}</h3>
         {% else %}
             <h3>{{ _('Execution Results') }}</h3>
+            <p>{{_('Hints Used/Allowed:')}} {{usedhints}}/{{submission.problem.data_files.allowed_tips}}</p>
+            
         {% endif %}
         <br>
         {% if statuses or not submission.is_graded %}
@@ -56,7 +58,7 @@
                 <div class="batch-cases">
             {% endif %}
         <table class="submissions-status-table">{% for case in batch.cases %}
-            {% set print_case_output = case.status != 'AC' and case.output and (prefix_length is none or prefix_length > 0) %}
+            {% set print_case_output = case.status != 'AC' and (prefix_length is none or prefix_length > 0) %}
             <tr id="{{ case.id }}" class="case-row toggle closed">
                 <td>
                     {%- if print_case_output or case.extended_feedback -%}
@@ -94,7 +96,8 @@
                     <td>({{ case.points|floatformat(2) }}/{{ case.total|floatformat(2) }})</td>
                 {% endif %}
             </tr>
-
+            
+            <!-- sistema d'ajuda per a alumnes -->
             {% if print_case_output and case.extended_feedback %}
                 <tr id="{{ case.id }}-output" style="display:none" class="case-feedback toggled">
                 
@@ -111,23 +114,23 @@
                         </td>
                     {% endif %}
  -->                
-                    <script>
+                <script>
                     function validate(form) {
 
                         
-                            return confirm("{{_('Si demanes ajuda es mostrara un cas de prova que hagis fallat. Només podràs fer això un cop per problema. Un cop hagis demanat ajuda no podràs tornar-ho a fer per cap altre enviament. Estàs segur?')}}");
+                            return confirm("{{_('Si demanes ajuda es mostrara el primer cas de prova que hagis fallat. Això farà servir una pista. Un cop arribis a les pistes permeses, ja no podras demanar ajuda. Estàs segur?')}}");
                         
                     }
-                    </script>
-                    {% if not case.flag %}  
+                </script>
+                {% if not submission.flag and usedhints|int <submission.problem.data_files.allowed_tips %}  
                     <td>  
                     <form onsubmit="return validate(this);" action="{{ url('submission_flag',case.id) }}" method="post">
                     {% csrf_token %}
                     <input style="float:left" type="submit" value="{{ _('Help!') }}" class="button">
                     <br><br>
                     </form></td>
-                    {% endif %}
-                    {% if case.extended_feedback %}
+                {% endif %}
+                {% if case.extended_feedback %}
 
                     <!-- si es un problema d'escriptura en fitxer -->
                     {% if submission.problem.data_files.checker=="rstripped" %}
@@ -162,7 +165,11 @@
 
                                 {% set listinputs = (case.extended_feedback.split("\u2719")[0].split("\n")) %}
                                 {% set firstwa = (case.extended_feedback.split("\u2719")[1].split("\u2720")[0]) %}
-
+				                {% if firstwa %}
+                                        {% set firstwaans = (case.extended_feedback.split("\u2719")[1].split("\u2720")[2].split("\u2721")[0]) %}
+				                {% else %}
+				                        {% set firstwaans = "" %}
+				                {% endif %}
                                 <!-- ajuda en multicas-->
                                 {% if submission.problem.data_files.caseformat == 'multicas' %}
                                     <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}</pre>
@@ -170,7 +177,6 @@
                                     {% set ns2 = namespace(ck=0) %}      
                                     {% for inpc in listinputs[1:] %}
                                             <!-- provaho marc siusplau la idea es dos comptadors, cn es de n i ck de k.  -->
-                                            <!--{{inpc}} {{ns2.ck}} {{ns1.cn}} <br>-->
                                             {% if ns2.ck == 0 %}
                                                 {% set ns1.cn = ns1.cn + 1 %}
                                                 {% set ns2.ck = inpc.split()[0]|int %}
@@ -181,24 +187,35 @@
                                             {% elif ns1.cn == firstwa|int %}
 
                                                 <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                                {% set ns2.ck = ns2.ck - 1 %}
                                             {% else %}
                                                 {% set ns2.ck = ns2.ck - 1 %}
                                             {% endif %}
                                             
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en individual-->    
                                 {% elif submission.problem.data_files.caseformat == 'indiv'%}
+                                    <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}</pre>
                                     {% for inpc in listinputs %}
                                             <pre class="case-output"><i>{{inpc}}</i></pre> 
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en stop o si va per hasnext, 1 entrada - 1 sortida-->
                                 {% elif ninputs == nouputs or (ninputs-1 == nouputs and submission.problem.data_files.caseformat == 'stop') %}
                                     <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}<br></pre> 
                                     <pre class="case-output"><i><b>{{listinputs[firstwa|int]}}</i></b> </pre>
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en estandard, 1 entrada - 1 sortida --> 
                                 {% elif ninputs-1 == nouputs %}
                                     <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}<br><br></pre> 
-                                    <pre class="case-output"><i><b>{{(listinputs[firstwa|int+1])}}<i></b></pre> 
+                                    <pre class="case-output"><i><b>{{(listinputs[firstwa|int+1])}}<i></b></pre>
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
+ 
                                 <!-- ajuda en stop o hasnext, n entrada - 1 sortida --> 
                                 {% elif ninputs is divisibleby nouputs or ((ninputs-1) is divisibleby nouputs and submission.problem.data_files.caseformat == 'stop')%}
                                     {% set div = ninputs/nouputs %}
@@ -206,6 +223,8 @@
                                     {% for inpc in listinputs[firstwa|int*div|int:firstwa|int*div|int+div|int]%}
                                             <pre class="case-output"><i>{{inpc}}</i></pre> 
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en estandard, n entrada - 1 sortida --> 
                                 {% elif (ninputs-1) is divisibleby nouputs %}
                                     {% set div = (ninputs-1)/nouputs %}
@@ -213,26 +232,139 @@
                                     {% for inpc in listinputs[(firstwa|int*div|int)+1:(firstwa|int*div|int)+1+div|int]%}
                                             <pre class="case-output"><i>{{inpc}}</i></pre> 
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en stop o hasnext, 1 entrada - n sortida --> 
                                 {% elif ninputs is divisibleby nouputs or ((ninputs-1) is divisibleby nouputs and submission.problem.data_files.caseformat == 'stop')%}
                                     {% set div = nouputs/ninputs %}
+                                    <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}</pre>
                                     {% for inpc in listinputs[firstwa|int/div|int:firstwa|int/div|int+div|int]%}
                                             <pre class="case-output"><i>{{inpc}}</i></pre> 
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
                                 <!-- ajuda en estandard, 1 entrada - n sortida --> 
                                 {% elif  nouputs is divisibleby (ninputs-1) %}
                                     {% set div = nouputs/(ninputs-1) %}
-                                    {% for inpc in listinputs[(firstwa|int/div|int)+1:(firstwa|int/div|int)+1+div|int]%}
+                                    <pre class="case-output">{{ _('You have a Wrong Answer in Input') }}</pre>
+                                    {% for inpc in listinputs[((firstwa|int/div|int)|int)+1:((firstwa|int/div|int)|int)+1+div|int]%}
                                             <pre class="case-output"><i>{{inpc}}</i></pre> 
                                     {% endfor %}
+                                    <pre class="case-output"><br><br>{{ _('Your answer was') }}<br><br></pre> 
+                                    <pre class="case-output"><i><b>{{firstwaans}}<i></b></pre> 
 
                                 {% endif %}
                             </div>
                             </div>
                         </td>
                     {% endif %}
-                    <!-- si ets profe o el creador del problema -->
-                    {% if submission.problem.is_evaluable_by(request.user) and not submission.problem.data_files.checker=="rstripped" %}
+                    <!-- si ets profe o el creador del problema i el sistema d'ajuda esta activat -->
+                    {% if submission.problem.is_evaluable_by(request.user) and submission.problem.data_files.checker=="linecount" %}
+                        {% set list1 = case.extended_feedback.split("\u2719") %}
+                        <td colspan="5" class="case-ext-feedback">
+                            <div class="case-info" >
+                                <strong>{{ _('Wrong Answers (only first 5)') }}</strong>
+                                <br>
+                                <table class="tableleft">
+                                    <tr>
+                                        <th>{{_('Cas fallit') }}</th>
+                                        <th>{{_('Resposta esperada') }}</th>
+                                        <th>{{_('Resposta Alumne') }}</th> 
+                                    </tr>
+                                    {% set list2 = list1[1].strip().split("\u2721") %}
+                                    
+                                    {% for wa in list2[:5] %}
+                                    {% if wa %}
+                                    
+                                    <tr>
+                                        {% set list3 = wa.split("\u2720") %}
+                                        {% set firstwa = list3[0] %}
+                                        {% set ninputs = (case.extended_feedback.split("\u2719")[2]|int ) %}
+                                        {% set nouputs = (case.extended_feedback.split("\u2719")[3]|int ) %}
+
+                                        {% set listinputs = (case.extended_feedback.split("\u2719")[0].split("\n")) %}  
+                                        <td>
+                                        <!--multicas-->
+                                        {% if submission.problem.data_files.caseformat == 'multicas' %}
+                                            {% set ns1 = namespace(cn=-1) %}      
+                                            {% set ns2 = namespace(ck=0) %}      
+                                            {% for inpc in listinputs[1:] %}
+                                                    <!-- provaho marc siusplau la idea es dos comptadors, cn es de n i ck de k.  -->
+                                                    <!--{{inpc}} {{ns2.ck}} {{ns1.cn}} <br>-->
+                                                    {% if ns2.ck == 0 %}
+                                                        {% set ns1.cn = ns1.cn + 1 %}
+                                                        {% set ns2.ck = inpc.split()[0]|int %}
+                                                        {% if ns1.cn == firstwa|int %}
+                                                            <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                                        {% endif %}
+                                                        
+                                                    {% elif ns1.cn == firstwa|int %}
+
+                                                        <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                                        {% set ns2.ck = ns2.ck - 1 %}
+                                                    {% else %}
+                                                        {% set ns2.ck = ns2.ck - 1 %}
+                                                    {% endif %}
+   
+                                            {% endfor %}
+                                        <!-- ajuda en individual-->    
+                                        {% elif submission.problem.data_files.caseformat == 'indiv'%}
+                                           {% for inpc in listinputs %}
+                                                    <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                            {% endfor %}
+                                            
+                                        <!-- ajuda en stop o si va per hasnext, 1 entrada - 1 sortida-->
+                                        {% elif ninputs == nouputs or (ninputs-1 == nouputs and submission.problem.data_files.caseformat == 'stop') %}
+                                           <pre class="case-output"><i><b>{{listinputs[firstwa|int]}}</i></b> </pre>
+                                        <!-- ajuda en estandard, 1 entrada - 1 sortida --> 
+                                        {% elif ninputs-1 == nouputs %}
+                                            <pre class="case-output"><i><b>{{(listinputs[firstwa|int+1])}}<i></b></pre>
+                                            
+                                        <!-- ajuda en stop o hasnext, n entrada - 1 sortida --> 
+                                        {% elif ninputs is divisibleby nouputs or ((ninputs-1) is divisibleby nouputs and submission.problem.data_files.caseformat == 'stop')%}
+                                            {% set div = ninputs/nouputs %}
+                                            {% for inpc in listinputs[firstwa|int*div|int:firstwa|int*div|int+div|int]%}
+                                                    <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                            {% endfor %}
+                                            <!-- ajuda en estandard, n entrada - 1 sortida --> 
+                                        {% elif (ninputs-1) is divisibleby nouputs %}
+                                            {% set div = (ninputs-1)/nouputs %}
+                                            {% for inpc in listinputs[(firstwa|int*div|int)|int+1:(firstwa|int*div|int)|int+1+div|int]%}
+                                                    <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                            {% endfor %}
+                                            <!-- ajuda en stop o hasnext, 1 entrada - n sortida --> 
+                                        {% elif ninputs is divisibleby nouputs or ((ninputs-1) is divisibleby nouputs and submission.problem.data_files.caseformat == 'stop')%}
+                                            {% set div = nouputs/ninputs %}
+                                            {% for inpc in listinputs[firstwa|int/div|int:firstwa|int/div|int+div|int]%}
+                                                    <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                            {% endfor %}
+                                           <!-- ajuda en estandard, 1 entrada - n sortida --> 
+                                        {% elif  nouputs is divisibleby (ninputs-1) %}
+                                            {% set div = nouputs/(ninputs-1) %}
+
+                                            {% for inpc in listinputs[(firstwa|int/div|int)|int+1:(firstwa|int/div|int)|int+1+div|int]%}
+                                                    <pre class="case-output"><i>{{inpc}}</i></pre> 
+                                            {% endfor %}
+
+                                            
+                                        {% endif %}
+
+
+                                        </td>
+
+                                        <td class="case-output">{{ list3[1]|linebreaksbr }}</td>
+                                        <td class="case-output">{{ list3[2]|linebreaksbr }}</td>
+                                    </tr>
+                                    {% endif %}      
+                                    {% endfor %}
+				                </table>
+                            </div>
+                            </div>
+                        </td>
+                    {% endif %}
+                    <!-- si ets profe o el creador del problema i el problema es de nomes profes -->
+                    <!-- com de viable-correcte es aixo? -->
+                    {% if submission.problem.is_evaluable_by(request.user) and not submission.problem.data_files.checker=="rstripped" and not submission.problem.data_files.checker=="linecount" %}
                         {% set list1 = case.extended_feedback.split("\u2719") %}
                         <td colspan="5" class="case-ext-feedback">
                             <div class="case-info" >
@@ -245,7 +377,7 @@
                         </td>
                         <td colspan="5" class="case-ext-feedback">
                             <div class="case-info" >
-                                <strong>{{ _('Wrong Answers') }}</strong>
+                                <strong>{{ _('Wrong Answers (only first 5)') }}</strong>
                                 <br>
                                 <table>
                                     <tr>
@@ -254,7 +386,7 @@
                                         <th>Resposta Alumne</th>
                                     </tr>
                                     {% set list2 = list1[1].split("\u2721") %}
-                                    {% for wa in list2 %}
+                                    {% for wa in list2[:5] %}
                                     <tr>
                                         {% set list3 = wa.split("\u2720") %}
                                         {% for swa in list3 %}

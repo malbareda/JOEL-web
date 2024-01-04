@@ -89,6 +89,20 @@
                 $('img.unveil').unveil(200);
             });
         </script>
+        
+        {% if request.profile.preferred_theme %}
+        <script>
+            let html = document.querySelector('html');
+            html.dataset.theme = "{{request.profile.preferred_theme}}";
+            
+        </script>
+        {% endif %}
+        {% if request.profile.preferred_font %}
+        <script>
+            let htmlf = document.querySelector('html');
+            htmlf.dataset.type = "{{request.profile.preferred_font}}";
+        </script>
+        {% endif %}
     {% endcompress %}
     {% block js_media %}{% endblock %}
     {% if request.in_contest %}
@@ -269,7 +283,7 @@
     <br>
     <main id="content">
         {% block title_row %}
-            <h2 style="color:#393630; display:inline">
+            <h2 style="color:var(--global-text); display:inline">
                 {% block content_title %}
                     {% if content_title %}{{ content_title }}{% else %}{{ title }}{% endif %}
                 {% endblock %}

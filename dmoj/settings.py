@@ -1,9 +1,7 @@
 """
 Django settings for dmoj project.
-
 For more information on this file, see
 https://docs.djangoproject.com/en/2.2/topics/settings/
-
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.2/ref/settings/
 """
@@ -13,7 +11,7 @@ import datetime
 import os
 import tempfile
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_jinja.builtins import DEFAULT_EXTENSIONS
 from jinja2 import select_autoescape
 
@@ -26,9 +24,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = '5*9f5q57mqmlz2#f$x1h76&jxy#yortjl1v+l*6hd18$d*yx#0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["51.77.146.111", "joder.ga", "jo-el.es"]
 
 SITE_ID = 1
 SITE_NAME = 'DMOJ'
@@ -36,11 +34,13 @@ SITE_LONG_NAME = 'DMOJ: Modern Online Judge'
 SITE_ADMIN_EMAIL = False
 
 DMOJ_REQUIRE_STAFF_2FA = True
+# Display warnings that admins will not perform 2FA recovery.
+DMOJ_2FA_HARDCORE = False
 
 # Set to 1 to use HTTPS if request was made to https://
 # Set to 2 to always use HTTPS for links
 # Set to 0 to always use HTTP for links
-DMOJ_SSL = 0
+DMOJ_SSL = 2
 
 # Refer to dmoj.ca/post/103-point-system-rework
 DMOJ_PP_STEP = 0.95
@@ -57,19 +57,22 @@ DMOJ_CAMO_URL = None
 DMOJ_CAMO_KEY = None
 DMOJ_CAMO_HTTPS = False
 DMOJ_CAMO_EXCLUDE = ()
-DMOJ_PROBLEM_DATA_ROOT = '/home/marc/site/problems'
+DMOJ_PROBLEM_DATA_ROOT = '/judge'
 DMOJ_PROBLEM_MIN_TIME_LIMIT = 0  # seconds
 DMOJ_PROBLEM_MAX_TIME_LIMIT = 60  # seconds
 DMOJ_PROBLEM_MIN_MEMORY_LIMIT = 0  # kilobytes
 DMOJ_PROBLEM_MAX_MEMORY_LIMIT = 1048576  # kilobytes
 DMOJ_PROBLEM_MIN_PROBLEM_POINTS = 0
 DMOJ_PROBLEM_HOT_PROBLEM_COUNT = 7
+DMOJ_PROBLEM_STATEMENT_DISALLOWED_CHARACTERS = {'“', '”', '‘', '’'}
 DMOJ_RATING_COLORS = True
 DMOJ_EMAIL_THROTTLING = (10, 60)
 DMOJ_STATS_LANGUAGE_THRESHOLD = 10
 DMOJ_SUBMISSIONS_REJUDGE_LIMIT = 10
 # Maximum number of submissions a single user can queue without the `spam_submission` permission
 DMOJ_SUBMISSION_LIMIT = 2
+# Whether to allow users to view source code: 'all' | 'all-solved' | 'only-own'
+DMOJ_SUBMISSION_SOURCE_VISIBILITY = 'all-solved'
 DMOJ_BLOG_NEW_PROBLEM_COUNT = 7
 DMOJ_BLOG_RECENTLY_ATTEMPTED_PROBLEMS_COUNT = 7
 DMOJ_TOTP_TOLERANCE_HALF_MINUTES = 1
@@ -90,6 +93,9 @@ DMOJ_STATS_SUBMISSION_RESULT_COLORS = {
     'ERR': '#ffa71c',
 }
 DMOJ_API_PAGE_SIZE = 1000
+
+DMOJ_PASSWORD_RESET_LIMIT_WINDOW = 3600
+DMOJ_PASSWORD_RESET_LIMIT_COUNT = 10
 
 MARKDOWN_STYLES = {}
 MARKDOWN_DEFAULT_STYLE = {}
@@ -201,6 +207,7 @@ else:
                     'children': [
                         'judge.Organization',
                         'judge.OrganizationRequest',
+                        'judge.Class',
                     ],
                 },
                 {
@@ -382,7 +389,7 @@ BLEACH_USER_SAFE_TAGS = [
     'b', 'i', 'strong', 'em', 'tt', 'del', 'kbd', 's', 'abbr', 'cite', 'mark', 'q', 'samp', 'small',
     'u', 'var', 'wbr', 'dfn', 'ruby', 'rb', 'rp', 'rt', 'rtc', 'sub', 'sup', 'time', 'data',
     'p', 'br', 'pre', 'span', 'div', 'blockquote', 'code', 'hr',
-    'ul', 'ol', 'li', 'dd', 'dl', 'dt', 'address', 'section',
+    'ul', 'ol', 'li', 'dd', 'dl', 'dt', 'address', 'section', 'details', 'summary',
     'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col', 'tfoot',
     'img', 'audio', 'video', 'source',
     'a',
@@ -459,7 +466,7 @@ MARKDOWN_STYLES = {
 MARTOR_ENABLE_CONFIGS = {
     'imgur': 'true',
     'mention': 'true',
-    'jquery': 'true',
+    'jquery': 'false',
     'living': 'false',
     'spellcheck': 'false',
     'hljs': 'false',
@@ -486,7 +493,7 @@ DATABASES = {
 ENABLE_FTS = False
 
 # Bridged configuration
-BRIDGED_JUDGE_ADDRESS = [('localhost', 9999)]
+BRIDGED_JUDGE_ADDRESS = [('localhost', 48462)]
 BRIDGED_JUDGE_PROXIES = None
 BRIDGED_DJANGO_ADDRESS = [('localhost', 9998)]
 BRIDGED_DJANGO_CONNECT = None

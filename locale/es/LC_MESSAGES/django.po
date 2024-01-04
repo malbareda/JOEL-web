@@ -529,7 +529,7 @@ msgstr "Habilitar las actualizaciones experimentales"
 #: judge/forms.py:75 judge/views/organization.py:127
 #, python-brace-format
 msgid "You may not be part of more than {count} public organizations."
-msgstr "No puedes formar parte de más de {count} organizaciones públicas."
+msgstr "No puedes formar parte de más de {count} equipos públicos."
 
 #: judge/forms.py:91
 msgid "Download comments?"
@@ -778,7 +778,7 @@ msgstr "publicidad visible"
 
 #: judge/models/contest.py:68
 msgid "Should be set even for organization-private contests, where it determines whether the contest is visible to members of the specified organizations."
-msgstr "Debe establecerse incluso para publicaciones privadas de la organización, donde se determina si la publicación es visible para los miembros de las organizaciones especificadas."
+msgstr "Debe establecerse incluso para publicaciones privadas del equipo, donde se determina si la publicación es visible para los miembros de los equipos especificadas."
 
 #: judge/models/contest.py:71
 msgid "contest rated"
@@ -862,16 +862,16 @@ msgstr "Si los jueces solo deben calificar los exámenes previos, versus todos l
 
 #: judge/models/contest.py:102 judge/models/problem.py:158
 msgid "private to organizations"
-msgstr "privado para organizaciones"
+msgstr "privado para equipos"
 
 #: judge/models/contest.py:103 judge/models/problem.py:156
 #: judge/models/profile.py:86
 msgid "organizations"
-msgstr "organizaciones"
+msgstr "equipos"
 
 #: judge/models/contest.py:104
 msgid "If private, only these organizations may see the contest"
-msgstr "Es privado, sólo estas organizaciones pueden ver el concurso"
+msgstr "Es privado, sólo estos equipos pueden ver el concurso"
 
 #: judge/models/contest.py:105 judge/models/problem.py:145
 msgid "OpenGraph image"
@@ -1453,7 +1453,7 @@ msgstr "permitir acceso completo al markdown"
 
 #: judge/models/problem.py:157
 msgid "If private, only these organizations may see the problem."
-msgstr "Si privado, solo estas organizaciones pueden ver el problema"
+msgstr "Si privado, solo estos equipos pueden ver el problema"
 
 #: judge/models/problem.py:411
 msgid "See hidden problems"
@@ -1489,7 +1489,7 @@ msgstr "Cambiar campo is_manually_managed"
 
 #: judge/models/problem.py:419
 msgid "See organization-private problems"
-msgstr "Ver problemas privados para la organización"
+msgstr "Ver problemas privados para el equipo"
 
 #: judge/models/problem.py:427 judge/models/problem.py:445
 #: judge/models/runtime.py:158
@@ -1666,15 +1666,15 @@ msgstr "¿Es este caso una prueba previa?"
 
 #: judge/models/profile.py:39
 msgid "organization title"
-msgstr "título de la organización"
+msgstr "título del equipo"
 
 #: judge/models/profile.py:40
 msgid "organization slug"
-msgstr "sufijo de la organización"
+msgstr "sufijo del equipo"
 
 #: judge/models/profile.py:41
 msgid "Organization name shown in URL"
-msgstr "Nombre de la organización tal y como se muestra en la URL"
+msgstr "Nombre del equipo tal y como se muestra en la URL"
 
 #: judge/models/profile.py:43
 msgid "Displayed beside user name during contests"
@@ -1682,7 +1682,7 @@ msgstr "Se muestra junto al nombre de usuario durante los concursos"
 
 #: judge/models/profile.py:44
 msgid "organization description"
-msgstr "descripción de la organización"
+msgstr "descripción del equipo"
 
 #: judge/models/profile.py:45
 msgid "registrant"
@@ -1690,7 +1690,7 @@ msgstr "registrante"
 
 #: judge/models/profile.py:46
 msgid "User who registered this organization"
-msgstr "Usuario que registró esta organización"
+msgstr "Usuario que registró este equipo"
 
 #: judge/models/profile.py:47
 msgid "administrators"
@@ -1698,7 +1698,7 @@ msgstr "administradores"
 
 #: judge/models/profile.py:48
 msgid "Those who can edit this organization"
-msgstr "Aquellos que pueden editar esta organización"
+msgstr "Aquellos que pueden editar este equipo"
 
 #: judge/models/profile.py:49
 msgid "creation date"
@@ -1706,11 +1706,11 @@ msgstr "fecha de creación"
 
 #: judge/models/profile.py:50
 msgid "is open organization?"
-msgstr "¿es una organización abierta?"
+msgstr "¿es un equipo abierto?"
 
 #: judge/models/profile.py:51
 msgid "Allow joining organization"
-msgstr "Permitir la unión a la organización"
+msgstr "Permitir la unión al equipo"
 
 #: judge/models/profile.py:52
 msgid "maximum size"
@@ -1718,7 +1718,7 @@ msgstr "tamaño máximo"
 
 #: judge/models/profile.py:53
 msgid "Maximum amount of users in this organization, only applicable to private organizations"
-msgstr "Máxima cantidad de usuarios en esta organización, solo aplicable para organizaciones privadas"
+msgstr "Máxima cantidad de usuarios en este equipo, solo aplicable para equipos privados"
 
 #: judge/models/profile.py:55
 msgid "Student access code"
@@ -1726,15 +1726,15 @@ msgstr "Código de acceso para estudiantes"
 
 #: judge/models/profile.py:59
 msgid "This image will replace the default site logo for users viewing the organization."
-msgstr "Esta imagen reemplazará el logo del sitio para los usuarios que estén mirando la organización"
+msgstr "Esta imagen reemplazará el logo del sitio para los usuarios que estén mirando el equipo"
 
 #: judge/models/profile.py:82
 msgid "Administer organizations"
-msgstr "Administrar organizaciones"
+msgstr "Administrar equipos"
 
 #: judge/models/profile.py:83
 msgid "Edit all organizations"
-msgstr "Editar todas las organizaciones"
+msgstr "Editar todos los equipos"
 
 #: judge/models/profile.py:85 judge/models/profile.py:102
 #: judge/models/profile.py:266
@@ -1932,11 +1932,11 @@ msgstr "razón"
 
 #: judge/models/profile.py:277
 msgid "organization join request"
-msgstr "solicitud para asociarse a la organización"
+msgstr "solicitud para unirse al equipo"
 
 #: judge/models/profile.py:278
 msgid "organization join requests"
-msgstr "peticiones para unirse a la organización"
+msgstr "peticiones para unirse al equipo"
 
 #: judge/models/runtime.py:19
 msgid "short identifier"
@@ -2645,21 +2645,21 @@ msgstr "Tiempo de ejecución"
 
 #: judge/views/organization.py:44 judge/views/organization.py:47
 msgid "No such organization"
-msgstr "Ninguna organización"
+msgstr "Ningun equipo"
 
 #: judge/views/organization.py:45
 #, python-format
 msgid "Could not find an organization with the key \"%s\"."
-msgstr "No se encontró una organización con la clave \"%s\"."
+msgstr "No se encontró un equipo con la clave \"%s\"."
 
 #: judge/views/organization.py:48
 msgid "Could not find such organization."
-msgstr "No se pudo encontrar tal organización."
+msgstr "No se pudo encontrar tal equipo."
 
 #: judge/views/organization.py:72 judge/views/register.py:34
 #: templates/organization/list.html:15 templates/user/user-list-tabs.html:5
 msgid "Organizations"
-msgstr "Organizaciones"
+msgstr "Equipos"
 
 #: judge/views/organization.py:93
 #, python-format
@@ -2669,19 +2669,19 @@ msgstr "%s miembros"
 #: judge/views/organization.py:118 judge/views/organization.py:121
 #: judge/views/organization.py:126
 msgid "Joining organization"
-msgstr "Unirse a la organización"
+msgstr "Unirse al equipo"
 
 #: judge/views/organization.py:118
 msgid "You are already in the organization."
-msgstr "Ya estas en esta organización."
+msgstr "Ya estas en este equipo."
 
 #: judge/views/organization.py:121
 msgid "This organization is not open."
-msgstr "Esta organización no está abierta."
+msgstr "Este equipo no está abierto."
 
 #: judge/views/organization.py:138
 msgid "Leaving organization"
-msgstr "Abandonar organización"
+msgstr "Abandonar equipo"
 
 #: judge/views/organization.py:138
 #, python-format
@@ -2705,7 +2705,7 @@ msgstr "Gestionar solicitudes de unirse para %s"
 #: judge/views/organization.py:240
 #, python-format
 msgid "Your organization can only receive %d more members. You cannot approve %d users."
-msgstr "Su organización solo puede recibir %d miembros más. No puede aprobar %d usuarios."
+msgstr "Su equipo solo puede recibir %d miembros más. No puede aprobar %d usuarios."
 
 #: judge/views/organization.py:252
 #, python-format
@@ -2728,19 +2728,19 @@ msgstr "Editando %s"
 
 #: judge/views/organization.py:307 judge/views/organization.py:315
 msgid "Can't edit organization"
-msgstr "No se puede editar la organización"
+msgstr "No se puede editar el equipo"
 
 #: judge/views/organization.py:308
 msgid "You are not allowed to edit this organization."
-msgstr "No tiene permitido editar esta organización."
+msgstr "No tiene permitido editar este equipo."
 
 #: judge/views/organization.py:316
 msgid "You are not allowed to kick people from this organization."
-msgstr "No tiene permitido expulsar a personas de esta organización."
+msgstr "No tiene permitido expulsar a personas de este equipo."
 
 #: judge/views/organization.py:321 judge/views/organization.py:325
 msgid "Can't kick user"
-msgstr "No se puede reaccionar en contra del usuario"
+msgstr "No se puede expulsar al usuario"
 
 #: judge/views/organization.py:322
 msgid "The user you are trying to kick does not exist!"
@@ -2749,7 +2749,7 @@ msgstr "¡El usuario que estás tratando de poner no existe!"
 #: judge/views/organization.py:326
 #, python-format
 msgid "The user you are trying to kick is not in organization: %s."
-msgstr "El usuario que estás tratando poner no está en la organización: %s."
+msgstr "El usuario que estás tratando poner no está en el equipo: %s."
 
 #: judge/views/problem.py:67
 msgid "No such problem"
@@ -3424,7 +3424,7 @@ msgstr "Próximos concursos"
 
 #: templates/blog/list.html:189
 msgid "Comment stream"
-msgstr "Corriente del comentario"
+msgstr "Últimos comentarios"
 
 #: templates/blog/list.html:209
 msgid "New problems"
@@ -3782,15 +3782,15 @@ msgstr "Este concurso es privado para usuarios específicos"
 
 #: templates/contest/private.html:10
 msgid "Additionally, only the following organizations may access this contest:"
-msgstr "Adicionalmente, solo las siguientes organizaciones pueden acceder a este concurso:"
+msgstr "Adicionalmente, solo los siguientes equipos pueden acceder a este concurso:"
 
 #: templates/contest/private.html:12
 msgid "Only the following organizations may access this contest:"
-msgstr "Sólo las siguientes organizaciones pueden tener acceso a este concurso:"
+msgstr "Sólo los siguientes equipos pueden tener acceso a este concurso:"
 
 #: templates/contest/ranking-table.html:7
 msgid "Organization"
-msgstr "Organización"
+msgstr "Equipo"
 
 #: templates/contest/ranking-table.html:27
 #, python-brace-format
@@ -3823,7 +3823,7 @@ msgstr "Ver la participación del usuario"
 
 #: templates/contest/ranking.html:250
 msgid "Show organizations"
-msgstr "Mostrar organizaciones"
+msgstr "Mostrar equipos"
 
 #: templates/contest/stats.html:38
 msgid "Problem Status Distribution"
@@ -3914,11 +3914,11 @@ msgstr "Actualizar"
 
 #: templates/organization/home.html:7
 msgid "Are you sure you want to leave this organization?"
-msgstr "¿Estás seguro que quieres dejar esta organización?"
+msgstr "¿Estás seguro que quieres dejar este equipo?"
 
 #: templates/organization/home.html:9
 msgid "You will have to rejoin to show up on the organization leaderboard."
-msgstr "Deberás volverte a unir para aparecer de nuevo en la el ranking de la organización"
+msgstr "Deberás volverte a unir para aparecer de nuevo en la el ranking del equipo"
 
 #: templates/organization/home.html:11
 msgid "You will have to request membership in order to join again."
@@ -3926,11 +3926,11 @@ msgstr "Deberás pedir permiso para volver a unirte."
 
 #: templates/organization/home.html:24
 msgid "Leave organization"
-msgstr "Abandonar organización"
+msgstr "Abandonar equipo"
 
 #: templates/organization/home.html:29
 msgid "Join organization"
-msgstr "Unirse a esta organización"
+msgstr "Unirse a este equipo"
 
 #: templates/organization/home.html:33
 msgid "Request membership"
@@ -3938,7 +3938,7 @@ msgstr "Solicitar membresía"
 
 #: templates/organization/home.html:39
 msgid "Edit organization"
-msgstr "Editar organización"
+msgstr "Editar equipo"
 
 #: templates/organization/home.html:43
 msgid "View requests"
@@ -3946,7 +3946,7 @@ msgstr "Ver solicitud"
 
 #: templates/organization/home.html:50
 msgid "Admin organization"
-msgstr "Administrador de la organización"
+msgstr "¡¡¡¡JEFE DE EQUIPO!!!!"
 
 #: templates/organization/home.html:55
 msgid "View members"
@@ -3970,7 +3970,7 @@ msgstr "Usuario:"
 
 #: templates/organization/requests/detail.html:17
 msgid "Organization:"
-msgstr "Organización:"
+msgstr "Equipo:"
 
 #: templates/organization/requests/detail.html:25
 msgid "Time:"
@@ -4487,7 +4487,7 @@ msgstr "Lenguaje por defecto"
 #: templates/registration/registration_form.html:186
 #: templates/user/edit-profile.html:309
 msgid "Affiliated organizations"
-msgstr "Organizaciones afiliadas"
+msgstr "Equipos afiliados"
 
 #: templates/registration/registration_form.html:192
 #: templates/user/edit-profile.html:323
@@ -5129,3 +5129,89 @@ msgid "Check all"
 msgstr "Seleccionar todo"
 
 
+
+#########Especifics JOEL
+
+#templates/user/base-table.html
+msgid "Flag"
+msgstr "Bandera"
+
+#templates/submission/status-testcases
+msgid "Wrong Answers"
+msgstr "Casos Erróneos"
+
+msgid  "Wrong Answers (only first 5)"
+msgstr "Casos Erróneos (solo los 5 primeros)"
+
+msgid "You have a Wrong Answer in Input"
+msgstr "Te falla un caso con el Input:"
+
+msgid "Help!"
+msgstr "Ayuda!"
+
+msgid "HELP"
+msgstr "AYUDA"
+
+msgid "Si demanes ajuda es mostrara el primer cas de prova que hagis fallat. Això farà servir una pista. Un cop arribis a les pistes permeses, ja no podras demanar ajuda. Estàs segur?"
+msgstr "Si pides ayuda se mostrara el primer caso de prueba que hayas fallado. Eso usará una pista. Una vez llegues a las pistas permitidas, ya no podrás pedir ayuda. ¿Estás seguro?"
+
+#models/problem_data.py
+msgid "Linea a Linea (només profes)"
+msgstr "Linea a Linea (sólo profes)"
+
+msgid "Format del Cas de Proves"
+msgstr "Formato del Caso de Pruebas"
+
+msgid "Programame-like"
+msgstr "Programame-like"
+
+msgid "Estàndard/fixe"
+msgstr "Estándar/fijo"
+
+msgid "STOP al final"
+msgstr "STOP al final"
+
+msgid "Linies per cada cas"
+msgstr "Lineas para cada casp"
+
+msgid "Casos individuals"
+msgstr "Casos individuales"
+
+msgid "Hints Used/Allowed:"
+msgstr "Pistas Utilizadas/Permitidas:"
+
+msgid "Your answer was"
+msgstr "Tu respuesta es:"
+
+msgid "Expected File"
+msgstr "Fichero esperado"
+
+msgid "Your File"
+msgstr "Tu fichero"
+
+msgid "Cas fallit"
+msgstr "Caso fallido"
+
+msgid "Resposta esperada"
+msgstr "Respuesta esperada"
+
+msgid "Resposta Alumne"
+msgstr "Respuesta Alumne"
+
+msgid "Organization Statistics"
+msgstr "Estadísticas del equipo"
+
+msgid "Stats for"
+msgstr "Estadísticas para"
+
+msgid "Solve Status"
+msgstr "Quien lo ha resuelto"
+
+msgid "Solve Status for"
+msgstr "Quien ha resuelto"
+
+msgid "My Organizations"
+msgstr "Mis Equipos"
+
+msgid "All Users"
+msgstr "Todos los Usuarios"

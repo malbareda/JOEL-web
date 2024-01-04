@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block media %}
+    {% block user_media %}{% endblock %}
+
+    <style>
+        .user-gravatar {
+            display: block;
+            padding-right: 15px;
+            width: 135px;
+        }
+
+        .user-gravatar img {
+            width: 135px;
+            height: 135px;
+            display: block;
+            border-radius: 6px;
+        }
+
+        .page-title {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+        }
+
+        .container {
+        margin: 20px;
+        width: 500px;
+        height: 500px;
+        perspective: 1000px;
+        }
+
+        .card {
+        transition: transform 2s;
+        transform-style: preserve-3d;
+        cursor: pointer;
+        }
+
+        .front, .back {
+        position: absolute;
+        backface-visibility: hidden;
+        width: 500px;
+        height: 500px;
+        }
+
+        .front {
+        border: 2px solid black;
+        }
+
+        .front:hover {
+        box-shadow: 0px 0px 20px 1px #000;
+        }
+
+        .back {
+        border: 2px solid black;
+        transform: rotateY(180deg);
+        }
+
+        .back:hover {
+        box-shadow: 0px 0px 20px 1px #000;
+        }
+
+    </style>
+{% endblock %}
+
+{% block js_media %}
+    {% block user_js_media %}
+    <script>
+    function flip(event){
+        var element = event.currentTarget;
+        document.getElementById("desc").style.display="block";
+
+        if (element.className === "card") {
+        if(element.style.transform == "rotateY(180deg)") {
+        element.style.transform = "rotateY(0deg)";
+        }
+        else {
+        element.style.transform = "rotateY(180deg)";
+        }
+        }
+    };
+    </script>
+    {% endblock %}
+{% endblock %}
+
+{% block body %}
+
+    {% set gpoints = user.points - user.gacha_points %}
+    <p>Punts Disponibles: {{gpoints|float}}</p>
+    <div class="container">
+        <div class="card"  onclick="flip(event)">
+            {% if achq==1 %}
+            <div class="front" style="background:green">
+            {% elif achq==2 %}
+            <div class="front" style="background:blue">
+            {% elif achq==3 %}
+            <div class="front" style="background:purple">
+            {% elif achq==4 %}
+            <div class="front" style="background:orange">
+            {% endif %}
+            </div>
+            <div class="back" style="background:url('{{achpic}}');  background-repeat: no-repeat;
+  background-size: cover;">
+            </div>
+        </div>
+    </div>
+    <p>{{_('Has aconseguit')}} {% if achcat == 1 %} {{_('un Sticker!')}} {% elif achcat == 2 %} {{_('una Icona!')}} {% elif achcat == 3 %} {{_('un Color!')}} {% elif achcat == 4 %} {{_('un Tema!')}} {% endif %}</p>
+    {% if repetit == 1 %} 
+    <p id="desc" style="display:none;">Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50% dels teus GachaPoints</p>
+    {% endif %}
+    <p id="desc" style="display:none;">{{achdesc}}</p>
+<form action="{{ url('gacha_go') }}" method="post"
+                          class="contest-join-pseudotab unselectable button">
+                        {% csrf_token %}
+                        <input type="submit" value="{{ _('Use 5 GachaPoints') }}">
+    </form>
+
+{% endblock %}

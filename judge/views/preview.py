@@ -41,6 +41,9 @@ class ProfileMarkdownPreviewView(MarkdownPreviewView):
 class OrganizationMarkdownPreviewView(MarkdownPreviewView):
     template_name = 'organization/preview.html'
 
+class TaskMarkdownPreviewView(MarkdownPreviewView):
+    template_name = 'problem/taskpreview.html'
+
 
 class SolutionMarkdownPreviewView(MarkdownPreviewView):
     template_name = 'solution-preview.html'

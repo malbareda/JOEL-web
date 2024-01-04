@@ -14,7 +14,7 @@
 
     <div class="state">
         <span title="{{ submission.long_status }}" class="status">{{ submission.short_status }}</span> |
-        <span class="language">{{ submission.language.short_display_name }}</span>
+        <span class="language">{{ submission.language.short_display_name }}  </span>
     </div>
 </div>
 
@@ -87,7 +87,27 @@
         {% else %}
             <div class="time">---</div>
         {% endif %}
-        {# No one actually like IEC prefixes, Jinja2. #}
+        {# MARC NO T'ATREVEIXIS A TOCAR EL FILESIZEFORMAT. NO SE EL QUE FA PERO SI NO ES POSA PETA JINJA. ES UN MISTERI QUE MAI DESCOBRIREM. SIGUES FELIÇ. #}
         <div class="memory">{{ (submission.memory_bytes|filesizeformat(True)).replace('i', '') }}</div>
     {% endif %}
+</div>
+
+
+<div class="sub-usage">
+    {% set ns = namespace(yay=0,nay=0) %}
+
+    {% for i in submission.votes.all() %}
+    
+        {% if i.score > 0 %}
+            {% set ns.yay = ns.yay+i.score %}
+            
+        {% endif %}
+        {% if i.score < 0 %}
+            {% set ns.nay = ns.nay-i.score %}
+            
+        {% endif %}    
+    {% endfor %}
+
+    {# TERRORISME INFINIT PERO ES QUE NO SE REALMENT QUI CONY ENVIA L'INFO AL ROW #}
+    <span><i class="fa fa-thumbs-up fa-fw"></i> {{ ns.yay }} </span> <span> <i class="fa fa-thumbs-down fa-fw"></i> {{ ns.nay }}</span>
 </div>

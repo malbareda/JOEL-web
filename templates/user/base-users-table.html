@@ -1,11 +1,13 @@
 <thead>
 <tr>
     <th class="header rank">{{ rank_header or _("Rank") }}</th>
+
     {% block after_rank_head %}{% endblock %}
+    <th class="header rank">{{ _("Icon") }}</th>
     <th class="header flag">{{ _('Flag') }}</th>
     <th class="header username">{{ _('Username') }}</th>
-    {% block before_point_head %}{% endblock %}
     <th class="header username">{{ _('Organization') }}</th>
+    {% block before_point_head %}{% endblock %}
     <th class="problems">
         {% if sort_links %}<a href="{{ sort_links.performance_points }}">{% endif %}
         {{ _('Points') }}
@@ -17,8 +19,18 @@
 
 <tbody>
 {% for rank, user in users %}
-    <tr id="user-{{ user.user.username }}" {% block row_extra scoped %}{% endblock %}>
+    {% if user.user_color %}
+    <tr id="user-{{ user.user.username }}" style="background:{{user.user_color}};" {% block row_extra scoped %}{% endblock %}>
+    {% else %}
+    <tr id="user-{{ user.user.username }}" {% block row_extra2 scoped %}{% endblock %}>
+    {% endif %}
         <td>{{ rank }}</td>
+        
+        <td>
+        {% if user.preferred_icon %}
+                 <img src="{{user.preferred_icon}}" alt="icon" width="50" height="50"> 
+        {% endif %}
+        </td>
         {% with orgs=user.organizations.all() %}
         {% if orgs and orgs[0].logo_override_image %}
         <td>

@@ -1,5 +1,5 @@
 .admin a, .admin {
-    color: black !important;
+    color:var(--text-black) !important;
     font-weight: bold !important;
 }
 
@@ -61,7 +61,7 @@ svg.rate-box {
 }
 
 .rate-none, .rate-none a {
-    color: black;
+    color:var(--text-black);
     font-weight: normal;
 }
 
@@ -92,7 +92,7 @@ svg.rate-box {
 .rate-group {
     white-space: nowrap;
     display: inline-block;
-    color: black;
+    color:var(--text-black);
 
     .rating {
         display: inline-block;

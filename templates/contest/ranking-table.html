@@ -1,10 +1,9 @@
-{% extends "user/base-users-table.html" %}
+{% extends "contest/base-ranking-table.html" %}
 
-{% block after_rank_head %}
+{% block after_point_head %}
     {% if has_rating %}
         <th>{{ _('Rating') }}</th>
     {% endif %}
-    <th class="organization-column">{{ _('Organization') }}</th>
 {% endblock %}
 
 {% block after_rank %}

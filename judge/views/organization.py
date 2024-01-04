@@ -16,7 +16,7 @@ from django.views.generic.detail import SingleObjectMixin, SingleObjectTemplateR
 from reversion import revisions
 
 from judge.forms import EditOrganizationForm
-from judge.models import Organization, OrganizationRequest, Profile
+from judge.models import Organization, OrganizationRequest, Profile, Problem
 from judge.utils.ranker import ranker
 from judge.utils.views import TitleMixin, generic_message
 
@@ -65,11 +65,18 @@ class OrganizationDetailView(OrganizationMixin, DetailView):
         return self.render_to_response(context)
 
 
+
 class OrganizationList(TitleMixin, ListView):
     model = Organization
     context_object_name = 'organizations'
     template_name = 'organization/list.html'
     title = gettext_lazy('Organizations')
+
+    #XXX calcular els punts dels membres etc etc etc 
+
+
+
+    ############
 
     def get_queryset(self):
         return super(OrganizationList, self).get_queryset().annotate(member_count=Count('member'))
