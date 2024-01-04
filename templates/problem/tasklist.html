@@ -196,10 +196,23 @@
                         
                         
                             
-                                <td >
-                                {{task.numberOfProblems}}
-                                </td>
-                    
+                        <td >
+                        {{task.numberOfProblems}}
+                        </td>
+            
+                        {% set ns = namespace(yay=0,nay=0) %}
+
+                        {% for i in submission.votes.all() %}
+                        
+                            {% if i.score > 0 %}
+                                {% set ns.yay = ns.yay+1 %}
+                                
+                            {% endif %}
+                            {% if i.score < 0 %}
+                                {% set ns.nay = ns.nay+1 %}
+                                
+                            {% endif %}    
+                        {% endfor %}
 
                             
                     </tr>
