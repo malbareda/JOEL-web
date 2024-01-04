@@ -200,22 +200,16 @@
                         {{task.numberOfProblems}}
                         </td>
             
-                        {% set ns = namespace(yay=0,nay=0) %}
+                        {% set ns = namespace(acc=0) %}
 
-                        {% for i in submission.votes.all() %}
+                        {% for i in task.problems.all() %}
                         
-                            {% if i.score > 0 %}
-                                {% set ns.yay = ns.yay+1 %}
+                                {% set ns.acc = ns.acc+i.points %}
                                 
-                            {% endif %}
-                            {% if i.score < 0 %}
-                                {% set ns.nay = ns.nay+1 %}
-                                
-                            {% endif %}    
                         {% endfor %}
-
-                        git filter-branch --force --index-filter "git rm --cached --ignore-unmatch backupemergencia.sql" --prune-empty --tag-name-filter cat -- --all
-
+                        <td >
+                            {{(ns.acc/task.numberOfProblems)|round(1,'floor')}}
+                        </td>
                         
                     </tr>
                 {% endfor %}
