@@ -87,7 +87,7 @@
 {% block body %}
 
     {% set gpoints = user.points - user.gacha_points %}
-    <p>Punts Disponibles: {{gpoints|float}}</p>
+    <p>Punts Disponibles: {{gpoints|floatformat(2)}}</p>
     <div class="container">
         <div class="card"  onclick="flip(event)">
             {% if achq==1 %}

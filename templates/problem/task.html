@@ -95,11 +95,10 @@
     {% endblock %}
 
 
-    <h2>{{_('All Users')}}</h2>
     <br>
         <div>
-        {{thistask.about}}
-        </div>
+        {{ thistask.about|markdown('contest', MATH_ENGINE)|reference|str|safe }}
+       </div>
         <table class="solvedtable table">
             <thead>
             <tr>

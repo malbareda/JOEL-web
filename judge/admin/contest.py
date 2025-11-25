@@ -115,12 +115,12 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
         (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit')}),
         (_('Details'), {'fields': ('description', 'og_image', 'logo_override_image', 'tags', 'summary')}),
         (_('Format'), {'fields': ('format_name', 'format_config', 'problem_label_script')}),
-        (_('Rating'), {'fields': ('is_rated', 'rate_all', 'rating_floor', 'rating_ceiling', 'rate_exclude')}),
+        (_('Rating'), {'fields': ('is_rated', 'is_primera', 'is_segona', 'rate_all', 'rating_floor', 'rating_ceiling', 'rate_exclude')}),
         (_('Access'), {'fields': ('access_code', 'is_private', 'private_contestants', 'is_organization_private',
                                   'organizations', 'view_contest_scoreboard')}),
         (_('Justice'), {'fields': ('banned_users',)}),
     )
-    list_display = ('key', 'name', 'is_visible', 'is_rated', 'is_locked', 'start_time', 'end_time', 'time_limit',
+    list_display = ('key', 'name', 'is_visible', 'is_rated', 'is_primera', 'is_segona', 'is_locked', 'start_time', 'end_time', 'time_limit',
                     'user_count')
     search_fields = ('key', 'name')
     inlines = [ContestProblemInline]
@@ -155,7 +155,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
     def get_readonly_fields(self, request, obj=None):
         readonly = []
         if not request.user.has_perm('judge.contest_rating'):
-            readonly += ['is_rated', 'rate_all', 'rate_exclude']
+            readonly += ['is_rated', 'is_primera', 'is_segona','rate_all', 'rate_exclude']
         if not request.user.has_perm('judge.lock_contest'):
             readonly += ['is_locked']
         if not request.user.has_perm('judge.contest_access_code'):
@@ -250,6 +250,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
         return [
             url(r'^rate/all/$', self.rate_all_view, name='judge_contest_rate_all'),
             url(r'^(\d+)/rate/$', self.rate_view, name='judge_contest_rate'),
+            url(r'^(\d+)/ratelliga/$', self.rate_lliga_view, name='judge_contest_rate_lliga'),
             url(r'^(\d+)/judge/(\d+)/$', self.rejudge_view, name='judge_contest_rejudge'),
         ] + super(ContestAdmin, self).get_urls()
 
@@ -274,6 +275,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
                 rate_contest(contest)
         return HttpResponseRedirect(reverse('admin:judge_contest_changelist'))
 
+
     def rate_view(self, request, id):
         if not request.user.has_perm('judge.contest_rating'):
             raise PermissionDenied()
@@ -283,6 +285,18 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
         with transaction.atomic():
             contest.rate()
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:judge_contest_changelist')))
+
+
+    def rate_lliga_view(self, request, id):
+        if not request.user.has_perm('judge.contest_rating'):
+            raise PermissionDenied()
+        contest = get_object_or_404(Contest, id=id)
+        if not contest.is_rated:
+            raise Http404()
+        with transaction.atomic():
+            contest.rate_lliga()
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:judge_contest_changelist')))
+    
 
     def get_form(self, request, obj=None, **kwargs):
         form = super(ContestAdmin, self).get_form(request, obj, **kwargs)

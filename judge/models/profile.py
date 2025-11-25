@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import Max
+from django.db.models import Max, OuterRef, Subquery
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.functional import cached_property
@@ -133,6 +133,8 @@ class Profile(models.Model):
     points = models.FloatField(default=0, db_index=True)
     performance_points = models.FloatField(default=0, db_index=True)
     gacha_points = models.FloatField(default=0, db_index=True, help_text=_('Els punts gacha que ha gastat un usuari. No els punts que te. Els punts disponibles es calculen dinamicament entre la resta dels seus punts totals i aquest valor. Per donar gachapoints a un alumne, restar aquest valor. Permet negatius'))
+    lliga_primera_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la primera divisio de la lliga actual'))
+    lliga_segona_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la segona divisio de la lliga actual'))
     achievements = models.ManyToManyField(Achievement, through='AchievementObtained')
     user_color = models.TextField(verbose_name=_('user color'),null=True,help_text=_('background color of your name in the users list.'))
     preferred_theme = models.TextField(verbose_name=_('preferred theme'),null=True,help_text=_('Your preferred theme for this web.'))
@@ -222,7 +224,62 @@ class Profile(models.Model):
             self.save(update_fields=['points', 'problem_count', 'performance_points'])
         return points
 
+
     calculate_points.alters_data = True
+
+    def calculate_points_primera(self):
+        from django.db.models import OuterRef, Subquery
+        from django.utils import timezone
+        from judge.models import ContestParticipation
+        
+        now = timezone.now()
+        
+        max_ids = ContestParticipation.objects.filter(
+            contest_id=OuterRef('contest_id'),
+            user=self,
+            contest__is_primera=True,
+            contest__end_time__lt=now  # Només concursos acabats
+        ).order_by('-score').values('id')
+        
+        reports = sum(ContestParticipation.objects.filter(
+            id=Subquery(max_ids[:1])
+        ).values_list('score', flat=True))
+        #raise Exception("I want to know the value of this: " + str(coses)+self.user.username)
+
+        self.lliga_primera_points = reports
+        self.save(update_fields=['lliga_primera_points'])
+        return reports
+
+
+    def calculate_points_segona(self):
+        from django.db.models import OuterRef, Subquery
+        from django.utils import timezone
+        from judge.models import ContestParticipation
+        
+        now = timezone.now()
+        
+        max_ids = ContestParticipation.objects.filter(
+            contest_id=OuterRef('contest_id'),
+            user=self,
+            contest__is_segona=True,
+            contest__end_time__lt=now  # Només concursos acabats
+        ).order_by('-score').values('id')
+        
+        reports = sum(ContestParticipation.objects.filter(
+            id=Subquery(max_ids[:1])
+        ).values_list('score', flat=True))
+        
+        self.lliga_segona_points = reports
+        self.save(update_fields=['lliga_segona_points'])
+        return reports
+
+
+    @cached_property
+    def puntsPrimera(self):
+        from judge.models import ContestParticipation
+        coses = sum(ContestParticipation.objects.filter(contest__is_primera=True, user=self).values_list('score'))
+        return coses
+    
 
     def generate_api_token(self):
         secret = secrets.token_bytes(32)

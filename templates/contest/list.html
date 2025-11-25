@@ -67,20 +67,30 @@
             {% endif %}
             {% if contest.is_organization_private %}
                 {% for org in contest.organizations.all() %}
-                    <span style="background-color: #cccccc" class="contest-tag">
-                        <a href="{{ org.get_absolute_url() }}" style="color: #000000">
+                    <span style="background-color: #087eb6" class="contest-tag">
+                        <a href="{{ org.get_absolute_url() }}" style="color: #ffffff">
                             <i class="fa fa-lock"></i> {{ org.name }}
                         </a>
                     </span>
                 {% endfor %}
             {% elif contest.is_private %}
-                <span style="background-color: #666666; color: #ffffff" class="contest-tag">
+                <span style="background-color: #a52121; color: #ffffff" class="contest-tag">
                     <i class="fa fa-lock"></i> {{ _('private') }}
                 </span>
             {% endif %}
             {% if contest.is_rated %}
                 <span style="background-color: #e54c14; color: #ffffff" class="contest-tag">
                     <i class="fa fa-bar-chart"></i> {{ _('rated') }}
+                </span>
+            {% endif %}
+            {% if contest.is_primera %}
+                <span style="background-color: #FFD700; color: #3818c5" class="contest-tag">
+                    <i class="fa fa-trophy"></i> {{ _('LLIGA: PRIMERA DIVISIÓ') }}
+                </span>
+            {% endif %}
+            {% if contest.is_segona %}
+                <span style="background-color: #C0C0C0; color: #000000" class="contest-tag">
+                    <i class="fa fa-trophy"></i> {{ _('LLIGA: SEGONA DIVISIÓ') }}
                 </span>
             {% endif %}
             {% for tag in contest.tags.all() %}

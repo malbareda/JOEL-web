@@ -20,4 +20,14 @@
             <span class="text">{% trans "Rate" %}</span>
         </a>
     {% endif %}
+
+    {% if original and original.is_primera and perms.judge.contest_rating or original and original.is_segona and perms.judge.contest_rating %}
+        <a style="display: none" title="{% trans "Rate LLIGA" %}" href="{% url 'admin:judge_contest_rate_lliga' original.pk %}"
+           class="button rerate-link">
+            <i class="fa fa-lg fa-trophy"></i>
+            <span class="text">{% trans "Rate LLIGA" %}</span>
+        </a>
+    {% endif %}
 {% endblock %}
+
+

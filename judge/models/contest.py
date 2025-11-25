@@ -70,6 +70,10 @@ class Contest(models.Model):
                                                  'specified organizations.'))
     is_rated = models.BooleanField(verbose_name=_('contest rated'), help_text=_('Whether this contest can be rated.'),
                                    default=False)
+    is_primera = models.BooleanField(verbose_name=_('primera divisio'), help_text=_('Whether this contest is on Primera Divisió de la Lliga de FP de Programació.'),
+                                   default=False)
+    is_segona = models.BooleanField(verbose_name=_('segona divisio'), help_text=_('Whether this contest is on Segona Divisió de la Lliga de FP de Programació.'),
+                                   default=False)
     hide_scoreboard = models.BooleanField(verbose_name=_('hide scoreboard'),
                                           help_text=_('Whether the scoreboard should remain hidden for the duration '
                                                       'of the contest.'),
@@ -334,6 +338,35 @@ class Contest(models.Model):
         Rating.objects.filter(contest__end_time__gte=self.end_time).delete()
         for contest in Contest.objects.filter(is_rated=True, end_time__gte=self.end_time).order_by('end_time'):
             rate_contest(contest)
+
+    '''def rate_lliga(self):
+        from django.db.models import Q
+        
+        # Usuaris que han participat en aquest concurs
+        participants = Profile.objects.filter(
+            contest_history__contest=self
+        ).distinct()
+        
+        # Usuaris que ja tenen punts en alguna lliga (pero no han participat en aquest concurs)
+        users_with_points = Profile.objects.filter(
+            Q(lliga_primera_points__gt=0) | Q(lliga_segona_points__gt=0)
+        ).distinct()
+        
+        # Unió dels dos conjunts (sense duplicats)
+        users_to_update = (participants | users_with_points).distinct()
+        
+        # Recalcular només aquests usuaris
+        for user in users_to_update:
+            user.calculate_points_segona()
+            user.calculate_points_primera()'''
+    def rate_lliga(self):
+        #raise Exception("I want to know the value of this: " + str("coseses"))
+
+        
+        for user in Profile.objects.all():
+            user.calculate_points_segona()
+            user.calculate_points_primera()
+
 
     class Meta:
         permissions = (

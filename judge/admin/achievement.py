@@ -16,5 +16,6 @@ class AchievementForm(ModelForm):
 
 
 class AchievementAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category', 'logo_override_image',)
     fields = ('name', 'desc', 'rarity', 'quality', 'category', 'logo_override_image',)
     form = AchievementForm

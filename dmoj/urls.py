@@ -187,6 +187,20 @@ urlpatterns = [
             HttpResponsePermanentRedirect('%s?page=%s' % (reverse('user_list'), page))),
         url(r'^find$', user.user_ranking_redirect, name='user_ranking_redirect'),
     ])),
+
+
+    url(r'^users/primera', include([
+        url(r'^$', user.usersPrimera, name='primera_list'),
+        url(r'^(?P<page>\d+)$', lambda request, page:
+            HttpResponsePermanentRedirect('%s?page=%s' % (reverse('primera_list'), page))),
+    ])),
+
+    url(r'^users/segona', include([
+        url(r'^$', user.usersSegona, name='segona_list'),
+        url(r'^(?P<page>\d+)$', lambda request, page:
+            HttpResponsePermanentRedirect('%s?page=%s' % (reverse('segona_list'), page))),
+    ])),
+
     url(r'^user$', user.UserAboutPage.as_view(), name='user_page'),
     url(r'^edit/profile/$', user.edit_profile, name='user_edit_profile'),
     url(r'^data/prepare/$', user.UserPrepareData.as_view(), name='user_prepare_data'),

@@ -24,9 +24,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = '5*9f5q57mqmlz2#f$x1h76&jxy#yortjl1v+l*6hd18$d*yx#0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ["51.77.146.111", "joder.ga", "jo-el.es"]
+ALLOWED_HOSTS = ["51.77.146.111", "joder.ga", "jo-el.es", "www.jo-el.es"]
 
 SITE_ID = 1
 SITE_NAME = 'DMOJ'

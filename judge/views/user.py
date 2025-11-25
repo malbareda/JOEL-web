@@ -714,6 +714,77 @@ def users(request):
     return user_list_view(request)
 
 
+
+
+class UserListPrimera(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ListView):
+    model = Profile
+    title = gettext_lazy('Leaderboard Primera')
+    context_object_name = 'users'
+    template_name = 'user/list_lliga1.html'
+    paginate_by = 100
+    all_sorts = frozenset(('points', 'problem_count', 'rating', 'lliga_primera_points'))
+    default_desc = all_sorts
+    default_sort = '-lliga_primera_points'
+
+    def get_queryset(self):
+        return (Profile.objects.filter(is_unlisted=False, lliga_primera_points__gt=0).order_by(self.order).select_related('user')#canviar points__gt per score_primera__gt en algun moment
+                .only('display_rank', 'user__username', 'points', 'rating', 'lliga_primera_points',
+                      'problem_count'))
+
+    def get_context_data(self, **kwargs):
+        context = super(UserListPrimera, self).get_context_data(**kwargs)
+        context['users'] = ranker(
+            context['users'],
+            key=attrgetter('lliga_primera_points', 'problem_count'),
+            rank=self.paginate_by * (context['page_obj'].number - 1),
+        )
+        context['first_page_href'] = '.'
+        context.update(self.get_sort_context())
+        context.update(self.get_sort_paginate_context())
+        return context
+
+
+user_primera_list_view = UserListPrimera.as_view()
+
+def usersPrimera(request):
+    return user_primera_list_view(request)
+
+
+
+class UserListSegona(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ListView):
+    model = Profile
+    title = gettext_lazy('Leaderboard Segona')
+    context_object_name = 'users'
+    template_name = 'user/list_lliga2.html'
+    paginate_by = 100
+    all_sorts = frozenset(('points', 'problem_count', 'rating', 'lliga_segona_points'))
+    default_desc = all_sorts
+    default_sort = '-lliga_segona_points'
+
+    def get_queryset(self):
+        return (Profile.objects.filter(is_unlisted=False, lliga_segona_points__gt=0).order_by(self.order).select_related('user')#canviar points__gt per score_primera__gt en algun moment
+                .only('display_rank', 'user__username', 'points', 'rating', 'lliga_segona_points',
+                      'problem_count'))
+
+    def get_context_data(self, **kwargs):
+        context = super(UserListSegona, self).get_context_data(**kwargs)
+        context['users'] = ranker(
+            context['users'],
+            key=attrgetter('lliga_segona_points', 'problem_count'),
+            rank=self.paginate_by * (context['page_obj'].number - 1),
+        )
+        context['first_page_href'] = '.'
+        context.update(self.get_sort_context())
+        context.update(self.get_sort_paginate_context())
+        return context
+
+
+user_segona_list_view = UserListSegona.as_view()
+
+def usersSegona(request):
+    return user_segona_list_view(request)
+
+
 def user_ranking_redirect(request):
     try:
         username = request.GET['search']
