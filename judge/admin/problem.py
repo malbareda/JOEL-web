@@ -10,7 +10,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _, ungettext
 from reversion.admin import VersionAdmin
 
-from judge.models import LanguageLimit, Problem, ProblemClarification, ProblemTranslation, Profile, Solution
+from judge.models import Guide, GuideTranslation, LanguageLimit, Problem, ProblemClarification, ProblemTranslation, \
+    Profile, Solution
 from judge.utils.views import NoBatchDeleteMixin
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminMartorWidget, AdminSelect2MultipleWidget, \
     AdminSelect2Widget, CheckboxSelectMultipleWithSelectAll
@@ -118,6 +119,30 @@ class ProblemTranslationInline(admin.StackedInline):
     has_add_permission = has_change_permission = has_delete_permission = has_permission_full_markup
 
 
+class ProblemGuideForm(ModelForm):
+    class Meta:
+        widgets = {'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('problem_preview')})}
+
+
+class ProblemGuideInline(admin.StackedInline):
+    model = Guide
+    fields = ('is_public', 'content')
+    form = ProblemGuideForm
+    extra = 0
+
+
+class GuideTranslationForm(ModelForm):
+    class Meta:
+        widgets = {'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('problem_preview')})}
+
+
+class GuideTranslationInline(admin.StackedInline):
+    model = GuideTranslation
+    fields = ('language', 'runtime', 'content')
+    form = GuideTranslationForm
+    extra = 0
+
+
 class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     fieldsets = (
         (None, {
@@ -137,7 +162,8 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     list_display = ['code', 'name', 'show_authors', 'points', 'is_public', 'show_public']
     ordering = ['code']
     search_fields = ('code', 'name', 'authors__user__username', 'curators__user__username')
-    inlines = [LanguageLimitInline, ProblemClarificationInline, ProblemSolutionInline, ProblemTranslationInline]
+    inlines = [LanguageLimitInline, ProblemClarificationInline, ProblemSolutionInline, ProblemTranslationInline,
+               ProblemGuideInline, GuideTranslationInline]
     list_max_show_all = 1000
     actions_on_top = True
     actions_on_bottom = True

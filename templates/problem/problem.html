@@ -41,6 +41,39 @@
         .problem-info-entry {
             padding-top: 0.5em;
         }
+
+        .guide-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5em;
+            background: var(--highlight_blue);
+            color: var(--global-text);
+            border: 2px solid var(--highlight_blue);
+            font-weight: bold;
+            margin-bottom: 0.7em;
+        }
+
+        .guide-button:hover {
+            filter: brightness(1.1);
+        }
+
+        .guide-button .fa {
+            font-size: 1.2em;
+        }
+
+        .intro-problem-tag {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5em;
+            padding: 0.25em 0.7em;
+            border-radius: 4px;
+            background: var(--highlight_blue);
+            color: var(--global-text);
+            font-size: 0.85rem;
+            font-weight: bold;
+            white-space: nowrap;
+        }
     </style>
 {% endblock %}
 
@@ -71,6 +104,9 @@
             {% endif %}
         {% endif %}
         <h2 style="color:var(--global-text); display: inline-block">{{ title }}</h2>
+        {% if guide and guide.is_accessible_by(request.user) and not request.in_contest %}
+            <span class="intro-problem-tag"><i class="fa fa-graduation-cap"></i> {{ _('Introducció') }}</span>
+        {% endif %}
         {% if problem.is_organization_private %}
             <span class="organization-tags">
                 {% for org in problem.organizations.all() %}
@@ -96,6 +132,11 @@
 {% endblock %}
 
 {% block info_float %}
+    {% if guide and guide.is_accessible_by(request.user) and not request.in_contest %}
+        <a href="{{ url('problem_guide', problem.code) }}" class="unselectable button full guide-button">
+            <i class="fa fa-graduation-cap"></i> {{ _('Read the guide') }}
+        </a>
+    {% endif %}
     {% if request.user.is_authenticated and request.in_contest and submission_limit %}
         {% if submissions_left > 0 %}
             <a href="{{ url('problem_submit', problem.code) }}" class="unselectable button full">

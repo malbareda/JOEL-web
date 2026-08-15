@@ -3,6 +3,7 @@ from operator import attrgetter
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import CASCADE, F, Q, QuerySet, SET_NULL
@@ -20,7 +21,8 @@ from judge.user_translations import gettext as user_gettext
 from judge.utils.raw_sql import RawSQLColumn, unique_together_left_join
 
 __all__ = ['ProblemGroup', 'ProblemType', 'ProblemTask', 'Problem', 'ProblemTranslation', 'ProblemClarification',
-           'License', 'Solution', 'TranslatedProblemQuerySet', 'TranslatedProblemForeignKeyQuerySet']
+           'License', 'Solution', 'Guide', 'GuideTranslation', 'TranslatedProblemQuerySet',
+           'TranslatedProblemForeignKeyQuerySet']
 
 
 class ProblemType(models.Model):
@@ -542,3 +544,77 @@ class Solution(models.Model):
         )
         verbose_name = _('solution')
         verbose_name_plural = _('solutions')
+
+
+class Guide(models.Model):
+    problem = models.OneToOneField(Problem, on_delete=CASCADE, verbose_name=_('associated problem'),
+                                   related_name='guide')
+    is_public = models.BooleanField(verbose_name=_('public visibility'), default=True)
+    content = models.TextField(verbose_name=_('guide content'), blank=True,
+                               help_text=_('Shown when no translation exists for the student\'s language.'))
+
+    def get_absolute_url(self):
+        return reverse('problem_guide', args=[self.problem.code])
+
+    def __str__(self):
+        return _('Guide for %s') % self.problem.name
+
+    def is_accessible_by(self, user):
+        if self.is_public:
+            return True
+        return self.problem.is_editable_by(user)
+
+    def resolve_general(self, language):
+        """The language-agnostic (no programming language) part of the guide: the
+        best-matching runtime-less GuideTranslation for `language`, or this Guide's
+        own `content` if none exists. This is always shown, regardless of whether a
+        programming-language-specific hint is also available."""
+        candidates = list(self.problem.guide_translations.filter(runtime__isnull=True)
+                          .filter(Q(language=language) | Q(language='')))
+        if not candidates:
+            return self.content
+        return max(candidates, key=lambda t: t.language == language).content
+
+    def resolve_runtime_hint(self, runtime, language=None):
+        """The programming-language-specific hint for `runtime` (a Language id), if any.
+        Deliberately NOT filtered by interface language: the guide is only ever written
+        in one interface language for now, but the code sample itself is useful to a
+        student regardless of which interface language they're reading the site in —
+        so a Catalan-only Python hint still shows up for a student browsing in Spanish.
+        When translations exist in more than one interface language for this runtime,
+        the one matching `language` is preferred."""
+        if runtime is None:
+            return None
+        candidates = list(self.problem.guide_translations.filter(runtime_id=runtime))
+        if not candidates:
+            return None
+        if language:
+            candidates.sort(key=lambda t: t.language == language, reverse=True)
+        return candidates[0].content
+
+    class Meta:
+        verbose_name = _('guide')
+        verbose_name_plural = _('guides')
+
+
+class GuideTranslation(models.Model):
+    problem = models.ForeignKey(Problem, verbose_name=_('problem'), related_name='guide_translations', on_delete=CASCADE)
+    language = models.CharField(verbose_name=_('language'), max_length=7, choices=settings.LANGUAGES, blank=True,
+                                help_text=_('Leave blank to match any interface language.'))
+    runtime = models.ForeignKey(Language, verbose_name=_('programming language'), null=True, blank=True,
+                                on_delete=CASCADE, related_name='+',
+                                help_text=_('Leave blank to match any programming language.'))
+    content = models.TextField(verbose_name=_('translated guide content'))
+
+    def clean(self):
+        qs = GuideTranslation.objects.filter(problem=self.problem, language=self.language, runtime=self.runtime)
+        if self.pk is not None:
+            qs = qs.exclude(pk=self.pk)
+        if qs.exists():
+            raise ValidationError(_('A guide translation for this exact interface language / '
+                                    'programming language combination already exists for this problem.'))
+
+    class Meta:
+        unique_together = ('problem', 'language', 'runtime')
+        verbose_name = _('guide translation')
+        verbose_name_plural = _('guide translations')

@@ -1,0 +1,81 @@
+{% extends "common-content.html" %}
+
+{% block content_media %}
+    <style>
+        .guide-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.6em;
+            padding: 0.7em 1em;
+            margin-bottom: 1em;
+            border-radius: 6px;
+            background: var(--highlight_blue);
+            color: var(--global-text);
+        }
+
+        .guide-banner .fa {
+            font-size: 1.4em;
+        }
+
+        .guide-runtime-picker {
+            margin-bottom: 1em;
+        }
+
+        .guide-runtime-picker a {
+            display: inline-block;
+            padding: 0.2em 0.7em;
+            margin-right: 0.4em;
+            margin-bottom: 0.4em;
+            border-radius: 4px;
+            border: 1px solid var(--border_gray);
+        }
+
+        .guide-runtime-picker a.selected {
+            background: var(--highlight_blue);
+            color: var(--global-text);
+            border-color: var(--highlight_blue);
+            font-weight: bold;
+        }
+    </style>
+{% endblock %}
+
+{% block header %}
+    <div style="float:right">
+        {% if problem.is_editable_by(request.user) %}
+            [<a href="{{ url('admin:judge_problem_change', problem.id) }}">{{ _('Edit') }}</a>]
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block body %}
+    <div class="content-description">
+        <div class="guide-banner">
+            <i class="fa fa-graduation-cap"></i>
+            <span>{{ _('This is a guide to help you get started on this problem — it is not the solution.') }}</span>
+        </div>
+        {% if guide_runtimes %}
+            <div class="guide-runtime-picker">
+                <strong>{{ _('Show code for:') }}</strong>
+                <a href="?runtime=none" class="{% if not selected_runtime_id %}selected{% endif %}">{{ _('General considerations') }}</a>
+                {% for language in guide_runtimes %}
+                    <a href="?runtime={{ language.key }}"
+                       class="{% if language.id == selected_runtime_id %}selected{% endif %}">{{ language.name }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {{ guide_general_content|markdown('problem', MATH_ENGINE)|reference|str|safe }}
+        {% if guide_runtime_content %}
+            <hr>
+            {{ guide_runtime_content|markdown('problem', MATH_ENGINE)|reference|str|safe }}
+        {% endif %}
+    </div>
+    <hr>
+    <div><a href="{{ url('problem_detail', problem.code) }}">{{ _('Back to problem') }}</a></div>
+{% endblock %}
+
+{% block bodyend %}
+    {% if REQUIRE_JAX %}
+        {% include "mathjax-load.html" %}
+    {% endif %}
+    {% include "comments/math.html" %}
+{% endblock %}

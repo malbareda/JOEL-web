@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db import transaction
-from django.db.models import Count, F, Prefetch, Q
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
 from django.db.utils import ProgrammingError
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -28,9 +28,9 @@ from django.contrib.auth.models import User
 
 from judge.comments import CommentedDetailView
 from judge.forms import ProblemCloneForm, ProblemSubmitForm, TaskCloneForm
-from judge.models import ContestSubmission, Judge, Language, Problem, ProblemGroup, ProblemTask, \
-    ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, SubmissionSource, Profile, Organization, \
-    TranslatedProblemForeignKeyQuerySet
+from judge.models import ContestSubmission, Guide, GuideTranslation, Judge, Language, Problem, ProblemGroup, \
+    ProblemTask, ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, SubmissionSource, Profile, \
+    Organization, TranslatedProblemForeignKeyQuerySet
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
@@ -152,6 +152,49 @@ class ProblemSolution(SolvedProblemMixin, ProblemMixin, TitleMixin, CommentedDet
         return 's:' + self.object.code
 
 
+class ProblemGuide(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObjectMixin, View):
+    context_object_name = 'problem'
+    template_name = 'problem/guide.html'
+
+    def get_title(self):
+        return _('Guide for {0}').format(self.object.name)
+
+    def get_content_title(self):
+        return format_html(_(u'Guide for <a href="{1}">{0}</a>'), self.object.name,
+                           reverse('problem_detail', args=[self.object.code]))
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        guide = get_object_or_404(Guide, problem=self.object)
+
+        if not guide.is_accessible_by(request.user) or request.in_contest:
+            raise Http404()
+
+        available_runtimes = list(Language.objects.filter(
+            id__in=self.object.guide_translations.exclude(runtime=None).values_list('runtime_id', flat=True),
+        ).order_by('name'))
+
+        runtime_id = None
+        runtime_key = request.GET.get('runtime')
+        if runtime_key == 'none':
+            runtime_id = None
+        elif runtime_key:
+            for language in available_runtimes:
+                if language.key == runtime_key:
+                    runtime_id = language.id
+                    break
+        elif request.user.is_authenticated:
+            runtime_id = request.profile.language_id
+
+        context = self.get_context_data(object=self.object)
+        context['guide'] = guide
+        context['guide_general_content'] = guide.resolve_general(request.LANGUAGE_CODE)
+        context['guide_runtime_content'] = guide.resolve_runtime_hint(runtime_id, request.LANGUAGE_CODE)
+        context['guide_runtimes'] = available_runtimes
+        context['selected_runtime_id'] = runtime_id
+        return self.render_to_response(context)
+
+
 class ProblemRaw(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObjectMixin, View):
     context_object_name = 'problem'
     template_name = 'problem/raw.html'
@@ -242,6 +285,10 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
         except ObjectDoesNotExist:
             pass
         try:
+            context['guide'] = Guide.objects.get(problem=self.object)
+        except ObjectDoesNotExist:
+            pass
+        try:
             translation = self.object.translations.get(language=self.request.LANGUAGE_CODE)
         except ProblemTranslation.DoesNotExist:
             context['title'] = self.object.name
@@ -289,6 +336,8 @@ class TaskDetail(TaskMixin, SolvedProblemMixin, CommentedDetailView):
         context['tasks'] = ProblemTask.objects.all()
         context['completed_problem_ids'] = self.get_completed_problems()
         context['attempted_problems'] = self.get_attempted_problems()
+        context['task_problems'] = self.object.problems.annotate(
+            has_guide=Exists(Guide.objects.filter(problem_id=OuterRef('pk'))))
         return context
 
 
@@ -679,7 +728,8 @@ class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView,
             filter |= Q(authors=self.profile)
             filter |= Q(curators=self.profile)
             filter |= Q(testers=self.profile)
-        queryset = Problem.objects.filter(filter).select_related('group').defer('description', 'summary')
+        queryset = Problem.objects.filter(filter).select_related('group').defer('description', 'summary') \
+            .annotate(has_guide=Exists(Guide.objects.filter(problem_id=OuterRef('pk'))))
         if not self.request.user.has_perm('see_organization_problem'):
             filter = Q(is_organization_private=False)
             if self.profile is not None:
@@ -903,7 +953,8 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
             filter |= Q(authors=self.profile)
             filter |= Q(curators=self.profile)
             filter |= Q(testers=self.profile)
-        queryset = Problem.objects.filter(filter).select_related('group').defer('description', 'summary')
+        queryset = Problem.objects.filter(filter).select_related('group').defer('description', 'summary') \
+            .annotate(has_guide=Exists(Guide.objects.filter(problem_id=OuterRef('pk'))))
         if not self.request.user.has_perm('see_organization_problem'):
             filter = Q(is_organization_private=False)
             if self.profile is not None:

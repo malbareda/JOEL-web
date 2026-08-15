@@ -109,6 +109,17 @@ span.type-tag {
     white-space: nowrap;
 }
 
+tr.intro-problem-row {
+    background: rgba(135, 157, 138, 0.15);
+    border-left: 3px solid var(--highlight_blue);
+}
+
+.intro-problem-badge {
+    display: inline-block;
+    margin-left: 0.3em;
+    color: var(--highlight_blue);
+}
+
 ul.problem-list {
     list-style: none;
     padding-left: 1em;

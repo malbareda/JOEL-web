@@ -255,6 +255,132 @@ Aquests 4 camps (`user_color`, `preferred_icon`, `preferred_theme`, `preferred_f
 
 ---
 
+### 12. Nova funcionalitat: guies per a problemes d'introducció
+
+**Abans:** no existia cap manera de marcar un problema com a "punt d'entrada" d'una categoria (el primer de bucles, el primer de strings, etc.) ni d'oferir-hi una guia d'ajuda per començar, més enllà de l'enunciat mateix.
+
+**Decisió:**
+1. **Model** (`judge/models/problem.py`): nous `Guide` (`OneToOneField` a `Problem`, camp `is_public` i `content` com a text per defecte/de resguard) i `GuideTranslation` (`ForeignKey` a `Problem`, `language` + `content`, `unique_together=('problem','language')`) — **calcat exactament del patró ja existent `Solution`/`ProblemTranslation`**, que és com ja funcionen les traduccions dels enunciats. La resolució d'idioma és idèntica: es busca `problem.guide_translations.get(language=request.LANGUAGE_CODE)` i, si no existeix, es fa servir `guide.content` (el mateix mecanisme de fallback que `ProblemTranslation`/`Problem.description`).
+2. **Cap categoria/tag nova**: un problema "és d'introducció" simplement si té un `Guide` associat — evita haver de mantenir sincronitzats un tag i un contingut per separat.
+3. **Admin**: `GuideInline` i `GuideTranslationInline` afegits a `ProblemAdmin` (mateix lloc que `ProblemSolutionInline`/`ProblemTranslationInline`), amb editor Markdown (`AdminMartorWidget`).
+4. **Vista i URL**: `ProblemGuide` (`judge/views/problem.py`) + `/problem/<code>/guide` (`dmoj/urls.py`), calcada de `ProblemSolution`/`/editorial`. Permisos: visible sempre que `is_public=True` (a diferència de l'editorial, una guia no és un "spoiler" de la solució, així que no cal amagar-la fins after-solve), o només per a editors del problema si `is_public=False`; amagada durant concursos (mateix criteri que l'editorial).
+5. **Marcatge visual**:
+   - A la pàgina del problema (`templates/problem/problem.html`): etiqueta "Introducció" al costat del títol, i un botó gran i molt destacat ("Llegeix la guia", color `--highlight_blue`) **per sobre** del botó "Submit solution".
+   - A les llistes de problemes (`templates/problem/list.html`) i de tasques (`templates/problem/task.html`): fila ressaltada (`intro-problem-row`) i una icona de birret (`fa-graduation-cap`) al costat del nom del problema.
+   - Per evitar consultes N+1 a les llistes, s'ha afegit `.annotate(has_guide=Exists(...))` a les consultes de `ProblemsByOrganization`, `ProblemList` i `TaskDetail` — **no s'accedeix mai a `problem.guide` directament des d'una plantilla** (una relació OneToOne inversa sense fila corresponent llença una excepció en accedir-hi, i Jinja2 no la capturaria de forma silenciosa com ho fa Django Templates).
+6. Migració `0139_add_problem_guide`.
+
+**Per què:** petició explícita de l'usuari — que els alumnes puguin demanar una guia (adaptada al seu idioma) al primer problema de cada categoria, i que aquests problemes quedin ben identificats a totes les llistes.
+
+**Resultat:** verificat en viu contra `jo-el.es` (problema de prova amb `Guide` + `GuideTranslation` en anglès): la pàgina del problema mostra l'etiqueta i el botó correctament, `/problem/<code>/guide` retorna el contingut en anglès quan `django_language=en` i cau al contingut per defecte quan es demana un idioma sense traducció (`es`); el control de permisos (`is_public=False`) verificat directament (accessible per a editors, no per a un usuari qualsevol). Pàgines de llista i de tasca renderitzen sense errors ni amb ni sense guies presents. Dades de prova netejades després de la verificació.
+
+---
+
+### 13. Guies: també adaptables pel llenguatge de programació (no només l'idioma)
+
+**Abans:** l'entrada #12 només adaptava el contingut de la guia per idioma d'interfície (ca/en/es). L'usuari va demanar que també pogués variar segons el llenguatge de programació (Python, Java, etc.), ja que un bucle en Python i en Java es veuen molt diferents.
+
+**Decisió:**
+1. `GuideTranslation` (`judge/models/problem.py`) ampliat amb un segon eix: `runtime` (`ForeignKey` a `Language`, el mateix model que ja representa els llenguatges de programació al jutge — `null=True, blank=True`). Ara `language` també pot deixar-se en blanc. Els dos camps es poden combinar de forma independent:
+   - `language='ca', runtime=Python3` → contingut específic per a català + Python.
+   - `language='ca', runtime=None` → contingut per a català, vàlid per a qualsevol llenguatge de programació.
+   - `language='', runtime=Python3` → contingut per a Python, vàlid per a qualsevol idioma.
+   - `language='', runtime=None` → el mateix `Guide.content` per defecte fa aquesta funció si no hi ha cap fila més específica.
+2. Nou mètode `Guide.resolve_content(language, runtime=None)`: busca totes les traduccions compatibles (mateix idioma o en blanc, mateix `runtime` o en blanc) i es queda amb la **més específica** (coincidència exacta d'idioma val 2 punts, coincidència exacta de `runtime` val 1 punt). `unique_together=('problem','language','runtime')` evita duplicats exactes a la BD — **però MySQL/MariaDB no aplica aquesta restricció quan `runtime` és `NULL`** (tracta cada `NULL` com a diferent als efectes d'un índex únic), així que s'ha afegit un `clean()` al model que ho comprova explícitament i llença `ValidationError` també en aquest cas.
+3. **Vista** (`ProblemGuide`): tria el `runtime` automàticament a partir del llenguatge de programació preferit del perfil de l'alumne (`request.profile.language`, el mateix camp "Llenguatge" que ja es configura a `/edit/profile/`), amb possibilitat de sobreescriure'l manualment amb `?runtime=<key>` (p. ex. `?runtime=PY3`).
+4. **Plantilla** (`templates/problem/guide.html`): si la guia té contingut per a més d'un llenguatge de programació, es mostra un selector ("Show for: Python 3 | Java 11 | ...") per canviar-hi manualment.
+5. Migració `0140_guide_translation_runtime`.
+
+**Per què:** petició explícita de l'usuari, arran de veure la primera versió de la funcionalitat (entrada #12).
+
+**Resultat:** provades les 5 combinacions de especificitat possibles (ca+Python més específic que ca+qualsevol, que al seu torn és més específic que qualsevol+Python, que cau al `Guide.content` per defecte quan no hi ha res més) — totes correctes. Verificat en viu (`?runtime=PY3` a `/problem/<code>/guide`) que el selector mostra l'opció correcta marcada i el contingut correspon exactament al que tocava. Verificat que el `clean()` detecta correctament els dos tipus de duplicat (amb `runtime` normal i amb `runtime=None`, el forat de MySQL). `site` recarregat i verificat sense errors després del canvi (pàgina de problema, `/admin` amb el nou camp `runtime` a l'inline). Dades de prova netejades.
+
+---
+
+### 14. Primera guia real (9 Barris) i neteja de la categoria "Introduccio"
+
+**Abans:** cap problema tenia encara una guia real (només dades de prova, ja esborrades). La categoria `ProblemGroup` "Introduccio" (154+11=165 problemes) incloïa 11 problemes d'examen (`itbuf1nf1ex1a/b`, `itbuf1nf1ex2a/b`, `itbuf1nf2ex2a/b`, `ipedm3uf1ex2a/b`, `ipedm3uf1ex3a/b`, `itbpreparacioexamen`) barrejats amb problemes d'aprenentatge.
+
+**Decisió:**
+1. Primera guia real creada per al problema `9barrisqueson13` ("Nou Barris, o en son 13?"): explica l'estratègia general (llegir línies fins EOF, guardar els barris de 1984 en un conjunt, consultar-hi cada entrada) sense revelar la llista concreta de barris (que és precisament el que cal deduir de l'enunciat), més codi d'exemple específic per Python 3 i Java 11 (amb el conjunt de dades buit, perquè l'alumne l'ompli).
+2. Nova categoria `ProblemGroup` **"Examens"**, i moguts els 11 problemes amb "examen" al nom des de "Introduccio" cap aquí (a petició explícita de l'usuari) — no té sentit oferir-hi una guia d'aprenentatge a un exercici d'avaluació.
+
+**Per què:** l'usuari vol guies en català per a tots els problemes de la categoria "Introduccio", però primer calia netejar-la (traient-ne els exàmens, que no són problemes d'aprenentatge).
+
+**Resultat:** "Introduccio" ha passat de 165 a **154** problemes. Verificat en viu que `9barrisqueson13` mostra correctament l'etiqueta, el botó i el contingut de la guia (sense revelar la solució). Pendent: escriure guies per als 153 problemes restants (per lots, revisant l'enunciat de cadascun per fer una guia real i no genèrica).
+
+---
+
+### 15. Guies per a un lot de 8 problemes d'introducció
+
+**Abans:** els problemes `escriurebin`, `introarrays1`-`introarrays4`, `itbuf1nf2ex1b`, `lamaquinadeltemps` i `llegirfitxer` no tenien encara guia (formen part del lot de 153 pendents de l'entrada #14).
+
+**Decisió:** creada `Guide` (contingut per defecte, `is_public=True`) + `GuideTranslation` (`language='ca'`) per a Python 3 i Java 11 per a cadascun d'aquests 8 problemes, llegint primer l'enunciat real de cada un (no assumint pel nom):
+- `escriurebin`: escriptura d'un fitxer binari (mode `'wb'`/`FileOutputStream`, un byte per valor 0-255).
+- `introarrays1`-`introarrays4`: sèrie d'arrays (llegir/escriure per índex, array de Strings, llista dinàmica amb sentinella `-1` i notació `[a, b, c]`, i el cas de dos bucles separats llegir+modificar).
+- `itbuf1nf2ex1b`: matriu d'horari (files = franja horària `hora-E`, columnes = dia `dia-1`, "NO HI HA CLASSE" fora de rang).
+- `lamaquinadeltemps`: tipus "Sense Bucles" — la guia i el codi d'exemple (Python i Java) eviten expressament qualsevol `for`/`while`, només un `if`/`else`.
+- `llegirfitxer`: lectura del fitxer `in` (sense entrada estàndard) i impressió tal qual.
+
+**Per què:** continuació del pla de l'entrada #14 (guies per a tota la categoria "Introduccio"), fet en paral·lel per diversos agents treballant cadascun sobre un subconjunt disjunt de problemes.
+
+**Resultat:** verificat per BD que els 8 problemes tenen `Guide.is_public=True` i exactament 2 `GuideTranslation` cadascun (ca+PY3, ca+JAVA11). Cap solució ni dada real (barris, matèries, etc.) revelada als continguts — només tècnica/esquelet de codi amb comentaris de marcador de posició on caldria la dada real. No s'ha tocat cap altre problema ni reiniciat cap servei.
+
+---
+
+### 16. Guies per a un segon lot de 7 problemes d'introducció
+
+**Abans:** els problemes `r4c4`, `rebaixesmagatzem`, `reiarturtaularodona`, `stonknt`, `thorhijodeodin`, `tiradesperf` i `unbomboperpersona` no tenien encara guia (formen part del lot de problemes pendents de l'entrada #14, treballats en paral·lel per un altre agent).
+
+**Decisió:** creada `Guide` (contingut per defecte, `is_public=True`) + `GuideTranslation` (`language='ca'`) per a Python 3 i Java 11 per a cadascun d'aquests 7 problemes, llegint primer l'enunciat real de cada un:
+- `r4c4` (Strings): separar el nom del Pokémon dels tres valors numèrics, comprovar primer la condició de fracàs (dany >= 40) i després decidir el rang S/A/B/C — sense revelar els llindars exactes, que calen extreure de l'enunciat.
+- `rebaixesmagatzem` (Matrius): llegir una matriu quadrada de preus, aplicar-hi un descompte percentual element a element i trobar el preu màxim resultant.
+- `reiarturtaularodona` (Geometria, **Sense Bucles**): calcular el perímetre a partir del diàmetre i comparar quants cavallers hi caben amb el nombre real; codi d'exemple sense cap `for`/`while`.
+- `stonknt` (Bucles simples, Matrius): comptar els "retard" d'una taula setmanes x dies i aplicar el descompte del 0,50% per retard sobre el sou base, amb sortida en format de coma decimal.
+- `thorhijodeodin` (Grafs): construir un graf no dirigit a partir de les relacions "X HIJO DE Y" i fer un BFS des de THOR per comprovar connectivitat (família llunyana), reconstruint el graf a cada cas.
+- `tiradesperf` (Bucles simples, Simple Math): comptar els 6 d'una seqüència fins trobar el -1 de tall.
+- `unbomboperpersona` (Matemàtiques, **Sense Bucles**): comparar alumnes i bombons amb una simple resta i condicionals, sense bucle.
+
+**Per què:** continuació del pla de l'entrada #14 (guies per a tota la categoria "Introduccio"), fet en paral·lel per diversos agents treballant cadascun sobre un subconjunt disjunt de problemes.
+
+**Resultat:** verificat per BD que els 7 problemes tenen `Guide.is_public=True` i exactament 2 `GuideTranslation` cadascun (ca+PY3, ca+JAVA11). Cap solució ni dada real (llindars de rang, valors de matriu, relacions familiars concretes...) revelada als continguts — només tècnica/esquelet de codi amb comentaris de marcador de posició on caldria la dada real. No s'ha tocat cap altre problema ni reiniciat cap servei.
+
+---
+
+### 17. Guies per als tres lots restants (23 problemes) i tancament del pla de l'entrada #14
+
+**Abans:** de la selecció de 40 problemes de l'entrada #14 (els de menys punts de cada tipus dins "Introduccio"), només `9barrisqueson13` (entrada #12) i els 15 de les entrades #15/#16 tenien guia.
+
+**Decisió:** completats els 23 problemes restants, repartits en 3 lots fets en paral·lel per agents independents, cadascun sobre un subconjunt disjunt (mateix format que #15/#16 — `Guide` amb contingut per defecte + `GuideTranslation` ca+PY3 i ca+JAVA11, llegint primer l'enunciat real):
+- Lot 1: `01`, `a22sanhussha`, `ahorcado`, `apostesperdudes`, `apostesperdudes0`, `bitlles1`, `cagatio`, `cistellcompra`.
+- Lot 2: `cistellcompra2`, `classeaob`, `contador`, `copia`, `detectoridioma`, `eduardochillida`, `elmeuprimerbucle`, `elmeuprimerbuclewhil`.
+- Lot 4: `llegirfitxer2`, `llistatalumnes`, `lubinaspormesas`, `nombresprimers`, `nota10`, `numerospositius`, `operadorsrelacio`, `passantllista`.
+
+Als problemes "Sense Bucles" (`classeaob`, `detectoridioma`, `eduardochillida`, `operadorsrelacio`, entre d'altres de les entrades anteriors) el codi d'exemple evita expressament `for`/`while`.
+
+**Incident menor durant l'execució (sense conseqüències):** diversos agents en paral·lel van fer servir inicialment el mateix nom de fitxer temporal a l'scratchpad (`insert_guides.py`) per al seu script d'inserció, provocant que es sobreescrivissin entre ells. Cada agent ho va detectar abans d'executar res contra la BD (via `NameError`/contingut inesperat) i va canviar a un nom de fitxer únic — **verificat que cap dada incorrecta es va arribar a escriure** (cada problema té exactament les 2 traduccions esperades, dels tipus correctes).
+
+**Per què:** completar la petició original de l'usuari (guies en català per a la categoria "Introduccio", començant pels problemes de menys punts de cada tipus).
+
+**Resultat:** **els 40 problemes seleccionats tenen ara guia** (`Guide.objects.count() == 40`, `GuideTranslation.objects.count() == 80`, cap forat). Verificat en viu (render de pàgina + pàgina de guia) per una mostra de 4 problemes nous (`bitlles1`, `introarrays2`, `reiarturtaularodona`, `llegirfitxer`) sense errors; confirmat que els problemes "Sense Bucles" no contenen cap bucle al codi d'exemple. Com que aquest lot només ha afegit contingut a la BD (cap canvi de codi/plantilla), no ha calgut recarregar `site`.
+
+---
+
+### 18. Bug fix: el codi de la guia desapareixia si la interfície no estava en català
+
+**Abans:** `Guide.resolve_content(language, runtime)` exigia que l'idioma de la interfície coincidís amb el de la traducció (o fos en blanc) A MÉS del `runtime`. Com que totes les `GuideTranslation` escrites fins ara són `language='ca'`, un alumne amb la interfície en castellà o anglès que triava "Python 3" al selector no veia el codi Python — queia directament al contingut genèric sencer (`Guide.content`, sense codi), com si no hi hagués cap pista específica. A més, en triar un llenguatge de programació, les "consideracions generals" (l'explicació de l'estratègia) desapareixien del tot, substituïdes pel codi.
+
+**Decisió (detectat i reportat per l'usuari mateix, provant `/problem/thorhijodeodin/guide`):**
+1. `Guide.resolve_content` se separa en dos mètodes: `resolve_general(language)` (només la part sense codi, filtrant per `runtime__isnull=True`) i `resolve_runtime_hint(runtime, language=None)` (només la part de codi, cercant **exclusivament pel `runtime`, ignorant l'idioma de la interfície** — el codi és útil independentment de l'idioma en què es llegeixi la pàgina; si hi hagués traduccions del mateix `runtime` en més d'un idioma, es prefereix la que coincideix amb `language`).
+2. La vista (`ProblemGuide`) i la plantilla (`guide.html`) ara mostren **sempre** `guide_general_content`, i per sota (si n'hi ha) `guide_runtime_content` — mai l'un en lloc de l'altre.
+3. Nova opció **"General considerations"** al selector de dalt (`?runtime=none`), que talla explícitament la selecció automàtica de llenguatge de programació (basada en el perfil de l'alumne) per tornar a veure només l'explicació general.
+
+**Per què:** petició/detecció explícita de l'usuari en provar la funcionalitat en un idioma diferent del català.
+
+**Resultat:** verificat (`site` recarregat) amb 4 escenaris: català sense selecció (mostra Python, auto-detectat pel perfil), `?runtime=none` (només general, pastilla "General considerations" marcada), `?runtime=JAVA11` (codi Java), i **interfície en castellà + `?runtime=PY3`** (el cas que fallava): ara mostra correctament tant les consideracions generals com el codi Python.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

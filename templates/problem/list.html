@@ -247,7 +247,7 @@
                 </thead>
                 <tbody>
                 {% for problem in problems %}
-                    <tr>
+                    <tr class="{% if problem.has_guide %}intro-problem-row{% endif %}">
                         {% if request.user.is_authenticated %}
                             {% if problem.id in completed_problem_ids %}
                                 <td solved="1">
@@ -281,6 +281,11 @@
                         {% endif %}
                         <td class="problem">
                             <a href="{{ url('problem_detail', problem.code) }}">{{ problem.i18n_name or problem.name }}</a>
+                            {% if problem.has_guide %}
+                                <span class="intro-problem-badge" title="{{ _('Introducció: té una guia disponible') }}">
+                                    <i class="fa fa-graduation-cap"></i>
+                                </span>
+                            {% endif %}
                         </td>
                         <td class="types">
                             
