@@ -293,6 +293,74 @@ label[for="language"], label[for="status"] {
     td.case-output + td.case-ext-feedback {
         width: 50%;
     }
+
+    .case-feedback-body {
+        padding: 0.9em 0;
+    }
+
+    .hint-note {
+        margin: 0 0 0.8em;
+        font-style: italic;
+        opacity: 0.85;
+    }
+
+    .hint-request-btn {
+        margin-bottom: 0.8em;
+    }
+
+    .hint-card {
+        padding: 1em 1.2em;
+        border: 1px solid var(--border_gray);
+        border-left: 4px solid var(--highlight_blue);
+        border-radius: 6px;
+        background: var(--background_light_gray);
+        color: var(--global-text);
+    }
+
+    .hint-section + .hint-section {
+        margin-top: 1.2em;
+        padding-top: 1em;
+        border-top: 1px solid var(--border_gray);
+    }
+
+    .hint-section > strong {
+        display: block;
+        margin-bottom: 0.5em;
+        font-size: 1.05em;
+    }
+
+    .hint-label {
+        margin: 0.7em 0 0.3em;
+        font-style: italic;
+        opacity: 0.85;
+    }
+
+    .hint-teacher {
+        opacity: 0.92;
+    }
+
+    .hint-col {
+        display: inline-block;
+        vertical-align: top;
+        width: 47%;
+    }
+
+    .hint-col + .hint-col {
+        margin-left: 4%;
+    }
+
+    .hint-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.6em;
+
+        th, td {
+            border: 1px solid var(--border_gray);
+            padding: 5px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+    }
 }
 
 .case-AC {

@@ -8,12 +8,14 @@ from operator import itemgetter
 
 from django import db
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.utils import timezone
 
 from judge import event_poster as event
 from judge.bridge.base_handler import ZlibPacketHandler, proxy_list
 from judge.caching import finished_submission
 from judge.models import Judge, Language, LanguageLimit, Problem, RuntimeVersion, Submission, SubmissionTestCase
+from judge.utils.submission_feedback import submission_feedback_file, submission_feedback_storage
 
 logger = logging.getLogger('judge.bridge')
 json_log = logging.getLogger('judge.json.bridge')
@@ -537,14 +539,18 @@ class JudgeHandler(ZlibPacketHandler):
             test_case.total = result['total-points']
             test_case.batch = self.batch_id if self.in_batch else None
             test_case.feedback = (result.get('feedback') or '')[:max_feedback]
-            test_case.extended_feedback = result.get('extended-feedback') or ''
+            extended_feedback_text = result.get('extended-feedback') or ''
+            if extended_feedback_text:
+                path = submission_feedback_file(test_case, 'feedback.txt')
+                saved_name = submission_feedback_storage.save(path, ContentFile(extended_feedback_text.encode('utf-8')))
+                test_case.extended_feedback_file.name = saved_name
             test_case.output = result['output']
             bulk_test_case_updates.append(test_case)
 
             json_log.info(self._make_json_log(
                 packet, action='test-case', case=test_case.case, batch=test_case.batch,
                 time=test_case.time, memory=test_case.memory, feedback=test_case.feedback,
-                extended_feedback=test_case.extended_feedback, output=test_case.output,
+                extended_feedback=extended_feedback_text, output=test_case.output,
                 points=test_case.points, total=test_case.total, status=test_case.status,
             ))
 

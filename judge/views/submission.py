@@ -1,5 +1,4 @@
 import json
-import sys
 from collections import namedtuple
 from itertools import groupby
 from operator import attrgetter
@@ -8,9 +7,11 @@ from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
-from django.db.models import Prefetch, Q
+from django.db import transaction
+from django.db.models import Case, IntegerField, Min, Prefetch, Q, Sum, When
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -26,6 +27,7 @@ from django.contrib.auth.models import User
 from judge import event_poster as event
 from judge.highlight_code import highlight_code
 from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionVote, SubmissionTestCase, Organization
+from judge.utils.hints import parse_generic_teacher, parse_linecount_all, parse_linecount_single, parse_rstripped
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.problems import get_result_data, user_completed_ids, user_editable_ids, user_tester_ids
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
@@ -140,6 +142,34 @@ def group_test_cases(cases):
     return result, status
 
 
+def build_case_hint(case, submission, checker, caseformat, user_can_evaluate):
+    """Parses `case.extended_feedback` (if any) into a structured dict the template
+    can render directly, instead of re-parsing the raw blob at render time. Returns
+    None when there is nothing to show for this case/audience combination."""
+    extended_feedback = case.extended_feedback
+    if not extended_feedback:
+        return None
+
+    student = None
+    teacher = None
+
+    if checker == 'rstripped':
+        # Kept exactly as before: not gated on case.flag, unlike linecount below.
+        student = parse_rstripped(extended_feedback)
+    elif checker == 'linecount' and case.flag:
+        student = parse_linecount_single(extended_feedback, caseformat)
+
+    if user_can_evaluate:
+        if checker == 'linecount':
+            teacher = parse_linecount_all(extended_feedback, caseformat)
+        elif checker != 'rstripped':
+            teacher = parse_generic_teacher(extended_feedback)
+
+    if student is None and teacher is None:
+        return None
+    return {'student': student, 'teacher': teacher}
+
+
 class SubmissionStatus(SubmissionDetailBase):
     template_name = 'submission/status.html'
 
@@ -148,19 +178,46 @@ class SubmissionStatus(SubmissionDetailBase):
         submission = self.object
         context['last_msg'] = event.last()
 
-        sys.stderr.write("test\n")
-        print("testestetetete")
-        print(submission.user.user.username)
-
-        context['batches'], statuses = group_test_cases(submission.test_cases.all())
+        cases = submission.test_cases.only(
+            'id', 'case', 'status', 'time', 'memory', 'points', 'total', 'batch',
+            'feedback', 'extended_feedback_file', 'flag', 'submission_id',
+        ).all()
+        context['batches'], statuses = group_test_cases(cases)
         context['statuses'] = combine_statuses(statuses, submission)
         context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
-        voteyay = SubmissionVote.objects.filter(submission_id=submission.id, score=1).count()
-        voteyayp = SubmissionVote.objects.filter(submission_id=submission.id, score=10).count()
-        context['votesyay'] = voteyay+voteyayp*10
-        votenay = SubmissionVote.objects.filter(submission_id=submission.id, score=-1).count()
-        votenayp = SubmissionVote.objects.filter(submission_id=submission.id, score=-10).count()
-        context['votesnay'] = votenay+votenayp*10
+
+        votes = SubmissionVote.objects.filter(submission_id=submission.id).aggregate(
+            yay=Sum(Case(When(score=1, then=1), When(score=10, then=10), default=0, output_field=IntegerField())),
+            nay=Sum(Case(When(score=-1, then=1), When(score=-10, then=10), default=0, output_field=IntegerField())),
+        )
+        context['votesyay'] = votes['yay'] or 0
+        context['votesnay'] = votes['nay'] or 0
+
+        for case in cases:
+            case.hint = None
+            case.hint_reference = None
+
+        try:
+            data_files = submission.problem.data_files
+        except ObjectDoesNotExist:
+            data_files = None
+
+        if data_files is not None:
+            user_can_evaluate = submission.problem.is_evaluable_by(self.request.user)
+            # Cases where this same test case (same problem, same case number) already
+            # had its hint revealed on an EARLIER submission, so we can point to it
+            # instead of re-parsing/re-showing the hint content here.
+            prior_reveals = dict(
+                SubmissionTestCase.objects
+                .filter(submission__problem=submission.problem, submission__user=submission.user, flag=True)
+                .exclude(submission=submission)
+                .values('case')
+                .annotate(first_submission=Min('submission_id'))
+                .values_list('case', 'first_submission'),
+            )
+            for case in cases:
+                case.hint = build_case_hint(case, submission, data_files.checker, data_files.caseformat, user_can_evaluate)
+                case.hint_reference = None if case.flag else prior_reveals.get(case.case)
 
         context['time_limit'] = submission.problem.time_limit
         try:
@@ -239,20 +296,56 @@ def abort_submission(request, submission):
     submission.abort()
     return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
 
+def _is_ajax(request):
+    return request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+
 @require_POST
-def flag_submission(request,case):
-    testcase = get_object_or_404(SubmissionTestCase, id=int(case)) 
-    #raise Exception("asdas")
-    subm = testcase.submission
-    allowedtips = subm.problem.data_files.allowed_tips
-    qset = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True)
-    if qset.count() < allowedtips and not subm.flag:
-        subm.flag = True
-        testcase.flag = True
-        subm.save()
-        testcase.save()
-    #SubmissionTestCase.objects.filter(id=case).update(feedback='flag')
-    return HttpResponseRedirect(reverse('submission_status', args=(testcase.submission.id,)))
+@login_required
+def flag_submission(request, case):
+    testcase = get_object_or_404(
+        SubmissionTestCase.objects.select_related('submission__problem__data_files', 'submission__user__user'),
+        id=int(case),
+    )
+    submission = testcase.submission
+    if request.profile != submission.user:
+        raise PermissionDenied()
+
+    error = None
+    with transaction.atomic():
+        # Lock the submission row so two concurrent hint requests for the same
+        # submission can't both slip past the allowed_tips check (old code had no
+        # locking here, so a race could grant more hints than allowed).
+        subm = Submission.objects.select_for_update().get(id=submission.id)
+        if subm.flag and testcase.flag:
+            pass  # already revealed on this exact case; fall through and re-show it
+        elif subm.flag:
+            error = _('You have already used your hint for this problem on a different test case.')
+        else:
+            allowed_tips = subm.problem.data_files.allowed_tips
+            used = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True).count()
+            if used >= allowed_tips:
+                error = _('You have no hint reveals left for this problem.')
+            else:
+                subm.flag = True
+                testcase.flag = True
+                subm.save(update_fields=['flag'])
+                testcase.save(update_fields=['flag'])
+
+    if error:
+        if _is_ajax(request):
+            return JsonResponse({'success': False, 'error': str(error)}, status=400)
+        return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
+
+    data_files = submission.problem.data_files
+    hint = build_case_hint(
+        testcase, submission, data_files.checker, data_files.caseformat,
+        submission.problem.is_evaluable_by(request.user),
+    )
+    if _is_ajax(request):
+        html = render_to_string('submission/hint-fragment.html', {'case': testcase, 'hint': hint}, request=request)
+        return JsonResponse({'success': True, 'html': html, 'case_id': testcase.id})
+    return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
 
 
 def filter_submissions_by_visible_problems(queryset, user):

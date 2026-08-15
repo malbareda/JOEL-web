@@ -12,6 +12,7 @@ from judge.judgeapi import abort_submission, judge_submission
 from judge.models.problem import Problem, TranslatedProblemForeignKeyQuerySet
 from judge.models.profile import Profile
 from judge.models.runtime import Language
+from judge.utils.submission_feedback import submission_feedback_file, submission_feedback_storage
 from judge.utils.unicode import utf8bytes
 
 __all__ = ['SUBMISSION_RESULT', 'Submission', 'SubmissionSource', 'SubmissionTestCase', 'SubmissionVote']
@@ -234,9 +235,23 @@ class SubmissionTestCase(models.Model):
     total = models.FloatField(verbose_name=_('points possible'), null=True)
     batch = models.IntegerField(verbose_name=_('batch number'), null=True)
     feedback = models.CharField(max_length=50, verbose_name=_('judging feedback'), blank=True)
-    extended_feedback = models.TextField(verbose_name=_('extended judging feedback'), blank=True)
+    extended_feedback_file = models.FileField(verbose_name=_('extended judging feedback'), blank=True, null=True,
+                                              storage=submission_feedback_storage, upload_to=submission_feedback_file)
     output = models.TextField(verbose_name=_('program output'), blank=True)
     flag =models.BooleanField(verbose_name=_('is flagged'), default=False)
+
+    @cached_property
+    def extended_feedback(self):
+        # Kept as a plain string property (instead of exposing the FileField directly)
+        # so existing template code (`case.extended_feedback.split(...)`) is unaffected
+        # by the underlying storage being a file on disk rather than a DB TextField.
+        if not self.extended_feedback_file:
+            return ''
+        try:
+            with self.extended_feedback_file.open('rb') as f:
+                return f.read().decode('utf-8', errors='replace')
+        except (FileNotFoundError, OSError):
+            return ''
 
     @property
     def long_status(self):

@@ -1,0 +1,72 @@
+{% if hint %}
+<div class="hint-card">
+    {% if hint.student %}
+        {% if hint.student.type == 'rstripped' %}
+            <div class="hint-section">
+                <div class="hint-col">
+                    <strong>{{ _('Expected File') }}</strong>
+                    <pre class="case-output">{{ hint.student.expected|linebreaksbr }}</pre>
+                </div>
+                <div class="hint-col">
+                    <strong>{{ _('Your File') }}</strong>
+                    <pre class="case-output">{{ hint.student.yours|linebreaksbr }}</pre>
+                </div>
+            </div>
+        {% elif hint.student.type == 'linecount' %}
+            <div class="hint-section">
+                <strong>{{ _('HELP') }}</strong>
+                <p class="hint-label">{{ _('You have a Wrong Answer in Input') }}</p>
+                {% for line in hint.student.wrong_input_lines %}
+                    <pre class="case-output"><i>{{ line }}</i></pre>
+                {% endfor %}
+                <p class="hint-label">{{ _('Your answer was') }}</p>
+                <pre class="case-output"><b>{{ hint.student.your_answer }}</b></pre>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% if hint.teacher %}
+        <div class="hint-section hint-teacher">
+            {% if hint.teacher.type == 'linecount-all' %}
+                <strong>{{ _('Wrong Answers (only first 5)') }}</strong>
+                <table class="hint-table">
+                    <tr>
+                        <th>{{ _('Cas fallit') }}</th>
+                        <th>{{ _('Resposta esperada') }}</th>
+                        <th>{{ _('Resposta Alumne') }}</th>
+                    </tr>
+                    {% for record in hint.teacher.records %}
+                        <tr>
+                            <td>
+                                {% for line in record.wrong_input_lines %}
+                                    <pre class="case-output"><i>{{ line }}</i></pre>
+                                {% endfor %}
+                            </td>
+                            <td class="case-output">{{ record.expected|linebreaksbr }}</td>
+                            <td class="case-output">{{ record.actual|linebreaksbr }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% elif hint.teacher.type == 'generic' %}
+                <strong>{{ _('Input') }}</strong>
+                <pre class="case-output">{{ hint.teacher.input|linebreaksbr }}</pre>
+                <strong>{{ _('Wrong Answers (only first 5)') }}</strong>
+                <table class="hint-table">
+                    <tr>
+                        <th>{{ _('Cas fallit') }}</th>
+                        <th>{{ _('Resposta esperada') }}</th>
+                        <th>{{ _('Resposta Alumne') }}</th>
+                    </tr>
+                    {% for record in hint.teacher.records %}
+                        <tr>
+                            <td class="case-output">{{ record.case|linebreaksbr }}</td>
+                            <td class="case-output">{{ record.expected|linebreaksbr }}</td>
+                            <td class="case-output">{{ record.actual|linebreaksbr }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endif %}
