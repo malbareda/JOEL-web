@@ -25,6 +25,7 @@ CHECKERS = (
     ('sorted', _('Linea a Linea (només profes)')),
     ('identical', _('Programame-like')),
     ('linecount', _('Line-by-line')),
+    ('sql', _('SQL checker')),
 )
 
 CASEFORMAT = (
@@ -50,6 +51,10 @@ class ProblemData(models.Model):
     allowed_tips = models.IntegerField(verbose_name=_('Number of allowed tips'), blank=True, default=1)
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
+    sql_db = models.FileField(verbose_name=_('SQL database file'), storage=problem_data_storage, null=True, blank=True,
+                              upload_to=problem_directory_file,
+                              help_text=_('SQLite database file for SQL checker problems (.db)'))
+
 
     __original_zipfile = None
 
@@ -75,6 +80,9 @@ class ProblemData(models.Model):
             self.zipfile.name = _problem_directory_file(new, self.zipfile.name)
         if self.generator:
             self.generator.name = _problem_directory_file(new, self.generator.name)
+        if self.sql_db:
+            self.sql_db.name = _problem_directory_file(new, self.sql_db.name)
+
         self.save()
     _update_code.alters_data = True
 

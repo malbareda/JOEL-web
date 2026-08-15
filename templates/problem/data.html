@@ -108,6 +108,20 @@
 
             checker_precision($('#id_problem-data-checker'));
 
+            // === SQL checker: show/hide DB upload field ===
+            function toggleSqlDbField() {
+                var checkerVal = $('#id_problem-data-checker').val();
+                var $sqlDbRow = $('#id_problem-data-sql_db').closest('tr');
+                if (checkerVal === 'sql') {
+                    $sqlDbRow.show();
+                } else {
+                    $sqlDbRow.hide();
+                }
+            }
+            $('#id_problem-data-checker').change(toggleSqlDbField);
+            toggleSqlDbField();  // run on page load
+            // === end SQL checker toggle ===
+
             $table.on('add-row', function (e, $tr) {
                 var $order = $tr.find('input').filter('[id$=order]').attr('type', 'hidden').val(++order);
                 $order.after($('<span>', {'class': 'order'}).text($order.val()))

@@ -54,6 +54,19 @@ class ProblemDataCompiler(object):
 
         self.generator = data.generator
 
+    def _get_sql_db_filename(self):
+        """
+        Returns the filename of the SQL database file,
+        or raises ProblemDataError if not configured.
+        """
+        if not self.data.sql_db:
+            raise ProblemDataError(_('SQL checker requires a database file. '
+                                     'Please upload one in the "SQL database file" field.'))
+        db_path = split_path_first(self.data.sql_db.name)
+        if len(db_path) != 2:
+            raise ProblemDataError(_('How did you corrupt the SQL database path?'))
+        return db_path[1]
+
     def make_init(self):
         cases = []
         batch = None
@@ -64,6 +77,12 @@ class ProblemDataCompiler(object):
             cases.append(batch)
 
         def make_checker(case):
+            if case.checker == 'sql':
+                db_filename = self._get_sql_db_filename()
+                return {
+                    'name': 'sql',
+                    'args': {'db_file': db_filename},
+                }
             if case.checker_args:
                 return {
                     'name': case.checker,
@@ -83,9 +102,12 @@ class ProblemDataCompiler(object):
                     data['is_pretest'] = case.is_pretest
 
                 if not self.generator:
-                    if case.input_file not in self.files:
-                        raise ProblemDataError(_('Input file for case %d does not exist: %s') %
-                                               (i, case.input_file))
+                    # For SQL problems, input_file is optional
+                    is_sql = (case.checker == 'sql') or (self.data.checker == 'sql')
+                    if not is_sql:
+                        if case.input_file not in self.files:
+                            raise ProblemDataError(_('Input file for case %d does not exist: %s') %
+                                                   (i, case.input_file))
                     if case.output_file not in self.files:
                         raise ProblemDataError(_('Output file for case %d does not exist: %s') %
                                                (i, case.output_file))
@@ -193,9 +215,6 @@ class ProblemDataCompiler(object):
             if init:
                 problem_data_storage.save(yml_file, ContentFile(init))
             else:
-                # Don't write empty init.yml since we should be looking in manually managed
-                # judge-server#670 will not update cache on empty init.yml,
-                # but will do so if there is no init.yml, so we delete the init.yml
                 problem_data_storage.delete(yml_file)
 
     @classmethod

@@ -294,14 +294,16 @@ class TaskDetail(TaskMixin, SolvedProblemMixin, CommentedDetailView):
 
 
 
-class SolveStatus(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
+class SolveStatus(LoginRequiredMixin, ProblemMixin, SolvedProblemMixin, CommentedDetailView):
     context_object_name = 'problem'
     template_name = 'problem/solvestatus.html'
 
     def get_title(self):
+
         return _('Solve status for {0}').format(self.object.name)
 
     def get_content_title(self):
+
         return format_html(_(u'Solve status for <a href="{1}">{0}</a>'), self.object.name,
                            reverse('problem_detail', args=[self.object.code]))
 
@@ -332,16 +334,57 @@ class SolveStatus(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
         else:
             return user_attempted_ids(user) if user is not None else ()
 
+    def _get_all_solve_statuses(self, user_profiles, problem_id):
+        """
+        Retorna un dict {profile_id: 'solved' | 'attempted' | 'unsolved'}
+        amb només 2 queries a la BD.
+        """
+        profile_ids = [u.id for u in user_profiles]
+
+        # Query 1: qui ha fet AC
+        solved_ids = set(
+            Submission.objects.filter(
+                user_id__in=profile_ids,
+                problem=self.object,
+                result='AC',
+            ).values_list('user_id', flat=True).distinct()
+        )
+
+        # Query 2: qui ha intentat (sense AC)
+        attempted_ids = set(
+            Submission.objects.filter(
+                user_id__in=profile_ids,
+                problem=self.object,
+            ).exclude(
+                user_id__in=solved_ids,
+            ).values_list('user_id', flat=True).distinct()
+        )
+
+        statuses = {}
+        for profile in user_profiles:
+            if profile.id in solved_ids:
+                statuses[profile.id] = 'solved'
+            elif profile.id in attempted_ids:
+                statuses[profile.id] = 'attempted'
+            else:
+                statuses[profile.id] = 'unsolved'
+
+        return statuses
+
 
     def get_context_data(self, **kwargs):
+
         context = super(SolveStatus, self).get_context_data(**kwargs)
         user = self.request.user
         authed = user.is_authenticated
-        context['has_submissions'] = authed and Submission.objects.filter(user=user.profile,
-                                                                          problem=self.object).exists()
-        contest_problem = (None if not authed or user.profile.current_contest is None else
-                           get_contest_problem(self.object, user.profile))
+        profile = self.profile  # <-- usa el cached_property del view
+
+        context['has_submissions'] = bool(profile and Submission.objects.filter(
+            user=profile, problem=self.object).exists())
+        contest_problem = (None if not profile or profile.current_contest is None else
+                        get_contest_problem(self.object, profile))
         context['contest_problem'] = contest_problem
+
         if contest_problem:
             clarifications = self.object.clarifications
             context['has_clarifications'] = clarifications.count() > 0
@@ -349,54 +392,79 @@ class SolveStatus(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
             context['submission_limit'] = contest_problem.max_submissions
             if contest_problem.max_submissions:
                 context['submissions_left'] = max(contest_problem.max_submissions -
-                                                  get_contest_submission_count(self.object, user.profile,
-                                                                               user.profile.current_contest.virtual), 0)
+                                                get_contest_submission_count(self.object, profile,
+                                                                            profile.current_contest.virtual), 0)
 
         context['available_judges'] = Judge.objects.filter(online=True, problems=self.object)
         context['show_languages'] = self.object.allowed_languages.count() != Language.objects.count()
         context['has_pdf_render'] = HAS_PDF
         context['completed_problem_ids'] = self.get_completed_problems()
         context['attempted_problems'] = self.get_attempted_problems()
-        context['all_users'] = Profile.objects.all()
-        context['orgs'] = Organization.objects.all()
-
 
         can_edit = self.object.is_editable_by(user)
         context['can_edit_problem'] = can_edit
-        if user.is_authenticated:
+        if profile:
             tickets = self.object.tickets
             if not can_edit:
-                tickets = tickets.filter(own_ticket_filter(user.profile.id))
+                tickets = tickets.filter(own_ticket_filter(profile.id))
             context['has_tickets'] = tickets.exists()
             context['num_open_tickets'] = tickets.filter(is_open=True).values('id').distinct().count()
 
-        try:
-            context['editorial'] = Solution.objects.get(problem=self.object)
-        except ObjectDoesNotExist:
-            pass
-        try:
-            translation = self.object.translations.get(language=self.request.LANGUAGE_CODE)
-        except ProblemTranslation.DoesNotExist:
-            context['title'] = self.get_content_title()
-            context['language'] = settings.LANGUAGE_CODE
-            context['description'] = self.object.description
-            context['translated'] = False
-        else:
-            context['title'] = self.get_content_title()
-            context['language'] = self.request.LANGUAGE_CODE
-            context['description'] = translation.description
-            context['translated'] = True
+            # Orgs i usuaris optimitzat
+            user_orgs = profile.organizations.all()
+            all_users = list(
+                Profile.objects.filter(
+                    organizations__in=user_orgs
+                ).prefetch_related('organizations', 'user').distinct()
+            )
 
-        if not self.object.og_image or not self.object.summary:
-            metadata = generate_opengraph('generated-meta-problem:%s:%d' % (context['language'], self.object.id),
-                                          context['description'], 'problem')
-        context['meta_description'] = self.object.summary or metadata[0]
-        context['og_image'] = self.object.og_image or metadata[1]
-        return context
+            # 2 queries per tots els usuaris
+            statuses = self._get_all_solve_statuses(all_users, self.object.id)
+
+            orgs_with_users = {}
+            for org in user_orgs:
+                orgs_with_users[org] = []
+
+            for u in all_users:
+                entry = {
+                    'profile': u,
+                    'status': statuses[u.id],
+                }
+                for org in u.organizations.all():  # ja prefetchat
+                    if org in orgs_with_users:
+                        orgs_with_users[org].append(entry)
+
+            context['orgs_with_users'] = orgs_with_users
+
+            try:
+                context['editorial'] = Solution.objects.get(problem=self.object)
+            except ObjectDoesNotExist:
+                pass
+            try:
+                translation = self.object.translations.get(language=self.request.LANGUAGE_CODE)
+            except ProblemTranslation.DoesNotExist:
+                context['title'] = self.get_content_title()
+                context['language'] = settings.LANGUAGE_CODE
+                context['description'] = self.object.description
+                context['translated'] = False
+            else:
+                context['title'] = self.get_content_title()
+                context['language'] = self.request.LANGUAGE_CODE
+                context['description'] = translation.description
+                context['translated'] = True
+
+            if not self.object.og_image or not self.object.summary:
+                metadata = generate_opengraph('generated-meta-problem:%s:%d' % (context['language'], self.object.id),
+                                            context['description'], 'problem')
+            context['meta_description'] = self.object.summary or metadata[0]
+            context['og_image'] = self.object.og_image or metadata[1]
+            context['cosa'] = "AAAAAAAAAAAAA"
+
+            return context
 
 
 
-class TaskSolveStatus(TaskMixin, SolvedProblemMixin, CommentedDetailView):
+class TaskSolveStatus(LoginRequiredMixin, TaskMixin, SolvedProblemMixin, CommentedDetailView):
     context_object_name = 'thistask'
     template_name = 'problem/tasksolvestatus.html'
 
@@ -652,7 +720,7 @@ class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView,
 
     def get_context_data(self, **kwargs):
         context = super(ProblemsByOrganization, self).get_context_data(**kwargs)
-        org = Organization.objects.get(pk=self.kwargs.get('pk'))
+        org = get_object_or_404(Organization,pk=self.kwargs.get('pk'))
         context['hide_solved'] = 0 if self.in_contest else int(self.hide_solved)
         context['show_types'] = 0 if self.in_contest else int(self.show_types)
         context['full_text'] = 0 if self.in_contest else int(self.full_text)

@@ -787,7 +787,7 @@ def usersSegona(request):
 
 def user_ranking_redirect(request):
     try:
-        username = request.GET['search']
+        username = request.GET['handle']
     except KeyError:
         raise Http404()
     user = get_object_or_404(Profile, user__username=username)

@@ -1,6 +1,5 @@
 {% extends "common-content.html" %}
 {% block content_media %}
-    {% include "comments/media-css.html" %}
     <style>
         .title-state {
             font-size: 2em;
@@ -44,9 +43,6 @@
     </style>
 {% endblock %}
 
-{% block content_js_media %}
-    {% include "comments/media-js.html" %}
-{% endblock %}
 
 {% block header %}
     <div style="float:right">
@@ -57,7 +53,7 @@
 {% endblock %}
 
 
-{% block comments %}
+{% block description %}
 
     {% block js_media %}
         <script src="{{ static('libs/tablesorter.js') }}" type="text/javascript"></script>
@@ -70,81 +66,48 @@
 
 
     {% if request.profile %}
-    <h2>{{_('My Organizations')}}</h2>
-    <br>
-    {% for org in request.profile.organizations.all() %}
-        <h3> {{org}} </h3>
-        <div>
-        <table class="solvedtable table">
-            <thead>
+<h2>{{ _('My Organizations') }}</h2>
+{{has_submissions }}
+{% for org, users in orgs_with_users.items() %}
+    <h3>{{ org }}</h3>
+    <table class="solvedtable table">
+        <thead>
             <tr>
-                <th class="header flag">{{ _('Flag') }}</th>
-                <th class="header username">{{ _('Username') }}</th>
-                <th class="header username">{{ _('Organization') }}</th>
-                <th class="problems">
-                    {{ _('Status') }}
-                </th>
+                <th>{{ _('Flag') }}</th>
+                <th>{{ _('Username') }}</th>
+                <th>{{ _('Organization') }}</th>
+                <th>{{ _('Status') }}</th>
             </tr>
-            </thead>
-
-            <tbody>
-            
-            {% for user in all_users %}
-            {% if org in user.organizations.all() %}
-                <tr id="user-{{ user.user.username }}" >
-                    
-                    {% with orgs=user.organizations.all() %}
+        </thead>
+        <tbody>
+        {% for entry in users %}
+            <tr>
+                {% with orgs=entry.profile.organizations.all() %}
+                <td>
                     {% if orgs and orgs[0].logo_override_image %}
-
-                    <td>
-                    <img src="{{orgs[0].logo_override_image}}" alt="flag" width="90" height="40"> 
-                    
-                    </td>
-                    {% else %}
-                    <td></td>
+                        <img src="{{ orgs[0].logo_override_image }}" alt="flag" width="90" height="40">
                     {% endif %}
-                    <td class="user-name">{{ link_user(user) }} {% block user_data scoped %}{% endblock %}</td>
-                    
-                        
-                            <td >
-                                {% for org in orgs -%}
-                                    <a href="{{ org.get_absolute_url() }}">{{ org.name }}</a>
-                                    {%- if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </td>
-                    {% endwith %}
-                    {% block point scoped %}
-                        
-                            {% if problem.id in view.get_user_completed_problems(user)  %}
-                            <td style="background-color:green;">
-                            <span style="display:none;">1</span>
-                            </td>
-                            {% elif problem.id in view.get_user_attempted_problems(user)  %}
-                            <td style="background-color:orange;">
-                            <span style="display:none;">2</span>
-                            </td>
-                            {% else %}
-                            <td style="background-color:white;">
-                            <span style="display:none;">3</span>
-                            </td>
-                            {% endif %}
-                        </td>
-
-                        
-                    {% endblock %}
-                </tr>
-            {% endif %}
-            {% endfor %}
-            </tbody>
-        </table>
-
-        </div>
-    {% endfor %}
-    {% endif %}
+                </td>
+                <td>{{ link_user(entry.profile) }}</td>
+                <td>
+                    {% for o in orgs %}
+                        <a href="{{ o.get_absolute_url() }}">{{ o.name }}</a>
+                        {%- if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                {% endwith %}
+                <td style="background-color: {{ {'solved': 'green', 'attempted': 'orange', 'unsolved': 'white'}[entry.status] }};">
+                    <span style="display:none;">{{ {'solved': 1, 'attempted': 2, 'unsolved': 3}[entry.status] }}</span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endfor %}
+{% endif %}
 {% endblock %}
 
 
 {% block bodyend %}
     {{ super() }}
-    {% include "comments/math.html" %}
 {% endblock %}

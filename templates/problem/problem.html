@@ -128,7 +128,10 @@
     <div><a href="{{ url('chronological_submissions', problem.code) }}">{{ _('All submissions') }}</a></div>
     <div><a href="{{ url('ranked_submissions', problem.code) }}">{{ _('Best submissions (time)') }}</a></div>
     <div><a href="{{ url('rankedvote_submissions', problem.code) }}">{{ _('Best submissions (votes)') }}</a></div>
+    {% if not request.in_contest %}
     <div><a href="{{ url('solve_status', problem.code) }}">{{ _('Solve Status') }}</a></div>
+    {% endif %}
+
     {% if (editorial and editorial.is_accessible_by(request.user)) and not request.in_contest %}
         <hr>
         <div><a href="{{ url('problem_editorial', problem.code) }}">{{ _('Read editorial') }}</a></div>

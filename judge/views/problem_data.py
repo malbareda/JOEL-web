@@ -46,11 +46,27 @@ class ProblemDataForm(ModelForm):
             raise ValidationError(_('Your zip file is invalid!'))
         return self.cleaned_data['zipfile']
 
+    def clean_sql_db(self):
+        sql_db = self.cleaned_data.get('sql_db')
+        if sql_db and not sql_db.name.endswith('.db'):
+            raise ValidationError(_('SQL database file must be a .db file (SQLite).'))
+        return sql_db
+
+    def clean(self):
+        cleaned_data = super().clean()
+        checker = cleaned_data.get('checker')
+        sql_db = cleaned_data.get('sql_db')
+        # If checker is SQL and no DB file exists (neither new upload nor existing)
+        if checker == 'sql' and not sql_db and not self.instance.sql_db:
+            raise ValidationError(_('SQL checker requires a database file. Please upload a .db file.'))
+        return cleaned_data
+
     clean_checker_args = checker_args_cleaner
 
     class Meta:
         model = ProblemData
-        fields = ['zipfile', 'generator', 'output_limit', 'output_prefix', 'checker', 'caseformat', 'allowed_tips', 'checker_args']
+        fields = ['zipfile', 'generator', 'output_limit', 'output_prefix', 'checker', 'caseformat',
+                  'allowed_tips', 'checker_args', 'sql_db']
         widgets = {
             'checker_args': HiddenInput,
         }
