@@ -301,7 +301,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                             <select name="color" class="fullwidth">
                                 <option value>   </option>
                                 {% for coior in colors %}
-                                <option value="{{coior.name}}"> {{coior.name}} </option>
+                                <option value="{{coior.name}}" {% if coior.name == profile.user_color %}selected{% endif %}> {{coior.name}} </option>
                                 {% endfor %}
                             </select>
                             </span></td>
@@ -312,7 +312,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                               <select name="icon" class="fullwidth">
                               <option value>   </option>
                                 {% for icon in icons %}
-                                <option value="{{icon.logo_override_image}}"> {{icon.name}} </option>
+                                <option value="{{icon.logo_override_image}}" {% if icon.logo_override_image == profile.preferred_icon %}selected{% endif %}> {{icon.name}} </option>
                                 {% endfor %}
                             </select>
                             </span></td>
@@ -323,7 +323,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                             <select name="theme" class="fullwidth">
                                 <option value>   </option>
                                 {% for theme in themes %}
-                                <option value="{{theme.name}}"> {{theme.name}} </option>
+                                <option value="{{theme.name}}" {% if theme.name == profile.preferred_theme %}selected{% endif %}> {{theme.name}} </option>
                                 {% endfor %}
                             </select>
                             </span></td>
@@ -334,7 +334,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                             <select name="font" class="fullwidth">
                                 <option value>   </option>
                                 {% for f in fonts %}
-                                <option value="{{f.name}}"> {{f.name}} </option>
+                                <option value="{{f.name}}" {% if f.name == profile.preferred_font %}selected{% endif %}> {{f.name}} </option>
                                 {% endfor %}
                             </select>
                             </span></td>
