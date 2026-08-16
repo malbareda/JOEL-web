@@ -381,6 +381,24 @@ Als problemes "Sense Bucles" (`classeaob`, `detectoridioma`, `eduardochillida`, 
 
 ---
 
+### 19. Reducció d'idiomes actius i auditoria/correcció d'i18n incomplet
+
+**Abans:** `settings.LANGUAGES` activava 17 idiomes (ca, de, en, es, fr, hr, hu, ja, ko, pt, ro, ru, sr-latn, tr, vi, zh-hans, zh-hant), amb catàlegs de traducció (`locale/*`) per a 23, la majoria sense manteniment real. A més, no s'havia fet mai una auditoria de text hardcoded (no traduïble) a les plantilles/vistes.
+
+**Decisió:**
+1. **Idiomes actius reduïts a 5**: català, castellà, anglès, alemany i xinès simplificat (`zh-hans`, triat explícitament per l'usuari per sobre del tradicional: 869 missatges ja traduïts vs. 122). Canvi d'una sola línia a `dmoj/settings.py` (`LANGUAGES`). **Els fitxers `locale/` de la resta d'idiomes es deixen intactes al disc** (decisió explícita de l'usuari: no esborrar-los, només desactivar-los), per si en un futur es volen reactivar.
+2. **Auditoria d'i18n** (agent de recerca dedicat, només lectura): 24 troballes de text hardcoded sense passar per `_()`/`{{ _(...) }}`, repartides entre plantilles pròpies (gacha, lligues, perfil), plantilles generals del lloc, i vistes Python (`FTS syntax error`, diversos `HttpResponseBadRequest` amb text pla).
+3. **Correcció de les 24 troballes**: totes embolicades en `_()` (Python) o `{{ _(...) }}` (Jinja2). **Troballa destacada durant la correcció**: `templates/user/edit-profile.html` tenia un bug real, no només un problema d'i18n — `showTooltip(e.trigger, _('Copied!'));` cridava una funció JS `_` inexistent (el patró correcte, usat a la resta del fitxer, és `{{ _('...') }}`, avaluat pel servidor, no en temps d'execució al navegador); això hauria llençat un `ReferenceError` silenciós cada vegada que un usuari copiava un codi de reserva (*scratch code*), sense trencar la resta de la pàgina però sense mostrar mai el tooltip de confirmació.
+4. **Traducció de les cadenes noves** (`manage.py makemessages -l ca -l es -l en -l de -l zh_Hans`, seguit de traducció manual amb `polib` per a les ~33 cadenes noves/reutilitzades, cap a els 4 idiomes que no en són l'origen). **Incident detectat durant la traducció**: `msgmerge` havia fet *fuzzy-matching* automàtic d'algunes cadenes noves contra cadenes antigues similars però semànticament no relacionades (p. ex. `"Punts Disponibles"` va aparellar-se amb la traducció vella de `"points possible"` → `"punts possibles"`; `"Could not vote: "` es va aparellar amb la traducció de `"Could not find page"`) — aquestes coincidències *fuzzy* no s'apliquen mai en producció (`msgfmt` les ignora en compilar per defecte), però calia netejar-les igualment abans de donar per bo el fitxer. Es van corregir totes manualment i es va treure la marca `fuzzy`. També es va detectar i corregir un flag `#, python-format` fals positiu (per un `50%` literal dins un text, no un format Python real) que feia fallar `msgfmt --check` per al xinès simplificat.
+5. **No s'ha traduït tota la resta de contingut que `makemessages` ha trobat sense traduir** (funcionalitats afegides en sessions anteriors —Guies, Tasques, checker SQL, Lliga— que mai s'havien passat per `makemessages`): és una feina de traducció molt més gran, fora de l'abast d'aquesta petició concreta, i queda pendent com a possible feina futura.
+6. Desplegament: `manage.py compilemessages` + `manage.py compilejsi18n` + `manage.py collectstatic` + `sudo supervisorctl restart site`.
+
+**Per què:** petició explícita de l'usuari ("no podem mantenirho" en referència a mantenir 17+ idiomes) i petició explícita de trobar i corregir text no traduïble, "encara que sigui amb una traducció automàtica".
+
+**Resultat:** `manage.py check` net; prova en viu amb `django.utils.translation` confirmant les 5 traduccions noves en els 5 idiomes actius; lloc verificat funcionant (`200`, sense errors a `/tmp/dasdas.log`, jutge continua acceptant i corregint submissions amb normalitat) després del reinici de `site`.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

@@ -87,7 +87,7 @@
 {% block body %}
 
     {% set gpoints = user.points - user.gacha_points %}
-    <p>Punts Disponibles: {{gpoints|floatformat(2)}}</p>
+    <p>{{_('Punts Disponibles')}}: {{gpoints|floatformat(2)}}</p>
     <div class="container">
         <div class="card"  onclick="flip(event)">
             {% if achq==1 %}
@@ -107,7 +107,7 @@
     </div>
     <p>{{_('Has aconseguit')}} {% if achcat == 1 %} {{_('un Sticker!')}} {% elif achcat == 2 %} {{_('una Icona!')}} {% elif achcat == 3 %} {{_('un Color!')}} {% elif achcat == 4 %} {{_('un Tema!')}} {% endif %}</p>
     {% if repetit == 1 %} 
-    <p id="desc" style="display:none;">Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50% dels teus GachaPoints</p>
+    <p id="desc" style="display:none;">{{_('Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50% dels teus GachaPoints')}}</p>
     {% endif %}
     <p id="desc" style="display:none;">{{achdesc}}</p>
 <form action="{{ url('gacha_go') }}" method="post"

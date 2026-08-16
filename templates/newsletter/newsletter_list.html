@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Newsletter list - {{ SITE_LONG_NAME }}{% endblock %}
-{% block content_title %}Newsletter list{% endblock %}
+{% block title %}{{ _('Newsletter list') }} - {{ SITE_LONG_NAME }}{% endblock %}
+{% block content_title %}{{ _('Newsletter list') }}{% endblock %}
 
 {% block body %}
     {% if request.user.is_authenticated %}
@@ -9,8 +9,8 @@
             {{ formset.management_form }}
             <table>
                 <tr>
-                    <th>Newsletter</th>
-                    <th>Subscribe</th>
+                    <th>{{ _('Newsletter') }}</th>
+                    <th>{{ _('Subscribe') }}</th>
                 </tr>
                 {% for form in formset.forms %}
                     <tr>
@@ -24,13 +24,13 @@
             </table>
             <hr>
             <p>
-                <input id="id_submit" name="submit" value="Update subscriptions" type="submit" style="float: right">
+                <input id="id_submit" name="submit" value="{{ _('Update subscriptions') }}" type="submit" style="float: right">
             </p>
         </form>
     {% else %}
         <table class="form-area">
             <tr>
-                <th>Newsletter</th>
+                <th>{{ _('Newsletter') }}</th>
             </tr>
             {% for newsletter in object_list %}
                 <tr>

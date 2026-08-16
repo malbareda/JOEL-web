@@ -13,9 +13,9 @@
 
         if ('geolocation' in navigator) {
             $(function () {
-                $('<span>, <a href="#" id="detect-tz">detect</a></span>').insertAfter('#open-map');
+                $('<span>, <a href="#" id="detect-tz">{{ _('detect') }}</a></span>').insertAfter('#open-map');
                 $('#detect-tz').click(function (event) {
-                    var button = $(this).html('detecting...');
+                    var button = $(this).html('{{ _('detecting...') }}');
                     navigator.geolocation.getCurrentPosition(function (position) {
                         $.ajax({
                             url: 'https://maps.googleapis.com/maps/api/timezone/json',
@@ -27,15 +27,15 @@
                             if (data['timeZoneId'])
                                 $('#id_timezone').val(data.timeZoneId).change();
                             else
-                                alert('Invalid response from Google: ' + data);
+                                alert('{{ _('Invalid response from Google: ') }}' + data);
                         }).fail(function (jqXHR, status) {
                             alert(status);
                         }).always(function () {
-                            button.html('detect');
+                            button.html('{{ _('detect') }}');
                         });
                     }, function () {
-                        button.html('detect');
-                        alert('Unable to detect');
+                        button.html('{{ _('detect') }}');
+                        alert('{{ _('Unable to detect') }}');
                     });
                     event.preventDefault();
                 });

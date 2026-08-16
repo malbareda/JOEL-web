@@ -8,6 +8,7 @@ from django.http import Http404, HttpResponseBadRequest, HttpResponseRedirect, J
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.http import is_safe_url
+from django.utils.translation import gettext as _
 
 from judge.tasks import failure, progress, success
 from judge.utils.celery import redirect_to_task_status
@@ -50,7 +51,7 @@ def task_status(request, task_id):
 @short_circuit_middleware
 def task_status_ajax(request):
     if 'id' not in request.GET:
-        return HttpResponseBadRequest('Need to pass GET parameter "id"', content_type='text/plain')
+        return HttpResponseBadRequest(_('Need to pass GET parameter "id"'), content_type='text/plain')
     return JsonResponse(get_task_status(request.GET['id']))
 
 

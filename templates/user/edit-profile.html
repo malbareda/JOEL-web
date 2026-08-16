@@ -101,7 +101,7 @@
             });
 
             $('#disable-2fa-button').click(function () {
-                alert("The administrators for this site require all the staff to have Two-factor Authentication enabled, so it may not be disabled at this time.");
+                alert("{{ _('The administrators for this site require all the staff to have Two-factor Authentication enabled, so it may not be disabled at this time.') }}");
             });
 
             $('#generate-api-token-button').click(function (event) {
@@ -213,8 +213,8 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                                 'class': 'btn-clipboard',
                                 'id': 'scratch-codes-copy-button',
                                 'data-clipboard-text': '',
-                                'title': 'Click to copy'
-                            }).text('Copy')));
+                                'title': '{{ _('Click to copy') }}'
+                            }).text('{{ _('Copy') }}')));
 
                         $(copyButton.get(0)).mouseleave(function () {
                             $(this).attr('class', 'btn-clipboard');
@@ -225,7 +225,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
 
                         curClipboard.on('success', function(e) {
                             e.clearSelection();
-                            showTooltip(e.trigger, _('Copied!'));
+                            showTooltip(e.trigger, '{{ _('Copied!') }}');
                         });
 
                         curClipboard.on('error', function(e) {

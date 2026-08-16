@@ -859,7 +859,7 @@ class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView,
         try:
             return super(ProblemsByOrganization, self).get(request, *args, **kwargs)
         except ProgrammingError as e:
-            return generic_message(request, 'FTS syntax error', e.args[1], status=400)
+            return generic_message(request, _('FTS syntax error'), e.args[1], status=400)
 
     def post(self, request, *args, **kwargs):
         to_update = ('hide_solved', 'show_types', 'full_text')
@@ -1072,7 +1072,7 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
         try:
             return super(ProblemList, self).get(request, *args, **kwargs)
         except ProgrammingError as e:
-            return generic_message(request, 'FTS syntax error', e.args[1], status=400)
+            return generic_message(request, _('FTS syntax error'), e.args[1], status=400)
 
     def post(self, request, *args, **kwargs):
         to_update = ('hide_solved', 'show_types', 'full_text')
@@ -1205,7 +1205,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
         try:
             return super(TaskList, self).get(request, *args, **kwargs)
         except ProgrammingError as e:
-            return generic_message(request, 'FTS syntax error', e.args[1], status=400)
+            return generic_message(request, _('FTS syntax error'), e.args[1], status=400)
 
     def post(self, request, *args, **kwargs):
         to_update = ('hide_solved', 'show_types', 'full_text')
@@ -1384,7 +1384,7 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
                 request.user.username,
                 kwargs.get(self.slug_url_kwarg),
             )
-            return HttpResponseForbidden('<h1>Do you want me to ban you?</h1>')
+            return HttpResponseForbidden('<h1>%s</h1>' % _('Do you want me to ban you?'))
 
     def dispatch(self, request, *args, **kwargs):
         submission_id = kwargs.get('submission')

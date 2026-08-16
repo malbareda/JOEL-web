@@ -81,7 +81,7 @@
                 var $precision = $('<input>', {
                     type: 'number',
                     value: try_parse_json($args.val()).precision || 6,
-                    title: 'precision (decimal digits)',
+                    title: '{{ _('precision (decimal digits)') }}',
                     style: 'width: 4em'
                 }).change(function () {
                     if ($checker.val().startsWith('floats'))
@@ -461,5 +461,5 @@
         <input type="submit" value="{{ _('Submit!') }}" class="button">
         <a id="add-case-row" href="#"><i class="fa fa-plus"></i> {{ _('Add new case') }}</a>
     </form>
-    <div style="display: none" class="generator-args-editor"><textarea></textarea><a class="button">Save</a></div>
+    <div style="display: none" class="generator-args-editor"><textarea></textarea><a class="button">{{ _('Save') }}</a></div>
 {% endblock %}
