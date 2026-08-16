@@ -7,10 +7,6 @@ sencera en català, i pensada perquè qualsevol persona amb accés al codi —pr
 avançat o qui hagi de mantenir el projecte en el futur— pugui entendre com funciona per dins, des de
 l'arquitectura general fins al detall més concret d'un sistema específic.
 
-Al llarg del text, l'"Edgar" apareix com a exemple d'usuari típic —un alumne que envia una
-submissió, demana una pista, o fa una tirada de gacha— per il·lustrar els fluxos amb un cas concret
-en lloc de parlar sempre en abstracte.
-
 ## Com està organitzada
 
 ### [1. Arquitectura i mòduls](01-arquitectura/README.md)
