@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import sqlite3
 from datetime import timedelta
 from operator import itemgetter
 from random import randrange
@@ -195,6 +196,53 @@ class ProblemGuide(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObject
         return self.render_to_response(context)
 
 
+class ProblemDatabaseSchema(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObjectMixin, View):
+    context_object_name = 'problem'
+    template_name = 'problem/database.html'
+
+    def get_title(self):
+        return _('Database schema for {0}').format(self.object.name)
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        try:
+            data = self.object.data_files
+        except ObjectDoesNotExist:
+            raise Http404()
+
+        if data.checker != 'sql' or not data.sql_db:
+            raise Http404()
+
+        tables = []
+        try:
+            conn = sqlite3.connect('file:%s?mode=ro' % data.sql_db.path, uri=True)
+            try:
+                cursor = conn.execute(
+                    "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' "
+                    "ORDER BY name",
+                )
+                for name, create_sql in cursor.fetchall():
+                    columns = conn.execute('PRAGMA table_info(%s)' % _quote_identifier(name)).fetchall()
+                    tables.append({
+                        'name': name,
+                        'create_sql': create_sql,
+                        'columns': [{'name': col[1], 'type': col[2]} for col in columns],
+                    })
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            raise Http404()
+
+        context = self.get_context_data(object=self.object)
+        context['tables'] = tables
+        return self.render_to_response(context)
+
+
+def _quote_identifier(name):
+    return '"%s"' % name.replace('"', '""')
+
+
 class ProblemRaw(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObjectMixin, View):
     context_object_name = 'problem'
     template_name = 'problem/raw.html'
@@ -288,6 +336,10 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
             context['guide'] = Guide.objects.get(problem=self.object)
         except ObjectDoesNotExist:
             pass
+        try:
+            context['is_sql_problem'] = self.object.data_files.checker == 'sql' and bool(self.object.data_files.sql_db)
+        except ObjectDoesNotExist:
+            context['is_sql_problem'] = False
         try:
             translation = self.object.translations.get(language=self.request.LANGUAGE_CODE)
         except ProblemTranslation.DoesNotExist:
@@ -1248,6 +1300,18 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
     form_class = ProblemSubmitForm
 
     @cached_property
+    def is_sql_problem(self):
+        try:
+            return self.object.data_files.checker == 'sql'
+        except ObjectDoesNotExist:
+            return False
+
+    def get_template_names(self):
+        if self.is_sql_problem:
+            return ['problem/submit_sql.html']
+        return [self.template_name]
+
+    @cached_property
     def contest_problem(self):
         if self.request.profile.current_contest is None:
             return None
@@ -1372,6 +1436,8 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
         context['submissions_left'] = self.remaining_submission_count
         context['ACE_URL'] = settings.ACE_URL
         context['default_lang'] = self.default_language
+        if self.is_sql_problem:
+            context['sql_cases'] = self.object.cases.filter(type='C').order_by('order')
         return context
 
     def post(self, request, *args, **kwargs):

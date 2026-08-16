@@ -1,0 +1,72 @@
+{% extends "common-content.html" %}
+
+{% block content_media %}
+    <style>
+        .db-schema-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.6em;
+            padding: 0.7em 1em;
+            margin-bottom: 1em;
+            border-radius: 6px;
+            background: var(--highlight_blue);
+            color: var(--global-text);
+        }
+
+        .db-schema-banner .fa {
+            font-size: 1.4em;
+        }
+
+        .db-table-block {
+            margin-bottom: 1.5em;
+        }
+
+        .db-table-block h4 {
+            margin-bottom: 0.3em;
+        }
+
+        .db-table-block table {
+            border-collapse: collapse;
+        }
+
+        .db-table-block th, .db-table-block td {
+            border: 1px solid var(--border_gray);
+            padding: 0.25em 0.7em;
+            text-align: left;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="content-description">
+        <div class="db-schema-banner">
+            <i class="fa fa-database"></i>
+            <span>{{ _('This is the schema of the database used by this problem — the tables and columns you can query against.') }}</span>
+        </div>
+        {% for table in tables %}
+            <div class="db-table-block">
+                <h4>{{ table.name }}</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ _('Column') }}</th>
+                            <th>{{ _('Type') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for column in table.columns %}
+                            <tr>
+                                <td>{{ column.name }}</td>
+                                <td>{{ column.type }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>{{ _('No tables found in this database.') }}</p>
+        {% endfor %}
+    </div>
+    <hr>
+    <div><a href="{{ url('problem_detail', problem.code) }}">{{ _('Back to problem') }}</a></div>
+{% endblock %}

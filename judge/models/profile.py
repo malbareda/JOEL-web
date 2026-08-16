@@ -135,6 +135,8 @@ class Profile(models.Model):
     gacha_points = models.FloatField(default=0, db_index=True, help_text=_('Els punts gacha que ha gastat un usuari. No els punts que te. Els punts disponibles es calculen dinamicament entre la resta dels seus punts totals i aquest valor. Per donar gachapoints a un alumne, restar aquest valor. Permet negatius'))
     lliga_primera_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la primera divisio de la lliga actual'))
     lliga_segona_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la segona divisio de la lliga actual'))
+    sql_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en problemes de la categoria SQL, separats dels punts de programacio'))
+    sql_problem_count = models.IntegerField(default=0, help_text=_('Nombre de problemes de la categoria SQL resolts'))
     achievements = models.ManyToManyField(Achievement, through='AchievementObtained')
     user_color = models.TextField(verbose_name=_('user color'),null=True,help_text=_('background color of your name in the users list.'))
     preferred_theme = models.TextField(verbose_name=_('preferred theme'),null=True,help_text=_('Your preferred theme for this web.'))
@@ -203,7 +205,7 @@ class Profile(models.Model):
 
     def calculate_points(self, table=_pp_table):
         from judge.models import Problem
-        public_problems = Problem.get_public_problems()
+        public_problems = Problem.get_public_problems().exclude(group__name='sql')
         data = (
             public_problems.filter(submission__user=self, submission__points__isnull=False)
                            .annotate(max_points=Max('submission__points')).order_by('-max_points')
@@ -226,6 +228,24 @@ class Profile(models.Model):
 
 
     calculate_points.alters_data = True
+
+    def calculate_sql_points(self):
+        from judge.models import Problem
+        sql_problems = Problem.get_public_problems().filter(group__name='sql')
+        data = (
+            sql_problems.filter(submission__user=self, submission__points__isnull=False)
+                        .annotate(max_points=Max('submission__points')).order_by('-max_points')
+                        .values_list('max_points', flat=True).filter(max_points__gt=0)
+        )
+        points = sum(data)
+        problems = len(data)
+        if self.sql_points != points or problems != self.sql_problem_count:
+            self.sql_points = points
+            self.sql_problem_count = problems
+            self.save(update_fields=['sql_points', 'sql_problem_count'])
+        return points
+
+    calculate_sql_points.alters_data = True
 
     def calculate_points_primera(self):
         from django.db.models import OuterRef, Subquery

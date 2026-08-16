@@ -1,4 +1,5 @@
 import errno
+import json
 import os
 
 from django.db import models
@@ -106,3 +107,14 @@ class ProblemTestCase(models.Model):
     checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, blank=True)
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
+
+    @property
+    def question(self):
+        """For SQL-checker cases: the question prompt shown above this case's answer box,
+        stored inside checker_args (e.g. {"question": "..."})."""
+        if not self.checker_args:
+            return ''
+        try:
+            return json.loads(self.checker_args).get('question', '')
+        except (ValueError, AttributeError):
+            return ''

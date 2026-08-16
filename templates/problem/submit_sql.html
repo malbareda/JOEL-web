@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block js_media %}
+    {{ form.media.js }}
+    {% compress js %}
+        <script type="text/javascript">
+            $(function () {
+                function build_source() {
+                    var parts = [];
+                    $('.sql-answer-box').each(function () {
+                        var index = $(this).data('question-index');
+                        parts.push('-- @@Q' + index + '@@');
+                        parts.push($(this).val());
+                    });
+                    return parts.join('\n');
+                }
+
+                $('#problem_submit').submit(function (event) {
+                    var source = build_source();
+                    $('#id_source').val(source);
+                    if (source.length > 65536) {
+                        alert("{{ _('Your source code must contain at most 65536 characters.') }}");
+                        event.preventDefault();
+                        $('#problem_submit').find(':submit').attr('disabled', false);
+                    }
+                });
+            });
+        </script>
+    {% endcompress %}
+{% endblock %}
+
+{% block media %}
+    {% compress css %}
+        <style media="screen">
+            #submit-wrapper {
+                margin-top: 0.7em;
+            }
+
+            .sql-question-block {
+                margin-bottom: 1.2em;
+            }
+
+            .sql-question-prompt {
+                margin-bottom: 0.3em;
+            }
+
+            .sql-answer-box {
+                width: 100%;
+                font-family: monospace;
+                font-size: 14px;
+                box-sizing: border-box;
+            }
+        </style>
+    {% endcompress %}
+{% endblock %}
+
+{% block body %}
+    <br>
+    {% if not no_judges %}
+        {% if request.in_contest and submission_limit %}
+            {% if submissions_left > 0 %}
+                <div class="alert alert-warning alert-dismissable">
+                    <a class="close">x</a>
+                    {% trans left=submissions_left %}
+                        You have {{ left }} submission left
+                        {% pluralize %}
+                        You have {{ left }} submissions left
+                    {% endtrans %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning alert-dismissable">
+                    <a class="close">x</a>
+                    {{ _('You have 0 submissions left') }}
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+
+    <form id="problem_submit" action="" method="post" class="form-area">
+        {% csrf_token %}
+        {{ form.non_field_errors() }}
+        {{ form.source.errors }}
+        <div id="submit-wrapper">
+            {% for case in sql_cases %}
+                <div class="sql-question-block">
+                    <div class="sql-question-prompt">
+                        <strong>{{ _('Question') }} {{ loop.index }}</strong>
+                        {% if case.question %}: {{ case.question }}{% endif %}
+                    </div>
+                    <textarea class="sql-answer-box" data-question-index="{{ loop.index }}" rows="4"
+                              placeholder="{{ _('Write your SQL query here...') }}"></textarea>
+                </div>
+            {% endfor %}
+            <textarea id="id_source" name="source" style="display:none"></textarea>
+        </div>
+
+        <hr>
+
+        {% if no_judges %}
+            <span style="color: red">{{ _('No judge is available for this problem.') }}</span>
+        {% else %}
+            <div class="submit-bar">
+                {{ form.judge }}
+                <select id="id_language" name="language" style="display:none">
+                    {% for lang in form.fields.language.queryset %}
+                        <option value="{{ lang.id }}"
+                                {% if lang.id == default_lang.id %}selected{% endif %}>{{ lang.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="submit" value="{{ _('Submit!') }}" class="button"
+                       {% if request.in_contest and submission_limit and not submissions_left %}disabled{% endif %}>
+            </div>
+        {% endif %}
+    </form>
+{% endblock %}

@@ -76,23 +76,36 @@ class ProblemDataCompiler(object):
                 raise ProblemDataError(_('Empty batches not allowed.'))
             cases.append(batch)
 
-        def make_checker(case):
-            if case.checker == 'sql':
+        def make_checker(case, question_index=None, effective_checker=None):
+            checker_name = effective_checker or case.checker
+            if checker_name == 'sql':
                 db_filename = self._get_sql_db_filename()
+                args = {'db_file': db_filename}
+                if case.checker_args:
+                    try:
+                        args.update(json.loads(case.checker_args))
+                    except ValueError:
+                        pass
+                if question_index is not None:
+                    args['question_index'] = question_index
                 return {
                     'name': 'sql',
-                    'args': {'db_file': db_filename},
+                    'args': args,
                 }
             if case.checker_args:
                 return {
-                    'name': case.checker,
+                    'name': checker_name,
                     'args': json.loads(case.checker_args),
                 }
-            return case.checker
+            return checker_name
+
+        sql_question_counter = [0]
 
         for i, case in enumerate(self.cases, 1):
             if case.type == 'C':
                 data = {}
+                is_sql = (case.checker == 'sql') or (self.data.checker == 'sql')
+
                 if batch:
                     case.points = None
                     case.is_pretest = batch['is_pretest']
@@ -103,7 +116,6 @@ class ProblemDataCompiler(object):
 
                 if not self.generator:
                     # For SQL problems, input_file is optional
-                    is_sql = (case.checker == 'sql') or (self.data.checker == 'sql')
                     if not is_sql:
                         if case.input_file not in self.files:
                             raise ProblemDataError(_('Input file for case %d does not exist: %s') %
@@ -124,8 +136,13 @@ class ProblemDataCompiler(object):
                     data['output_limit_length'] = case.output_limit
                 if case.output_prefix is not None:
                     data['output_prefix_length'] = case.output_prefix
-                if case.checker:
-                    data['checker'] = make_checker(case)
+                if case.checker or (is_sql and not batch):
+                    question_index = None
+                    if not batch and is_sql:
+                        sql_question_counter[0] += 1
+                        question_index = sql_question_counter[0]
+                    effective_checker = case.checker or (self.data.checker if is_sql else '')
+                    data['checker'] = make_checker(case, question_index, effective_checker)
                 else:
                     case.checker_args = ''
                 case.save(update_fields=('checker_args', 'is_pretest'))

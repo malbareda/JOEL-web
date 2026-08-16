@@ -65,3 +65,26 @@ d'accés per unir-se a organitzacions obertes) o eliminar-lo del tot.
 La vista que mostra la graella de "qui ha resolt/intentat cada problema" d'una organització sencera
 no comprova cap permís ni pertinença — qualsevol visitant que endevini l'identificador numèric d'una
 organització en pot veure el progrés complet dels seus membres. Revisar si cal restringir-ho.
+
+## 5. Gacha: animacions i sons
+
+**Detectat:** anotat directament per l'usuari.
+
+Afegir animacions, sons, etc. a la part del gacha, per donar-hi més sensació real de "gacha"
+(actualment la revelació del premi és només una targeta 3D en CSS que gira en fer-hi clic, sense
+so ni animació d'entrada — vegeu `docs/02-sistemes/2.4-gacha-i-personalitzacio.md`).
+
+## 6. Explorador de BD dels problemes SQL: representació gràfica automàtica de l'esquema
+
+**Detectat:** 2026-08-16, en repensar el sistema de problemes SQL (veure
+`docs/05-sistemes-mecanics/5.5-checker-sql.md` i `CANVIS_I_MILLORES.md`).
+
+L'explorador d'esquema (`/problem/<codi>/database`) de moment només mostra una llista de taules i
+columnes en text. Es va decidir deixar per més endavant una representació gràfica automàtica de
+l'esquema (un diagrama ER), generada a partir de les claus foranes/primàries de l'SQLite, en lloc
+de fer-ho ara mateix.
+
+**Per fer-ho:** buscar una llibreria JS que dibuixi un diagrama ER a partir d'una llista de taules/
+columnes/claus foranes (llegibles amb `PRAGMA foreign_key_list(<taula>)`, ja disponible via
+`sqlite3` des de la mateixa vista `ProblemDatabaseSchema` a `judge/views/problem.py`), i renderitzar-
+ho a `templates/problem/database.html` al costat (o en lloc) de la llista actual.

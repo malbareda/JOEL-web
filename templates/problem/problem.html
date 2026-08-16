@@ -137,6 +137,11 @@
             <i class="fa fa-graduation-cap"></i> {{ _('Read the guide') }}
         </a>
     {% endif %}
+    {% if is_sql_problem %}
+        <a href="{{ url('problem_database_schema', problem.code) }}" class="unselectable button full">
+            <i class="fa fa-database"></i> {{ _("View the database schema") }}
+        </a>
+    {% endif %}
     {% if request.user.is_authenticated and request.in_contest and submission_limit %}
         {% if submissions_left > 0 %}
             <a href="{{ url('problem_submit', problem.code) }}" class="unselectable button full">

@@ -407,6 +407,8 @@ class JudgeHandler(ZlibPacketHandler):
         if problem.is_public and not problem.is_organization_private:
             submission.user._updating_stats_only = True
             submission.user.calculate_points()
+            if problem.group_id and problem.group.name == 'sql':
+                submission.user.calculate_sql_points()
 
         problem._updating_stats_only = True
         problem.update_stats()

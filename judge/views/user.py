@@ -785,6 +785,39 @@ def usersSegona(request):
     return user_segona_list_view(request)
 
 
+class UserListSql(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ListView):
+    model = Profile
+    title = gettext_lazy('Leaderboard SQL')
+    context_object_name = 'users'
+    template_name = 'user/list_sql.html'
+    paginate_by = 100
+    all_sorts = frozenset(('sql_points', 'sql_problem_count', 'rating'))
+    default_desc = all_sorts
+    default_sort = '-sql_points'
+
+    def get_queryset(self):
+        return (Profile.objects.filter(is_unlisted=False, sql_points__gt=0).order_by(self.order).select_related('user')
+                .only('display_rank', 'user__username', 'rating', 'sql_points', 'sql_problem_count'))
+
+    def get_context_data(self, **kwargs):
+        context = super(UserListSql, self).get_context_data(**kwargs)
+        context['users'] = ranker(
+            context['users'],
+            key=attrgetter('sql_points', 'sql_problem_count'),
+            rank=self.paginate_by * (context['page_obj'].number - 1),
+        )
+        context['first_page_href'] = '.'
+        context.update(self.get_sort_context())
+        context.update(self.get_sort_paginate_context())
+        return context
+
+
+user_sql_list_view = UserListSql.as_view()
+
+def usersSql(request):
+    return user_sql_list_view(request)
+
+
 def user_ranking_redirect(request):
     try:
         username = request.GET['handle']

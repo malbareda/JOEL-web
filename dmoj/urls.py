@@ -127,6 +127,7 @@ urlpatterns = [
         url(r'^$', problem.ProblemDetail.as_view(), name='problem_detail'),
         url(r'^/editorial$', problem.ProblemSolution.as_view(), name='problem_editorial'),
         url(r'^/guide$', problem.ProblemGuide.as_view(), name='problem_guide'),
+        url(r'^/database$', problem.ProblemDatabaseSchema.as_view(), name='problem_database_schema'),
         url(r'^/raw$', problem.ProblemRaw.as_view(), name='problem_raw'),
         url(r'^/pdf$', problem.ProblemPdfView.as_view(), name='problem_pdf'),
         url(r'^/pdf/(?P<language>[a-z-]+)$', problem.ProblemPdfView.as_view(), name='problem_pdf'),
@@ -200,6 +201,12 @@ urlpatterns = [
         url(r'^$', user.usersSegona, name='segona_list'),
         url(r'^(?P<page>\d+)$', lambda request, page:
             HttpResponsePermanentRedirect('%s?page=%s' % (reverse('segona_list'), page))),
+    ])),
+
+    url(r'^users/sql', include([
+        url(r'^$', user.usersSql, name='sql_list'),
+        url(r'^(?P<page>\d+)$', lambda request, page:
+            HttpResponsePermanentRedirect('%s?page=%s' % (reverse('sql_list'), page))),
     ])),
 
     url(r'^user$', user.UserAboutPage.as_view(), name='user_page'),
