@@ -101,7 +101,7 @@
                     var val = $checker.val();
                     if (val.startsWith('floats')) {
                         $args.val(JSON.stringify({precision: parseInt($precision.val())}));
-                    } else if (val === 'sql' && $question) {
+                    } else if ((val === 'sql' || val === 'mongo') && $question) {
                         $args.val(JSON.stringify({question: $question.val()}));
                     } else {
                         $args.val('');
@@ -111,7 +111,7 @@
                 $checker.change(function () {
                     var val = $checker.val();
                     $precision.toggle(val.startsWith('floats'));
-                    if ($question) $question.toggle(val === 'sql');
+                    if ($question) $question.toggle(val === 'sql' || val === 'mongo');
                     update_args();
                 }).change();
             }
@@ -129,19 +129,21 @@
 
             checker_precision($('#id_problem-data-checker'), false);
 
-            // === SQL checker: show/hide DB upload field ===
+            // === Database checkers: show/hide DB upload field + example database picker ===
             function toggleSqlDbField() {
                 var checkerVal = $('#id_problem-data-checker').val();
                 var $sqlDbRow = $('#id_problem-data-sql_db').closest('tr');
-                if (checkerVal === 'sql') {
-                    $sqlDbRow.show();
-                } else {
-                    $sqlDbRow.hide();
-                }
+                var $sqlTemplateRow = $('#id_problem-data-sql_template').closest('tr');
+                var $mongoDbRow = $('#id_problem-data-mongo_db').closest('tr');
+                var $mongoTemplateRow = $('#id_problem-data-mongo_template').closest('tr');
+                $sqlDbRow.toggle(checkerVal === 'sql');
+                $sqlTemplateRow.toggle(checkerVal === 'sql');
+                $mongoDbRow.toggle(checkerVal === 'mongo');
+                $mongoTemplateRow.toggle(checkerVal === 'mongo');
             }
             $('#id_problem-data-checker').change(toggleSqlDbField);
             toggleSqlDbField();  // run on page load
-            // === end SQL checker toggle ===
+            // === end database checker toggle ===
 
             $table.on('add-row', function (e, $tr) {
                 var $order = $tr.find('input').filter('[id$=order]').attr('type', 'hidden').val(++order);

@@ -162,8 +162,13 @@
 {% block title_ruler %}{% endblock %}
 
 {% block title_row %}
-    {% set tab = 'list' %}
-    {% set title = 'Problems' %}
+    {% if sql_category_id and category == sql_category_id %}
+        {% set tab = 'database' %}
+        {% set title = _('Problemes de Bases de Dades') %}
+    {% else %}
+        {% set tab = 'programming' %}
+        {% set title = _('Problemes de Programació') %}
+    {% endif %}
     {% include "problem/problem-list-tabs.html" %}
 {% endblock %}
 

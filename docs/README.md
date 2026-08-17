@@ -51,6 +51,8 @@ Les peces d'infraestructura que fan que tot això funcioni:
   dades de correcció.
 - [5.7. Particularitats del servidor](05-sistemes-mecanics/5.7-particularitats-servidor.md) —els
   processos, i la integració de correu amb l'API de Gmail.
+- [5.8. El checker Mongo](05-sistemes-mecanics/5.8-checker-mongo.md) —segona tecnologia de la
+  categoria "Bases de Dades", amb `mongomock`.
 
 ## Una nota sobre seguretat
 

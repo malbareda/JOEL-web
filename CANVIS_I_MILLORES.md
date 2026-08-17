@@ -425,6 +425,183 @@ Als problemes "Sense Bucles" (`classeaob`, `detectoridioma`, `eduardochillida`, 
 
 ---
 
+### 21. Selector "Problemes de Programació" / "Problemes de Bases de Dades" a la llista de problemes
+
+**Abans:** la llista de problemes (`/problems/`) no distingia entre problemes de programació i problemes SQL —tot sortia mesclat, i l'únic filtre era el desplegable general de categoria.
+
+**Decisió:** afegides dues pestanyes noves a la barra de pestanyes ja existent de la llista de problemes (`templates/problem/problem-list-tabs.html`, calcat del mateix patró de pestanyes ja usat a "Tasks"/rànquings): **"Problemes de Programació"** (`/problems/`, per defecte) i **"Problemes de Bases de Dades"** (`/problems/?category=<id_grup_sql>`). La pestanya de Programació ara **exclou explícitament** els problemes de la categoria `sql` (`ProblemList.get_normal_queryset`, `judge/views/problem.py`) —abans, sense cap categoria seleccionada, es mostraven tots els problemes mesclats; ara la vista per defecte és neta i els problemes SQL només surten si es demanen expressament (aquesta pestanya, o el desplegable de categoria). De pas, es va corregir un bug ja existent a `templates/problem/tasklist.html`: la pestanya "Tasks" no es marcava mai com a activa a la seva pròpia pàgina (còpia i enganxa mal feta que hi posava `tab='list'`/`title='Problems'` en lloc de `tab='task'`/`title='Tasks'`).
+
+**Per què:** petició explícita de l'usuari, per no haver de fer servir el desplegable de categoria cada vegada per distingir programació de SQL.
+
+**Resultat:** provat en viu (fent temporalment públic `provasql2` i desfent-ho): la pestanya de Programació ja no el mostra, la de Bases de Dades sí. Traduïdes les cadenes noves als 5 idiomes actius. `manage.py check` net; verificat contra el procés `site` real després de reiniciar-lo (`200`, pestanyes correctes).
+
+---
+
+### 22. Primer set real de problemes SQL: 4 problemes temàtics amb diverses preguntes cadascun
+
+**Abans:** només hi havia els dos problemes de prova (`provasql`/`provasql2`), pensats per validar el sistema, no per fer-los servir de veritat amb alumnes.
+
+**Decisió:** creats 4 problemes reals, públics, tots sobre la mateixa base de dades d'exemple ("Northwind" en miniatura: `categories`, `customers`, `products`, `orders`, `order_details`, la mateixa que ja feia servir `provasql2`), cadascun amb diverses preguntes fent servir el sistema de multi-pregunta ([entrada #20](#20-repensat-el-sistema-de-problemes-sql)):
+
+- **`sqlselects`** — "Bases de Dades: Selects bàsics" (2 preguntes: filtre per país, filtre per booleà).
+- **`sqljoins`** — "Bases de Dades: Joins" (3 preguntes: `JOIN` de dues taules, `JOIN` amb filtre sobre una comanda concreta, `LEFT JOIN` + `COUNT` per incloure clients sense comandes).
+- **`sqlagregacions`** — "Bases de Dades: Agregacions i GROUP BY" (3 preguntes: `COUNT`+`GROUP BY`, `AVG`+`GROUP BY`, `HAVING`).
+- **`sqldificil`** — "Bases de Dades: Problemes més difícils" (3 preguntes: subconsulta correlacionada per comparar amb la mitjana de la pròpia categoria, unió de 3 taules amb agregació i ordenació ("qui ha gastat més"), patró de "màxim per grup" amb subconsulta).
+
+Tots amb `partial=True` (a diferència de `provasql2`), perquè cada pregunta puntuï per separat en lloc de tot-o-res —amb diverses preguntes per problema, té molt més sentit pedagògic. Categoritzats al grup `sql` i al tipus de problema ja existent "BD - Selects" (creat per l'usuari mateix). Creats programàticament (ORM de Django + compilador de dades), no des de l'admin a mà, per poder-los provar tots de seguida.
+
+**Per què:** petició explícita de l'usuari per tenir un primer conjunt real de problemes SQL, amb la distribució de dificultat que va demanar (bàsics de una taula, joins de diferents tipus, agregacions, i uns quants de més difícils).
+
+**Resultat:** cada consulta de referència verificada manualment contra la base de dades real abans de crear el problema. Provats els 4 problemes de cap a cap contra el jutge real: **`sqljoins`, `sqldificil` i `sqlselects`** amb totes les respostes correctes → `AC` a puntuació completa; **`sqlagregacions`** amb una resposta intencionadament equivocada (`SUM` en lloc d'`AVG`) → `WA` general però amb **crèdit parcial correcte** (2 de 3 punts, exactament les preguntes ben contestades). Confirmat que aquestes submissions reals van pujar `Profile.sql_points` de l'usuari (a `/users/sql`) sense tocar `Profile.points`/`performance_points` normals —el rànquing separat funciona de veritat en producció, no només en proves. `manage.py check` net.
+
+**Nota posterior (mateix dia):** a petició de l'usuari, s'ha canviat l'autor d'aquests 4 problemes de "ningú" a l'usuari `edgar` (id 4928) —`provasql`/`provasql2` continuen amb "marc" com a autor, sense tocar.
+
+---
+
+### 23. Bases de dades d'exemple per als problemes SQL, en lloc de pujar-ne una cada vegada
+
+**Abans:** cada problema SQL necessitava que el professor pugés el seu propi fitxer `.db` (SQLite) a mà —feixuc si es volen reutilitzar les mateixes bases de dades clàssiques d'ensenyament (Northwind, Chinook...) en diversos problemes.
+
+**Decisió:** l'usuari va deixar 10 bolcats `.sql` de MySQL/MariaDB a l'arrel del repositori (`northwind.sql`, `northwind-data.sql`, `miniwind.sql`, `Chinook_MySql.sql`, `Chinook_MySql_AutoIncrementPKs.sql`, `traders.sql`, `KnightsDB.sql`, `hotel.sql`, `lastnames.sql`, `Employees.sql`, `groupbytest.sql`, `ies23g.sql`). Es van convertir a SQLite (script de conversió de dialecte propi: neteja de comentaris `/*!...*/`, `ENGINE=`/`CHARSET=`/`AUTO_INCREMENT`, índexs secundaris amb nom, i el diferent escapament de cometes dins de cadenes MySQL vs. SQLite) i es van desar a `/judge/_sql_templates/` (fora del repositori), un fitxer per base de dades. **`Chinook_MySql_AutoIncrementPKs.sql` es va descartar per ser un duplicat exacte** de `Chinook_MySql.sql` (només canvia si les claus primàries porten `AUTO_INCREMENT` explícit, irrellevant un cop convertit a SQLite).
+
+**Troballa important, reportada abans de continuar:** `ies23g.sql` **conté dades reals de persones** —una taula `usuaris` amb noms, cognoms, dates de naixement, i una columna `password` en text pla, que sembla un bolcat real d'un sistema similar a aquest mateix JOEL. **No s'ha convertit ni incorporat enlloc** —es descarta completament per motius de privacitat, i es documenta aquí perquè quedi constància clara del motiu (l'usuari hauria de revisar per què aquest fitxer conté dades tan sensibles i decidir si cal esborrar-lo o protegir-lo millor, ja que continua existint tal qual a l'arrel del repositori, fora de git per `*.sql` al `.gitignore`).
+
+A `judge/views/problem_data.py` (`ProblemDataForm`) s'ha afegit un desplegable nou, **"Or choose an example database"**, que apareix a l'editor de dades del problema (`/problem/<codi>/test_data`) quan el checker és `sql`, al costat del camp de pujada manual. Es genera dinàmicament escanejant `settings.DMOJ_SQL_SAMPLE_DATABASES_ROOT` (`judge/utils/problem_data.py::get_sql_sample_databases()`), amb noms/descripcions bonics definits a `SQL_SAMPLE_DATABASE_INFO`. En triar-ne una (sense pujar cap fitxer propi), es copia directament dins la carpeta del problema —cap canvi al mecanisme del checker.
+
+**Per què:** petició explícita de l'usuari per no haver de pujar una base de dades cada vegada, reutilitzant les que ja havia preparat.
+
+**Resultat:** provades les 9 bases de dades convertides —totes carreguen sense errors a SQLite amb dades reals (Northwind: 29 clients/45 productes/48 comandes; Chinook: 3503 cançons; etc.). Verificat de cap a cap que triar "chinook" des del formulari real (`ProblemDataForm`) copia el fitxer correcte dins la carpeta del problema, amb l'esquema esperat. `manage.py check` net; verificat en viu (`200`) després de reiniciar `site`.
+
+---
+
+### 24. Suport per a problemes SQL d'`INSERT` i `UPDATE` (encara no `DELETE`), amb garantia que mai es toca la BD real
+
+**Abans:** el checker SQL només acceptava `SELECT`, executat sempre en mode de només lectura directament contra el fitxer `.db` del problema.
+
+**Decisió**, amb un pla revisat i aprovat explícitament amb l'usuari (l'èmfasi de seguretat va ser explícit: "sota cap concepte s'ha de permetre un `USE`, `DROP DATABASE` o whatever, i sota cap concepte han de poder tenir mai accessos a la BD real de la web"):
+
+1. **Detecció automàtica del tipus de cas**: es dedueix de la primera paraula de la consulta de referència (`.out`) —`SELECT`, `INSERT` o `UPDATE`. Cap camp nou a la interfície, cap canvi a la web (aquest repositori); un professor crea una pregunta d'`INSERT`/`UPDATE` exactament igual que una de `SELECT`.
+2. **Llista de bloqueig reforçada, sempre activa** (`_ALWAYS_FORBIDDEN`, independent del tipus de cas): `DELETE, DROP, ALTER, CREATE, TRUNCATE, EXEC, EXECUTE, ATTACH, DETACH, PRAGMA, VACUUM, REINDEX, USE, REPLACE`. `ATTACH`/`DETACH` són els que realment evitarien que una consulta "sortís" del fitxer assignat (és el mecanisme de SQLite per obrir un altre fitxer com a BD addicional); `USE` s'hi afegeix tot i no existir en SQLite, explícitament, perquè quedi blindat al codi; `REPLACE` es bloqueja perquè equival a `DELETE`+`INSERT` combinats.
+3. **Execució d'`INSERT`/`UPDATE` sempre sobre una còpia d'un sol ús, mai sobre l'original**: `_make_temp_copy()` fa una còpia de fitxer pura (`shutil.copyfile`, mai `sqlite3`) cap a un fitxer temporal; la sentència de l'alumne (i, per separat, la de referència, en una segona còpia independent) s'executen només contra aquestes còpies; es compara **tot el contingut de totes les taules** entre totes dues (files ordenades en Python, no per SQL, per no dependre de l'ordre físic); les còpies s'esborren sempre en acabar. El fitxer `.db` real **mai s'obre en mode d'escriptura**.
+4. **Xarxa de seguretat addicional, no demanada explícitament però afegida per coherència amb l'èmfasi de l'usuari**: totes les connexions que executen SQL de l'alumne porten un `set_progress_handler` de SQLite que interromp la consulta si triga més d'uns segons —evita que una consulta patològica (p. ex. un producte cartesià enorme) pengi el procés del jutge.
+5. **Confirmat que no hi ha ni pot haver-hi cap camí cap a la BD real de la web** (el MySQL de Django): el checker només fa servir el mòdul `sqlite3` contra fitxers locals dins la carpeta del problema —mai cap client MySQL, mai cap connexió de xarxa. Aquesta garantia ja existia abans del canvi (no depèn de res que s'hagi tocat ara); el que es reforça amb aquest canvi és la llista de bloqueig, no l'existència d'un camí que mai hi ha hagut.
+
+**Incident detectat i corregit durant les proves de seguretat (abans de donar-ho per bo)**: la primera versió del bloqueig comparava la primera paraula de la consulta amb una llista exacta (`"VACUUM" in forbidden`), però `sql.split()[0]` sobre `"VACUUM;"` (sense espai abans del punt i coma) retorna `"VACUUM;"` —amb el punt i coma enganxat— que **no coincidia** amb l'entrada `"VACUUM"` de la llista, deixant-la passar (encara que després queia igualment en un rebuig genèric per no ser del tipus esperat, la sentència real mai arribava a executar-se, però el missatge d'error no era el correcte i la robustesa de la comprovació era fràgil). Corregit extraient la paraula clau amb una expressió regular (`^([A-Z_]+)`) en lloc de dividir per espais.
+
+**Per què:** petició explícita de l'usuari per poder fer problemes d'`INSERT`/`UPDATE`, amb les garanties de seguretat que va remarcar explícitament ell mateix.
+
+**Resultat:** provat exhaustivament amb el checker aïllat i després de cap a cap contra el jutge real (afegint temporalment una tercera pregunta d'`UPDATE` a `provasql2`, provada i retirada després, deixant el problema exactament com estava): `UPDATE`/`INSERT` correctes → `AC`; valors equivocats → `WA` amb el missatge correcte; intent de `DELETE` en lloc d'`UPDATE` → rebutjat amb "This statement type is not allowed: DELETE"; **el fitxer `miniwind.db` real comprovat bit a bit idèntic abans i després de totes les proves** (incloent-hi intents maliciosos de `DROP TABLE`, `ATTACH DATABASE`, `USE`, `REPLACE INTO`, sentències múltiples, i un `VACUUM;` sense espai). Problemes `SELECT` existents (`provasql2`, `sqlselects`, etc.) verificats sense cap regressió. Reiniciat el procés del jutge; `/tmp/dasdas.log` sense errors nous.
+
+---
+
+### 25. Sis problemes reals d'`INSERT`/`UPDATE`, cadascun en una base de dades diferent
+
+**Abans:** el mode `INSERT`/`UPDATE` (entrada #24) estava implementat i provat, però encara no hi havia cap problema real que el fes servir.
+
+**Decisió:** creats 6 problemes públics més, autor `edgar`, cadascun sobre una base de dades diferent de la llibreria d'exemples (entrada #23) —cap repeteix la mateixa BD que un altre, ni la mateixa que els problemes de `SELECT` ja existents (`miniwind`):
+
+- **`sqlinsertemployees`** (BD Employees, 2 preguntes): inserir empleats nous, un d'ells amb un camp `NULL` explícit.
+- **`sqlinsertknights`** (BD Knights & Dragons, 2 preguntes): inserir un cavaller i un drac —el drac fa referència a un cavaller **ja existent** a la BD (clau forana), no pas a un inserit per una altra pregunta del mateix problema, ja que cada pregunta es corregeix contra la seva pròpia còpia neta de la BD original, independentment de les altres.
+- **`sqlinsertchinook`** (BD Chinook, 3 preguntes): inserir un artista, un gènere musical i un àlbum (aquest últim referenciant un artista ja existent).
+- **`sqlupdategroupby`** (BD GroupByTest, 2 preguntes): actualitzar un salari i un cognom, en dues taules diferents del mateix fitxer.
+- **`sqlupdatehotel`** (BD Hotel, 2 preguntes): actualitzar un telèfon de client i l'estat d'una reserva.
+- **`sqlupdatetraders`** (BD Traders, 2 preguntes): actualitzar la capacitat d'una nau i el nom d'un producte.
+
+Tots amb `partial=True`, categoria `sql`, i creats programàticament (ORM + compilador de dades) igual que el primer set de problemes de `SELECT` (entrada #22).
+
+**Per què:** petició explícita de l'usuari per tenir problemes reals d'`INSERT`/`UPDATE`, en bases de dades diferents entre si.
+
+**Resultat:** cada sentència de referència verificada manualment contra la seva base de dades abans de crear el problema. Provats els 6 problemes de cap a cap contra el jutge real: totes les respostes correctes → `AC` a puntuació completa; una resposta amb un valor equivocat (`sqlinsertknights` amb el cavaller equivocat com a `KilledBy`, `sqlupdatehotel` amb un telèfon equivocat) → `WA` amb crèdit parcial correcte a les altres preguntes; un intent de `DELETE` en lloc d'`INSERT` a `sqlinsertchinook` → rebutjat amb el missatge de seguretat esperat, sense afectar la correcció de les altres preguntes del mateix enviament. Confirmat que **cap dels fitxers `.db` originals de la llibreria d'exemples ha canviat** després de totes les proves (recomptes i valors comprovats abans/després). Un petit incident menor durant la creació (un enllaç trencat en un intent previ de `sqlinsertemployees`, per una peculiaritat de com `manage.py shell` gestiona funcions definides per stdin) es va detectar, el problema a mig crear es va esborrar, i es va tornar a crear bé —cap conseqüència per als altres 5 problemes ni per res més del sistema.
+
+---
+
+### 26. Suport per a problemes MongoDB (checker `mongo`), i generalització de "SQL" a "Bases de Dades"
+
+**Abans:** el sistema de "problemes de bases de dades" (categoria, rànquing separat, format de diverses preguntes, explorador d'esquema, selector de BD d'exemple) assumia que l'única tecnologia possible era SQL/SQLite: URLs (`/users/sql`), plantilles i etiquetes ho deien explícitament.
+
+**Decisió**, amb un pla revisat i aprovat explícitament amb l'usuari:
+
+1. **Generalització del que és visible** (Milestone 1, cap migració de schema): `/users/sql` → `/users/bd` (nom de la URL `sql_list` → `database_list`), plantilles renombrades (`list_sql.html`/`users-table_sql.html`/`base-users-table-sql.html`/`submit_sql.html` → `..._database.html`), etiqueta de la pestanya "SQL" → "Bases de Dades", i migració de dades que actualitza `ProblemGroup.full_name` de "Bases de Dades (SQL)" a "Bases de Dades". **Deliberadament NO es toca cap nom intern** (camps de model com `Profile.sql_points`, mètodes com `calculate_sql_points()`, variables com `is_sql_problem`/`sql_group_id` a `judge/views/problem.py`, el `name='sql'` del `ProblemGroup`) —només la seva lògica es generalitza per cobrir Mongo, mai el nom.
+2. **Infraestructura web genèrica** (Milestone 2): nou camp `ProblemData.mongo_db` i entrada `CHECKERS` (migració de schema `0144`); `DATABASE_CHECKERS = ('sql', 'mongo')` centralitzat a `judge/utils/problem_data.py` i reutilitzat arreu on abans només es mirava `checker == 'sql'` (`ProblemSubmit.is_sql_problem`, el flag `is_sql_problem` de `ProblemDetail`, `make_checker()`); `MONGO_SAMPLE_DATABASE_INFO`/`get_mongo_sample_databases()` calcats dels equivalents SQL, escanejant `.json` en lloc de `.db`; camp `mongo_template` al formulari de dades, amb el mateix mecanisme de còpia; `ProblemDatabaseSchema` bifurcat per mostrar taules (SQL) o col·leccions amb document d'exemple (Mongo); `templates/problem/database.html` amb renderitzat condicional segons `db_kind`.
+3. **El checker `dmoj/checkers/mongo.py`** (Milestone 3, fora d'aquest repositori): calcat de l'arquitectura de `sql.py`, però amb `mongomock` (llibreria en memòria, pur Python, sense procés servidor) en lloc de SQLite —**verificat empíricament abans de dissenyar-hi res que `mongomock` no implementa mai JavaScript** (`$where` → `NotImplementedError`, `$function`/`$accumulator` → `OperationFailure`), una propietat estructural de seguretat semblant a la de SQLite. Format de consulta restringit `db.<col·lecció>.<mètode>(<JSON estricte>)`, parsejat amb `json.JSONDecoder().raw_decode()` (parser JSON estàndard, no un mini-parser JS fet a mà). Mètodes permesos: `find`, `insertOne`, `insertMany`, `updateOne`, `updateMany` —cap `delete*`/`drop*`/`aggregate`, coherent amb la mateixa restricció del checker SQL. Detecció automàtica de mode lectura/escriptura des de la referència del `.out`, igual que SQL. En mode escriptura, dos `mongomock.MongoClient()` independents (l'alumne i la referència), cadascun carregat de zero des del mateix JSON —aquí no calen còpies de fitxer com a SQLite, ja que `mongomock` viu només en memòria. Bloqueig explícit (segona xarxa de seguretat) de `$where`/`$function`/`$accumulator`/`$expr` a qualsevol nivell de niuament dels arguments.
+4. **Dues bases de dades d'exemple i dos problemes reals** (Milestone 4): `/judge/_mongo_templates/employees.json` (equivalent conceptual a la BD SQL "Employees") i `blog.json` (articles amb comentaris **niats** dins de cada document, un exemple genuïnament no relacional). Problemes `mongofindemployees` (3 preguntes `find()`) i `mongoblogposts` (`insertOne`+`updateOne` amb `$push`/`$inc`), autor `edgar`, creats programàticament igual que els problemes SQL anteriors (entrades #22 i #25).
+
+**Per què:** petició explícita de l'usuari per afegir MongoDB com a segona tecnologia de bases de dades, després d'una pregunta exploratòria sobre si el mateix sistema podria funcionar amb Mongo (l'avantatge de SQLite —un sol fitxer, fàcil de copiar— no té equivalent directe, d'aquí la substitució per `mongomock`).
+
+**Incident durant la posada en marxa:** els checkers de DMOJ es registren a `dmoj/checkers/__init__.py` amb un `from dmoj.checkers import (..., sql)` explícit —un mòdul nou (`mongo.py`) no apareix automàticament com a atribut del paquet en un procés Python ja en marxa, encara que el fitxer ja existeixi al disc (a diferència d'editar un mòdul ja carregat, on n'hi hauria prou amb reiniciar). Es va detectar en la primera tanda de proves reals (`InvalidInitException: error loading checker: module 'dmoj.checkers' has no attribute 'mongo'`), es va afegir `mongo` a la llista d'imports de `__init__.py`, i es va reiniciar el procés del jutge (`dmoj -c judge.yml -p 48462 localhost`, localitzat recuperant l'historial de la sessió `screen` on corre).
+
+**Resultat:** `manage.py check`/`makemigrations --check` nets. Verificat en viu sense regressió: `/users/bd` (rànquing renombrat, mateixos punts), `/problem/provasql2` i el seu editor de dades (`/problem/provasql2/test_data`, ara amb els camps `mongo_db`/`mongo_template` visibles al costat dels de SQL) segueixen funcionant exactament igual. Provat de cap a cap contra el jutge real, després de reiniciar-lo: `find()`/`insertOne`/`updateOne` correctes → `AC`; una resposta equivocada a cada problema → `WA` amb crèdit parcial correcte a les altres preguntes del mateix enviament; `$where` → rebutjat amb "This query uses an operator that is not allowed"; `deleteOne` → rebutjat amb "This Mongo method is not allowed: deleteOne". **Confirmat bit a bit que cap fitxer `.json` (ni les plantilles a `_mongo_templates/` ni les còpies dels problemes) ha canviat** després de totes les proves. Reiniciat també `site` (`uwsgi`, via `SIGHUP` al procés mestre per a una recàrrega neta dels workers); `/tmp/dasdas.log` sense errors nous. Documentació actualitzada: introducció de `5.5-checker-sql.md` referenciant la nova secció `5.8-checker-mongo.md`, taula de checkers a `2.7-jutge-intern.md`, i entrada nova a `TODO.md` sobre l'absència (conscient) d'un límit de temps dur per a consultes Mongo.
+
+---
+
+### 27. Suport per a `aggregate()` al checker Mongo, i cinc problemes Mongo nous (find, insert, update, 2×agregació)
+
+**Abans:** el checker `mongo` (entrada #26) només acceptava `find`/`insertOne`/`insertMany`/`updateOne`/`updateMany`. Només hi havia 2 problemes Mongo reals (`mongofindemployees`, `mongoblogposts`), sense cap que fes servir el framework d'agregació.
+
+**Decisió:**
+
+1. **`dmoj/checkers/mongo.py` ampliat per admetre `aggregate`**: nou mètode permès a `_ALLOWED_METHODS`, tractat com a **lectura** (`_READ_METHODS = ('find', 'aggregate')`), igual que un `SELECT` de SQL —es compara el resultat de la pipeline de l'alumne contra el de la de referència. `aggregate` accepta un únic argument JSON: la llista d'etapes (`[{"$group": ...}, {"$sort": ...}, ...]`). **`$out` i `$merge`** (les dues etapes d'agregació que escriurien a una col·lecció) s'afegeixen a `_FORBIDDEN_KEYS` —es rebutgen pel mateix motiu "esperit SELECT-only" que ja aplicava a `$where`/`$function`/`$accumulator`/`$expr`, no perquè poguessin escapar del client `mongomock` d'un sol ús on corren (no hi ha res a on escapar). `_check_find`/`_run_find` es van generalitzar a `_check_read`/`_run_read` per cobrir tots dos mètodes de lectura amb la mateixa lògica de comparació de documents.
+2. **Cinc problemes nous, autor `edgar`**, cadascun amb una base de dades d'exemple pròpia (noves plantilles a `/judge/_mongo_templates/`), seguint l'estil dels problemes SQL (un tema per problema, 2-3 preguntes cadascun):
+   - **`mongoselectstudents`** (BD `students.json`, nova: notes d'alumnes per assignatura, 3 preguntes `find()`): filtres simples, projecció, cerca per nom.
+   - **`mongoinsertlibrary`** (BD `library.json`, nova: biblioteca de novel·la catalana, 2 preguntes): `insertOne` i `insertMany`.
+   - **`mongoupdateinventory`** (BD `inventory.json`, nova: estoc d'una botiga d'informàtica, 2 preguntes): `updateOne`+`$set` i `updateMany`+`$inc`.
+   - **`mongoaggregateorders`** (BD `orders.json`, nova: comandes d'una botiga, 2 preguntes): `$group`+`$sum` (total per client) i `$match`+`$group`+`$sort` (recompte de comandes per client per sobre d'un import).
+   - **`mongoaggregateblog`** (BD `blog.json`, reutilitzada de l'entrada #26 pels seus comentaris niats, 2 preguntes): `$project`+`$size` (nombre de comentaris per article) i `$unwind`+`$group` (recompte de comentaris per autor, a través de tots els articles) —exactament el tipus de consulta que necessita dades desnormalitzades per tenir sentit.
+
+**Per què:** petició explícita de l'usuari per tenir un conjunt de problemes Mongo "a l'estil dels problemes SQL", cobrint selects senzills, inserts, updates i, com a novetat respecte als problemes SQL existents, el framework d'agregació.
+
+**Resultat:** cada consulta de referència **calculada a mà i verificada contra les dades reals amb `mongomock` abans de crear cap problema** (no es va confiar en la intuïció per a les agregacions). `manage.py check` net. Provats els 5 problemes de cap a cap contra el jutge real, després de reiniciar-lo (calia perquè s'havia editat el cos de `mongo.py`, a diferència de l'entrada #26 on només calia registrar un mòdul nou): totes les respostes correctes → `AC` a puntuació completa; una resposta amb un valor equivocat a cada problema → `WA` amb crèdit parcial correcte a les altres preguntes; un intent de `$out` i un altre de `$where` dins una agregació → rebutjats amb el missatge de seguretat esperat, sense afectar la correcció de l'altra pregunta del mateix enviament. **Confirmat bit a bit que cap fitxer `.json` (ni les 4 plantilles noves, ni `blog.json` reutilitzat, ni les còpies dins de cada carpeta de problema) ha canviat** després de totes les proves.
+
+---
+
+### 28. Corregit forat de permisos a `ProblemsByOrganization` (`/organization/<id>-<slug>/stats`)
+
+**Abans:** `ProblemsByOrganization` (`judge/views/problem.py`) no comprovava cap permís ni pertinença: qualsevol visitant, fins i tot no autenticat, que endevinés l'identificador numèric d'una organització podia veure la graella completa de "qui ha resolt/intentat cada problema" (`templates/organization/stats.html`) de tots els seus membres, amb enllaç directe als seus enviaments —detectat durant l'auditoria de la secció 2.5 de la documentació, anotat a `TODO.md` entrada #4.
+
+**Decisió:** afegit un control d'accés a `get()`, seguint el mateix patró ja establert a `judge/views/organization.py` (`can_edit_organization`/comprovació de pertinença via `org.members.filter(...)`): es carrega l'organització una sola vegada (`self.org`, reutilitzat després a `get_context_data` en lloc de tornar-la a consultar), i només es permet continuar si el visitant és **membre** (`org.members.filter(id=profile.id).exists()`) o **administrador/registrant** (`org.admins.filter(...)` o `org.registrant_id == profile.id`) de l'organització; en cas contrari, `Http404()` —mateix comportament que la resta de vistes d'organització quan no es té accés, per no revelar ni tan sols l'existència de la pàgina.
+
+**Per què:** petició explícita de l'usuari per tancar aquest forat de seguretat, ja documentat a `TODO.md`.
+
+**Resultat:** provat contra una organització real (`1r DAM 24-25 IES Jaume II`, id 141) amb quatre perfils diferents: anònim → `404`; usuari autenticat però no membre → `404`; membre normal → `200`; administrador de l'organització → `200`. `manage.py check` net. Entrada retirada de `TODO.md`.
+
+---
+
+### 29. Gacha: animació de partícules i so sintetitzat en revelar el premi, i un bug real de producció corregit pel camí
+
+**Abans:** la revelació del premi del gacha (`templates/gacha/gacharesult.html`) era només una targeta 3D en CSS que gira en fer-hi clic, sense cap efecte visual ni so —anotat directament per l'usuari a `TODO.md` entrada #5.
+
+**Decisió**, amb les opcions triades explícitament per l'usuari:
+
+1. **So**: sintetitzat amb la Web Audio API (`playGachaSound()`) —sense cap fitxer d'àudio (no n'hi havia cap al repositori), un petit arpegi d'oscilꞏladors amb una nota més per cada nivell de raresa (comú→1 nota, llegendari→4 notes, timbre "triangle" en lloc de "sine" per a llegendari). Anotat a `TODO.md` (entrada #5, reescrita) com a possible substitució futura per àudio real, a petició de l'usuari.
+2. **Animació**: un esclat de partícules fet a mida en `&lt;canvas&gt;` (`burstGachaParticles()`), sense cap llibreria nova —més partícules, més velocitat i una paleta de colors pròpia com més alta és la raresa (verd→blau→lila→taronja/groc). El canvas es superposa a la targeta amb `pointer-events: none` perquè els clics continuïn arribant a la targeta.
+3. Tots dos efectes es disparen **una sola vegada**, la primera vegada que la targeta gira cap al revers (`gachaRevealed`, per no repetir-los si l'usuari torna a girar la targeta per mirar-la).
+
+**Bug real de producció trobat i corregit pel camí** (no relacionat amb la petició, però bloquejava les meves pròpies proves): el missatge que es mostra quan el premi surt repetit ("...et torno un 50% dels teus GachaPoints") conté un `%` literal seguit d'un espai i una `d` ("50% dels"). Jinja2 aplica sempre `cadena % variables` a qualsevol `_()`/`{{ _(...) }}`, encara que `variables` sigui buit —i Python interpreta "% d" com un format `%d` amb bandera d'espai, cosa que **provocava un error 500 real per a qualsevol usuari** (incloent l'idioma per defecte `en`) que obtingués un premi repetit. Corregit escapant-lo com `50%%` a la plantilla i actualitzant `manage.py makemessages`+els `msgstr` ja traduïts (es/en/de/zh_Hans) amb el mateix escapament, sense fuzzy. Es documenta com a possible patró repetit en altres textos amb `%` literal dins de `_()`, pendent d'una auditoria més àmplia si mai cal (no s'ha fet ara, fora de l'abast d'aquesta petició concreta).
+
+**Incident durant la correcció d'aquest bug**: en un primer intent de pedaç ràpid amb `polib` (assignar `entry.previous_msgid = []`), la crida a `po.save()` va petar per una API mal usada, i en investigar-ho es va executar per error `git checkout -- locale/ca/LC_MESSAGES/django.po`, **desfent tots els canvis sense confirmar d'aquest fitxer** (no n'hi havia cap còpia de seguretat prèvia, ja que cap d'aquesta sessió s'havia arribat a fer commit). Anàlisi de l'impacte real: com que el català és l'idioma font dels textos (`msgid`), un `msgstr` buit ja mostra el text correcte per fallback —la diferència perduda era només bibliogràfica (comentaris de número de línia, marques `fuzzy` netejades) i no afectava cap traducció real ni cap comportament en producció. Es va optar per **no** intentar una recuperació arriscada a partir del `.mo` ja compilat (una re-serialització amb `msgunfmt` hauria perdut comentaris/ordre de totes maneres), sinó pel camí correcte i net: `manage.py makemessages` per a totes les llengües (regenera `ca` des de zero, correctament) seguit de la correcció manual només dels 4 `msgstr` afectats (es/en/de/zh_Hans) amb `polib`, sense el bug de l'intent anterior.
+
+**Per què:** petició explícita de l'usuari (juntament amb les entrades #3, #4 i #6 del `TODO.md`); les decisions concretes de disseny (so sintetitzat vs. fitxers reals, canvas vs. només CSS) es van triar amb l'usuari via preguntes explícites abans d'implementar-les.
+
+**Resultat:** provat contra el jutge real amb 25 tirades consecutives (incloent-hi diversos premis repetits, cobrint les 4 raresa), totes retornant `200` sense cap error —abans de la correcció, qualsevol tirada amb premi repetit petava amb un error 500. `manage.py check`/`msgfmt --check` nets per als 5 idiomes. També corregit, aprofitant que es tocava el mateix fitxer, un bug de visualització preexistent: dos elements amb `id="desc"` duplicat (HTML invàlid) feien que `getElementById("desc")` només trobés el primer, deixant sempre amagada la descripció de l'objecte quan el premi era repetit —ara `desc-repeat`/`desc-item` són ids separats i tots dos es mostren. Reiniciat `site`.
+
+---
+
+### 30. Diagrama ER automàtic a l'explorador d'esquema dels problemes SQL, amb Mermaid.js vendoritzat
+
+**Abans:** l'explorador d'esquema (`/problem/<codi>/database`) només mostrava, per a cada taula, una llista en text de columnes i tipus, sense cap representació de les relacions entre taules —anotat a `TODO.md` entrada #6.
+
+**Decisió**, amb l'opció triada explícitament per l'usuari (vendoritzar una llibreria real, en lloc de dibuixar-ho a mida amb SVG pla):
+
+1. **`resources/mermaid.min.js`** (nou, 3,2 MB): el bundle UMD oficial de Mermaid.js v10.9.1 (llicència MIT), descarregat de `cdn.jsdelivr.net` i desat directament a `resources/` —**no** al submòdul `resources/libs/` (que apunta a l'upstream de DMOJ i no es pot tocar). És l'única manera de "vendoritzar una llibreria real" sense dependre d'un CDN extern en producció, ja que `resources/` (a diferència de `resources/libs/`) sí que forma part d'aquest repositori.
+2. **`judge/views/problem.py::ProblemDatabaseSchema`**: la branca `sql` ara també executa `PRAGMA foreign_key_list(<taula>)` per a cada taula (a més del `PRAGMA table_info` que ja hi havia), i marca cada columna com a `PK` (mirant l'últim camp de `PRAGMA table_info`) o `FK` (si apareix a la llista de claus foranes). Amb aquestes dades, una funció nova `_build_er_diagram()` genera la sintaxi `erDiagram` de Mermaid com a text pla —sanititzant noms de taula/columna/tipus amb una expressió regular (`\W` → `_`) abans d'inserir-los, tant perquè Mermaid només accepta identificadors senzills com per no haver de raonar sobre el seu analitzador sintàctic com a segona superfície d'atac.
+3. **`templates/problem/database.html`**: la branca `sql` mostra ara un bloc nou "Diagrama ER" amb `&lt;pre class="mermaid"&gt;{{ er_diagram }}&lt;/pre&gt;`, carregant `mermaid.min.js` (sense passar-lo pel pipeline de `django-compressor`, ja minificat) i cridant `mermaid.initialize({startOnLoad: true})` només quan `db_kind == 'sql'` —el flux Mongo no es toca ni carrega mai aquest fitxer.
+
+**Per què:** petició explícita de l'usuari (`TODO.md` entrada #6, agrupada amb les entrades #3/#4/#5 en aquesta mateixa tanda de feina); l'elecció concreta (Mermaid vendoritzat vs. SVG fet a mida) es va triar amb l'usuari via una pregunta explícita.
+
+**Resultat:** provats els 11 problemes SQL existents (`provasql2` i tots els d'`INSERT`/`UPDATE`) contra `/problem/<codi>/database` en viu: `200` a tots, sense cap excepció durant la generació del diagrama. Verificat manualment el contingut generat per `sqlinsertknights` —la columna `Dragons.KilledBy` es marca correctament `FK` i apareix la línia de relació `Knights ||--o{ Dragons : "KilledBy"`— i per `provasql2` (Northwind, amb diverses taules i claus foranes). `manage.py check`/`makemigrations --check` nets; `manage.py collectstatic` executat per publicar el fitxer nou a `/tmp/static/` (`STATIC_ROOT`), on el serveix directament nginx. Reiniciat `site`. **Nota**: `mermaid.min.js` fa servir sintaxi moderna (p. ex. optional chaining) que l'eina local `node -c` (Node 12, del 2020) no pot analitzar —confirmat que és una limitació de l'eina de comprovació local, no del fitxer, ja que el bundle es carrega i executa al navegador de l'usuari final, no sota aquest Node antic.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

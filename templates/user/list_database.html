@@ -16,11 +16,11 @@
 {% block title_ruler %}{% endblock %}
 
 {% block title_row %}
-    {% set tab = 'sql' %}
-    {% set title = _('Classificació SQL') %}
+    {% set tab = 'database' %}
+    {% set title = _('Classificació de Bases de Dades') %}
     {% include "user/user-list-tabs.html" %}
 {% endblock %}
 
 {% block users_table %}
-    {% include "user/users-table_sql.html" %}
+    {% include "user/users-table_database.html" %}
 {% endblock %}

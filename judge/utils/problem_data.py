@@ -17,6 +17,11 @@ else:
         return path.split(os.sep, 1)
 
 
+# Checkers that turn a problem into a "database problem" (categorization, separate ranking,
+# multi-question submission form, schema explorer) -- currently SQL/SQLite and Mongo/mongomock.
+DATABASE_CHECKERS = ('sql', 'mongo')
+
+
 class ProblemDataStorage(FileSystemStorage):
     def __init__(self):
         super(ProblemDataStorage, self).__init__(settings.DMOJ_PROBLEM_DATA_ROOT)
@@ -37,6 +42,89 @@ class ProblemDataStorage(FileSystemStorage):
 
     def rename(self, old, new):
         return os.rename(self.path(old), self.path(new))
+
+
+# Friendly name/description shown in the "choose an example database" dropdown, keyed by filename
+# (without the .db extension). A .db file present in settings.DMOJ_SQL_SAMPLE_DATABASES_ROOT but
+# missing from this dict still shows up (using its filename as the label), it just won't have a
+# nice description -- so dropping in a new file there works immediately, this dict just improves it.
+SQL_SAMPLE_DATABASE_INFO = {
+    'northwind': (_('Northwind'), _('Base de dades clàssica de vendes: clients, comandes, productes, proveïdors...')),
+    'miniwind': (_('Miniwind'), _('Versió reduïda de Northwind: clients, empleats, comandes, factures...')),
+    'chinook': (_('Chinook'), _('Botiga de música digital: artistes, àlbums, cançons, clients, factures...')),
+    'traders': (_('Traders'), _('Joc de comerç espacial: naus, planetes, mercaders, viatges...')),
+    'knights': (_('Knights & Dragons'), _('Cavallers i dracs (en català), pensada per a exercicis senzills.')),
+    'hotel': (_('Hotel'), _('Sistema de reserves d\'un hotel: clients, habitacions, reserves, temporades...')),
+    'lastnames': (_('Cognoms de Catalunya'), _('Freqüència de cognoms a Catalunya (dades obertes de l\'Idescat).')),
+    'employees': (_('Employees'), _('Una sola taula d\'empleats, pensada per a exercicis molt bàsics.')),
+    'groupbytest': (_('GroupByTest'), _('Tres variants d\'una taula d\'empleats, pensada per practicar GROUP BY.')),
+}
+
+
+def get_sql_sample_databases():
+    """Returns [(key, label, description), ...] for every .db file found in
+    settings.DMOJ_SQL_SAMPLE_DATABASES_ROOT, sorted by label."""
+    root = settings.DMOJ_SQL_SAMPLE_DATABASES_ROOT
+    try:
+        filenames = [f for f in os.listdir(root) if f.endswith('.db')]
+    except OSError:
+        return []
+    results = []
+    for filename in filenames:
+        key = filename[:-len('.db')]
+        label, description = SQL_SAMPLE_DATABASE_INFO.get(key, (key, ''))
+        results.append((key, label, description))
+    results.sort(key=lambda item: item[1])
+    return results
+
+
+def get_sql_sample_database_path(key):
+    """Returns the absolute path to a sample database given its key, or None if it doesn't exist
+    (e.g. an invalid/tampered key) -- always validated against the real directory listing, never
+    trusts the key to already be a safe path component."""
+    for existing_key, _label, _description in get_sql_sample_databases():
+        if existing_key == key:
+            return os.path.join(settings.DMOJ_SQL_SAMPLE_DATABASES_ROOT, key + '.db')
+    return None
+
+
+# Same idea as SQL_SAMPLE_DATABASE_INFO above, but for Mongo checker problems (.json files in
+# settings.DMOJ_MONGO_SAMPLE_DATABASES_ROOT).
+MONGO_SAMPLE_DATABASE_INFO = {
+    'employees': (_('Employees'), _('Una sola col·lecció d\'empleats, pensada per a exercicis molt bàsics.')),
+    'blog': (_('Blog'), _('Un blog amb comentaris niats dins de cada article, per practicar consultes de documents.')),
+    'students': (_('Students'), _('Notes d\'alumnes per assignatura, pensada per a consultes find() bàsiques.')),
+    'library': (_('Library'), _('Una biblioteca de llibres en català, pensada per a exercicis d\'insertOne/insertMany.')),
+    'inventory': (_('Inventory'), _('Estoc d\'una botiga d\'informàtica, pensada per a exercicis d\'updateOne/updateMany.')),
+    'orders': (_('Orders'), _('Comandes d\'una botiga, pensada per practicar el framework d\'agregació (agrupar i sumar per client).')),
+}
+
+
+def get_mongo_sample_databases():
+    """Returns [(key, label, description), ...] for every .json file found in
+    settings.DMOJ_MONGO_SAMPLE_DATABASES_ROOT, sorted by label."""
+    root = settings.DMOJ_MONGO_SAMPLE_DATABASES_ROOT
+    try:
+        filenames = [f for f in os.listdir(root) if f.endswith('.json')]
+    except OSError:
+        return []
+    results = []
+    for filename in filenames:
+        key = filename[:-len('.json')]
+        label, description = MONGO_SAMPLE_DATABASE_INFO.get(key, (key, ''))
+        results.append((key, label, description))
+    results.sort(key=lambda item: item[1])
+    return results
+
+
+def get_mongo_sample_database_path(key):
+    """Returns the absolute path to a sample Mongo database given its key, or None if it doesn't
+    exist (e.g. an invalid/tampered key) -- always validated against the real directory listing,
+    never trusts the key to already be a safe path component."""
+    for existing_key, _label, _description in get_mongo_sample_databases():
+        if existing_key == key:
+            return os.path.join(settings.DMOJ_MONGO_SAMPLE_DATABASES_ROOT, key + '.json')
+    return None
 
 
 class ProblemDataError(Exception):
@@ -67,6 +155,19 @@ class ProblemDataCompiler(object):
             raise ProblemDataError(_('How did you corrupt the SQL database path?'))
         return db_path[1]
 
+    def _get_mongo_db_filename(self):
+        """
+        Returns the filename of the Mongo database file,
+        or raises ProblemDataError if not configured.
+        """
+        if not self.data.mongo_db:
+            raise ProblemDataError(_('Mongo checker requires a database file. '
+                                     'Please upload one in the "Mongo database file" field.'))
+        db_path = split_path_first(self.data.mongo_db.name)
+        if len(db_path) != 2:
+            raise ProblemDataError(_('How did you corrupt the Mongo database path?'))
+        return db_path[1]
+
     def make_init(self):
         cases = []
         batch = None
@@ -92,6 +193,20 @@ class ProblemDataCompiler(object):
                     'name': 'sql',
                     'args': args,
                 }
+            if checker_name == 'mongo':
+                db_filename = self._get_mongo_db_filename()
+                args = {'db_file': db_filename}
+                if case.checker_args:
+                    try:
+                        args.update(json.loads(case.checker_args))
+                    except ValueError:
+                        pass
+                if question_index is not None:
+                    args['question_index'] = question_index
+                return {
+                    'name': 'mongo',
+                    'args': args,
+                }
             if case.checker_args:
                 return {
                     'name': checker_name,
@@ -104,7 +219,7 @@ class ProblemDataCompiler(object):
         for i, case in enumerate(self.cases, 1):
             if case.type == 'C':
                 data = {}
-                is_sql = (case.checker == 'sql') or (self.data.checker == 'sql')
+                is_sql = (case.checker in DATABASE_CHECKERS) or (self.data.checker in DATABASE_CHECKERS)
 
                 if batch:
                     case.points = None

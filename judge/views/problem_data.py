@@ -8,7 +8,9 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
-from django.forms import BaseModelFormSet, HiddenInput, ModelForm, NumberInput, Select, formset_factory
+from django.core.files.base import ContentFile
+from django.forms import BaseModelFormSet, ChoiceField, HiddenInput, ModelForm, NumberInput, Select, \
+    formset_factory
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -19,7 +21,8 @@ from django.views.generic import DetailView
 
 from judge.highlight_code import highlight_code
 from judge.models import Problem, ProblemData, ProblemTestCase, Submission, problem_data_storage
-from judge.utils.problem_data import ProblemDataCompiler
+from judge.utils.problem_data import ProblemDataCompiler, get_mongo_sample_database_path, \
+    get_mongo_sample_databases, get_sql_sample_database_path, get_sql_sample_databases
 from judge.utils.unicode import utf8text
 from judge.utils.views import TitleMixin, add_file_response
 from judge.views.problem import ProblemMixin
@@ -41,6 +44,23 @@ def checker_args_cleaner(self):
 
 
 class ProblemDataForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['sql_template'] = ChoiceField(
+            required=False, label=_('Or choose an example database'),
+            choices=[('', _('(cap seleccionada -- puja el teu propi fitxer .db)'))] + [
+                (key, '%s -- %s' % (label, description) if description else label)
+                for key, label, description in get_sql_sample_databases()
+            ],
+        )
+        self.fields['mongo_template'] = ChoiceField(
+            required=False, label=_('Or choose an example database'),
+            choices=[('', _('(cap seleccionada -- puja el teu propi fitxer .json)'))] + [
+                (key, '%s -- %s' % (label, description) if description else label)
+                for key, label, description in get_mongo_sample_databases()
+            ],
+        )
+
     def clean_zipfile(self):
         if hasattr(self, 'zip_valid') and not self.zip_valid:
             raise ValidationError(_('Your zip file is invalid!'))
@@ -52,13 +72,27 @@ class ProblemDataForm(ModelForm):
             raise ValidationError(_('SQL database file must be a .db file (SQLite).'))
         return sql_db
 
+    def clean_mongo_db(self):
+        mongo_db = self.cleaned_data.get('mongo_db')
+        if mongo_db and not mongo_db.name.endswith('.json'):
+            raise ValidationError(_('Mongo database file must be a .json file.'))
+        return mongo_db
+
     def clean(self):
         cleaned_data = super().clean()
         checker = cleaned_data.get('checker')
         sql_db = cleaned_data.get('sql_db')
-        # If checker is SQL and no DB file exists (neither new upload nor existing)
-        if checker == 'sql' and not sql_db and not self.instance.sql_db:
-            raise ValidationError(_('SQL checker requires a database file. Please upload a .db file.'))
+        sql_template = cleaned_data.get('sql_template')
+        mongo_db = cleaned_data.get('mongo_db')
+        mongo_template = cleaned_data.get('mongo_template')
+        # If checker is SQL and no DB file exists (neither new upload, an example database picked,
+        # nor an already-stored one)
+        if checker == 'sql' and not sql_db and not sql_template and not self.instance.sql_db:
+            raise ValidationError(_('SQL checker requires a database file. Please upload a .db file '
+                                    'or choose an example database.'))
+        if checker == 'mongo' and not mongo_db and not mongo_template and not self.instance.mongo_db:
+            raise ValidationError(_('Mongo checker requires a database file. Please upload a .json '
+                                    'file or choose an example database.'))
         return cleaned_data
 
     clean_checker_args = checker_args_cleaner
@@ -66,7 +100,7 @@ class ProblemDataForm(ModelForm):
     class Meta:
         model = ProblemData
         fields = ['zipfile', 'generator', 'output_limit', 'output_prefix', 'checker', 'caseformat',
-                  'allowed_tips', 'checker_args', 'sql_db']
+                  'allowed_tips', 'checker_args', 'sql_db', 'mongo_db']
         widgets = {
             'checker_args': HiddenInput,
         }
@@ -203,6 +237,18 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
         cases_formset = self.get_case_formset(valid_files, post=True)
         if data_form.is_valid() and cases_formset.is_valid():
             data = data_form.save()
+            sql_template = data_form.cleaned_data.get('sql_template')
+            if sql_template and not self.request.FILES.get('problem-data-sql_db'):
+                template_path = get_sql_sample_database_path(sql_template)
+                if template_path:
+                    with open(template_path, 'rb') as f:
+                        data.sql_db.save('%s.db' % sql_template, ContentFile(f.read()), save=True)
+            mongo_template = data_form.cleaned_data.get('mongo_template')
+            if mongo_template and not self.request.FILES.get('problem-data-mongo_db'):
+                template_path = get_mongo_sample_database_path(mongo_template)
+                if template_path:
+                    with open(template_path, 'rb') as f:
+                        data.mongo_db.save('%s.json' % mongo_template, ContentFile(f.read()), save=True)
             for case in cases_formset.save(commit=False):
                 case.dataset_id = problem.id
                 case.save()

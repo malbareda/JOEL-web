@@ -787,9 +787,9 @@ def usersSegona(request):
 
 class UserListSql(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ListView):
     model = Profile
-    title = gettext_lazy('Leaderboard SQL')
+    title = gettext_lazy('Leaderboard Bases de Dades')
     context_object_name = 'users'
-    template_name = 'user/list_sql.html'
+    template_name = 'user/list_database.html'
     paginate_by = 100
     all_sorts = frozenset(('sql_points', 'sql_problem_count', 'rating'))
     default_desc = all_sorts

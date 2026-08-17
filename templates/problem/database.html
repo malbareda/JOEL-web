@@ -34,38 +34,98 @@
             padding: 0.25em 0.7em;
             text-align: left;
         }
+
+        .db-collection-block pre {
+            background: var(--highlight_blue);
+            padding: 0.7em 1em;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        .db-er-diagram-block {
+            margin-bottom: 1.5em;
+        }
+
+        .db-er-diagram-block h4 {
+            margin-bottom: 0.3em;
+        }
+
+        #db-er-diagram {
+            overflow-x: auto;
+            text-align: center;
+        }
     </style>
+{% endblock %}
+
+{% block content_js_media %}
+    {% if db_kind == 'sql' and er_diagram %}
+        <script src="{{ static('mermaid.min.js') }}"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                if (window.mermaid) {
+                    mermaid.initialize({startOnLoad: true, theme: 'neutral'});
+                }
+            });
+        </script>
+    {% endif %}
 {% endblock %}
 
 {% block body %}
     <div class="content-description">
-        <div class="db-schema-banner">
-            <i class="fa fa-database"></i>
-            <span>{{ _('This is the schema of the database used by this problem — the tables and columns you can query against.') }}</span>
-        </div>
-        {% for table in tables %}
-            <div class="db-table-block">
-                <h4>{{ table.name }}</h4>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{{ _('Column') }}</th>
-                            <th>{{ _('Type') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for column in table.columns %}
-                            <tr>
-                                <td>{{ column.name }}</td>
-                                <td>{{ column.type }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        {% if db_kind == 'mongo' %}
+            <div class="db-schema-banner">
+                <i class="fa fa-database"></i>
+                <span>{{ _('This is the schema of the database used by this problem — the collections you can query against. In MongoDB, documents in the same collection can have different fields; the example below only shows one document.') }}</span>
             </div>
+            {% for collection in collections %}
+                <div class="db-collection-block">
+                    <h4>{{ collection.name }} ({{ collection.count }})</h4>
+                    {% if collection.sample %}
+                        <pre>{{ collection.sample }}</pre>
+                    {% else %}
+                        <p>{{ _('This collection is empty.') }}</p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p>{{ _('No collections found in this database.') }}</p>
+            {% endfor %}
         {% else %}
-            <p>{{ _('No tables found in this database.') }}</p>
-        {% endfor %}
+            <div class="db-schema-banner">
+                <i class="fa fa-database"></i>
+                <span>{{ _('This is the schema of the database used by this problem — the tables and columns you can query against.') }}</span>
+            </div>
+            {% if er_diagram %}
+                <div class="db-er-diagram-block">
+                    <h4>{{ _('Diagrama ER') }}</h4>
+                    <div id="db-er-diagram">
+                        <pre class="mermaid">{{ er_diagram }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+            {% for table in tables %}
+                <div class="db-table-block">
+                    <h4>{{ table.name }}</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>{{ _('Column') }}</th>
+                                <th>{{ _('Type') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for column in table.columns %}
+                                <tr>
+                                    <td>{{ column.name }}</td>
+                                    <td>{{ column.type }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>{{ _('No tables found in this database.') }}</p>
+            {% endfor %}
+        {% endif %}
     </div>
     <hr>
     <div><a href="{{ url('problem_detail', problem.code) }}">{{ _('Back to problem') }}</a></div>

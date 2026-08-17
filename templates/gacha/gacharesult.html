@@ -61,15 +61,134 @@
         box-shadow: 0px 0px 20px 1px #000;
         }
 
+        .gacha-wrapper {
+        position: relative;
+        width: 500px;
+        height: 500px;
+        margin: 20px;
+        }
+
+        .gacha-wrapper .container {
+        margin: 0;
+        }
+
+        #gacha-particles {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 700px;
+        height: 700px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 5;
+        }
+
     </style>
 {% endblock %}
 
 {% block js_media %}
     {% block user_js_media %}
     <script>
+    var gachaRevealed = false;
+
+    function playGachaSound(quality) {
+        try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            var ctx = new AudioContextClass();
+            // A short arpeggio, one more note per quality tier -- a cheap way to make higher
+            // rarities feel more "important" without needing any audio asset (none exist in this
+            // repo, and generating a tone in-browser sidesteps any licensing question entirely).
+            var notesByQuality = {
+                1: [523.25],
+                2: [523.25, 659.25],
+                3: [523.25, 659.25, 783.99],
+                4: [523.25, 659.25, 783.99, 1046.50]
+            };
+            var notes = notesByQuality[quality] || notesByQuality[1];
+            var noteDuration = 0.16;
+            notes.forEach(function (freq, i) {
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = quality >= 4 ? 'triangle' : 'sine';
+                osc.frequency.value = freq;
+                var startTime = ctx.currentTime + i * noteDuration * 0.85;
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.25, startTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + noteDuration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + noteDuration + 0.05);
+            });
+        } catch (e) {
+            // Web Audio unavailable/blocked -- the visual reveal still works without it.
+        }
+    }
+
+    function burstGachaParticles(quality) {
+        var canvas = document.getElementById('gacha-particles');
+        if (!canvas || !canvas.getContext) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var cx = w / 2, cy = h / 2;
+
+        var palettes = {
+            1: ['#2ecc71', '#27ae60'],
+            2: ['#3498db', '#2980b9'],
+            3: ['#9b59b6', '#8e44ad'],
+            4: ['#f39c12', '#e67e22', '#f1c40f']
+        };
+        var palette = palettes[quality] || palettes[1];
+        var counts = {1: 24, 2: 36, 3: 52, 4: 80};
+        var count = counts[quality] || counts[1];
+
+        var particles = [];
+        for (var i = 0; i < count; i++) {
+            var angle = Math.random() * Math.PI * 2;
+            var speed = 2 + Math.random() * (2 + quality * 1.5);
+            particles.push({
+                x: cx, y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 2 + Math.random() * 3,
+                color: palette[Math.floor(Math.random() * palette.length)]
+            });
+        }
+
+        var start = null;
+        var duration = 900 + quality * 300;
+
+        function step(timestamp) {
+            if (!start) start = timestamp;
+            var elapsed = timestamp - start;
+            ctx.clearRect(0, 0, w, h);
+            var life = Math.max(0, 1 - elapsed / duration);
+            particles.forEach(function (p) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.05;
+                ctx.globalAlpha = life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            if (elapsed < duration) {
+                requestAnimationFrame(step);
+            } else {
+                ctx.clearRect(0, 0, w, h);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
     function flip(event){
         var element = event.currentTarget;
-        document.getElementById("desc").style.display="block";
+        document.getElementById("desc-item").style.display = "block";
+        var descRepeat = document.getElementById("desc-repeat");
+        if (descRepeat) descRepeat.style.display = "block";
 
         if (element.className === "card") {
         if(element.style.transform == "rotateY(180deg)") {
@@ -77,6 +196,16 @@
         }
         else {
         element.style.transform = "rotateY(180deg)";
+        if (!gachaRevealed) {
+            gachaRevealed = true;
+            var quality = {{ achq }};
+            // Delayed to roughly match the midpoint of the 2s CSS flip, so the payoff lands as
+            // the back face comes into view instead of firing at the very start of the flip.
+            setTimeout(function () {
+                playGachaSound(quality);
+                burstGachaParticles(quality);
+            }, 300);
+        }
         }
         }
     };
@@ -88,28 +217,31 @@
 
     {% set gpoints = user.points - user.gacha_points %}
     <p>{{_('Punts Disponibles')}}: {{gpoints|floatformat(2)}}</p>
-    <div class="container">
-        <div class="card"  onclick="flip(event)">
-            {% if achq==1 %}
-            <div class="front" style="background:green">
-            {% elif achq==2 %}
-            <div class="front" style="background:blue">
-            {% elif achq==3 %}
-            <div class="front" style="background:purple">
-            {% elif achq==4 %}
-            <div class="front" style="background:orange">
-            {% endif %}
-            </div>
-            <div class="back" style="background:url('{{achpic}}');  background-repeat: no-repeat;
-  background-size: cover;">
+    <div class="gacha-wrapper">
+        <canvas id="gacha-particles" width="700" height="700"></canvas>
+        <div class="container">
+            <div class="card"  onclick="flip(event)">
+                {% if achq==1 %}
+                <div class="front" style="background:green">
+                {% elif achq==2 %}
+                <div class="front" style="background:blue">
+                {% elif achq==3 %}
+                <div class="front" style="background:purple">
+                {% elif achq==4 %}
+                <div class="front" style="background:orange">
+                {% endif %}
+                </div>
+                <div class="back" style="background:url('{{achpic}}');  background-repeat: no-repeat;
+      background-size: cover;">
+                </div>
             </div>
         </div>
     </div>
     <p>{{_('Has aconseguit')}} {% if achcat == 1 %} {{_('un Sticker!')}} {% elif achcat == 2 %} {{_('una Icona!')}} {% elif achcat == 3 %} {{_('un Color!')}} {% elif achcat == 4 %} {{_('un Tema!')}} {% endif %}</p>
-    {% if repetit == 1 %} 
-    <p id="desc" style="display:none;">{{_('Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50% dels teus GachaPoints')}}</p>
+    {% if repetit == 1 %}
+    <p id="desc-repeat" style="display:none;">{{_('Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50%% dels teus GachaPoints')}}</p>
     {% endif %}
-    <p id="desc" style="display:none;">{{achdesc}}</p>
+    <p id="desc-item" style="display:none;">{{achdesc}}</p>
 <form action="{{ url('gacha_go') }}" method="post"
                           class="contest-join-pseudotab unselectable button">
                         {% csrf_token %}

@@ -203,10 +203,10 @@ urlpatterns = [
             HttpResponsePermanentRedirect('%s?page=%s' % (reverse('segona_list'), page))),
     ])),
 
-    url(r'^users/sql', include([
-        url(r'^$', user.usersSql, name='sql_list'),
+    url(r'^users/bd', include([
+        url(r'^$', user.usersSql, name='database_list'),
         url(r'^(?P<page>\d+)$', lambda request, page:
-            HttpResponsePermanentRedirect('%s?page=%s' % (reverse('sql_list'), page))),
+            HttpResponsePermanentRedirect('%s?page=%s' % (reverse('database_list'), page))),
     ])),
 
     url(r'^user$', user.UserAboutPage.as_view(), name='user_page'),

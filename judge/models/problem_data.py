@@ -27,6 +27,7 @@ CHECKERS = (
     ('identical', _('Programame-like')),
     ('linecount', _('Line-by-line')),
     ('sql', _('SQL checker')),
+    ('mongo', _('Mongo checker')),
 )
 
 CASEFORMAT = (
@@ -55,6 +56,9 @@ class ProblemData(models.Model):
     sql_db = models.FileField(verbose_name=_('SQL database file'), storage=problem_data_storage, null=True, blank=True,
                               upload_to=problem_directory_file,
                               help_text=_('SQLite database file for SQL checker problems (.db)'))
+    mongo_db = models.FileField(verbose_name=_('Mongo database file'), storage=problem_data_storage, null=True, blank=True,
+                                upload_to=problem_directory_file,
+                                help_text=_('JSON database file for Mongo checker problems (.json)'))
 
 
     __original_zipfile = None
@@ -83,6 +87,8 @@ class ProblemData(models.Model):
             self.generator.name = _problem_directory_file(new, self.generator.name)
         if self.sql_db:
             self.sql_db.name = _problem_directory_file(new, self.sql_db.name)
+        if self.mongo_db:
+            self.mongo_db.name = _problem_directory_file(new, self.mongo_db.name)
 
         self.save()
     _update_code.alters_data = True

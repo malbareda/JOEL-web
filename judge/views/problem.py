@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import re
 import shutil
 import sqlite3
 from datetime import timedelta
@@ -35,6 +37,7 @@ from judge.models import ContestSubmission, Guide, GuideTranslation, Judge, Lang
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
+from judge.utils.problem_data import DATABASE_CHECKERS
 from judge.utils.problems import contest_attempted_ids, contest_completed_ids, hot_problems, user_attempted_ids, \
     user_completed_ids
 from judge.utils.strings import safe_float_or_none, safe_int_or_none
@@ -211,36 +214,121 @@ class ProblemDatabaseSchema(ProblemMixin, TitleMixin, TemplateResponseMixin, Sin
         except ObjectDoesNotExist:
             raise Http404()
 
-        if data.checker != 'sql' or not data.sql_db:
-            raise Http404()
-
-        tables = []
-        try:
-            conn = sqlite3.connect('file:%s?mode=ro' % data.sql_db.path, uri=True)
+        if data.checker == 'sql' and data.sql_db:
+            tables = []
+            relationships = []
             try:
-                cursor = conn.execute(
-                    "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' "
-                    "ORDER BY name",
-                )
-                for name, create_sql in cursor.fetchall():
-                    columns = conn.execute('PRAGMA table_info(%s)' % _quote_identifier(name)).fetchall()
-                    tables.append({
-                        'name': name,
-                        'create_sql': create_sql,
-                        'columns': [{'name': col[1], 'type': col[2]} for col in columns],
-                    })
-            finally:
-                conn.close()
-        except sqlite3.Error:
-            raise Http404()
+                conn = sqlite3.connect('file:%s?mode=ro' % data.sql_db.path, uri=True)
+                try:
+                    cursor = conn.execute(
+                        "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' "
+                        "ORDER BY name",
+                    )
+                    for name, create_sql in cursor.fetchall():
+                        columns = conn.execute('PRAGMA table_info(%s)' % _quote_identifier(name)).fetchall()
+                        tables.append({
+                            'name': name,
+                            'create_sql': create_sql,
+                            # col tuple: (cid, name, type, notnull, dflt_value, pk) -- pk is truthy
+                            # (a 1-based position in the key) when the column is part of the
+                            # table's primary key, 0 otherwise.
+                            'columns': [{'name': col[1], 'type': col[2], 'pk': bool(col[5])} for col in columns],
+                        })
+                        for fk in conn.execute('PRAGMA foreign_key_list(%s)' % _quote_identifier(name)).fetchall():
+                            # fk tuple: (id, seq, table, from, to, on_update, on_delete, match) --
+                            # "table" is the referenced (parent) table, "from" the local column.
+                            relationships.append({
+                                'from_table': name,
+                                'from_column': fk[3],
+                                'to_table': fk[2],
+                            })
+                finally:
+                    conn.close()
+            except sqlite3.Error:
+                raise Http404()
 
-        context = self.get_context_data(object=self.object)
-        context['tables'] = tables
-        return self.render_to_response(context)
+            context = self.get_context_data(object=self.object)
+            context['db_kind'] = 'sql'
+            context['tables'] = tables
+            context['er_diagram'] = _build_er_diagram(tables, relationships)
+            return self.render_to_response(context)
+
+        if data.checker == 'mongo' and data.mongo_db:
+            try:
+                with open(data.mongo_db.path, 'r') as f:
+                    database = json.load(f)
+            except (OSError, ValueError):
+                raise Http404()
+
+            collections = []
+            for name in sorted(database.keys()):
+                documents = database[name]
+                sample = documents[0] if documents else None
+                collections.append({
+                    'name': name,
+                    'count': len(documents),
+                    'sample': json.dumps(sample, indent=2, ensure_ascii=False) if sample is not None else None,
+                })
+
+            context = self.get_context_data(object=self.object)
+            context['db_kind'] = 'mongo'
+            context['collections'] = collections
+            return self.render_to_response(context)
+
+        raise Http404()
 
 
 def _quote_identifier(name):
     return '"%s"' % name.replace('"', '""')
+
+
+_er_diagram_unsafe_chars = re.compile(r'\W')
+
+
+def _er_diagram_ident(name):
+    """Sanitizes a SQL identifier for use as a Mermaid erDiagram entity/attribute name -- Mermaid
+    doesn't accept arbitrary characters there, and this also happens to strip anything an attacker
+    could use to break out of the generated diagram source (it's rendered as plain text content of
+    a <pre>, but sanitizing at generation time means we never have to reason about Mermaid's own
+    parser as a second attack surface)."""
+    ident = _er_diagram_unsafe_chars.sub('_', name or '')
+    if not ident or ident[0].isdigit():
+        ident = '_' + ident
+    return ident
+
+
+def _er_diagram_type(sql_type):
+    """SQLite column types are free-form text (can be empty, or contain e.g. "VARCHAR(100)") --
+    Mermaid's erDiagram attribute type must be a single bare token, so this keeps only the base
+    type name."""
+    base = (sql_type or 'text').split('(')[0].strip()
+    return _er_diagram_unsafe_chars.sub('_', base).lower() or 'text'
+
+
+def _build_er_diagram(tables, relationships):
+    """Builds a Mermaid `erDiagram` definition (see templates/problem/database.html) from the
+    table/column/foreign-key info already extracted via sqlite3 introspection in
+    ProblemDatabaseSchema.get() -- no separate DB access here, this is pure string formatting."""
+    fk_columns = {(rel['from_table'], rel['from_column']) for rel in relationships}
+
+    lines = ['erDiagram']
+    for table in tables:
+        lines.append('    %s {' % _er_diagram_ident(table['name']))
+        for col in table['columns']:
+            if col['pk']:
+                marker = ' PK'
+            elif (table['name'], col['name']) in fk_columns:
+                marker = ' FK'
+            else:
+                marker = ''
+            lines.append('        %s %s%s' % (
+                _er_diagram_type(col['type']), _er_diagram_ident(col['name']), marker))
+        lines.append('    }')
+    for rel in relationships:
+        lines.append('    %s ||--o{ %s : "%s"' % (
+            _er_diagram_ident(rel['to_table']), _er_diagram_ident(rel['from_table']),
+            _er_diagram_ident(rel['from_column'])))
+    return '\n'.join(lines)
 
 
 class ProblemRaw(ProblemMixin, TitleMixin, TemplateResponseMixin, SingleObjectMixin, View):
@@ -337,7 +425,11 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
         except ObjectDoesNotExist:
             pass
         try:
-            context['is_sql_problem'] = self.object.data_files.checker == 'sql' and bool(self.object.data_files.sql_db)
+            data_files = self.object.data_files
+            context['is_sql_problem'] = (
+                (data_files.checker == 'sql' and bool(data_files.sql_db)) or
+                (data_files.checker == 'mongo' and bool(data_files.mongo_db))
+            )
         except ObjectDoesNotExist:
             context['is_sql_problem'] = False
         try:
@@ -822,7 +914,7 @@ class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView,
 
     def get_context_data(self, **kwargs):
         context = super(ProblemsByOrganization, self).get_context_data(**kwargs)
-        org = get_object_or_404(Organization,pk=self.kwargs.get('pk'))
+        org = self.org
         context['hide_solved'] = 0 if self.in_contest else int(self.hide_solved)
         context['show_types'] = 0 if self.in_contest else int(self.show_types)
         context['full_text'] = 0 if self.in_contest else int(self.full_text)
@@ -906,6 +998,14 @@ class ProblemsByOrganization(QueryStringSortMixin, SolvedProblemMixin, ListView,
         self.point_end = safe_float_or_none(request.GET.get('point_end'))
 
     def get(self, request, *args, **kwargs):
+        self.org = org = get_object_or_404(Organization, pk=self.kwargs.get('pk'))
+        profile = request.profile if request.user.is_authenticated else None
+        is_member = profile is not None and org.members.filter(id=profile.id).exists()
+        is_admin = profile is not None and (org.admins.filter(id=profile.id).exists() or
+                                            org.registrant_id == profile.id)
+        if not (is_member or is_admin):
+            raise Http404()
+
         self.setup_problem_list(request)
 
         try:
@@ -1019,6 +1119,11 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
             queryset = queryset.prefetch_related('types')
         if self.category is not None:
             queryset = queryset.filter(group__id=self.category)
+        elif self.sql_group_id is not None:
+            # The "Problemes de Programació" tab (the default, no category picked) excludes the
+            # SQL category -- it only shows up when explicitly selected via ?category=<sql_group_id>
+            # (either the "Problemes de Bases de Dades" tab or the category dropdown).
+            queryset = queryset.exclude(group_id=self.sql_group_id)
         if self.selected_types:
             queryset = queryset.filter(types__in=self.selected_types)
         if 'search' in self.request.GET:
@@ -1050,6 +1155,7 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
         context['full_text'] = 0 if self.in_contest else int(self.full_text)
         context['category'] = self.category
         context['categories'] = ProblemGroup.objects.all()
+        context['sql_category_id'] = self.sql_group_id
         if self.show_types:
             context['selected_types'] = self.selected_types
             context['problem_types'] = ProblemType.objects.all()
@@ -1117,6 +1223,7 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
 
         self.point_start = safe_float_or_none(request.GET.get('point_start'))
         self.point_end = safe_float_or_none(request.GET.get('point_end'))
+        self.sql_group_id = ProblemGroup.objects.filter(name='sql').values_list('id', flat=True).first()
 
     def get(self, request, *args, **kwargs):
         self.setup_problem_list(request)
@@ -1198,6 +1305,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
         context['full_text'] = 0 if self.in_contest else int(self.full_text)
         context['category'] = self.category
         context['categories'] = ProblemGroup.objects.all()
+        context['sql_category_id'] = self.sql_group_id
         if self.show_types:
             context['selected_types'] = self.selected_types
             context['problem_types'] = ProblemType.objects.all()
@@ -1248,6 +1356,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
 
         self.point_start = safe_float_or_none(request.GET.get('point_start'))
         self.point_end = safe_float_or_none(request.GET.get('point_end'))
+        self.sql_group_id = ProblemGroup.objects.filter(name='sql').values_list('id', flat=True).first()
 
     def get(self, request, *args, **kwargs):
         self.setup_problem_list(request)
@@ -1302,13 +1411,13 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
     @cached_property
     def is_sql_problem(self):
         try:
-            return self.object.data_files.checker == 'sql'
+            return self.object.data_files.checker in DATABASE_CHECKERS
         except ObjectDoesNotExist:
             return False
 
     def get_template_names(self):
         if self.is_sql_problem:
-            return ['problem/submit_sql.html']
+            return ['problem/submit_database.html']
         return [self.template_name]
 
     @cached_property

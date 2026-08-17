@@ -58,33 +58,56 @@ El camp existeix al model però no es fa servir enlloc del codi (ni en unir-se a
 oberta ni en cap altre flux). Decidir si val la pena implementar-hi alguna cosa (p. ex. un codi
 d'accés per unir-se a organitzacions obertes) o eliminar-lo del tot.
 
-## 4. Forat de permisos a `ProblemsByOrganization`
+## 5. Gacha: substituir el so sintetitzat per àudio real (opcional)
 
-**Detectat:** durant la mateixa documentació (secció 2.5).
+**Detectat:** 2026-08-16, en implementar animacions i so per al gacha (veure
+`CANVIS_I_MILLORES.md`).
 
-La vista que mostra la graella de "qui ha resolt/intentat cada problema" d'una organització sencera
-no comprova cap permís ni pertinença — qualsevol visitant que endevini l'identificador numèric d'una
-organització en pot veure el progrés complet dels seus membres. Revisar si cal restringir-ho.
+El so de la revelació (`playGachaSound()` a `templates/gacha/gacharesult.html`) es genera amb la
+Web Audio API (osciŀladors, sense cap fitxer d'àudio) perquè no hi havia cap fitxer de so al
+repositori i generar-lo evita qualsevol dubte de llicència. L'usuari ha confirmat que aquesta
+solució és vàlida per ara, però ha demanat deixar anotat que **més endavant es podria substituir
+per fitxers d'àudio reals** (efectes de "moneda"/"fanfàrria" gravats o descarregats d'un banc de
+sons amb llicència compatible), un per raresa, si es vol un resultat més polit.
 
-## 5. Gacha: animacions i sons
+**Per fer-ho, si mai cal:** afegir els fitxers (`.mp3`/`.ogg`) a `resources/` (no al submòdul
+`resources/libs/`), i canviar `playGachaSound(quality)` per crear un `&lt;audio&gt;`/`Audio()` amb
+la ruta corresponent en lloc dels osciŀladors actuals.
 
-**Detectat:** anotat directament per l'usuari.
+## 7. Checker Mongo: sense límit de temps dur per consulta
 
-Afegir animacions, sons, etc. a la part del gacha, per donar-hi més sensació real de "gacha"
-(actualment la revelació del premi és només una targeta 3D en CSS que gira en fer-hi clic, sense
-so ni animació d'entrada — vegeu `docs/02-sistemes/2.4-gacha-i-personalitzacio.md`).
+**Detectat:** 2026-08-16, en construir el checker Mongo (`dmoj/checkers/mongo.py`, vegeu
+`docs/05-sistemes-mecanics/5.8-checker-mongo.md`).
 
-## 6. Explorador de BD dels problemes SQL: representació gràfica automàtica de l'esquema
+El checker SQL talla una consulta patològica a mig fer amb `sqlite3`'s `set_progress_handler`
+(`_QUERY_TIME_BUDGET_SECONDS`, 5 segons). `mongomock` no té cap equivalent net per interrompre una
+operació ja en marxa. Decisió conscient de no implementar-hi res en aquesta primera versió. Des de
+2026-08-16 el checker també admet `aggregate` (vegeu `CANVIS_I_MILLORES.md`, entrada #27), cosa que
+eixampla una mica el risc real (una pipeline amb `$lookup` mal dissenyada, o sobre una col·lecció
+gran, podria trigar) —però les bases de dades d'exemple són petites i les pipelines les escriu un
+professor a mà, així que el risc es manté baix a la pràctica.
 
-**Detectat:** 2026-08-16, en repensar el sistema de problemes SQL (veure
-`docs/05-sistemes-mecanics/5.5-checker-sql.md` i `CANVIS_I_MILLORES.md`).
+**Per fer-ho, si mai cal:** executar la crida Mongo en un fil a part i fer-hi `join(timeout=...)`,
+matant/ignorant el resultat si es passa del límit (amb cura: `mongomock` no és necessàriament
+thread-safe per a escriptures concurrents sobre el mateix client, així que caldria un client nou
+per intent, no compartir-ne un entre el fil principal i el fil vigilat).
 
-L'explorador d'esquema (`/problem/<codi>/database`) de moment només mostra una llista de taules i
-columnes en text. Es va decidir deixar per més endavant una representació gràfica automàtica de
-l'esquema (un diagrama ER), generada a partir de les claus foranes/primàries de l'SQLite, en lloc
-de fer-ho ara mateix.
+## 8. Auditoria de cadenes `_()`/`{{ _(...) }}` amb un `%` literal (risc d'error 500)
 
-**Per fer-ho:** buscar una llibreria JS que dibuixi un diagrama ER a partir d'una llista de taules/
-columnes/claus foranes (llegibles amb `PRAGMA foreign_key_list(<taula>)`, ja disponible via
-`sqlite3` des de la mateixa vista `ProblemDatabaseSchema` a `judge/views/problem.py`), i renderitzar-
-ho a `templates/problem/database.html` al costat (o en lloc) de la llista actual.
+**Detectat:** 2026-08-16, en implementar animacions pel gacha —veure `CANVIS_I_MILLORES.md`,
+entrada #29, on es documenta el bug real trobat i corregit a `gacharesult.html`.
+
+Jinja2 aplica sempre `cadena % variables` a qualsevol `_()`/`{{ _(...) }}`, encara que no es passi
+cap variable (`variables` acaba sent un diccionari buit). Si el text conté un `%` literal seguit
+d'un caràcter que Python interpreta com a especificador de format vàlid (per exemple "% d", "%s",
+"%i"...), `"text" % {}` **peta amb un `TypeError`/`ValueError` en temps real** —no és un error
+detectable per `msgfmt --check` (que només compara `msgid`/`msgstr`, no simula l'operador `%`), ni
+depèn de si l'entrada porta la marca `#, python-format`. Ja se n'ha trobat i corregit un cas real
+(el missatge de premi repetit del gacha, "...un 50% dels..."), escapant-lo com `%%`. És probable
+que n'hi hagi d'altres sense detectar en algun altre lloc del codi (qualsevol `_()` amb un `%`
+seguit de `d/s/i/x/o/f/g/c/r/a/%` sense espai).
+
+**Per fer-ho:** buscar totes les cadenes font (català) embolicades en `_()`/`{{ _(...) }}` que
+continguin un caràcter `%`, i comprovar una per una si el caràcter següent formaria un
+especificador de format vàlid de Python; escapar-les com `%%` on calgui. Es podria automatitzar amb
+un script que provi `"cadena" % {}` per a cada `msgid` i reporti els que peten.
