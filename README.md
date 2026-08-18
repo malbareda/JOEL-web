@@ -1,147 +1,60 @@
-DMOJ: Modern Online Judge [![Build Status](https://github.com/DMOJ/online-judge/workflows/build/badge.svg)](https://github.com/DMOJ/online-judge/actions/) [![Slack](https://slack.dmoj.ca/badge.svg)](https://slack.dmoj.ca)
-=====
+# JOEL — Jutge Online Educatiu Lliure
 
-A modern [open-source](https://github.com/DMOJ/online-judge/blob/master/LICENSE) online judge and contest platform system. It has been used to host hundreds of competitions, including several national olympiads.
+**JOEL** és una plataforma per aprendre a programar, un repositori de problemes, i un sistema per
+fer córrer concursos de programació. Va néixer per ajudar telemàticament a l'ensenyament de
+Programació a l'Institut Sabadell arran de la pandèmia de Covid-19, però està obert a qualsevol
+institut o persona que vulgui aprendre a programar pel seu compte.
 
-See it live at [dmoj.ca](https://dmoj.ca/)!
+Veure'l en viu a **[jo-el.es](https://jo-el.es)**.
 
-## Features
+JOEL corre sobre **JODER** (Jutge Online Destinat a l'Ensenyament amb Retroacció), un fork molt
+divergent de [DMOJ](https://github.com/DMOJ), el jutge online competitiu de codi obert, adaptat per
+complir una funció educativa en lloc de purament competitiva.
 
-* [Support for over **60 language runtimes**](https://github.com/DMOJ/online-judge#supported-languages)
-* Highly robust judging system:
-   * Supports **interactive** and **signature-graded** tasks
-   * Supports **runtime data generators** and **custom output validators** 
-   * Specifying **per-language resource limits**
-   * Capable of scaling to hundreds of judging servers
-* Extremely configurable contest system:
-   * Supports ICPC/IOI/AtCoder/ECOO formats out-of-the box
-   * **System testing** supported
-   * **Hidden scoreboards** and **virtual participation**
-   * Topcoder-style **rating**
-   * **Plagiarism detection** via [Stanford MOSS](https://theory.stanford.edu/~aiken/moss/)
-   * Restricting contest access to particular organizations or users
-* Rich problem statements, with support for **LaTeX math and diagrams**
-   * Automatic **PDF generation** for easy distribution
-   * Built-in support for **editorials**
-* **Live updates** for submissions
-* Internationalized site interface
-* Home page blog and activity stream
-* Fine-grained permission control for staff
-* OAuth login with Google, Facebook, and Github
-* Two-factor authentication support
+## Què el fa diferent d'un jutge competitiu normal
 
-## Installation
+* **Educatiu, no competitiu.** Els problemes tenen etiquetatge per saber quins coneixements calen
+  per resoldre'ls, i en comptes de valorar-se amb un simple correcte/incorrecte, donen una nota
+  parcial segons els casos de prova superats, per no desanimar a qui intenta un problema difícil.
+* **Sistema de pistes instantani**: si un enviament falla, es pot demanar una pista sobre quin cas
+  concret està fallant, sense recarregar la pàgina.
+* **Guies per a problemes d'introducció**: els problemes pensats per començar cada tema tenen una
+  guia d'ajuda pròpia, adaptada tant a l'idioma com al llenguatge de programació que es faci servir.
+* **Mode Bases de Dades**: a més de programar, es pot practicar SQL i MongoDB amb problemes propis
+  (checkers fets a mida, explorador d'esquema visual, i un rànquing separat del de programació).
+* **Sistema d'Instituts**: cada institut té la seva pròpia pàgina pública, separada dels equips o
+  classes que en formen part, amb bandera i nom propis a les llistes i concursos.
+* **Concursos configurables**: congelació del marcador, colors de "first blood", comptador
+  d'intents incorrectes per problema, i "concurs en grups" (l'alumnat tria un nom d'equip en lloc
+  del nom d'usuari a la classificació).
+* **Sistema de personalització (Gacha)**: stickers, icones i temes visuals que es desbloquegen
+  jugant, amb un bonus diari pel primer problema nou resolt cada dia.
+* **Traduccions completes**: problemes, guies, notícies i pàgines estàtiques es poden traduir per
+  idioma (català, castellà, anglès, alemany, i parcialment xinès), amb selecció automàtica segons
+  l'idioma de qui llegeix.
+* **Generació de PDF** dels enunciats, per a qui prefereixi imprimir-los o treballar sense
+  connexió.
+* **Dos jutges de correcció en paral·lel**, per aprofitar millor els recursos del servidor durant
+  moments de molta afluència (per exemple, durant la Lliga de Programació).
+* **Sense dependències externes de CDN**: MathJax i totes les llibreries de tercers estan
+  allotjades al propi servidor.
 
-Check out the install documentation at [docs.dmoj.ca](https://docs.dmoj.ca/#/site/installation). Feel free to reach out to us on [Slack](https://slack.dmoj.ca) if you have any questions.
+## Documentació
 
-## Screenshots
+Aquest projecte té documentació tècnica exhaustiva, escrita sencera en català, pensada per a
+qualsevol persona amb accés al codi —professorat, alumnat avançat, o qui hagi de mantenir el
+projecte en el futur:
 
-### Sleek problem statements
-Problems are written in Markdown, with LaTeX-enabled math and figures, as well as syntax highlighting. Problem statements can be saved to PDF for ease of distribution to contestants.
+* **[docs/](docs/README.md)** — arquitectura, cada sistema explicat de dalt a baix, el flux intern
+  d'un enviament, particularitats de la programació del projecte, i els sistemes mecànics
+  (comunicació amb el jutge, base de dades, checkers de SQL i Mongo...).
+* **[CANVIS_I_MILLORES.md](CANVIS_I_MILLORES.md)** — registre cronològic de cada canvi tècnic
+  rellevant fet al servidor i al codi: què estava abans, què es va decidir fer, per què, i quin és
+  el resultat final.
 
+## Basat en DMOJ
 
-![](https://i.imgur.com/7KD7h5r.png)
-
-
-### Submit in over 60 languages
-Contestants may submit in over 60 programming languages with syntax highlighting. Problem authors can restrict problems to specific languages, and set language-specific resource limits. 
-
-
-![](https://i.imgur.com/8CjfHQb.png)
-
-
-### Live submission status
-Submission pages feature live updates, and submissions may be aborted by both submission authors and administrators. Compilation errors and warnings for a number of languages feature color highlighting.
-
-
-![](https://i.imgur.com/Hom0U3R.png)
-
-
-Global, per-problem, and per-contest submission lists are live-updating, and can be filtered by status and language.
-
-
-![](https://i.imgur.com/rc7orzj.png)
-
-
-### Extensible contest system
-Contests feature an optional rating system, and can be configured to run in any timeframe. Users are also able to participate virtually after the contest ends. ICPC, IOI, AtCoder, and ECOO contest formats are supported out-of-the-box, and new formats can be added with custom code.
-
-
-![](https://i.imgur.com/0V1fzZi.png)
-
-
-Contests may be limited to particular organizations, or require access codes to join. Hidden scoreboards are supported. The contest system integrates with [Stanford MOSS](https://theory.stanford.edu/~aiken/moss/) to provide plagiarism checking. 
-Editorial support is built-in, and editorials are automatically published once a contest ends.
-
-
-### Home page blog and activity stream
-
-Announcements from administrators, ongoing contests, recent comments and new problems are easily accessible from the home page.
-
-![](https://i.imgur.com/zpQAoDB.png)
-
-
-### Internationalized interface
-Use the site in whatever language you're most comfortable in &mdash; visit [translate.dmoj.ca](https://translate.dmoj.ca/) to check the translation status of your preferred language. Problem authors can provide statements in multiple languages, and DMOJ will display the most relevant one to a reader.
-
-
-![](https://i.imgur.com/OeuI0o5.png)
-
-
-
-### Highly featured administration interface
-The DMOJ admin interface is highly versatile, and can be efficiently used for anything from managing users to authoring problem statements.
-
-
-![](https://dmoj.ml/data/_other/readme/problem-admin.png)
-
-![](https://dmoj.ml/data/_other/readme/admin-dashboard.png)
-
-## Supported Languages
-
-Check out [**DMOJ/judge-server**](https://github.com/DMOJ/judge-server) for more judging backend details.
-
-Supported languages include:
-* C++ 11/14/17 (GCC and Clang)
-* C 99/11
-* Java 8/9/10/11
-* Python 2/3
-* PyPy 2/3
-* Pascal
-* Perl
-* Mono C#/F#/VB
-
-The judge can also grade in the languages listed below. These languages are less tested and more likely to be buggy.
-* Ada
-* AWK
-* COBOL
-* D
-* Dart
-* Fortran
-* Forth
-* Go
-* Groovy
-* GAS x86/x64/ARM
-* Haskell
-* INTERCAL
-* Kotlin
-* Lua
-* NASM x86/x64
-* Objective-C
-* OCaml
-* PHP
-* Pike
-* Prolog
-* Racket
-* Ruby
-* Rust
-* Scala
-* Chicken Scheme
-* sed
-* Steel Bank Common Lisp
-* Swift
-* Tcl
-* Turing
-* V8 JavaScript
-* Brain\*\*\*\*
-* Zig
+JOEL/JODER és un fork de [DMOJ: Modern Online Judge](https://github.com/DMOJ), un jutge online
+competitiu de codi obert que ha allotjat centenars de concursos, incloent-hi diverses olimpíades
+nacionals. Es manté sota la mateixa llicència que el projecte original, la [GNU AGPL
+v3](LICENSE).
