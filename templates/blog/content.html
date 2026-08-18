@@ -30,8 +30,8 @@
             </span>
         </div>
         <div class="body content-description">
-            {% cache 86400 'post_content' post.id MATH_ENGINE %}
-                {{ post.content|markdown('blog', MATH_ENGINE)|reference|str|safe}}
+            {% cache 86400 'post_content' post.id request.LANGUAGE_CODE MATH_ENGINE %}
+                {{ post.get_translated_content(request.LANGUAGE_CODE)|markdown('blog', MATH_ENGINE)|reference|str|safe}}
             {% endcache %}
         </div>
     </div>

@@ -19,7 +19,7 @@ jQuery(function ($) {
                         window.MathJax.loader = {typeset: false};
                         $.ajax({
                             type: 'GET',
-                            url: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS_HTML',
+                            url: '/static/libs/mathjax/MathJax.js?config=TeX-AMS_HTML',
                             dataType: 'script',
                             cache: true,
                             success: update_math

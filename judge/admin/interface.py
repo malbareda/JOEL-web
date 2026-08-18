@@ -9,7 +9,7 @@ from mptt.admin import DraggableMPTTAdmin
 from reversion.admin import VersionAdmin
 
 from judge.dblock import LockModel
-from judge.models import NavigationBar
+from judge.models import BlogPostTranslation, FlatPageTranslation, NavigationBar
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminHeavySelect2Widget, AdminMartorWidget
 
 
@@ -47,8 +47,21 @@ class FlatpageForm(OldFlatpageForm):
         widgets = {'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('flatpage_preview')})}
 
 
+class FlatPageTranslationForm(ModelForm):
+    class Meta:
+        widgets = {'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('flatpage_preview')})}
+
+
+class FlatPageTranslationInline(admin.StackedInline):
+    model = FlatPageTranslation
+    fields = ('language', 'title', 'content')
+    form = FlatPageTranslationForm
+    extra = 0
+
+
 class FlatPageAdmin(VersionAdmin, OldFlatPageAdmin):
     form = FlatpageForm
+    inlines = [FlatPageTranslationInline]
 
 
 class BlogPostForm(ModelForm):
@@ -66,6 +79,21 @@ class BlogPostForm(ModelForm):
         }
 
 
+class BlogPostTranslationForm(ModelForm):
+    class Meta:
+        widgets = {
+            'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('blog_preview')}),
+            'summary': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('blog_preview')}),
+        }
+
+
+class BlogPostTranslationInline(admin.StackedInline):
+    model = BlogPostTranslation
+    fields = ('language', 'title', 'content', 'summary')
+    form = BlogPostTranslationForm
+    extra = 0
+
+
 class BlogPostAdmin(VersionAdmin):
     fieldsets = (
         (None, {'fields': ('title', 'slug', 'authors', 'visible', 'sticky', 'publish_on')}),
@@ -78,6 +106,7 @@ class BlogPostAdmin(VersionAdmin):
     ordering = ('-publish_on',)
     form = BlogPostForm
     date_hierarchy = 'publish_on'
+    inlines = [BlogPostTranslationInline]
 
     def has_change_permission(self, request, obj=None):
         if obj is None:

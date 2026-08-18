@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-16 22:29+0000\n"
+"POT-Creation-Date: 2026-08-18 20:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,6 +40,10 @@ msgstr ""
 
 #: dmoj/urls.py:103 templates/base.html:204
 msgid "Home"
+msgstr ""
+
+#: judge/admin/achievement.py:34 judge/models/profile.py:77
+msgid "achievement image"
 msgstr ""
 
 #: judge/admin/comments.py:40
@@ -169,7 +173,7 @@ msgstr[1] ""
 msgid "Recalculate results"
 msgstr ""
 
-#: judge/admin/contest.py:357 judge/admin/organization.py:64
+#: judge/admin/contest.py:357 judge/admin/organization.py:71
 msgid "username"
 msgstr ""
 
@@ -177,30 +181,34 @@ msgstr ""
 msgid "virtual"
 msgstr ""
 
-#: judge/admin/interface.py:29 judge/models/interface.py:46
+#: judge/admin/institution.py:14
+msgid "teams"
+msgstr ""
+
+#: judge/admin/interface.py:29 judge/models/interface.py:49
 msgid "link path"
 msgstr ""
 
-#: judge/admin/interface.py:72
+#: judge/admin/interface.py:100
 msgid "Content"
 msgstr ""
 
-#: judge/admin/interface.py:73
+#: judge/admin/interface.py:101
 msgid "Summary"
 msgstr ""
 
-#: judge/admin/interface.py:113 judge/models/contest.py:394
-#: judge/models/contest.py:519 judge/models/profile.py:365
-#: judge/models/profile.py:369 judge/models/profile.py:393
+#: judge/admin/interface.py:142 judge/models/contest.py:418
+#: judge/models/contest.py:548 judge/models/profile.py:546
+#: judge/models/profile.py:550 judge/models/profile.py:574
 msgid "user"
 msgstr ""
 
-#: judge/admin/interface.py:154
+#: judge/admin/interface.py:183
 msgid "object"
 msgstr ""
 
-#: judge/admin/organization.py:33 judge/admin/problem.py:207
-#: judge/admin/profile.py:82
+#: judge/admin/organization.py:35 judge/admin/problem.py:207
+#: judge/admin/profile.py:107
 msgid "View on site"
 msgstr ""
 
@@ -216,14 +224,14 @@ msgstr ""
 msgid "Taxonomy"
 msgstr ""
 
-#: judge/admin/problem.py:156 templates/contest/base-ranking-table.html:14
+#: judge/admin/problem.py:156 templates/contest/base-ranking-table.html:15
 #: templates/contest/contest.html:84 templates/problem/data.html:431
 #: templates/problem/list.html:217 templates/problem/list.html:242
 #: templates/problem/task.html:109
-#: templates/user/base-users-table-database.html:13
-#: templates/user/base-users-table-lliga1.html:13
-#: templates/user/base-users-table-lliga2.html:13
-#: templates/user/base-users-table.html:13
+#: templates/user/base-users-table-database.html:14
+#: templates/user/base-users-table-lliga1.html:14
+#: templates/user/base-users-table-lliga2.html:14
+#: templates/user/base-users-table.html:14
 #: templates/user/user-problems.html:58
 msgid "Points"
 msgstr ""
@@ -233,7 +241,7 @@ msgid "Limits"
 msgstr ""
 
 #: judge/admin/problem.py:158 judge/admin/submission.py:238
-#: templates/stats/base.html:14 templates/submission/list.html:345
+#: templates/stats/base.html:14 templates/submission/list.html:348
 #: templates/user/edit-profile.html:291
 msgid "Language"
 msgstr ""
@@ -283,35 +291,36 @@ msgstr ""
 msgid "timezone"
 msgstr ""
 
-#: judge/admin/profile.py:88 judge/admin/submission.py:217
+#: judge/admin/profile.py:113 judge/admin/submission.py:217
 #: templates/organization/requests/log.html:9
 #: templates/organization/requests/pending.html:12
 #: templates/organization/stats.html:170 templates/ticket/list.html:261
 msgid "User"
 msgstr ""
 
-#: judge/admin/profile.py:93 templates/registration/registration_form.html:145
+#: judge/admin/profile.py:118
+#: templates/registration/registration_form.html:145
 msgid "Email"
 msgstr ""
 
-#: judge/admin/profile.py:98 judge/views/register.py:29
+#: judge/admin/profile.py:123 judge/views/register.py:29
 #: templates/registration/registration_form.html:173
 #: templates/user/edit-profile.html:287
 msgid "Timezone"
 msgstr ""
 
-#: judge/admin/profile.py:103
+#: judge/admin/profile.py:128
 msgid "date joined"
 msgstr ""
 
-#: judge/admin/profile.py:110
+#: judge/admin/profile.py:135
 #, python-format
 msgid "%d user have scores recalculated."
 msgid_plural "%d users have scores recalculated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: judge/admin/profile.py:113
+#: judge/admin/profile.py:138
 msgid "Recalculate scores"
 msgstr ""
 
@@ -445,6 +454,10 @@ msgstr ""
 msgid "AtCoder"
 msgstr ""
 
+#: judge/contest_format/base.py:116
+msgid "Submitted after the scoreboard froze"
+msgstr ""
+
 #: judge/contest_format/default.py:18
 msgid "Default"
 msgstr ""
@@ -453,7 +466,7 @@ msgstr ""
 msgid "ECOO"
 msgstr ""
 
-#: judge/contest_format/icpc.py:19
+#: judge/contest_format/icpc.py:20
 msgid "ICPC"
 msgstr ""
 
@@ -523,15 +536,15 @@ msgid "Any judge"
 msgstr ""
 
 #: judge/forms.py:162 judge/views/register.py:26
-#: templates/contest/base-ranking-table.html:8
+#: templates/contest/base-ranking-table.html:9
 #: templates/problem/solvestatus.html:77
 #: templates/problem/tasksolvestatus.html:77
 #: templates/problem/tasksolvestatus.html:147
 #: templates/registration/registration_form.html:139
-#: templates/user/base-users-table-database.html:8
-#: templates/user/base-users-table-lliga1.html:8
-#: templates/user/base-users-table-lliga2.html:8
-#: templates/user/base-users-table.html:8
+#: templates/user/base-users-table-database.html:9
+#: templates/user/base-users-table-lliga1.html:9
+#: templates/user/base-users-table-lliga2.html:9
+#: templates/user/base-users-table.html:9
 msgid "Username"
 msgstr ""
 
@@ -705,7 +718,7 @@ msgstr ""
 msgid "contest tag"
 msgstr ""
 
-#: judge/models/contest.py:53 judge/models/contest.py:114
+#: judge/models/contest.py:53 judge/models/contest.py:128
 msgid "contest tags"
 msgstr ""
 
@@ -730,7 +743,7 @@ msgstr ""
 msgid "problems"
 msgstr ""
 
-#: judge/models/contest.py:64 judge/models/contest.py:395
+#: judge/models/contest.py:64 judge/models/contest.py:419
 msgid "start time"
 msgstr ""
 
@@ -763,21 +776,25 @@ msgstr ""
 
 #: judge/models/contest.py:73
 msgid "primera divisio"
-msgstr ""
+msgstr "first division"
 
 #: judge/models/contest.py:73
 msgid ""
 "Whether this contest is on Primera Divisió de la Lliga de FP de Programació."
 msgstr ""
+"Whether this contest is part of the Primera Divisió (First Division) of the "
+"Lliga de FP de Programació."
 
 #: judge/models/contest.py:75
 msgid "segona divisio"
-msgstr ""
+msgstr "second division"
 
 #: judge/models/contest.py:75
 msgid ""
 "Whether this contest is on Segona Divisió de la Lliga de FP de Programació."
 msgstr ""
+"Whether this contest is part of the Segona Divisió (Second Division) of the "
+"Lliga de FP de Programació."
 
 #: judge/models/contest.py:77
 msgid "hide scoreboard"
@@ -797,437 +814,532 @@ msgid "These users will be able to view the scoreboard."
 msgstr ""
 
 #: judge/models/contest.py:84
-msgid "no comments"
+msgid "freeze time"
 msgstr ""
 
 #: judge/models/contest.py:85
-msgid "Use clarification system instead of comments."
+msgid ""
+"If set and in the past, the scoreboard stops updating for anyone who cannot "
+"edit this contest: submissions made at or after this time still show up as "
+"submitted, but never reveal whether they were correct, and never move anyone"
+" up or down the standings. Stays frozen until this field is cleared, "
+"regardless of the contest end time -- there is no automatic unfreeze."
 msgstr ""
 
-#: judge/models/contest.py:87
-msgid "Rating floor for contest"
-msgstr ""
-
-#: judge/models/contest.py:89
-msgid "Rating ceiling for contest"
-msgstr ""
-
-#: judge/models/contest.py:91
-msgid "rate all"
-msgstr ""
-
-#: judge/models/contest.py:91
-msgid "Rate all users who joined."
-msgstr ""
-
-#: judge/models/contest.py:92
-msgid "exclude from ratings"
-msgstr ""
+#: judge/models/contest.py:93
+msgid "use group names"
+msgstr "use group names"
 
 #: judge/models/contest.py:94
-msgid "private to specific users"
+msgid ""
+"If enabled, users must pick a group name the first time they join this "
+"contest, instead of being identified by their own username. The scoreboard "
+"shows the group name in place of the username. The name is set once, when "
+"the user first joins, and can never be changed afterwards -- not even by "
+"leaving and rejoining."
 msgstr ""
-
-#: judge/models/contest.py:95
-msgid "private contestants"
-msgstr ""
-
-#: judge/models/contest.py:96
-msgid "If private, only these users may see the contest"
-msgstr ""
+"If enabled, users must pick a group name the first time they join this "
+"contest, instead of being identified by their own username. The scoreboard "
+"shows the group name in place of the username. The name is set once, when "
+"the user first joins, and can never be changed afterwards -- not even by "
+"leaving and rejoining."
 
 #: judge/models/contest.py:98
-msgid "hide problem tags"
+msgid "no comments"
 msgstr ""
 
 #: judge/models/contest.py:99
-msgid "Whether problem tags should be hidden by default."
+msgid "Use clarification system instead of comments."
 msgstr ""
 
 #: judge/models/contest.py:101
+msgid "Rating floor for contest"
+msgstr ""
+
+#: judge/models/contest.py:103
+msgid "Rating ceiling for contest"
+msgstr ""
+
+#: judge/models/contest.py:105
+msgid "rate all"
+msgstr ""
+
+#: judge/models/contest.py:105
+msgid "Rate all users who joined."
+msgstr ""
+
+#: judge/models/contest.py:106
+msgid "exclude from ratings"
+msgstr ""
+
+#: judge/models/contest.py:108
+msgid "private to specific users"
+msgstr ""
+
+#: judge/models/contest.py:109
+msgid "private contestants"
+msgstr ""
+
+#: judge/models/contest.py:110
+msgid "If private, only these users may see the contest"
+msgstr ""
+
+#: judge/models/contest.py:112
+msgid "hide problem tags"
+msgstr ""
+
+#: judge/models/contest.py:113
+msgid "Whether problem tags should be hidden by default."
+msgstr ""
+
+#: judge/models/contest.py:115
 msgid "run pretests only"
 msgstr ""
 
-#: judge/models/contest.py:102
+#: judge/models/contest.py:116
 msgid ""
 "Whether judges should grade pretests only, versus all testcases. Commonly "
 "set during a contest, then unset prior to rejudging user submissions when "
 "the contest ends."
 msgstr ""
 
-#: judge/models/contest.py:106 judge/models/problem.py:162
+#: judge/models/contest.py:120 judge/models/problem.py:162
 msgid "private to organizations"
 msgstr ""
 
-#: judge/models/contest.py:107 judge/models/problem.py:160
-#: judge/models/profile.py:123
+#: judge/models/contest.py:121 judge/models/problem.py:160
+#: judge/models/profile.py:256
 msgid "organizations"
 msgstr ""
 
-#: judge/models/contest.py:108
+#: judge/models/contest.py:122
 msgid "If private, only these organizations may see the contest"
 msgstr ""
 
-#: judge/models/contest.py:109 judge/models/problem.py:149
+#: judge/models/contest.py:123 judge/models/problem.py:149
 msgid "OpenGraph image"
 msgstr ""
 
-#: judge/models/contest.py:110 judge/models/profile.py:70
+#: judge/models/contest.py:124 judge/models/profile.py:192
 msgid "Logo override image"
 msgstr ""
 
-#: judge/models/contest.py:112
+#: judge/models/contest.py:126
 msgid ""
 "This image will replace the default site logo for users inside the contest."
 msgstr ""
 
-#: judge/models/contest.py:115
+#: judge/models/contest.py:129
 msgid "the amount of live participants"
 msgstr ""
 
-#: judge/models/contest.py:116
+#: judge/models/contest.py:130
 msgid "contest summary"
 msgstr ""
 
-#: judge/models/contest.py:117 judge/models/problem.py:151
+#: judge/models/contest.py:131 judge/models/problem.py:151
 msgid "Plain-text, shown in meta description tag, e.g. for social media."
 msgstr ""
 
-#: judge/models/contest.py:118 judge/models/profile.py:69
+#: judge/models/contest.py:132 judge/models/profile.py:191
 msgid "access code"
 msgstr ""
 
-#: judge/models/contest.py:119
+#: judge/models/contest.py:133
 msgid ""
 "An optional code to prompt contestants before they are allowed to join the "
 "contest. Leave it blank to disable."
 msgstr ""
 
-#: judge/models/contest.py:121 judge/models/problem.py:145
+#: judge/models/contest.py:135 judge/models/problem.py:145
 msgid "personae non gratae"
 msgstr ""
 
-#: judge/models/contest.py:122
+#: judge/models/contest.py:136
 msgid "Bans the selected users from joining this contest."
 msgstr ""
 
-#: judge/models/contest.py:123
+#: judge/models/contest.py:137
 msgid "contest format"
 msgstr ""
 
-#: judge/models/contest.py:124
+#: judge/models/contest.py:138
 msgid "The contest format module to use."
 msgstr ""
 
-#: judge/models/contest.py:125
+#: judge/models/contest.py:139
 msgid "contest format configuration"
 msgstr ""
 
-#: judge/models/contest.py:126
+#: judge/models/contest.py:140
 msgid ""
 "A JSON object to serve as the configuration for the chosen contest format "
 "module. Leave empty to use None. Exact format depends on the contest format "
 "selected."
 msgstr ""
 
-#: judge/models/contest.py:133
+#: judge/models/contest.py:147
 msgid "contest lock"
 msgstr ""
 
-#: judge/models/contest.py:134
+#: judge/models/contest.py:148
 msgid "Prevent submissions from this contest from being rejudged."
 msgstr ""
 
-#: judge/models/contest.py:373
+#: judge/models/contest.py:397
 msgid "See private contests"
 msgstr ""
 
-#: judge/models/contest.py:374
+#: judge/models/contest.py:398
 msgid "Edit own contests"
 msgstr ""
 
-#: judge/models/contest.py:375
+#: judge/models/contest.py:399
 msgid "Edit all contests"
 msgstr ""
 
-#: judge/models/contest.py:376
+#: judge/models/contest.py:400
 msgid "Clone contest"
 msgstr ""
 
-#: judge/models/contest.py:377 templates/contest/moss.html:74
+#: judge/models/contest.py:401 templates/contest/moss.html:74
 msgid "MOSS contest"
 msgstr ""
 
-#: judge/models/contest.py:378
+#: judge/models/contest.py:402
 msgid "Rate contests"
 msgstr ""
 
-#: judge/models/contest.py:379
+#: judge/models/contest.py:403
 msgid "Contest access codes"
 msgstr ""
 
-#: judge/models/contest.py:380
+#: judge/models/contest.py:404
 msgid "Create private contests"
 msgstr ""
 
-#: judge/models/contest.py:381
+#: judge/models/contest.py:405
 msgid "Change contest visibility"
 msgstr ""
 
-#: judge/models/contest.py:382
+#: judge/models/contest.py:406
 msgid "Edit contest problem label script"
 msgstr ""
 
-#: judge/models/contest.py:383
+#: judge/models/contest.py:407
 msgid "Change lock status of contest"
 msgstr ""
 
-#: judge/models/contest.py:385 judge/models/contest.py:483
-#: judge/models/contest.py:520 judge/models/contest.py:542
-#: judge/models/submission.py:85
+#: judge/models/contest.py:409 judge/models/contest.py:512
+#: judge/models/contest.py:549 judge/models/contest.py:571
+#: judge/models/submission.py:93
 msgid "contest"
 msgstr ""
 
-#: judge/models/contest.py:386
+#: judge/models/contest.py:410
 msgid "contests"
 msgstr ""
 
-#: judge/models/contest.py:393
+#: judge/models/contest.py:417
 msgid "associated contest"
 msgstr ""
 
-#: judge/models/contest.py:396
+#: judge/models/contest.py:420
 msgid "score"
 msgstr ""
 
-#: judge/models/contest.py:397
+#: judge/models/contest.py:421
 msgid "cumulative time"
 msgstr ""
 
-#: judge/models/contest.py:398
+#: judge/models/contest.py:422
 msgid "is disqualified"
 msgstr ""
 
-#: judge/models/contest.py:399
+#: judge/models/contest.py:423
 msgid "Whether this participation is disqualified."
 msgstr ""
 
-#: judge/models/contest.py:400
+#: judge/models/contest.py:424
 msgid "tie-breaking field"
 msgstr ""
 
-#: judge/models/contest.py:401
+#: judge/models/contest.py:425
 msgid "virtual participation id"
 msgstr ""
 
-#: judge/models/contest.py:402
+#: judge/models/contest.py:426
 msgid "0 means non-virtual, otherwise the n-th virtual participation."
 msgstr ""
 
-#: judge/models/contest.py:403
+#: judge/models/contest.py:427
 msgid "contest format specific data"
 msgstr ""
 
-#: judge/models/contest.py:469
+#: judge/models/contest.py:429
+msgid "group name"
+msgstr "group name"
+
+#: judge/models/contest.py:430
+msgid ""
+"Custom name chosen by the user for this participation, when the contest "
+"requires group names instead of usernames (Contest.use_group_names). Set "
+"once, at join time, and never changed afterwards."
+msgstr ""
+"Custom name chosen by the user for this participation, when the contest "
+"requires group names instead of usernames (Contest.use_group_names). Set "
+"once, at join time, and never changed afterwards."
+
+#: judge/models/contest.py:498
 #, python-format
 msgid "%s spectating in %s"
 msgstr ""
 
-#: judge/models/contest.py:471
+#: judge/models/contest.py:500
 #, python-format
 msgid "%s in %s, v%d"
 msgstr ""
 
-#: judge/models/contest.py:472
+#: judge/models/contest.py:501
 #, python-format
 msgid "%s in %s"
 msgstr ""
 
-#: judge/models/contest.py:475
+#: judge/models/contest.py:504
 msgid "contest participation"
 msgstr ""
 
-#: judge/models/contest.py:476
+#: judge/models/contest.py:505
 msgid "contest participations"
 msgstr ""
 
-#: judge/models/contest.py:482 judge/models/contest.py:504
-#: judge/models/contest.py:543 judge/models/problem.py:445
+#: judge/models/contest.py:511 judge/models/contest.py:533
+#: judge/models/contest.py:572 judge/models/problem.py:445
 #: judge/models/problem.py:481 judge/models/problem.py:499
 #: judge/models/problem.py:601 judge/models/problem_data.py:42
 msgid "problem"
 msgstr ""
 
-#: judge/models/contest.py:484 judge/models/contest.py:508
+#: judge/models/contest.py:513 judge/models/contest.py:537
 #: judge/models/problem.py:133
 msgid "points"
 msgstr ""
 
-#: judge/models/contest.py:485
+#: judge/models/contest.py:514
 msgid "partial"
 msgstr ""
 
-#: judge/models/contest.py:486 judge/models/contest.py:509
+#: judge/models/contest.py:515 judge/models/contest.py:538
 msgid "is pretested"
 msgstr ""
 
-#: judge/models/contest.py:487 judge/models/interface.py:43
+#: judge/models/contest.py:516 judge/models/interface.py:46
 msgid "order"
 msgstr ""
 
-#: judge/models/contest.py:488
+#: judge/models/contest.py:517
 msgid "output prefix length override"
 msgstr ""
 
-#: judge/models/contest.py:489
+#: judge/models/contest.py:518
 msgid ""
 "Maximum number of submissions for this problem, or leave blank for no limit."
 msgstr ""
 
-#: judge/models/contest.py:492
+#: judge/models/contest.py:521
 msgid "Why include a problem you can't submit to?"
 msgstr ""
 
-#: judge/models/contest.py:497
+#: judge/models/contest.py:526
 msgid "contest problem"
 msgstr ""
 
-#: judge/models/contest.py:498
+#: judge/models/contest.py:527
 msgid "contest problems"
 msgstr ""
 
-#: judge/models/contest.py:502 judge/models/submission.py:202
+#: judge/models/contest.py:531 judge/models/submission.py:210
 msgid "submission"
 msgstr ""
 
-#: judge/models/contest.py:506 judge/models/contest.py:521
+#: judge/models/contest.py:535 judge/models/contest.py:550
 msgid "participation"
 msgstr ""
 
-#: judge/models/contest.py:510
+#: judge/models/contest.py:539
 msgid "Whether this submission was ran only on pretests."
 msgstr ""
 
-#: judge/models/contest.py:514
+#: judge/models/contest.py:543
 msgid "contest submission"
 msgstr ""
 
-#: judge/models/contest.py:515
+#: judge/models/contest.py:544
 msgid "contest submissions"
 msgstr ""
 
-#: judge/models/contest.py:523
+#: judge/models/contest.py:552
 msgid "rank"
 msgstr ""
 
-#: judge/models/contest.py:524
+#: judge/models/contest.py:553
 msgid "rating"
 msgstr ""
 
-#: judge/models/contest.py:525
+#: judge/models/contest.py:554
 msgid "volatility"
 msgstr ""
 
-#: judge/models/contest.py:526
+#: judge/models/contest.py:555
 msgid "last rated"
 msgstr ""
 
-#: judge/models/contest.py:530
+#: judge/models/contest.py:559
 msgid "contest rating"
 msgstr ""
 
-#: judge/models/contest.py:531
+#: judge/models/contest.py:560
 msgid "contest ratings"
 msgstr ""
 
-#: judge/models/contest.py:550
+#: judge/models/contest.py:579
 msgid "contest moss result"
 msgstr ""
 
-#: judge/models/contest.py:551
+#: judge/models/contest.py:580
 msgid "contest moss results"
 msgstr ""
 
-#: judge/models/interface.py:24
+#: judge/models/interface.py:27
 msgid "configuration item"
 msgstr ""
 
-#: judge/models/interface.py:25
+#: judge/models/interface.py:28
 msgid "miscellaneous configuration"
 msgstr ""
 
-#: judge/models/interface.py:37
+#: judge/models/interface.py:40
 msgid "navigation item"
 msgstr ""
 
-#: judge/models/interface.py:38
+#: judge/models/interface.py:41
 msgid "navigation bar"
 msgstr ""
 
-#: judge/models/interface.py:44
+#: judge/models/interface.py:47
 msgid "identifier"
 msgstr ""
 
-#: judge/models/interface.py:45
+#: judge/models/interface.py:48
 msgid "label"
 msgstr ""
 
-#: judge/models/interface.py:47
+#: judge/models/interface.py:50
 msgid "highlight regex"
 msgstr ""
 
-#: judge/models/interface.py:48
+#: judge/models/interface.py:51
 msgid "parent item"
 msgstr ""
 
-#: judge/models/interface.py:66
+#: judge/models/interface.py:69
 msgid "post title"
 msgstr ""
 
-#: judge/models/interface.py:67 judge/models/problem.py:519
+#: judge/models/interface.py:70 judge/models/problem.py:519
 msgid "authors"
 msgstr ""
 
-#: judge/models/interface.py:68
+#: judge/models/interface.py:71
 msgid "slug"
 msgstr ""
 
-#: judge/models/interface.py:69 judge/models/problem.py:517
+#: judge/models/interface.py:72 judge/models/problem.py:517
 #: judge/models/problem.py:552
 msgid "public visibility"
 msgstr ""
 
-#: judge/models/interface.py:70
+#: judge/models/interface.py:73
 msgid "sticky"
 msgstr ""
 
-#: judge/models/interface.py:71
+#: judge/models/interface.py:74
 msgid "publish after"
 msgstr ""
 
-#: judge/models/interface.py:72
+#: judge/models/interface.py:75
 msgid "post content"
 msgstr ""
 
-#: judge/models/interface.py:73
+#: judge/models/interface.py:76
 msgid "post summary"
 msgstr ""
 
-#: judge/models/interface.py:74
+#: judge/models/interface.py:77
 msgid "openGraph image"
 msgstr ""
 
-#: judge/models/interface.py:96
+#: judge/models/interface.py:121
 msgid "Edit all posts"
 msgstr ""
 
-#: judge/models/interface.py:98
+#: judge/models/interface.py:123
 msgid "blog post"
 msgstr ""
 
-#: judge/models/interface.py:99
+#: judge/models/interface.py:124
 msgid "blog posts"
 msgstr ""
+
+#: judge/models/interface.py:128
+msgid "post"
+msgstr "post"
+
+#: judge/models/interface.py:129 judge/models/interface.py:145
+#: judge/models/problem.py:482 judge/models/problem.py:500
+#: judge/models/problem.py:602 judge/models/runtime.py:158
+msgid "language"
+msgstr ""
+
+#: judge/models/interface.py:130 judge/models/interface.py:146
+msgid "translated title"
+msgstr "translated title"
+
+#: judge/models/interface.py:131 judge/models/interface.py:147
+msgid "translated content"
+msgstr "translated content"
+
+#: judge/models/interface.py:132
+msgid "translated summary"
+msgstr "translated summary"
+
+#: judge/models/interface.py:133
+msgid ""
+"Leave blank to fall back to the translated content, same as the untranslated"
+" post."
+msgstr ""
+"Leave blank to fall back to the translated content, same as the untranslated"
+" post."
+
+#: judge/models/interface.py:138
+msgid "blog post translation"
+msgstr "blog post translation"
+
+#: judge/models/interface.py:139
+msgid "blog post translations"
+msgstr "blog post translations"
+
+#: judge/models/interface.py:143
+msgid "page"
+msgstr "page"
+
+#: judge/models/interface.py:151
+msgid "flat page translation"
+msgstr "flat page translation"
+
+#: judge/models/interface.py:152
+msgid "flat page translations"
+msgstr "flat page translations"
 
 #: judge/models/message.py:11
 msgid "message title"
@@ -1301,8 +1413,8 @@ msgstr ""
 msgid "full name"
 msgstr ""
 
-#: judge/models/problem.py:61 judge/models/profile.py:55
-#: judge/models/runtime.py:24
+#: judge/models/problem.py:61 judge/models/profile.py:118
+#: judge/models/profile.py:177 judge/models/runtime.py:24
 msgid "short name"
 msgstr ""
 
@@ -1310,7 +1422,7 @@ msgstr ""
 msgid "Displayed on pages under this license"
 msgstr ""
 
-#: judge/models/problem.py:63
+#: judge/models/problem.py:63 judge/models/profile.py:64
 msgid "icon"
 msgstr ""
 
@@ -1481,7 +1593,7 @@ msgstr ""
 
 #: judge/models/problem.py:437
 msgid "Veure Informació per a Profes (Profe)"
-msgstr ""
+msgstr "View teacher information (Teacher)"
 
 #: judge/models/problem.py:438
 msgid "Edit all public problems"
@@ -1541,11 +1653,6 @@ msgstr ""
 
 #: judge/models/problem.py:477
 msgid "tasks"
-msgstr ""
-
-#: judge/models/problem.py:482 judge/models/problem.py:500
-#: judge/models/problem.py:602 judge/models/runtime.py:158
-msgid "language"
 msgstr ""
 
 #: judge/models/problem.py:483
@@ -1665,7 +1772,7 @@ msgstr ""
 
 #: judge/models/problem_data.py:25
 msgid "Compara contra fitxer"
-msgstr ""
+msgstr "Compare against file"
 
 #: judge/models/problem_data.py:26
 msgid "Linea a Linea (només profes)"
@@ -1807,222 +1914,327 @@ msgstr ""
 msgid "output prefix length"
 msgstr ""
 
-#: judge/models/profile.py:38
+#: judge/models/profile.py:46
+msgid "common"
+msgstr "common"
+
+#: judge/models/profile.py:47
+msgid "rare"
+msgstr "rare"
+
+#: judge/models/profile.py:48
+msgid "epic"
+msgstr "epic"
+
+#: judge/models/profile.py:49
+msgid "legendary"
+msgstr "legendary"
+
+#: judge/models/profile.py:62
+msgid "GachaPoints bonus (internal)"
+msgstr "GachaPoints bonus (internal)"
+
+#: judge/models/profile.py:63
+msgid "sticker"
+msgstr "sticker"
+
+#: judge/models/profile.py:65 judge/models/profile.py:280
+msgid "user color"
+msgstr ""
+
+#: judge/models/profile.py:66
+msgid "theme"
+msgstr "theme"
+
+#: judge/models/profile.py:67
+msgid "font"
+msgstr "font"
+
+#: judge/models/profile.py:70
 msgid "achievement name"
 msgstr ""
 
-#: judge/models/profile.py:39
+#: judge/models/profile.py:71
 msgid "achievement description"
 msgstr ""
 
-#: judge/models/profile.py:40
+#: judge/models/profile.py:72
 msgid "rarity"
 msgstr ""
 
-#: judge/models/profile.py:40
+#: judge/models/profile.py:72
 msgid ""
 "raresa del Achievement. Una raresa de 1 significa que té una probabilitat "
 "normal en apareixer. Una de 2 significa que té el doble de probabilitats que"
 " la resta dintre de la seva categoria de qualitat,etc"
 msgstr ""
+"rarity of the Achievement. A rarity of 1 means it has a normal chance of "
+"appearing. A rarity of 2 means it is twice as likely as the rest within its "
+"quality category, etc."
 
-#: judge/models/profile.py:41
+#: judge/models/profile.py:73
 msgid "achievement quality"
 msgstr ""
 
-#: judge/models/profile.py:41
+#: judge/models/profile.py:74
 msgid "Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari"
-msgstr ""
+msgstr "Quality of the Achievement. 1 is common, 2 rare, 3 epic, 4 legendary"
 
-#: judge/models/profile.py:42
+#: judge/models/profile.py:75
 msgid "achievement category"
 msgstr ""
 
-#: judge/models/profile.py:43
-msgid "achievement image"
-msgstr ""
-
-#: judge/models/profile.py:45
+#: judge/models/profile.py:79
 msgid ""
 "this image will appear in the profile of those who completed the "
 "achievements."
 msgstr ""
 
-#: judge/models/profile.py:52
-msgid "organization title"
+#: judge/models/profile.py:81
+msgid "mega fanfare"
 msgstr ""
 
-#: judge/models/profile.py:53
-msgid "organization slug"
+#: judge/models/profile.py:82
+msgid ""
+"Marks this achievement for an even more over-the-top gacha reveal than a "
+"normal legendary (extra confetti, rubber duck parade, rainbow background, a "
+"celebration sound), and sends an email to the site admins (settings.ADMINS) "
+"every time a user obtains it."
 msgstr ""
 
-#: judge/models/profile.py:54
-msgid "Organization name shown in URL"
+#: judge/models/profile.py:87
+msgid "created by"
 msgstr ""
 
-#: judge/models/profile.py:56
-msgid "Displayed beside user name during contests"
+#: judge/models/profile.py:89
+msgid ""
+"Set automatically to whoever created this achievement. A student with "
+"limited access to the admin can only edit or delete achievements they "
+"created themselves; real admins can edit or delete any achievement."
 msgstr ""
 
-#: judge/models/profile.py:57
-msgid "organization description"
+#: judge/models/profile.py:115
+msgid "institution name"
 msgstr ""
 
-#: judge/models/profile.py:58
-msgid "registrant"
+#: judge/models/profile.py:116
+msgid "institution slug"
 msgstr ""
 
-#: judge/models/profile.py:59
-msgid "User who registered this organization"
+#: judge/models/profile.py:117
+msgid "Institution name shown in URL"
 msgstr ""
 
-#: judge/models/profile.py:60
-msgid "administrators"
+#: judge/models/profile.py:119
+msgid "Displayed anywhere the full institution name would be too long"
 msgstr ""
 
-#: judge/models/profile.py:61
-msgid "Those who can edit this organization"
+#: judge/models/profile.py:120
+msgid "institution image"
 msgstr ""
 
-#: judge/models/profile.py:62
+#: judge/models/profile.py:122 judge/models/profile.py:184
 msgid "creation date"
 msgstr ""
 
-#: judge/models/profile.py:63
+#: judge/models/profile.py:166 judge/models/profile.py:171
+msgid "institution"
+msgstr ""
+
+#: judge/models/profile.py:167
+msgid "institutions"
+msgstr ""
+
+#: judge/models/profile.py:173
+msgid "The real institution this team belongs to, if any."
+msgstr ""
+
+#: judge/models/profile.py:174
+msgid "organization title"
+msgstr ""
+
+#: judge/models/profile.py:175
+msgid "organization slug"
+msgstr ""
+
+#: judge/models/profile.py:176
+msgid "Organization name shown in URL"
+msgstr ""
+
+#: judge/models/profile.py:178
+msgid "Displayed beside user name during contests"
+msgstr ""
+
+#: judge/models/profile.py:179
+msgid "organization description"
+msgstr ""
+
+#: judge/models/profile.py:180
+msgid "registrant"
+msgstr ""
+
+#: judge/models/profile.py:181
+msgid "User who registered this organization"
+msgstr ""
+
+#: judge/models/profile.py:182
+msgid "administrators"
+msgstr ""
+
+#: judge/models/profile.py:183
+msgid "Those who can edit this organization"
+msgstr ""
+
+#: judge/models/profile.py:185
 msgid "is open organization?"
 msgstr ""
 
-#: judge/models/profile.py:64
+#: judge/models/profile.py:186
 msgid "Allow joining organization"
 msgstr ""
 
-#: judge/models/profile.py:65
+#: judge/models/profile.py:187
 msgid "maximum size"
 msgstr ""
 
-#: judge/models/profile.py:66
+#: judge/models/profile.py:188
 msgid ""
 "Maximum amount of users in this organization, only applicable to private "
 "organizations"
 msgstr ""
 
-#: judge/models/profile.py:68
+#: judge/models/profile.py:190
 msgid "Student access code"
 msgstr ""
 
-#: judge/models/profile.py:72
+#: judge/models/profile.py:194
 msgid ""
 "This image will replace the default site logo for users viewing the "
 "organization."
 msgstr ""
 
-#: judge/models/profile.py:119
+#: judge/models/profile.py:252
 msgid "Administer organizations"
 msgstr ""
 
-#: judge/models/profile.py:120
+#: judge/models/profile.py:253
 msgid "Edit all organizations"
 msgstr ""
 
-#: judge/models/profile.py:122 judge/models/profile.py:149
-#: judge/models/profile.py:394
+#: judge/models/profile.py:255 judge/models/profile.py:288
+#: judge/models/profile.py:575
 msgid "organization"
 msgstr ""
 
-#: judge/models/profile.py:127
+#: judge/models/profile.py:260
 msgid "user associated"
 msgstr ""
 
-#: judge/models/profile.py:128
+#: judge/models/profile.py:261
 msgid "self-description"
 msgstr ""
 
-#: judge/models/profile.py:129
+#: judge/models/profile.py:262
 msgid "location"
 msgstr ""
 
-#: judge/models/profile.py:131
+#: judge/models/profile.py:264
 msgid "preferred language"
 msgstr ""
 
-#: judge/models/profile.py:135
+#: judge/models/profile.py:268
 msgid ""
 "Els punts gacha que ha gastat un usuari. No els punts que te. Els punts "
 "disponibles es calculen dinamicament entre la resta dels seus punts totals i"
 " aquest valor. Per donar gachapoints a un alumne, restar aquest valor. "
 "Permet negatius"
 msgstr ""
+"The gacha points a user has spent. Not the points they have. Available "
+"points are calculated dynamically from their total points minus this value. "
+"To give GachaPoints to a student, subtract this value. Negative values "
+"allowed"
 
-#: judge/models/profile.py:136
+#: judge/models/profile.py:270
+msgid "last daily solve bonus date"
+msgstr "last daily solve bonus date"
+
+#: judge/models/profile.py:271
+msgid ""
+"Madrid calendar date (Europe/Madrid) on which this user last collected the "
+"'first new problem of the day' GachaPoints bonus. Solving before and after "
+"Madrid midnight counts as two different days on purpose."
+msgstr ""
+"Madrid calendar date (Europe/Madrid) on which this user last collected the "
+"'first new problem of the day' GachaPoints bonus. Solving before and after "
+"Madrid midnight counts as two different days on purpose."
+
+#: judge/models/profile.py:275
 msgid "Punts en la primera divisio de la lliga actual"
-msgstr ""
+msgstr "Points in the first division of the current league"
 
-#: judge/models/profile.py:137
+#: judge/models/profile.py:276
 msgid "Punts en la segona divisio de la lliga actual"
-msgstr ""
+msgstr "Points in the second division of the current league"
 
-#: judge/models/profile.py:138
+#: judge/models/profile.py:277
 msgid ""
 "Punts en problemes de la categoria SQL, separats dels punts de programacio"
 msgstr ""
+"Points in problems of the SQL category, separate from programming points"
 
-#: judge/models/profile.py:139
+#: judge/models/profile.py:278
 msgid "Nombre de problemes de la categoria SQL resolts"
 msgstr "Number of solved problems in the SQL category"
 
-#: judge/models/profile.py:141
-msgid "user color"
-msgstr ""
-
-#: judge/models/profile.py:141
+#: judge/models/profile.py:280
 msgid "background color of your name in the users list."
 msgstr ""
 
-#: judge/models/profile.py:142
+#: judge/models/profile.py:281
 msgid "preferred theme"
 msgstr ""
 
-#: judge/models/profile.py:142
+#: judge/models/profile.py:281
 msgid "Your preferred theme for this web."
 msgstr ""
 
-#: judge/models/profile.py:143
+#: judge/models/profile.py:282
 msgid "preferred icon"
 msgstr ""
 
-#: judge/models/profile.py:143
+#: judge/models/profile.py:282
 msgid "Your preferred icon for this web."
 msgstr ""
 
-#: judge/models/profile.py:144
+#: judge/models/profile.py:283
 msgid "preferred font"
 msgstr ""
 
-#: judge/models/profile.py:144
+#: judge/models/profile.py:283
 msgid "Your preferred font for this web."
 msgstr ""
 
-#: judge/models/profile.py:147
+#: judge/models/profile.py:286
 msgid "last access time"
 msgstr ""
 
-#: judge/models/profile.py:148
+#: judge/models/profile.py:287
 msgid "last IP"
 msgstr ""
 
-#: judge/models/profile.py:151
+#: judge/models/profile.py:290
 msgid "display rank"
 msgstr ""
 
-#: judge/models/profile.py:153
+#: judge/models/profile.py:292
 msgid "Normal User"
 msgstr ""
 
-#: judge/models/profile.py:154
+#: judge/models/profile.py:293
 msgid "Problem Setter"
 msgstr ""
 
-#: judge/models/profile.py:155 templates/base.html:234
+#: judge/models/profile.py:294 templates/base.html:234
 #: templates/comments/list.html:99 templates/contest/contest-list-tabs.html:24
 #: templates/contest/ranking-table.html:48
 #: templates/problem/problem-list-tabs.html:11
@@ -2031,168 +2243,168 @@ msgstr ""
 msgid "Admin"
 msgstr ""
 
-#: judge/models/profile.py:156
+#: judge/models/profile.py:295
 msgid "comment mute"
 msgstr ""
 
-#: judge/models/profile.py:156
+#: judge/models/profile.py:295
 msgid "Some users are at their best when silent."
 msgstr ""
 
-#: judge/models/profile.py:158
+#: judge/models/profile.py:297
 msgid "unlisted user"
 msgstr ""
 
-#: judge/models/profile.py:158
+#: judge/models/profile.py:297
 msgid "User will not be ranked."
 msgstr ""
 
-#: judge/models/profile.py:161
+#: judge/models/profile.py:300
 msgid "user script"
 msgstr ""
 
-#: judge/models/profile.py:162
+#: judge/models/profile.py:301
 msgid "User-defined JavaScript for site customization."
 msgstr ""
 
-#: judge/models/profile.py:163
+#: judge/models/profile.py:302
 msgid "current contest"
 msgstr ""
 
-#: judge/models/profile.py:165
+#: judge/models/profile.py:304
 msgid "math engine"
 msgstr ""
 
-#: judge/models/profile.py:167
+#: judge/models/profile.py:306
 msgid "the rendering engine used to render math"
 msgstr ""
 
-#: judge/models/profile.py:168
+#: judge/models/profile.py:307
 msgid "TOTP 2FA enabled"
 msgstr ""
 
-#: judge/models/profile.py:169
+#: judge/models/profile.py:308
 msgid "check to enable TOTP-based two-factor authentication"
 msgstr ""
 
-#: judge/models/profile.py:170
+#: judge/models/profile.py:309
 msgid "WebAuthn 2FA enabled"
 msgstr ""
 
-#: judge/models/profile.py:171
+#: judge/models/profile.py:310
 msgid "check to enable WebAuthn-based two-factor authentication"
 msgstr ""
 
-#: judge/models/profile.py:172
+#: judge/models/profile.py:311
 msgid "TOTP key"
 msgstr ""
 
-#: judge/models/profile.py:173
+#: judge/models/profile.py:312
 msgid "32 character base32-encoded key for TOTP"
 msgstr ""
 
-#: judge/models/profile.py:175
+#: judge/models/profile.py:314
 msgid "TOTP key must be empty or base32"
 msgstr ""
 
-#: judge/models/profile.py:176
+#: judge/models/profile.py:315
 msgid "scratch codes"
 msgstr ""
 
-#: judge/models/profile.py:177
+#: judge/models/profile.py:316
 msgid ""
 "JSON array of 16 character base32-encoded codes"
 "                                                         for scratch codes"
 msgstr ""
 
-#: judge/models/profile.py:181
+#: judge/models/profile.py:320
 msgid ""
 "Scratch codes must be empty or a JSON array of"
 "                                                                  "
 "16-character base32 codes"
 msgstr ""
 
-#: judge/models/profile.py:183
+#: judge/models/profile.py:322
 msgid "API token"
 msgstr ""
 
-#: judge/models/profile.py:184
+#: judge/models/profile.py:323
 msgid "64 character hex-encoded API access token"
 msgstr ""
 
-#: judge/models/profile.py:186
+#: judge/models/profile.py:325
 msgid "API token must be None or hexadecimal"
 msgstr ""
 
-#: judge/models/profile.py:187
+#: judge/models/profile.py:326
 msgid "internal notes"
 msgstr ""
 
-#: judge/models/profile.py:188
+#: judge/models/profile.py:327
 msgid "Notes for administrators regarding this user."
 msgstr ""
 
-#: judge/models/profile.py:189
+#: judge/models/profile.py:328
 msgid "last data download time"
 msgstr ""
 
-#: judge/models/profile.py:356
+#: judge/models/profile.py:537
 msgid "Shows in-progress development stuff"
 msgstr ""
 
-#: judge/models/profile.py:357
+#: judge/models/profile.py:538
 msgid "Edit TOTP settings"
 msgstr ""
 
-#: judge/models/profile.py:359
+#: judge/models/profile.py:540
 msgid "user profile"
 msgstr ""
 
-#: judge/models/profile.py:360
+#: judge/models/profile.py:541
 msgid "user profiles"
 msgstr ""
 
-#: judge/models/profile.py:363
+#: judge/models/profile.py:544
 msgid "Date when the Achievement was obtained"
 msgstr ""
 
-#: judge/models/profile.py:364
+#: judge/models/profile.py:545
 msgid "achievement"
 msgstr ""
 
-#: judge/models/profile.py:371
+#: judge/models/profile.py:552
 msgid "device name"
 msgstr ""
 
-#: judge/models/profile.py:372
+#: judge/models/profile.py:553
 msgid "credential ID"
 msgstr ""
 
-#: judge/models/profile.py:373
+#: judge/models/profile.py:554
 msgid "public key"
 msgstr ""
 
-#: judge/models/profile.py:374
+#: judge/models/profile.py:555
 msgid "sign counter"
 msgstr ""
 
-#: judge/models/profile.py:396
+#: judge/models/profile.py:577
 msgid "request time"
 msgstr ""
 
-#: judge/models/profile.py:397
+#: judge/models/profile.py:578
 msgid "state"
 msgstr ""
 
-#: judge/models/profile.py:402
+#: judge/models/profile.py:583
 msgid "reason"
 msgstr ""
 
-#: judge/models/profile.py:405
+#: judge/models/profile.py:586
 msgid "organization join request"
 msgstr ""
 
-#: judge/models/profile.py:406
+#: judge/models/profile.py:587
 msgid "organization join requests"
 msgstr ""
 
@@ -2361,41 +2573,41 @@ msgstr ""
 msgid "judge"
 msgstr ""
 
-#: judge/models/submission.py:21 judge/models/submission.py:48
+#: judge/models/submission.py:21 judge/models/submission.py:49
 #: judge/utils/problems.py:75
 msgid "Accepted"
 msgstr ""
 
-#: judge/models/submission.py:22 judge/models/submission.py:49
+#: judge/models/submission.py:22 judge/models/submission.py:50
 msgid "Wrong Answer"
 msgstr ""
 
-#: judge/models/submission.py:23 judge/models/submission.py:51
+#: judge/models/submission.py:23 judge/models/submission.py:52
 msgid "Time Limit Exceeded"
 msgstr ""
 
-#: judge/models/submission.py:24 judge/models/submission.py:52
+#: judge/models/submission.py:24 judge/models/submission.py:53
 msgid "Memory Limit Exceeded"
 msgstr ""
 
-#: judge/models/submission.py:25 judge/models/submission.py:53
+#: judge/models/submission.py:25 judge/models/submission.py:54
 msgid "Output Limit Exceeded"
 msgstr ""
 
-#: judge/models/submission.py:26 judge/models/submission.py:54
+#: judge/models/submission.py:26 judge/models/submission.py:55
 msgid "Invalid Return"
 msgstr ""
 
-#: judge/models/submission.py:27 judge/models/submission.py:55
+#: judge/models/submission.py:27 judge/models/submission.py:56
 msgid "Runtime Error"
 msgstr ""
 
-#: judge/models/submission.py:28 judge/models/submission.py:42
-#: judge/models/submission.py:56 judge/utils/problems.py:77
+#: judge/models/submission.py:28 judge/models/submission.py:43
+#: judge/models/submission.py:57 judge/utils/problems.py:77
 msgid "Compile Error"
 msgstr ""
 
-#: judge/models/submission.py:29 judge/models/submission.py:41
+#: judge/models/submission.py:29 judge/models/submission.py:42
 msgid "Internal Error"
 msgstr ""
 
@@ -2403,180 +2615,202 @@ msgstr ""
 msgid "Short circuit"
 msgstr ""
 
-#: judge/models/submission.py:31 judge/models/submission.py:43
-#: judge/models/submission.py:62
+#: judge/models/submission.py:31 judge/models/submission.py:44
+#: judge/models/submission.py:63
 msgid "Aborted"
 msgstr ""
 
-#: judge/models/submission.py:37 judge/models/submission.py:58
-msgid "Queued"
+#: judge/models/submission.py:32
+msgid "Security Violation"
 msgstr ""
 
 #: judge/models/submission.py:38 judge/models/submission.py:59
-msgid "Processing"
+msgid "Queued"
 msgstr ""
 
 #: judge/models/submission.py:39 judge/models/submission.py:60
-msgid "Grading"
+msgid "Processing"
 msgstr ""
 
 #: judge/models/submission.py:40 judge/models/submission.py:61
+msgid "Grading"
+msgstr ""
+
+#: judge/models/submission.py:41 judge/models/submission.py:62
 msgid "Completed"
 msgstr ""
 
-#: judge/models/submission.py:57
+#: judge/models/submission.py:58
 msgid "Internal Error (judging server error)"
 msgstr ""
 
-#: judge/models/submission.py:67
+#: judge/models/submission.py:64
+msgid "Security Violation (blocked destructive query)"
+msgstr ""
+
+#: judge/models/submission.py:69
 msgid "submission time"
 msgstr ""
 
-#: judge/models/submission.py:68 judge/models/submission.py:232
+#: judge/models/submission.py:70 judge/models/submission.py:240
 msgid "execution time"
 msgstr ""
 
-#: judge/models/submission.py:69 judge/models/submission.py:233
+#: judge/models/submission.py:71 judge/models/submission.py:241
 msgid "memory usage"
 msgstr ""
 
-#: judge/models/submission.py:70 judge/models/submission.py:234
+#: judge/models/submission.py:72 judge/models/submission.py:242
 msgid "points granted"
 msgstr ""
 
-#: judge/models/submission.py:71
+#: judge/models/submission.py:73
 msgid "submission language"
 msgstr ""
 
-#: judge/models/submission.py:72
+#: judge/models/submission.py:74
 msgid "status"
 msgstr ""
 
-#: judge/models/submission.py:73
+#: judge/models/submission.py:75
 msgid "result"
 msgstr ""
 
-#: judge/models/submission.py:75
+#: judge/models/submission.py:77
 msgid "compile errors"
 msgstr ""
 
-#: judge/models/submission.py:77
+#: judge/models/submission.py:79
 msgid "batched cases"
 msgstr ""
 
-#: judge/models/submission.py:78
+#: judge/models/submission.py:80
 msgid "test case points"
 msgstr ""
 
-#: judge/models/submission.py:79
+#: judge/models/submission.py:81
 msgid "test case total points"
 msgstr ""
 
-#: judge/models/submission.py:80
+#: judge/models/submission.py:82
 msgid "judged on"
 msgstr ""
 
-#: judge/models/submission.py:82
+#: judge/models/submission.py:84
 msgid "submission judge time"
 msgstr ""
 
-#: judge/models/submission.py:83
+#: judge/models/submission.py:85
 msgid "was rejudged by admin"
 msgstr ""
 
-#: judge/models/submission.py:84
+#: judge/models/submission.py:87
+msgid "daily solve bonus awarded"
+msgstr "daily solve bonus awarded"
+
+#: judge/models/submission.py:88
+msgid ""
+"Whether this submission was the one that earned its author the \"first new "
+"problem of the day\" GachaPoints bonus -- shown once on this submission's "
+"page, not recomputed afterwards (e.g. on rejudge)."
+msgstr ""
+"Whether this submission was the one that earned its author the \"first new "
+"problem of the day\" GachaPoints bonus -- shown once on this submission's "
+"page, not recomputed afterwards (e.g. on rejudge)."
+
+#: judge/models/submission.py:92
 msgid "was ran on pretests only"
 msgstr ""
 
-#: judge/models/submission.py:87
+#: judge/models/submission.py:95
 msgid "lock submission"
 msgstr ""
 
-#: judge/models/submission.py:88 judge/models/submission.py:241
+#: judge/models/submission.py:96 judge/models/submission.py:249
 msgid "is flagged"
 msgstr ""
 
-#: judge/models/submission.py:194
+#: judge/models/submission.py:202
 msgid "Abort any submission"
 msgstr ""
 
-#: judge/models/submission.py:195
+#: judge/models/submission.py:203
 msgid "Rejudge the submission"
 msgstr ""
 
-#: judge/models/submission.py:196
+#: judge/models/submission.py:204
 msgid "Rejudge a lot of submissions"
 msgstr ""
 
-#: judge/models/submission.py:197
+#: judge/models/submission.py:205
 msgid "Submit without limit"
 msgstr ""
 
-#: judge/models/submission.py:198
+#: judge/models/submission.py:206
 msgid "View all submission"
 msgstr ""
 
-#: judge/models/submission.py:199
+#: judge/models/submission.py:207
 msgid "Resubmit others' submission"
 msgstr ""
 
-#: judge/models/submission.py:200
+#: judge/models/submission.py:208
 msgid "Change lock status of submission"
 msgstr ""
 
-#: judge/models/submission.py:203 templates/contest/moss.html:58
+#: judge/models/submission.py:211 templates/contest/moss.html:58
 msgid "submissions"
 msgstr ""
 
-#: judge/models/submission.py:207 judge/models/submission.py:228
+#: judge/models/submission.py:215 judge/models/submission.py:236
 msgid "associated submission"
 msgstr ""
 
-#: judge/models/submission.py:209
+#: judge/models/submission.py:217
 msgid "source code"
 msgstr ""
 
-#: judge/models/submission.py:221
+#: judge/models/submission.py:229
 msgid "submission vote"
 msgstr ""
 
-#: judge/models/submission.py:222
+#: judge/models/submission.py:230
 msgid "submission votes"
 msgstr ""
 
-#: judge/models/submission.py:230
+#: judge/models/submission.py:238
 msgid "test case ID"
 msgstr ""
 
-#: judge/models/submission.py:231
+#: judge/models/submission.py:239
 msgid "status flag"
 msgstr ""
 
-#: judge/models/submission.py:235
+#: judge/models/submission.py:243
 msgid "points possible"
 msgstr ""
 
-#: judge/models/submission.py:236
+#: judge/models/submission.py:244
 msgid "batch number"
 msgstr ""
 
-#: judge/models/submission.py:237
+#: judge/models/submission.py:245
 msgid "judging feedback"
 msgstr ""
 
-#: judge/models/submission.py:238
+#: judge/models/submission.py:246
 msgid "extended judging feedback"
 msgstr ""
 
-#: judge/models/submission.py:240
+#: judge/models/submission.py:248
 msgid "program output"
 msgstr ""
 
-#: judge/models/submission.py:263
+#: judge/models/submission.py:271
 msgid "submission test case"
 msgstr ""
 
-#: judge/models/submission.py:264
+#: judge/models/submission.py:272
 msgid "submission test cases"
 msgstr ""
 
@@ -2938,131 +3172,144 @@ msgstr ""
 msgid "Editing comment"
 msgstr ""
 
-#: judge/views/contests.py:56 judge/views/contests.py:201
-#: judge/views/contests.py:204 judge/views/contests.py:382
+#: judge/views/contests.py:57 judge/views/contests.py:202
+#: judge/views/contests.py:205 judge/views/contests.py:437
 msgid "No such contest"
 msgstr ""
 
-#: judge/views/contests.py:57 judge/views/contests.py:202
+#: judge/views/contests.py:58 judge/views/contests.py:203
 #, python-format
 msgid "Could not find a contest with the key \"%s\"."
 msgstr ""
 
-#: judge/views/contests.py:70
+#: judge/views/contests.py:71
 msgid "Contests"
 msgstr ""
 
-#: judge/views/contests.py:205
+#: judge/views/contests.py:206
 msgid "Could not find such contest."
 msgstr ""
 
-#: judge/views/contests.py:208
+#: judge/views/contests.py:209
 #, python-format
 msgid "Access to contest \"%s\" denied"
 msgstr ""
 
-#: judge/views/contests.py:235
+#: judge/views/contests.py:236
 msgid "Clone Contest"
 msgstr ""
 
-#: judge/views/contests.py:301
+#: judge/views/contests.py:290
+msgid "Group name"
+msgstr "Group name"
+
+#: judge/views/contests.py:299
+msgid "Group name cannot be blank."
+msgstr "Group name cannot be blank."
+
+#: judge/views/contests.py:327
 msgid "Contest not ongoing"
 msgstr ""
 
-#: judge/views/contests.py:302
+#: judge/views/contests.py:328
 #, python-format
 msgid "\"%s\" is not currently ongoing."
 msgstr ""
 
-#: judge/views/contests.py:306
+#: judge/views/contests.py:332
 msgid "Already in contest"
 msgstr ""
 
-#: judge/views/contests.py:307
+#: judge/views/contests.py:333
 #, python-format
 msgid "You are already in a contest: \"%s\"."
 msgstr ""
 
-#: judge/views/contests.py:310
+#: judge/views/contests.py:336
 msgid "Banned from joining"
 msgstr ""
 
-#: judge/views/contests.py:311
+#: judge/views/contests.py:337
 msgid ""
 "You have been declared persona non grata for this contest. You are "
 "permanently barred from joining this contest."
 msgstr ""
 
-#: judge/views/contests.py:372
+#: judge/views/contests.py:412
 #, python-format
 msgid "Enter access code for \"%s\""
 msgstr ""
 
-#: judge/views/contests.py:383
+#: judge/views/contests.py:427
+#, python-format
+msgid "Enter a group name to join \"%s\""
+msgstr "Enter a group name to join \"%s\""
+
+#: judge/views/contests.py:438
 #, python-format
 msgid "You are not in contest \"%s\"."
 msgstr ""
 
-#: judge/views/contests.py:402
+#: judge/views/contests.py:457
 msgid "ContestCalendar requires integer year and month"
 msgstr ""
 
-#: judge/views/contests.py:442
+#: judge/views/contests.py:497
 #, python-format
 msgid "Contests in %(month)s"
 msgstr ""
 
-#: judge/views/contests.py:442
+#: judge/views/contests.py:497
 msgid "F Y"
 msgstr ""
 
-#: judge/views/contests.py:489
+#: judge/views/contests.py:544
 #, python-format
 msgid "%s Statistics"
 msgstr ""
 
-#: judge/views/contests.py:617
+#: judge/views/contests.py:702
 msgid "Invalid contest"
 msgstr ""
 
-#: judge/views/contests.py:662
+#: judge/views/contests.py:749
 #, python-format
 msgid "%s Rankings"
 msgstr ""
 
-#: judge/views/contests.py:670
+#: judge/views/contests.py:757
 msgid "???"
 msgstr ""
 
-#: judge/views/contests.py:686
+#: judge/views/contests.py:773
 #, python-format
 msgid "Your participation in %s"
 msgstr ""
 
-#: judge/views/contests.py:687
+#: judge/views/contests.py:774
 #, python-format
 msgid "%s's participation in %s"
 msgstr ""
 
-#: judge/views/contests.py:694
+#: judge/views/contests.py:781
 msgid "Live"
 msgstr ""
 
-#: judge/views/contests.py:706 templates/contest/contest-tabs.html:13
+#: judge/views/contests.py:799 templates/contest/contest-tabs.html:13
 msgid "Participation"
 msgstr ""
 
-#: judge/views/contests.py:750
+#: judge/views/contests.py:843
 #, python-format
 msgid "%s MOSS Results"
 msgstr ""
 
-#: judge/views/contests.py:777
+#: judge/views/contests.py:870
 #, python-format
 msgid "Running MOSS for %s..."
 msgstr ""
 
-#: judge/views/contests.py:800
+#: judge/views/contests.py:893
 #, python-format
 msgid "Contest tag: %s"
 msgstr ""
@@ -3084,6 +3331,24 @@ msgstr ""
 #: judge/views/error.py:30
 #, python-format
 msgid "corrupt page %s"
+msgstr ""
+
+#: judge/views/institution.py:23 judge/views/institution.py:26
+msgid "No such institution"
+msgstr ""
+
+#: judge/views/institution.py:24
+#, python-format
+msgid "Could not find an institution with the key \"%s\"."
+msgstr ""
+
+#: judge/views/institution.py:27
+msgid "Could not find such institution."
+msgstr ""
+
+#: judge/views/institution.py:34 templates/institution/list.html:7
+#: templates/user/user-list-tabs.html:6
+msgid "Institutions"
 msgstr ""
 
 #: judge/views/language.py:12 templates/status/judge-status-table.html:9
@@ -3205,111 +3470,111 @@ msgstr ""
 msgid "No preview data specified."
 msgstr ""
 
-#: judge/views/problem.py:70
+#: judge/views/problem.py:69
 msgid "No such task"
 msgstr ""
 
-#: judge/views/problem.py:71
+#: judge/views/problem.py:70
 #, python-format
 msgid "Could not find a task with the code \"%s\"."
 msgstr ""
 
-#: judge/views/problem.py:94
+#: judge/views/problem.py:93
 msgid "No such problem"
 msgstr ""
 
-#: judge/views/problem.py:95
+#: judge/views/problem.py:94
 #, python-format
 msgid "Could not find a problem with the code \"%s\"."
 msgstr ""
 
-#: judge/views/problem.py:137
+#: judge/views/problem.py:136
 #, python-brace-format
 msgid "Editorial for {0}"
 msgstr ""
 
-#: judge/views/problem.py:140
+#: judge/views/problem.py:139
 #, python-brace-format
 msgid "Editorial for <a href=\"{1}\">{0}</a>"
 msgstr ""
 
-#: judge/views/problem.py:163
+#: judge/views/problem.py:162
 #, python-brace-format
 msgid "Guide for {0}"
 msgstr ""
 
-#: judge/views/problem.py:166
+#: judge/views/problem.py:165
 #, python-brace-format
 msgid "Guide for <a href=\"{1}\">{0}</a>"
 msgstr ""
 
-#: judge/views/problem.py:206
+#: judge/views/problem.py:205
 #, python-brace-format
 msgid "Database schema for {0}"
 msgstr ""
 
-#: judge/views/problem.py:433 judge/views/problem.py:602
+#: judge/views/problem.py:494 judge/views/problem.py:663
 #, python-brace-format
 msgid "Solve status for {0}"
 msgstr ""
 
-#: judge/views/problem.py:437 judge/views/problem.py:605
+#: judge/views/problem.py:498 judge/views/problem.py:666
 #, python-brace-format
 msgid "Solve status for <a href=\"{1}\">{0}</a>"
 msgstr ""
 
-#: judge/views/problem.py:732
+#: judge/views/problem.py:793
 #, python-format
 msgid "Stats for %s"
 msgstr ""
 
-#: judge/views/problem.py:951 judge/views/problem.py:1171
-#: judge/views/problem.py:1306
+#: judge/views/problem.py:1012 judge/views/problem.py:1232
+#: judge/views/problem.py:1378
 msgid "FTS syntax error"
 msgstr ""
 
-#: judge/views/problem.py:963 templates/contest/contest.html:79
+#: judge/views/problem.py:1024 templates/contest/contest.html:79
 #: templates/user/user-tabs.html:5 templates/user/users-table.html:14
 msgid "Problems"
 msgstr ""
 
-#: judge/views/problem.py:1186 templates/problem/problem-list-tabs.html:8
+#: judge/views/problem.py:1247 templates/problem/problem-list-tabs.html:8
 #: templates/problem/tasklist.html:56
 msgid "Tasks"
 msgstr ""
 
-#: judge/views/problem.py:1390 judge/views/problem.py:1398
+#: judge/views/problem.py:1462 judge/views/problem.py:1470
 #, python-format
 msgid "Submit to %s"
 msgstr ""
 
-#: judge/views/problem.py:1447
+#: judge/views/problem.py:1519
 msgid "Banned from submitting"
 msgstr ""
 
-#: judge/views/problem.py:1448
+#: judge/views/problem.py:1520
 msgid ""
 "You have been declared persona non grata for this problem. You are "
 "permanently barred from submitting this problem."
 msgstr ""
 
-#: judge/views/problem.py:1452
+#: judge/views/problem.py:1524
 msgid "Too many submissions"
 msgstr ""
 
-#: judge/views/problem.py:1453
+#: judge/views/problem.py:1525
 msgid "You have exceeded the submission limit for this problem."
 msgstr ""
 
-#: judge/views/problem.py:1499
+#: judge/views/problem.py:1571
 msgid "Do you want me to ban you?"
 msgstr ""
 
-#: judge/views/problem.py:1517
+#: judge/views/problem.py:1589
 msgid "Clone Problem"
 msgstr ""
 
-#: judge/views/problem.py:1543 templates/problem/task.html:64
+#: judge/views/problem.py:1615 templates/problem/task.html:64
 msgid "Clone task"
 msgstr ""
 
@@ -3474,10 +3739,10 @@ msgid "Language statistics"
 msgstr ""
 
 #: judge/views/status.py:24 templates/problem/solvestatus.html:79
-#: templates/problem/task.html:106 templates/problem/tasklist.html:173
+#: templates/problem/task.html:106 templates/problem/tasklist.html:190
 #: templates/problem/tasksolvestatus.html:80
 #: templates/problem/tasksolvestatus.html:150
-#: templates/submission/list.html:335
+#: templates/submission/list.html:338
 msgid "Status"
 msgstr ""
 
@@ -3485,7 +3750,7 @@ msgstr ""
 msgid "Version matrix"
 msgstr ""
 
-#: judge/views/submission.py:59 judge/views/submission.py:66
+#: judge/views/submission.py:58 judge/views/submission.py:65
 #, python-format
 msgid "Submission of %(problem)s by %(user)s"
 msgstr ""
@@ -3508,66 +3773,66 @@ msgstr ""
 msgid "All submissions"
 msgstr ""
 
-#: judge/views/submission.py:528
+#: judge/views/submission.py:531
 msgid "All my submissions"
 msgstr ""
 
-#: judge/views/submission.py:529
+#: judge/views/submission.py:532
 #, python-format
 msgid "All submissions by %s"
 msgstr ""
 
-#: judge/views/submission.py:560
+#: judge/views/submission.py:563
 #, python-format
 msgid "All submissions for %s"
 msgstr ""
 
-#: judge/views/submission.py:579
+#: judge/views/submission.py:582
 msgid "Must pass a problem"
 msgstr ""
 
-#: judge/views/submission.py:618
+#: judge/views/submission.py:621
 #, python-format
 msgid "My submissions for %(problem)s"
 msgstr ""
 
-#: judge/views/submission.py:619
+#: judge/views/submission.py:622
 #, python-format
 msgid "%(user)s's submissions for %(problem)s"
 msgstr ""
 
-#: judge/views/submission.py:715
+#: judge/views/submission.py:718
 msgid "Must pass a contest"
 msgstr ""
 
-#: judge/views/submission.py:723
+#: judge/views/submission.py:726
 #, python-format
 msgid "My submissions in %(contest)s"
 msgstr ""
 
-#: judge/views/submission.py:724
+#: judge/views/submission.py:727
 #, python-format
 msgid "%(user)s's submissions in %(contest)s"
 msgstr ""
 
-#: judge/views/submission.py:738
+#: judge/views/submission.py:741
 #, python-brace-format
 msgid "My submissions in <a href=\"{1}\">{0}</a>"
 msgstr ""
 
-#: judge/views/submission.py:740
+#: judge/views/submission.py:743
 #, python-brace-format
 msgid "<a href=\"{1}\">{0}</a>'s submissions in <a href=\"{3}\">{2}</a>"
 msgstr ""
 
-#: judge/views/submission.py:764
+#: judge/views/submission.py:767
 #, python-brace-format
 msgid ""
 "<a href=\"{1}\">{0}</a>'s submissions for <a href=\"{3}\">{2}</a> in <a "
 "href=\"{5}\">{4}</a>"
 msgstr ""
 
-#: judge/views/submission.py:769
+#: judge/views/submission.py:772
 #, python-brace-format
 msgid ""
 "<a href=\"{1}\">{0}</a>'s submissions for problem {2} in <a "
@@ -3652,99 +3917,114 @@ msgstr ""
 msgid "Perform Two-factor Authentication"
 msgstr ""
 
-#: judge/views/user.py:78 judge/views/user.py:212 judge/views/user.py:257
-#: judge/views/user.py:312
+#: judge/views/user.py:82 judge/views/user.py:242 judge/views/user.py:287
+#: judge/views/user.py:353
 msgid "No such user"
 msgstr ""
 
-#: judge/views/user.py:78 judge/views/user.py:212 judge/views/user.py:257
-#: judge/views/user.py:312
+#: judge/views/user.py:82 judge/views/user.py:242 judge/views/user.py:287
+#: judge/views/user.py:353
 #, python-format
 msgid "No user handle \"%s\"."
 msgstr ""
 
-#: judge/views/user.py:82
+#: judge/views/user.py:86
 #, python-format
 msgid "Gacha for %s"
 msgstr ""
 
-#: judge/views/user.py:141
+#: judge/views/user.py:145
 msgid "You don't have enough points"
 msgstr ""
 
-#: judge/views/user.py:141
+#: judge/views/user.py:145
 msgid "You need 5 GachaPoints in order to make a gacha roll"
 msgstr ""
 
-#: judge/views/user.py:216 judge/views/user.py:316
+#: judge/views/user.py:246 judge/views/user.py:357
 msgid "My account"
 msgstr ""
 
-#: judge/views/user.py:217 judge/views/user.py:317
+#: judge/views/user.py:247 judge/views/user.py:358
 #, python-format
 msgid "User %s"
 msgstr ""
 
-#: judge/views/user.py:261
+#: judge/views/user.py:291
 msgid "Gacha Result"
 msgstr ""
 
-#: judge/views/user.py:365
+#: judge/views/user.py:327
+msgid "No such gacha result"
+msgstr "No such gacha result"
+
+#: judge/views/user.py:328
+#, python-format
+msgid "No gacha result with id \"%s\"."
+msgstr "No gacha result with id \"%s\"."
+
+#: judge/views/user.py:331
+msgid "Permission denied"
+msgstr "Permission denied"
+
+#: judge/views/user.py:332
+msgid "You may not view someone else's gacha result."
+msgstr "You may not view someone else's gacha result."
+
+#: judge/views/user.py:406
 msgid "Login"
 msgstr ""
 
-#: judge/views/user.py:406
+#: judge/views/user.py:447
 msgid "M j, Y, G:i"
 msgstr ""
 
-#: judge/views/user.py:525
+#: judge/views/user.py:566
 msgid "Preparing your data..."
 msgstr ""
 
-#: judge/views/user.py:529 templates/user/edit-profile.html:391
+#: judge/views/user.py:570 templates/user/edit-profile.html:391
 msgid "Download your data"
 msgstr ""
 
-#: judge/views/user.py:585
+#: judge/views/user.py:626
 msgid "Updated on site"
 msgstr ""
 
-#: judge/views/user.py:625 templates/admin/auth/user/change_form.html:14
+#: judge/views/user.py:666 templates/admin/auth/user/change_form.html:14
 #: templates/admin/auth/user/change_form.html:17 templates/base.html:236
 #: templates/user/user-tabs.html:10
 msgid "Edit profile"
 msgstr ""
 
-#: judge/views/user.py:644
+#: judge/views/user.py:685
 msgid "Generated API token for user"
 msgstr ""
 
-#: judge/views/user.py:656
+#: judge/views/user.py:697
 msgid "Removed API token for user"
 msgstr ""
 
-#: judge/views/user.py:666
+#: judge/views/user.py:707
 msgid "Generated scratch codes for user"
 msgstr ""
 
-#: judge/views/user.py:672 templates/user/list.html:20
+#: judge/views/user.py:713 templates/user/list.html:20
 #: templates/user/user-list-tabs.html:4
 msgid "Leaderboard"
 msgstr ""
 
-#: judge/views/user.py:721
+#: judge/views/user.py:762
 msgid "Leaderboard Primera"
 msgstr ""
 
-#: judge/views/user.py:756
+#: judge/views/user.py:797
 msgid "Leaderboard Segona"
 msgstr ""
 
-#: judge/views/user.py:790
-#, fuzzy
-#| msgid "Problemes de Bases de Dades"
+#: judge/views/user.py:831
 msgid "Leaderboard Bases de Dades"
-msgstr "Database Problems"
+msgstr ""
 
 #: judge/views/widgets.py:52 judge/views/widgets.py:62
 #, python-format
@@ -3834,18 +4114,22 @@ msgid "spectating"
 msgstr ""
 
 #: templates/base.html:279
+msgid "Encara pots guanyar el bonus del primer problema nou del dia!"
+msgstr "You can still earn today's first new problem bonus!"
+
+#: templates/base.html:285
 msgid "This site works best with JavaScript enabled."
 msgstr ""
 
-#: templates/base.html:306
+#: templates/base.html:312
 msgid "Codi font del lloc"
 msgstr ""
 
-#: templates/base.html:307
+#: templates/base.html:313
 msgid "Codi font del jutge"
 msgstr ""
 
-#: templates/base.html:308
+#: templates/base.html:314
 msgid "Oferit sota llicència Affero GPL"
 msgstr ""
 
@@ -4032,7 +4316,7 @@ msgid "Voter"
 msgstr ""
 
 #: templates/comments/votes.html:6
-#: templates/submission/status-testcases.html:80
+#: templates/submission/status-testcases.html:99
 #: templates/user/user-problems.html:99
 msgid "Score"
 msgstr ""
@@ -4061,7 +4345,7 @@ msgstr ""
 msgid "Please enter your access code:"
 msgstr ""
 
-#: templates/contest/access_code.html:32
+#: templates/contest/access_code.html:32 templates/contest/group_name.html:35
 msgid "Join Contest"
 msgstr ""
 
@@ -4074,24 +4358,37 @@ msgid "Rank"
 msgstr ""
 
 #: templates/contest/base-ranking-table.html:7
-#: templates/problem/solvestatus.html:76
-#: templates/problem/tasksolvestatus.html:76
-#: templates/problem/tasksolvestatus.html:146
+#: templates/problem/tasklist.html:156
 #: templates/user/base-users-table-database.html:7
 #: templates/user/base-users-table-lliga1.html:7
 #: templates/user/base-users-table-lliga2.html:7
 #: templates/user/base-users-table.html:7
+msgid "Institution"
+msgstr ""
+
+#: templates/contest/base-ranking-table.html:8
+#: templates/problem/solvestatus.html:76
+#: templates/problem/tasksolvestatus.html:76
+#: templates/problem/tasksolvestatus.html:146
+#: templates/user/base-users-table-database.html:8
+#: templates/user/base-users-table-lliga1.html:8
+#: templates/user/base-users-table-lliga2.html:8
+#: templates/user/base-users-table.html:8
 msgid "Flag"
 msgstr ""
 
 #: templates/contest/base-ranking-table.html:9
+msgid "Group"
+msgstr "Group"
+
+#: templates/contest/base-ranking-table.html:10
 #: templates/problem/solvestatus.html:78
 #: templates/problem/tasksolvestatus.html:78
 #: templates/problem/tasksolvestatus.html:148
-#: templates/user/base-users-table-database.html:9
-#: templates/user/base-users-table-lliga1.html:9
-#: templates/user/base-users-table-lliga2.html:9
-#: templates/user/base-users-table.html:9
+#: templates/user/base-users-table-database.html:10
+#: templates/user/base-users-table-lliga1.html:10
+#: templates/user/base-users-table-lliga2.html:10
+#: templates/user/base-users-table.html:10
 msgid "Organization"
 msgstr ""
 
@@ -4157,7 +4454,7 @@ msgid "Info"
 msgstr ""
 
 #: templates/contest/contest-tabs.html:6 templates/stats/base.html:9
-#: templates/submission/list.html:381
+#: templates/submission/list.html:383
 msgid "Statistics"
 msgstr ""
 
@@ -4245,6 +4542,20 @@ msgstr ""
 msgid "Editorial"
 msgstr ""
 
+#: templates/contest/group_name.html:29
+msgid "Please enter a group name."
+msgstr "Please enter a group name."
+
+#: templates/contest/group_name.html:32
+msgid ""
+"This contest identifies participants by a group name instead of their "
+"username. Choose the name your group will be shown as on the scoreboard -- "
+"you will not be able to change it afterwards."
+msgstr ""
+"This contest identifies participants by a group name instead of their "
+"username. Choose the name your group will be shown as on the scoreboard -- "
+"you will not be able to change it afterwards."
+
 #: templates/contest/list.html:31 templates/contest/media-js.html:9
 msgid "Are you sure you want to join?"
 msgstr ""
@@ -4269,11 +4580,11 @@ msgstr ""
 
 #: templates/contest/list.html:88
 msgid "LLIGA: PRIMERA DIVISIÓ"
-msgstr ""
+msgstr "LEAGUE: FIRST DIVISION"
 
 #: templates/contest/list.html:93
 msgid "LLIGA: SEGONA DIVISIÓ"
-msgstr ""
+msgstr "LEAGUE: SECOND DIVISION"
 
 #: templates/contest/list.html:141
 msgid "Spectate"
@@ -4373,15 +4684,22 @@ msgstr ""
 msgid "Disqualify"
 msgstr ""
 
-#: templates/contest/ranking.html:169
+#: templates/contest/ranking.html:224
 msgid "Are you sure you want to disqualify this participation?"
 msgstr ""
 
-#: templates/contest/ranking.html:174
+#: templates/contest/ranking.html:229
 msgid "Are you sure you want to un-disqualify this participation?"
 msgstr ""
 
-#: templates/contest/ranking.html:246
+#: templates/contest/ranking.html:301
+#, python-format
+msgid ""
+"The scoreboard was frozen at %(time)s. New submissions show up but their "
+"result stays hidden until the freeze is lifted."
+msgstr ""
+
+#: templates/contest/ranking.html:307
 msgid "View user participation"
 msgstr ""
 
@@ -4402,46 +4720,323 @@ msgid "Language AC Rate"
 msgstr ""
 
 #: templates/gacha/gachago.html:36 templates/gacha/gachamain.html:36
-#: templates/gacha/gacharesult.html:219
+#: templates/gacha/gacharesult.html:849
 msgid "Punts Disponibles"
-msgstr "Points Available"
+msgstr "Available Points"
 
 #: templates/gacha/gachago.html:40 templates/gacha/gachamain.html:40
-#: templates/gacha/gacharesult.html:248
+#: templates/gacha/gacharesult.html:960
 msgid "Use 5 GachaPoints"
 msgstr ""
 
-#: templates/gacha/gacharesult.html:240
+#: templates/gacha/gacharesult.html:864
+msgid "Bé... un més per la col·lecció."
+msgstr "Well... one more for the collection."
+
+#: templates/gacha/gacharesult.html:865
+msgid "Ah. Val."
+msgstr "Ah. Okay."
+
+#: templates/gacha/gacharesult.html:866
+msgid "Suposo que compta."
+msgstr "I guess it counts."
+
+#: templates/gacha/gacharesult.html:867
+msgid "Ni fu ni fa."
+msgstr "Meh, could be worse."
+
+#: templates/gacha/gacharesult.html:868
+msgid "Almenys no ha costat res."
+msgstr "At least it was free."
+
+#: templates/gacha/gacharesult.html:869
+msgid "Un clàssic sempre funciona."
+msgstr "A classic always works."
+
+#: templates/gacha/gacharesult.html:870
+msgid "Sorpresa: cap sorpresa."
+msgstr "Surprise: no surprise."
+
+#: templates/gacha/gacharesult.html:871
+msgid "Ja en tenia un d'igual. I un altre. I un altre."
+msgstr "I already had one just like it. And another. And another."
+
+#: templates/gacha/gacharesult.html:872
+msgid "El destí ha parlat, i ha dit \"meh\"."
+msgstr "Destiny has spoken, and it said \"meh\"."
+
+#: templates/gacha/gacharesult.html:873
+msgid "Segur que a algú li fa il·lusió."
+msgstr "I'm sure it's exciting for somebody."
+
+#: templates/gacha/gacharesult.html:874
+msgid "Redoblament de tambors... per a això?"
+msgstr "A drum roll... for this?"
+
+#: templates/gacha/gacharesult.html:875
+msgid "Com deia la iaia: no tot poden ser diamants."
+msgstr "As grandma used to say: not everything can be a diamond."
+
+#: templates/gacha/gacharesult.html:876
+msgid "Tècnicament és una victòria."
+msgstr "It's technically a win."
+
+#: templates/gacha/gacharesult.html:877
+msgid "La sort no hi era, avui."
+msgstr "Luck wasn't around today."
+
+#: templates/gacha/gacharesult.html:878
+msgid "Un pas més cap a completar la col·lecció (algun dia)."
+msgstr "One step closer to completing the collection (someday)."
+
+#: templates/gacha/gacharesult.html:881
+msgid "Ei, no està gens malament!"
+msgstr "Hey, that's not bad at all!"
+
+#: templates/gacha/gacharesult.html:882
+msgid "Mira mira, quina sorpresa més agradable!"
+msgstr "Well look at that, what a pleasant surprise!"
+
+#: templates/gacha/gacharesult.html:883
+msgid "Això sí que és un bon tirat!"
+msgstr "Now that's a good pull!"
+
+#: templates/gacha/gacharesult.html:884
+msgid "M'agrada com sona, això."
+msgstr "I like the sound of this."
+
+#: templates/gacha/gacharesult.html:885
+msgid "Un pas per sobre de la mitjana, i ja és molt!"
+msgstr "A step above average, and that's already a lot!"
+
+#: templates/gacha/gacharesult.html:886
+msgid "Ara sí que comencem a parlar."
+msgstr "Now we're talking."
+
+#: templates/gacha/gacharesult.html:887
+msgid "Prou bo per presumir-ne una mica."
+msgstr "Good enough to brag about a little."
+
+#: templates/gacha/gacharesult.html:888
+msgid "Rar de veritat, no rar de \"bé, suposo\"."
+msgstr "Actually rare, not \"well, I guess\" rare."
+
+#: templates/gacha/gacharesult.html:889
+msgid "Els déus del gacha t'han somrigut avui."
+msgstr "The gacha gods have smiled upon you today."
+
+#: templates/gacha/gacharesult.html:890
+msgid "Uau, mira com brilla!"
+msgstr "Wow, look at it shine!"
+
+#: templates/gacha/gacharesult.html:891
+msgid "Això val la pena ensenyar-ho als amics."
+msgstr "This one is worth showing your friends."
+
+#: templates/gacha/gacharesult.html:892
+msgid "Bon començament, seguim pujant!"
+msgstr "Good start, let's keep climbing!"
+
+#: templates/gacha/gacharesult.html:893
+msgid "Ni el pitjor ni el millor, però queda genial."
+msgstr "Not the best, not the worst, but it looks great."
+
+#: templates/gacha/gacharesult.html:894
+msgid "Ostres, quina gràcia que ha fet!"
+msgstr "Whoa, that was a fun one!"
+
+#: templates/gacha/gacharesult.html:895
+msgid "Ep, ep, ep, mira qui s'ho ha guanyat!"
+msgstr "Hey, hey, hey, look who earned that!"
+
+#: templates/gacha/gacharesult.html:898
+msgid "IMPRESSIONANT!! Quina sort!"
+msgstr "AMAZING!! What luck!"
+
+#: templates/gacha/gacharesult.html:899
+msgid "AIXÒ SÍ QUE ÉS ÈPIC!"
+msgstr "NOW THAT IS EPIC!"
+
+#: templates/gacha/gacharesult.html:900
+msgid "NO M'HO PUC CREURE!!"
+msgstr "I CAN'T BELIEVE IT!!"
+
+#: templates/gacha/gacharesult.html:901
+msgid "QUINA BOMBA ACABES DE TREURE!!"
+msgstr "WHAT A BOMBSHELL YOU JUST PULLED!!"
+
+#: templates/gacha/gacharesult.html:902
+msgid "ÈPIC DE VERITAT, NO ÈPIC DE MENTIDA!"
+msgstr "TRULY EPIC, NOT FAKE-EPIC!"
+
+#: templates/gacha/gacharesult.html:903
+msgid "EL TEU EQUIP ET FELICITARÀ PER AIXÒ!"
+msgstr "YOUR TEAM WILL CONGRATULATE YOU FOR THIS!"
+
+#: templates/gacha/gacharesult.html:904
+msgid "AIXÒ SÍ QUE MEREIX UNA CAPTURA DE PANTALLA!"
+msgstr "THIS ONE DESERVES A SCREENSHOT!"
+
+#: templates/gacha/gacharesult.html:905
+msgid "INCREÏBLE!! GUARDA'T AQUEST MOMENT!"
+msgstr "INCREDIBLE!! SAVE THIS MOMENT!"
+
+#: templates/gacha/gacharesult.html:906
+msgid "HAS DESBLOQUEJAT EL NIVELL \"SORTUT\"!"
+msgstr "YOU UNLOCKED \"LUCKY\" LEVEL STATUS!"
+
+#: templates/gacha/gacharesult.html:907
+msgid "QUIN COP DE SORT MÉS BRUTAL!"
+msgstr "WHAT A BRUTAL STROKE OF LUCK!"
+
+#: templates/gacha/gacharesult.html:908
+msgid "ELS ALTRES ET TINDRAN ENVEJA, I RAÓ NO ELS FALTARÀ!"
+msgstr "EVERYONE ELSE WILL BE JEALOUS, AND RIGHTLY SO!"
+
+#: templates/gacha/gacharesult.html:909
+msgid "AIXÒ ÉS DEL QUE ES PARLA A LA SALA DE PROFESSORAT!"
+msgstr "THIS IS WHAT THEY'LL TALK ABOUT IN THE STAFF ROOM!"
+
+#: templates/gacha/gacharesult.html:910
+msgid "HAS GUANYAT LA LOTERIA DEL GACHA!"
+msgstr "YOU WON THE GACHA LOTTERY!"
+
+#: templates/gacha/gacharesult.html:911
+msgid "ÈPIC ÉS QUEDAR-SE CURT!"
+msgstr "CALLING IT EPIC IS AN UNDERSTATEMENT!"
+
+#: templates/gacha/gacharesult.html:912
+msgid "AIXÒ HAURIA DE SORTIR ALS INFORMATIUS!"
+msgstr "THIS SHOULD BE ON THE NEWS!"
+
+#: templates/gacha/gacharesult.html:915
+msgid "★ LLEGENDARI ★ EL MILLOR DIA DE LA TEVA VIDA!!!"
+msgstr "★ LEGENDARY ★ THE BEST DAY OF YOUR LIFE!!!"
+
+#: templates/gacha/gacharesult.html:916
+msgid "★★★ ATURA-HO TOT, HAS FET HISTÒRIA!!! ★★★"
+msgstr "★★★ STOP EVERYTHING, YOU JUST MADE HISTORY!!! ★★★"
+
+#: templates/gacha/gacharesult.html:917
+msgid "LES ESTRELLES S'HAN ALINEAT NOMÉS PER TU!!!"
+msgstr "THE STARS HAVE ALIGNED JUST FOR YOU!!!"
+
+#: templates/gacha/gacharesult.html:918
+msgid "AIXÒ ÉS LLEGENDA, LITERALMENT!!!"
+msgstr "THIS IS LEGEND, LITERALLY!!!"
+
+#: templates/gacha/gacharesult.html:919
+msgid "TRUCA A LA FAMÍLIA, TRUCA ALS AMICS, TRUCA A TOTHOM!!!"
+msgstr "CALL YOUR FAMILY, CALL YOUR FRIENDS, CALL EVERYONE!!!"
+
+#: templates/gacha/gacharesult.html:920
+msgid "EL GACHA HA PLORAT D'EMOCIÓ EN DONAR-TE AIXÒ!!!"
+msgstr "THE GACHA CRIED TEARS OF JOY GIVING YOU THIS!!!"
+
+#: templates/gacha/gacharesult.html:921
+msgid "AQUEST MOMENT ES RECORDARÀ PER GENERACIONS!!!"
+msgstr "THIS MOMENT WILL BE REMEMBERED FOR GENERATIONS!!!"
+
+#: templates/gacha/gacharesult.html:922
+msgid "HAS ARRIBAT AL CIM DE L'OLIMP DEL GACHA!!!"
+msgstr "YOU HAVE REACHED THE PEAK OF GACHA OLYMPUS!!!"
+
+#: templates/gacha/gacharesult.html:923
+msgid "NI EN ELS TEUS MILLORS SOMNIS T'HO ESPERAVES!!!"
+msgstr "NOT EVEN IN YOUR WILDEST DREAMS DID YOU SEE THIS COMING!!!"
+
+#: templates/gacha/gacharesult.html:924
+msgid "EL SERVIDOR SENCER HAURIA DE SABER-HO, AVUI!!!"
+msgstr "THE WHOLE SERVER SHOULD KNOW ABOUT THIS TODAY!!!"
+
+#: templates/gacha/gacharesult.html:925
+msgid "QUE SONIN LES CAMPANES, HAS ACONSEGUIT EL LLEGENDARI!!!"
+msgstr "LET THE BELLS RING, YOU GOT THE LEGENDARY!!!"
+
+#: templates/gacha/gacharesult.html:926
+msgid "AIXÒ NO ÉS SORT, ÉS DESTÍ!!!"
+msgstr "THIS ISN'T LUCK, IT'S DESTINY!!!"
+
+#: templates/gacha/gacharesult.html:927
+msgid "GUARDA AQUESTA CAPTURA PER SEMPRE!!!"
+msgstr "SAVE THIS SCREENSHOT FOREVER!!!"
+
+#: templates/gacha/gacharesult.html:928
+msgid "EL MULTIVERS SENCER T'HA SOMRIGUT AVUI!!!"
+msgstr "THE ENTIRE MULTIVERSE SMILED UPON YOU TODAY!!!"
+
+#: templates/gacha/gacharesult.html:929
+msgid "ELS DÉUS DEL CODI T'HAN BENEÏT!!!"
+msgstr "THE GODS OF CODE HAVE BLESSED YOU!!!"
+
+#: templates/gacha/gacharesult.html:952
 msgid "Has aconseguit"
-msgstr ""
+msgstr "You got"
 
-#: templates/gacha/gacharesult.html:240
+#: templates/gacha/gacharesult.html:952
 msgid "un Sticker!"
-msgstr ""
+msgstr "a Sticker!"
 
-#: templates/gacha/gacharesult.html:240
+#: templates/gacha/gacharesult.html:952
 msgid "una Icona!"
-msgstr ""
+msgstr "an Icon!"
 
-#: templates/gacha/gacharesult.html:240
+#: templates/gacha/gacharesult.html:952
 msgid "un Color!"
-msgstr ""
+msgstr "a Color!"
 
-#: templates/gacha/gacharesult.html:240
+#: templates/gacha/gacharesult.html:952
 msgid "un Tema!"
-msgstr ""
+msgstr "a Theme!"
 
-#: templates/gacha/gacharesult.html:242
+#: templates/gacha/gacharesult.html:954
 #, python-format
-#| msgid ""
-#| "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-#| " 50% dels teus GachaPoints"
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
 " 50%% dels teus GachaPoints"
 msgstr ""
 "But it was a duplicate... What a shame! Since I'm feeling generous, I'll "
 "give you back 50%% of your GachaPoints"
+
+#: templates/institution/home.html:17
+#, python-format
+msgid "%(count)s team at this institution"
+msgid_plural "%(count)s teams at this institution"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/institution/home.html:23
+#, python-format
+msgid ""
+"%(points)s total points, %(problems)s problems solved, %(average)s points on"
+" average"
+msgstr ""
+
+#: templates/institution/home.html:29 templates/institution/list.html:24
+#: templates/organization/list.html:23 templates/problem/tasklist.html:191
+#: templates/status/language-list.html:35
+msgid "Name"
+msgstr ""
+
+#: templates/institution/home.html:30 templates/institution/list.html:25
+#: templates/organization/list.html:24
+msgid "Members"
+msgstr ""
+
+#: templates/institution/home.html:31 templates/institution/list.html:26
+#: templates/organization/list.html:25
+msgid "Total Points"
+msgstr ""
+
+#: templates/institution/home.html:32 templates/institution/list.html:27
+#: templates/organization/list.html:26
+msgid "Total Problems"
+msgstr ""
+
+#: templates/institution/home.html:33 templates/institution/list.html:28
+#: templates/organization/list.html:27 templates/problem/tasklist.html:194
+msgid "Average Points"
+msgstr ""
 
 #: templates/license.html:12
 msgid "Source:"
@@ -4581,27 +5176,6 @@ msgstr ""
 msgid "Organization Statistics"
 msgstr ""
 
-#: templates/organization/list.html:23 templates/problem/tasklist.html:174
-#: templates/status/language-list.html:35
-msgid "Name"
-msgstr ""
-
-#: templates/organization/list.html:24
-msgid "Members"
-msgstr ""
-
-#: templates/organization/list.html:25
-msgid "Total Points"
-msgstr ""
-
-#: templates/organization/list.html:26
-msgid "Total Problems"
-msgstr ""
-
-#: templates/organization/list.html:27 templates/problem/tasklist.html:177
-msgid "Average Points"
-msgstr ""
-
 #: templates/organization/new.html:10 templates/ticket/new.html:38
 msgid "Create"
 msgstr ""
@@ -4718,7 +5292,7 @@ msgstr ""
 msgid "Generator args"
 msgstr ""
 
-#: templates/problem/data.html:428 templates/problem/database.html:78
+#: templates/problem/data.html:428 templates/problem/database.html:112
 msgid "Type"
 msgstr ""
 
@@ -4747,36 +5321,40 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#: templates/problem/database.html:52
+#: templates/problem/database.html:78
 msgid ""
 "This is the schema of the database used by this problem — the collections "
 "you can query against. In MongoDB, documents in the same collection can have"
 " different fields; the example below only shows one document."
 msgstr ""
 
-#: templates/problem/database.html:60
+#: templates/problem/database.html:86
 msgid "This collection is empty."
 msgstr ""
 
-#: templates/problem/database.html:64
+#: templates/problem/database.html:90
 msgid "No collections found in this database."
 msgstr ""
 
-#: templates/problem/database.html:69
+#: templates/problem/database.html:95
 msgid ""
 "This is the schema of the database used by this problem — the tables and "
 "columns you can query against."
 msgstr ""
 
-#: templates/problem/database.html:77
+#: templates/problem/database.html:99
+msgid "Diagrama ER"
+msgstr "ER Diagram"
+
+#: templates/problem/database.html:111
 msgid "Column"
 msgstr ""
 
-#: templates/problem/database.html:92
+#: templates/problem/database.html:126
 msgid "No tables found in this database."
 msgstr ""
 
-#: templates/problem/database.html:97 templates/problem/guide.html:73
+#: templates/problem/database.html:131 templates/problem/guide.html:73
 msgid "Back to problem"
 msgstr ""
 
@@ -4822,7 +5400,7 @@ msgid "Hot problems"
 msgstr ""
 
 #: templates/problem/list.html:212 templates/problem/list.html:231
-#: templates/problem/tasklist.html:175
+#: templates/problem/tasklist.html:192
 msgid "Author"
 msgstr ""
 
@@ -5087,8 +5665,8 @@ msgstr ""
 msgid "Point range"
 msgstr ""
 
-#: templates/problem/search-form.html:79 templates/problem/tasklist.html:149
-#: templates/submission/list.html:373 templates/ticket/list.html:245
+#: templates/problem/search-form.html:79 templates/problem/tasklist.html:166
+#: templates/submission/list.html:375 templates/ticket/list.html:245
 msgid "Go"
 msgstr ""
 
@@ -5154,27 +5732,31 @@ msgstr ""
 msgid "Filter by user name..."
 msgstr ""
 
-#: templates/problem/tasklist.html:112 templates/submission/list.html:94
+#: templates/problem/tasklist.html:115 templates/submission/list.html:97
 msgid "Filter by Equip..."
 msgstr ""
 
-#: templates/problem/tasklist.html:126
+#: templates/problem/tasklist.html:121
+msgid "Filter by Institution..."
+msgstr "Filter by Institution..."
+
+#: templates/problem/tasklist.html:135
 msgid "Filter Tasks"
 msgstr ""
 
-#: templates/problem/tasklist.html:130 templates/submission/list.html:354
+#: templates/problem/tasklist.html:139 templates/submission/list.html:357
 msgid "User Name"
 msgstr ""
 
-#: templates/problem/tasklist.html:139 templates/submission/list.html:363
+#: templates/problem/tasklist.html:147 templates/submission/list.html:365
 msgid "Equip"
 msgstr ""
 
-#: templates/problem/tasklist.html:168
+#: templates/problem/tasklist.html:185
 msgid "All Tasks"
 msgstr ""
 
-#: templates/problem/tasklist.html:176
+#: templates/problem/tasklist.html:193
 msgid "Number of Problems"
 msgstr ""
 
@@ -5508,11 +6090,11 @@ msgstr ""
 msgid "Filter by language..."
 msgstr ""
 
-#: templates/submission/list.html:331
+#: templates/submission/list.html:334
 msgid "Filter submissions"
 msgstr ""
 
-#: templates/submission/list.html:387
+#: templates/submission/list.html:389
 msgid "Total:"
 msgstr ""
 
@@ -5553,91 +6135,130 @@ msgstr ""
 msgid "Resubmit"
 msgstr ""
 
-#: templates/submission/status-testcases.html:12
+#: templates/submission/status-testcases.html:14
+msgid "Intent de consulta destructiva detectat"
+msgstr "Destructive query attempt detected"
+
+#: templates/submission/status-testcases.html:15
+msgid ""
+"Aquesta consulta ha intentat executar una operació que podria haver destruït"
+" o alterat dades reals (per exemple un DROP, un DELETE, o sortir del fitxer "
+"de base de dades assignat). No ha tingut cap efecte real: el sistema la "
+"bloqueja sempre abans d'executar-la."
+msgstr ""
+"This query attempted to execute an operation that could have destroyed or "
+"altered real data (for example a DROP, a DELETE, or escaping the assigned "
+"database file). It had no real effect: the system always blocks it before "
+"executing it."
+
+#: templates/submission/status-testcases.html:16
+msgid ""
+"Aquest intent ha quedat registrat i s'ha notificat al professorat. Fer això "
+"en un sistema real (no en un exercici) pot tenir conseqüències "
+"disciplinàries greus i, segons el cas, ser constitutiu de delicte."
+msgstr ""
+"This attempt has been logged and reported to the teaching staff. Doing this "
+"on a real system (not an exercise) can have serious disciplinary "
+"consequences and, depending on the case, may constitute a criminal offense."
+
+#: templates/submission/status-testcases.html:24
+msgid "Primer problema nou del dia!"
+msgstr "First new problem of the day!"
+
+#: templates/submission/status-testcases.html:25
+#, python-format
+msgid ""
+"És el primer problema nou que resols avui — +%(points)s GachaPoints de "
+"regal!"
+msgstr ""
+"This is the first new problem you've solved today — +%(points)s free "
+"GachaPoints!"
+
+#: templates/submission/status-testcases.html:31
 msgid "We are waiting for a suitable judge to process your submission..."
 msgstr ""
 
-#: templates/submission/status-testcases.html:14
+#: templates/submission/status-testcases.html:33
 msgid "Your submission is being processed..."
 msgstr ""
 
-#: templates/submission/status-testcases.html:16
+#: templates/submission/status-testcases.html:35
 msgid "Compilation Error"
 msgstr ""
 
-#: templates/submission/status-testcases.html:20
+#: templates/submission/status-testcases.html:39
 msgid "Compilation Warnings"
 msgstr ""
 
-#: templates/submission/status-testcases.html:25
+#: templates/submission/status-testcases.html:44
 msgid "Pretest Execution Results"
 msgstr ""
 
-#: templates/submission/status-testcases.html:27
+#: templates/submission/status-testcases.html:46
 msgid "Execution Results"
 msgstr ""
 
-#: templates/submission/status-testcases.html:28
+#: templates/submission/status-testcases.html:47
 msgid "Hints Used/Allowed:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:55
+#: templates/submission/status-testcases.html:74
 msgid "Batch "
 msgstr ""
 
-#: templates/submission/status-testcases.html:68
+#: templates/submission/status-testcases.html:87
 msgid "Case"
 msgstr ""
 
-#: templates/submission/status-testcases.html:70
+#: templates/submission/status-testcases.html:89
 msgid "Pretest"
 msgstr ""
 
-#: templates/submission/status-testcases.html:72
+#: templates/submission/status-testcases.html:91
 msgid "Test case"
 msgstr ""
 
-#: templates/submission/status-testcases.html:107
+#: templates/submission/status-testcases.html:126
 msgid "You already requested a hint on this case in"
 msgstr ""
 
-#: templates/submission/status-testcases.html:108
+#: templates/submission/status-testcases.html:127
 #, python-format
 msgid "submission #%(id)s"
 msgstr ""
 
-#: templates/submission/status-testcases.html:115
+#: templates/submission/status-testcases.html:134
 msgid ""
 "Si demanes ajuda es mostrara el primer cas de prova que hagis fallat. Això "
 "farà servir una pista. Un cop arribis a les pistes permeses, ja no podras "
 "demanar ajuda. Estàs segur?"
 msgstr ""
 
-#: templates/submission/status-testcases.html:116
+#: templates/submission/status-testcases.html:135
 msgid "Help!"
 msgstr ""
 
-#: templates/submission/status-testcases.html:136
+#: templates/submission/status-testcases.html:155
 msgid "Resources:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:145
+#: templates/submission/status-testcases.html:164
 msgid "Final pretest score:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:147
+#: templates/submission/status-testcases.html:166
 msgid "Final score:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:161
+#: templates/submission/status-testcases.html:180
 msgid "Passing pretests does not guarantee a full score on system tests."
 msgstr ""
 
-#: templates/submission/status-testcases.html:164
+#: templates/submission/status-testcases.html:183
 msgid "Submission aborted!"
 msgstr ""
 
-#: templates/submission/status-testcases.html:191
+#: templates/submission/status-testcases.html:210
 msgid "Something went wrong requesting the hint."
 msgstr ""
 
@@ -5918,11 +6539,11 @@ msgstr "Database Problems"
 
 #: templates/user/list_lliga1.html:20
 msgid "Classificació Primera Divisio"
-msgstr "First Division Ranking"
+msgstr "First Division Leaderboard"
 
 #: templates/user/list_lliga2.html:20
 msgid "Classificació Segona Divisio"
-msgstr "Second Division Ranking"
+msgstr "Second Division Leaderboard"
 
 #: templates/user/pp-row.html:24
 #, python-format
@@ -6045,15 +6666,15 @@ msgstr ""
 msgid "Max rating:"
 msgstr ""
 
-#: templates/user/user-list-tabs.html:6
+#: templates/user/user-list-tabs.html:7
 msgid "Primera Divisio"
 msgstr ""
 
-#: templates/user/user-list-tabs.html:7
+#: templates/user/user-list-tabs.html:8
 msgid "Segona Divisio"
 msgstr ""
 
-#: templates/user/user-list-tabs.html:8
+#: templates/user/user-list-tabs.html:9
 #, fuzzy
 #| msgid "Problemes de Bases de Dades"
 msgid "Bases de Dades"

@@ -94,7 +94,7 @@
                 {% for post in posts %}
                     <section class="{% if post.sticky %}sticky {% endif %}post">
                         <h2 class="title">
-                            <a href="{{ url('blog_post', post.id, post.slug) }}">{{ post.title }}</a>
+                            <a href="{{ url('blog_post', post.id, post.slug) }}">{{ post.get_translated_title(request.LANGUAGE_CODE) }}</a>
                         </h2>
                         <span class="time">
                             {%- if post.sticky %}<i title="Sticky" class="fa fa-star fa-fw"></i>{% endif -%}
@@ -112,8 +112,8 @@
                             </a>
                         </span>
                         <div class="summary content-description">
-                            {% cache 86400 'post_summary' post.id %}
-                                {{ post.summary|default(post.content, true)|markdown('blog', 'svg', lazy_load=True)|reference|str|safe }}
+                            {% cache 86400 'post_summary' post.id request.LANGUAGE_CODE %}
+                                {{ post.get_translated_summary(request.LANGUAGE_CODE)|markdown('blog', 'svg', lazy_load=True)|reference|str|safe }}
                             {% endcache %}
                         </div>
                     </section>

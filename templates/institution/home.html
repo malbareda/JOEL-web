@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title_ruler %}{% endblock %}
+
+{% block title_row %}
+    <h2>
+        {% if institution.image %}
+            <img src="{{ institution.image.url }}" alt="{{ institution.short_name }}" width="36" height="36"
+                 style="vertical-align: middle; margin-right: 0.4em;">
+        {% endif %}
+        {{ institution.name }}
+    </h2>
+{% endblock %}
+
+{% block body %}
+    <p>
+        {%- trans trimmed count=organizations|length %}
+            {{ count }} team at this institution
+        {% pluralize %}
+            {{ count }} teams at this institution
+        {% endtrans -%}
+        &mdash;
+        {{ _('%(points)s total points, %(problems)s problems solved, %(average)s points on average', points=institution.instPoints, problems=institution.instProblems, average=institution.instAverage) }}
+    </p>
+
+    <table id="institution-teams-table" class="table">
+        <thead>
+        <tr>
+            <th style="width:70%">{{ _('Name') }}</th>
+            <th>{{ _('Members') }}</th>
+            <th>{{ _('Total Points') }}</th>
+            <th>{{ _('Total Problems') }}</th>
+            <th>{{ _('Average Points') }}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for org in organizations %}
+            <tr>
+                <td><a href="{{ org.get_absolute_url() }}">{{ org.name }}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{ org.member_count }}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{ org.orgPoints }}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{ org.orgProblems }}</a></td>
+                <td><a href="{{ org.get_users_url() }}">{{ org.orgAverage }}</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

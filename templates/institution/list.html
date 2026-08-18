@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title_ruler %}{% endblock %}
+
+{% block title_row %}
+    {% set tab = 'institutions' %}
+    {% set title = _('Institutions') %}
+    {% include "user/user-list-tabs.html" %}
+{% endblock %}
+
+{% block media %}
+    <style>
+        .institution-row td { font-weight: bold; }
+        .institution-row .flag-cell img { vertical-align: middle; margin-right: 0.4em; }
+        .team-row td:first-child { padding-left: 2em; }
+        .team-row { opacity: 0.85; }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <table id="institution-table" class="table">
+        <thead>
+        <tr>
+            <th style="width:70%">{{ _('Name') }}</th>
+            <th>{{ _('Members') }}</th>
+            <th>{{ _('Total Points') }}</th>
+            <th>{{ _('Total Problems') }}</th>
+            <th>{{ _('Average Points') }}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for institution in institutions %}
+            <tr class="institution-row">
+                <td class="flag-cell">
+                    {% if institution.image %}
+                        <img src="{{ institution.image.url }}" alt="{{ institution.short_name }}" width="30" height="30">
+                    {% endif %}
+                    <a href="{{ institution.get_absolute_url() }}">{{ institution.name }}</a>
+                </td>
+                <td>{{ institution.member_count }}</td>
+                <td>{{ institution.instPoints }}</td>
+                <td>{{ institution.instProblems }}</td>
+                <td>{{ institution.instAverage }}</td>
+            </tr>
+            {% for org in institution.organizations.all() %}
+                <tr class="team-row">
+                    <td><a href="{{ org.get_absolute_url() }}">{{ org.name }}</a></td>
+                    <td><a href="{{ org.get_users_url() }}">{{ org.members.count() }}</a></td>
+                    <td>{{ org.orgPoints }}</td>
+                    <td>{{ org.orgProblems }}</td>
+                    <td>{{ org.orgAverage }}</td>
+                </tr>
+            {% endfor %}
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

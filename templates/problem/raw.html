@@ -83,7 +83,10 @@
 </div>
 {% if math_engine == 'jax' %}
     <script type="text/javascript" src="mathjax_config.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS_HTML"></script>
+    {# This file is rendered standalone (file:// on disk) for PDF generation, so a relative
+       /static/... URL wouldn't resolve -- it needs the site's own absolute URL instead, same as
+       the old cdnjs one, just pointing at our own server now. #}
+    <script type="text/javascript" src="https://jo-el.es{{ static('libs/mathjax/MathJax.js') }}?config=TeX-AMS_HTML"></script>
     <script type="text/javascript">
         MathJax.Hub.Register.StartupHook("End", function () {
             if (typeof window.callPhantom === 'function')

@@ -9,6 +9,16 @@
 
 {% block users_media %}
     <style>
+        /* The scoreboard is column-heavy (one per problem) and gets cut off by the site's normal
+           107em page cap well before the columns run out on wide screens -- widen just this page. */
+        body {
+            max-width: 100% !important;
+        }
+
+        #content {
+            width: 97% !important;
+        }
+
         #users-table .username {
             min-width: 20em;
         }
@@ -75,6 +85,51 @@
         .pretest-failed-score, .pretest-failed-score a {
             font-weight: bold;
             color: red;
+        }
+
+        /* First to get full points on a problem. Layered on top of the normal full-score/
+           pretest-full-score classes rather than replacing them. */
+        .first-blood {
+            background-color: #ffd966 !important;
+            position: relative;
+        }
+
+        .first-blood::after {
+            content: "\2605";
+            position: absolute;
+            top: 1px;
+            right: 4px;
+            font-size: 0.7em;
+            color: #93720a;
+        }
+
+        /* Solved in the last 2 real minutes. */
+        @keyframes recent-solve-pulse {
+            0%, 100% {
+                background-color: transparent;
+            }
+            50% {
+                background-color: #fff59d;
+            }
+        }
+
+        .recent-solve {
+            animation: recent-solve-pulse 1.4s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .recent-solve {
+                animation: none;
+                background-color: #fff59d;
+            }
+        }
+
+        /* Has a submission after the scoreboard froze -- correctness deliberately not shown. */
+        .frozen-pending {
+            background: repeating-linear-gradient(45deg, #e2e2e2, #e2e2e2 6px, #ececec 6px, #ececec 12px);
+            color: #777;
+            font-style: italic;
+            text-align: center;
         }
 
         .user-points, .user-points a {
@@ -240,6 +295,12 @@
 {% endblock %}
 
 {% block before_users_table %}
+    {% if scoreboard_is_frozen %}
+        {% set freeze_time_str = contest.freeze_time|date('N j, Y, G:i T') %}
+        <div class="alert alert-info" style="margin-bottom: 0.8em;">
+            {{ _('The scoreboard was frozen at %(time)s. New submissions show up but their result stays hidden until the freeze is lifted.', time=freeze_time_str) }}
+        </div>
+    {% endif %}
     <div style="margin-bottom: 0.5em">
         {% if tab == 'participation' %}
             {% if contest.can_see_full_scoreboard(request.user) %}

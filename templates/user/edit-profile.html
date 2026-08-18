@@ -312,7 +312,7 @@ You will not be able to view your scratch codes after you leave this page!') }}"
                               <select name="icon" class="fullwidth">
                               <option value>   </option>
                                 {% for icon in icons %}
-                                <option value="{{icon.logo_override_image}}" {% if icon.logo_override_image == profile.preferred_icon %}selected{% endif %}> {{icon.name}} </option>
+                                <option value="{{icon.get_image_url()}}" {% if icon.get_image_url() == profile.preferred_icon %}selected{% endif %}> {{icon.name}} </option>
                                 {% endfor %}
                             </select>
                             </span></td>

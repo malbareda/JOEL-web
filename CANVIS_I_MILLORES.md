@@ -602,6 +602,594 @@ Tots amb `partial=True`, categoria `sql`, i creats programàticament (ORM + comp
 
 ---
 
+### 31. Corregit bug real de producció: les preguntes múltiples SQL/Mongo es trencaven amb qualsevol enviament fet des del navegador (CRLF)
+
+**Abans:** l'usuari va detectar que `https://jo-el.es/problem/sqlinsertemployees` "semblava no funcionar". Investigant les submissions reals (`343105`, `343106`), totes dues preguntes d'un enviament amb respostes **correctes** fallaven amb `WA` i el missatge "Only a single SQL statement is allowed" (o, en un altre problema amb el mateix bug, "No answer found for question 1"/"Empty submission").
+
+**Causa:** `_QUESTION_MARKER_RE = re.compile(r'^[ \t]*--[ \t]*@@Q(\d+)@@[ \t]*$', re.MULTILINE)`, a `dmoj/checkers/sql.py` i `dmoj/checkers/mongo.py`, exigia que el marcador `-- @@Qn@@` acabés la línia (`[ \t]*$`). Però el `&lt;textarea&gt;` de `templates/problem/submit_database.html` que uneix les respostes (`build_source()`) genera el text amb `\n`, i **qualsevol navegador normalitza els finals de línia d'un `&lt;textarea&gt;` a `\r\n` (CRLF) en enviar el formulari** —és el comportament estàndard de l'especificació HTML, no un cas rar. Aquest `\r` extra, situat just abans del `\n` de cada marcador, feia que `[ \t]*$` no hi coincidís mai per als marcadors **enmig** del text (només el marcador final, si no tenia cap `\r` darrere per ser el final absolut de la cadena, es detectava —d'aquí la barreja estranya de símptomes entre `sqlinsertemployees` i `sqlupdatetraders`). El checker acabava tractant totes les respostes com un sol text, que després queia pel control "una sola sentència per resposta".
+
+És un bug **sistèmic**: afectava qualsevol problema SQL o Mongo amb més d'una pregunta enviat des del formulari web real, no un problema concret.
+
+**Decisió:** canviar la regex a `r'^[ \t]*--[ \t]*@@Q(\d+)@@[ \t]*\r?$'` (un `\r` opcional abans del final de línia), als dos fitxers.
+
+**Per què:** petició explícita de l'usuari arran d'un problema real que no funcionava en producció.
+
+**Resultat:** reproduïda la submissió `343106` (que abans fallava) directament contra el checker corregit: `AC` a les dues preguntes. Judge (`NouJutge`) aturat net (`Ctrl-C` a la sessió `screen` on corre) i reiniciat (`dmoj -c judge.yml -p 48462 localhost`); confirmat en línia i, rejudicant la submissió real, `343106` va passar de `WA` a `AC` (2.0/2.0) sense intervenir-hi manualment més enllà del reinici.
+
+---
+
+### 32. Checker Mongo: parser propi per acceptar la sintaxi real de la consola Mongo (claus sense cometes), en lloc de JSON estricte
+
+**Abans:** el checker `mongo` exigia JSON estricte (`json.loads`): claus i cadenes sempre amb cometes dobles. Cap pàgina de l'alumne (enunciat, esquema, quadre de resposta) avisava d'aquesta restricció —només ho deia la documentació interna (`docs/05-sistemes-mecanics/5.8-checker-mongo.md`). Detectat arran de la submissió real `343107` a `mongoupdateinventory`: l'usuari va escriure `db.products.updateOne({ _id: 7 }, { $set: { stock: 15 } })` (sintaxi Mongo normal, la que ensenya qualsevol tutorial) i va rebre "Arguments must be valid JSON".
+
+**Decisió**, triada explícitament per l'usuari entre relaxar el parser o només avisar millor a la interfície: **relaxar el parser**. `dmoj/checkers/mongo.py` incorpora un petit parser recursiu-descendent propi (`_JsonLikeParser`) que substitueix `json.JSONDecoder`: accepta claus sense cometes (`_id`, `$set`...), cadenes amb cometes simples o dobles, objectes/llistes niats, `true`/`false`/`null`, números, i comes finals. **No fa servir `eval()` en cap moment** —construeix només `dict`/`list`/`str`/`int`/`float`/`bool`/`None`, així que no obre cap forat d'execució de codi. Deliberadament **no** entén cap sintaxi de crida a funció (`ObjectId(...)`, `ISODate(...)`, `new Date()`), que continua sent rebutjada exactament igual que abans (no són valors vàlids d'aquesta gramàtica). El JSON estricte d'abans continua funcionant idènticament, ja que és un subconjunt d'aquesta gramàtica.
+
+**Per què:** petició explícita de l'usuari, després de detectar que la restricció (una decisió de disseny d'una sessió anterior) no es comunicava enlloc a l'alumne i rebutjava sintaxi Mongo perfectament vàlida.
+
+**Resultat:** reproduïda la submissió `343107` contra el checker corregit amb `_id`/`$set` sense cometes: `AC` a les dues preguntes, `inventory.json` real sense cap canvi (`md5sum` idèntic abans/després). Verificat que `ObjectId("abc")` i similars encara es rebutgen amb un error clar, i que la detecció d'operadors prohibits (`$where`, etc.) continua funcionant igual sobre el resultat ja parsejat. Judge reiniciat per aplicar el canvi.
+
+---
+
+### 33. Marcatge especial, avís per correu i pantalla d'alerta per a intents de consultes destructives (`DROP`, `DELETE`, `$where`...)
+
+**Abans:** un intent d'una consulta destructiva o d'escapar del fitxer assignat (`DROP TABLE`, `DELETE`, `ATTACH DATABASE`, `PRAGMA`, un mètode Mongo com `deleteOne`, un operador com `$where`...) ja es bloquejava des de sempre (mai tenia cap efecte real sobre les dades —vegeu `docs/05-sistemes-mecanics/5.5-checker-sql.md` i `5.8-checker-mongo.md`), però es mostrava a l'alumne exactament igual que qualsevol altra resposta incorrecta (`WA` normal), sense cap registre ni notificació.
+
+**Decisió**, amb les tres peces demanades explícitament per l'usuari:
+
+1. **Marcatge diferenciat**: nou codi de resultat `SEC` ("Security Violation") a `SUBMISSION_RESULT` (`judge/models/submission.py`, migració `0145_security_violation_result`). Els checkers (`dmoj/checkers/sql.py`/`mongo.py`) prefixen el missatge de retorn amb un marcador reservat (`@@SECVIOL@@`) **només** quan el rebuig ve de la llista de paraules/operadors sempre prohibits —**no** quan és un error normal (tipus de sentència equivocat per a la pregunta, múltiples sentències, mètode Mongo correcte però equivocat per aquesta pregunta). `judge/bridge/judge_handler.py::on_test_case` detecta aquest marcador, el treu abans de desar el `feedback`, i posa el cas com a `SEC` en lloc de `WA`; a `on_grading_end`, `SEC` es tracta com el pitjor resultat possible (per davant de `TLE`/`OLE`/etc.) a l'hora de calcular el resultat global de la submissió. Estil CSS propi (`case-SEC`, vermell fort amb text blanc) a `resources/submission.scss`.
+2. **Avís per correu**: `_notify_security_violation()` (nou mètode a `JudgeHandler`) envia un correu a `settings.ADMINS` (via `mail_admins`, reaprofitant el backend de l'API de Gmail ja configurat) cada cop que apareix algun cas `SEC`, amb l'usuari, el problema, l'enllaç directe a la submissió, la(les) sentència(es) bloquejada(es) i el codi font complet enviat. `fail_silently=True` i encapsulat en `try`/`except` propi —un problema enviant correu mai ha d'afectar la correcció.
+3. **Pantalla d'avís a l'alumne**: `judge/views/submission.py::SubmissionStatus.get_context_data` calcula `has_security_violation` (si algun cas de la submissió és `SEC`); `templates/submission/status-testcases.html` mostra, en aquest cas, un banner vermell (☠) explicant que la consulta no ha tingut cap efecte real però que l'intent ha quedat registrat i notificat al professorat, i que fer-ho en un sistema real podria tenir conseqüències disciplinàries o legals. Traduït als 5 idiomes actius (`ca`/`es`/`en`/`de`/`zh-Hans`).
+
+**Per què:** petició explícita de l'usuari arran d'una conversa sobre què passaria si algú provés un `DROP DATABASE` o similar contra un problema SQL/Mongo real.
+
+**Resultat:** creada i corregida una submissió real de prova a `sqlinsertemployees` (pregunta 1 correcta, pregunta 2 = `DROP TABLE Employees;`): cas 1 `AC`, cas 2 `SEC`, resultat global de la submissió `SEC`. Comprovat en viu, amb el client de test de Django autenticat com a usuari real, que el banner apareix a la pàgina de la submissió, tant en català com en castellà (traducció correcta). Confirmat que l'enviament de correu funciona de veritat (correu de prova rebut sense excepcions). `manage.py check`/`makemigrations --check` nets. Reiniciats `bridged` (via `supervisorctl`, per carregar `judge_handler.py`), `site` (`SIGHUP` net al mestre `uwsgi`) i el judge (per carregar el marcador nou als checkers).
+
+---
+
+### 34. Corregit typo preexistent a `resources/base.scss` (`--background_input: ##3A3A3A`, doble coixinet) que trencava la compilació completa de `resources/`
+
+**Abans:** el tema fosc (`:root[data-theme=theme-dark]`) tenia `--background_input: ##3A3A3A` (doble `#`) —un valor invàlid per a una propietat CSS personalitzada, que fa que qualsevol `background: var(--background_input)` que en depengui caigui al valor heretat/inicial en lloc del gris fosc previst per als camps d'entrada de text en aquest tema. Detectat com a efecte secundari en intentar compilar tot `resources/` d'un cop amb `sass resources:sass_processed` (fallava amb "Expected identifier" a `resources/style.css`, l'artefacte ja compilat que reprocessa el mateix error).
+
+**Decisió:** corregit el doble coixinet a un de sol.
+
+**Per què:** demanat explícitament per l'usuari en assabentar-se'n durant una altra tasca.
+
+**Resultat:** recompilat `resources/style.scss` → `sass_processed/style.css` (net, sense l'error), regenerat `resources/style.css`/`table.css`/`content-description.css`/`ranks.css`/`martor-description.css` amb `postcss`+`autoprefixer` (el mateix conjunt de `make_style.sh`), i confirmat que ara **sí** que es pot compilar tot `resources/` d'un sol cop sense errors (abans només funcionava compilant fitxers individuals). `manage.py collectstatic` executat per publicar els fitxers nous a `/tmp/static/`.
+
+---
+
+### 35. Traduïdes 77 cadenes pendents de `TODO.md` #1 (guies, Tasques, checker SQL/Mongo, gacha, Lliga FP) a ca/es/en/de
+
+**Abans:** `TODO.md` entrada #1 documentava que diverses funcionalitats pròpies d'aquest fork tenien el text ja embolicat en `_()`/`{{ _(...) }}` però mai traduït a cap idioma, perquè `manage.py makemessages` no s'havia tornat a executar des que es van construir. `msgfmt --statistics` confirmava l'abast real: 111/84/1354/1300/399 missatges sense traduir a ca/es/en/de/zh_Hans respectivament, més 68/75/7/10/74 marcats `#, fuzzy` —i els `fuzzy` no eren de fiar: `msgmerge` els havia aparellat per semblança de text amb traduccions antigues no relacionades (per exemple `"task code"` tenia aparellat `"Codi d'accés"`, o `"guide content"` tenia `"Amagar comentaris"`).
+
+**Decisió**, amb l'abast triat explícitament per l'usuari (només les 5 àrees ja llistades a `TODO.md` #1, no tot el backlog general; idiomes ca/es/en/de, deixant `zh_Hans` per a més endavant):
+
+1. Extrets, amb un script `polib`, els 77 `msgid` únics d'aquestes 5 àrees (localitzats pels seus `#: fitxer:línia` a `judge/models/problem.py`, `judge/forms.py`, `judge/models/problem_data.py`, `judge/models/profile.py`, `judge/models/contest.py`, `judge/views/user.py`, i les plantilles de gacha/lliga/guia) que estaven sense traduir o marcats `fuzzy`.
+2. **Classificat cada `msgid` pel seu idioma font real** (català o anglès —aquest fork barreja totes dues convencions: `verbose_name`/`help_text` de models en anglès, seguint l'estil DMOJ original, però el text de plantilles pròpies en català) abans de traduir, en lloc de confiar en el `msgstr` `fuzzy` existent. Per als missatges on el `msgid` ja és en l'idioma font d'un fitxer concret (p. ex. un `msgid` català dins de `ca.po`), s'ha buidat el `msgstr` i tret la marca `fuzzy` en lloc de traduir-lo —mateixa convenció que a l'entrada #29 (el buit recorre correctament al `msgid`).
+3. Traduïdes les 77 cadenes a `es`/`de` sempre, a `ca` només quan el `msgid` és anglès (53 de les 77), i a `en` només quan el `msgid` és català (24 de les 77) —a la resta, buidat el `msgstr` existent si calia (2 a `ca`, 1 a `en`).
+
+**Per què:** petició explícita de l'usuari per continuar `TODO.md` #1, amb l'abast concretat via preguntes explícites (quines àrees, quins idiomes).
+
+**Resultat:** `manage.py compilemessages` net, `manage.py check` net. Verificat en viu (`django.utils.translation.activate`) que una mostra de 7 cadenes de les 5 àrees es renderitza correctament als 4 idiomes (p. ex. `"SQL checker"` → `"Verificador SQL"`/`"Verificador SQL"`/`"SQL checker"`/`"SQL-Prüfer"` a ca/es/en/de). `msgfmt --statistics` abans → després (només comptant "sense traduir", entrades d'aquestes 5 àrees incloses en el total): ca 111→92, es 84→42, en 1354→1336, de 1300→1231 (la resta del descens ve del backlog general, no tocat). `zh_Hans` sense canvis (fora de l'abast triat). Reiniciat `site` (`SIGHUP` net al mestre `uwsgi`). `TODO.md` #1 actualitzada per reflectir el que queda pendent (les mateixes 5 àrees a `zh_Hans`, i la resta del backlog general).
+
+---
+
+### 36. Nova entitat `Institution`, contenidor real d'equips, i migració de les 160 organitzacions existents
+
+**Abans:** `Organization` ("equip") feia doble funció des de sempre: representava alhora un institut sencer (`Institut Sabadell`, 370 membres) i un grup-classe concret d'un curs (`Institut Sabadell - 1r DAM A`), sense cap relació entre totes dues coses —una barreja que "mai havia tingut massa sentit", en paraules de l'usuari.
+
+**Decisió**, amb l'abast concretat via preguntes explícites (només model + admin en aquesta primera tanda; instituts nous creats a partir d'un esborrany revisat abans d'aplicar-se; imatge amb pujada real de fitxer):
+
+1. **Model `Institution`** nou (`judge/models/profile.py`): `name`, `slug`, `short_name`, `image` (`ImageField`, la primera pujada de fitxer real d'aquest projecte —tota la resta d'"imatges" al lloc són camps de text amb una ruta/URL), `creation_date`. **Sense** `is_open` ni cap mecanisme d'unir-s'hi: mai és un equip obert, és pur contenidor administratiu.
+2. **`Organization.institution`**: FK opcional (`null=True, on_delete=SET_NULL`) cap a `Institution`.
+3. **Admin**: secció nova "Institutions" (`judge/admin/institution.py`) per crear/gestionar-los; `OrganizationAdmin` ara mostra i permet filtrar per institut (protegit pel mateix permís `judge.organization_admin` que `is_open`/`slots`).
+4. **`MEDIA_ROOT`/`MEDIA_URL`** configurats de zero (no existien —tot el sistema d'imatges previ eren rutes de text): `/tmp/media`, servit per un bloc `location /media` nou a l'nginx real de producció (`/etc/nginx/conf.d/nginx.conf`), calcat del bloc `/static` ja existent.
+5. **Migració de dades de les 160 organitzacions existents**: proposada com un esborrany complet (agrupació per nom probable, amb nivells de confiança) perquè l'usuari el revisés abans d'aplicar-hi res. Aplicat després de dues rondes de correccions de l'usuari (SVF = Institut Sant Vicent Ferrer, Proven\* = Institut Provençana, i un grup sencer —Institut El Calamot— que se m'havia escapat completament al primer esborrany, detectat en repassar les organitzacions que quedaven sense vincular).
+
+**Per què:** petició explícita de l'usuari per resoldre la confusió estructural entre "institut" i "equip".
+
+**Resultat:** **37 instituts creats, 128 organitzacions vinculades** (149 al final, després de les rondes de correcció), **11 deixades sense vincular** deliberadament (noms de prova/broma: `AAA`, `aaaaaa`, `FuturaFP`, etc.). Provat de cap a cap: pujada real d'una imatge de prova, verificada servida via `nginx` a `/media/institutions/...` (esborrada després). `manage.py check` net, migracions aplicades, `site` reiniciat.
+
+---
+
+### 37. Vistes públiques d'Instituts, bandera/nom de l'institut a les llistes d'usuaris i concursos, i redimensionat de les banderes
+
+**Abans:** l'entitat `Institution` (entrada #36) només existia a l'admin —cap pàgina pública, i les llistes d'usuaris només mostraven la bandera/nom de l'equip.
+
+**Decisió:**
+
+1. **`/institutions/`** (nova pestanya "Institutions" al costat d'"Organizations" dins d'Usuaris): cada institut amb les seves estadístiques agregades (membres, punts, problemes, mitjana —sumats sobre el conjunt *distint* de membres de tots els seus equips, per no comptar dos cops qui és a diversos equips del mateix institut) i, per sota, els equips que en formen part.
+2. **`/institution/<id>-<slug>`**: fitxa individual d'un institut, amb imatge i les mateixes estadístiques.
+3. **Bandera i nom de l'institut a les 4 taules d'usuaris i al rànquing de concursos**: nova columna de bandera **a l'esquerra** de la de l'equip, i el nom de l'institut en una línia separada dins la mateixa cel·la que l'equip —**sense repetir-se** si l'usuari és a diversos equips del mateix institut (funció Jinja nova i reutilitzable, `distinct_institutions`, `judge/jinja2/organization.py`, en lloc de repetir la lògica de deduplicació a cada plantilla).
+4. **Redimensionat de les dues banderes**, a petició de l'usuari en veure-ho en producció: la imatge de bandera de l'equip tenia mides HTML fixes (90×40) que deixaven text incrustat (p. ex. "Institut Sabadell") il·legible; ara la mida la controla el CSS (`resources/users.scss`), amb la columna d'equip a 200px (imatge fins a 190×70) i la d'institut a 150px (fins a 140×70), i la de nom d'usuari reduïda del 35% al 18% de l'amplada, ja que gairebé mai necessita tant espai.
+
+**Per què:** petició explícita de l'usuari, amb el redimensionat com a segona volta després de veure el resultat real en producció (confirmat amb captures de pantalla reals via Chromium headless, no només revisió de codi).
+
+**Resultat:** verificat en viu que el nom de l'institut no es repeteix per a un usuari amb dos equips del mateix institut ("Jaume II" surt un sol cop). Captures abans/després confirmen que el text de la bandera ("Institut Sabadell") ara es llegeix. `manage.py check` net, traduccions nova a ca/es/de, `site` reiniciat.
+
+---
+
+### 38. Concursos: contenidor més ample, congelació del marcador (`freeze_time`), i colors de "first blood"/"resolt fa poc"
+
+**Abans:** tres problemes reportats per l'usuari sobre la pàgina de rànquing de concursos (`/contest/<clau>/ranking/`): (1) el contenidor de la pàgina es limitava als `107em` habituals del lloc, tallant les columnes de problemes en concursos amb moltes preguntes (confirmat amb una captura real d'`xviiicodejam`: es tallava a la columna 9); (2) no hi havia cap manera de "congelar" el marcador; (3) no hi havia cap distinció visual per a qui resol primer un problema ni per a resolucions molt recents.
+
+**Decisió**, amb el comportament de congelació concretat via preguntes explícites (organitzadors veuen sempre el marcador real; descongelar és manual, buidant `freeze_time`; la pàgina de "les meves submissions" mai es congela per a un mateix):
+
+1. **Contenidor ample**: només a `/contest/.../ranking/` (`templates/contest/ranking.html`), `body{max-width:100% !important}`/`#content{width:97% !important}` —no toca cap altra pàgina del lloc.
+2. **`Contest.freeze_time`** (nou, `DateTimeField` opcional, editable des de l'admin a "Scheduling"): si es defineix i ja ha passat, `Contest.is_frozen` és cert. `Contest.can_see_frozen_scoreboard(user)` (= `is_editable_by`) decideix qui veu el marcador real.
+3. **Càlcul del marcador congelat, sense tocar mai les dades reals**: `BaseContestFormat`/`DefaultContestFormat`/`ICPCContestFormat` guanyen un mètode nou, `get_frozen_state()`, que recalcula `format_data`/`score`/`cumtime`/`tiebreaker` **només amb els enviaments anteriors a `freeze_time`** (mai toca ni desa els camps persistits de `ContestParticipation`, que `update_participation` continua calculant amb dades reals com sempre) i retorna també quins problemes tenen algun enviament posterior (`pending`), mostrats amb una casella grisa ratllada "?" que no revela mai si van anar bé. A `judge/views/contests.py`, `make_contest_ranking_profile` construeix una còpia superficial (`copy.copy`) de la participació amb aquests valors congelats només per a qui no pot veure el marcador real —el rànquing final es **reordena en Python** amb aquests valors (la consulta a la base de dades encara ordena pels valors reals, que mentre està congelat ja no coincideixen amb el que es mostra).
+4. **"First blood"** (primer a aconseguir puntuació completa en un problema, entre qui és visible segons el punt anterior): casella daurada amb una estrella. **"Resolt fa poc"** (puntuació completa aconseguida fa 2 minuts reals o menys): casella pulsant (`@keyframes`, respecta `prefers-reduced-motion`). Tots dos calculats a `BaseContestFormat` (mètodes compartits `first_blood_map`/`solve_extra_classes`, memoitzats per petició) i cridats des de `display_user_problem` de `default.py`/`icpc.py` —els únics dos formats de concurs realment en ús en aquest desplegament (82 concursos `default`, 15 `icpc`).
+
+**Per què:** petició explícita de l'usuari, amb el disseny de la congelació (qui veu què, com es descongela) concretat via preguntes abans d'implementar-ho.
+
+**Resultat:** provat contra un concurs real ja acabat (`xviiicodejam`, 884 enviaments dins la finestra en viu), congelant-lo temporalment a un punt intermedi: com a organitzador (superusuari), marcador real, 8 "first blood" reals, cap casella "pendent". Com a visitant normal, banner de congelació visible, 105 caselles "pendent" reals, 7 "first blood" visibles (el 8è quedava amagat perquè la primera resolució real d'aquell problema va ser posterior a la congelació —exactament el comportament esperat), i **l'ordre de classificació canvia realment** a partir de la posició 4 (`faq_equipo1`/`3x2ers` en lloc de `DavidFeliciano`/`Petes`), confirmant que el reordenament amb els valors congelats funciona. Pulsació de "resolt fa poc" verificada amb una prova unitària directa (una resolució simulada de fa 30 segons pulsa; una de fa 5 minuts no). `freeze_time` de prova retirat del concurs real en acabar. `manage.py check` net, traduccions noves a ca/es/de, `site` reiniciat.
+
+---
+
+### 39. Comptador d'intents incorrectes a la casella del rànquing (format `default`)
+
+**Abans:** la casella de cada problema al rànquing (format `default`, 82 dels 97 concursos —l'`icpc`, 15 concursos, ja mostrava això des de sempre com a "penalització") només mostrava els punts i el temps, sense cap indicació de quants intents incorrectes hi havia hagut pel mig, ni si el problema no s'havia arribat a resoldre.
+
+**Decisió:** `DefaultContestFormat` (`judge/contest_format/default.py`) guanya un comptador nou, `tries`, calculat igual a totes dues bandes (`update_participation`, real, i `get_frozen_state`, entrada #38): nombre d'enviaments no-IE/no-CE previs al millor resultat (exclosos ells mateixos si el millor va encertar), o el total d'intents si mai es va encertar. Es mostra en vermell entre parèntesis al costat dels punts —`1 (2)` (resolt, després de 2 intents fallits) o `0 (3)` (no resolt, 3 intents)— reaprofitant l'estil visual que l'`icpc` ja feia servir per a la penalització.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** com que els concursos `default` ja acabats mai rebran cap enviament nou que disparés el recàlcul, s'ha **recalculat `format_data` de les 3439 participacions existents en concursos `default`** (`fmt.update_participation(p)` per a cadascuna, dins una única transacció, 0 errors, ~25 segons) perquè el comptador aparegui de seguida arreu, no només a partir d'ara. Verificat en viu contra `xviiicodejam`: caselles com `1 (2)`, `1 (6)`, `0 (2)`, `0 (3)` apareixent correctament tant en problemes resolts com no resolts. `manage.py check` net, `site` reiniciat. Cap traducció nova (només un comptador numèric, sense text).
+
+---
+
+### 40. Revelació del gacha, versió totalment exagerada i còmica (estil gacha real)
+
+**Abans:** la revelació del gacha (entrada #29) era una targeta que gira amb un so i un esclat de partícules senzills. L'usuari va demanar explícitament anar molt més enllà: "totalment over-the-top, com en els gachas reals, fins a un punt còmic".
+
+**Decisió**, aplicada amb la mateixa escala progressiva per raresa que fan servir els gachas mòbils de veritat (una raresa comuna es revela quasi a l'instant; la millor raresa té una seqüència de diversos segons), jugada completament seriosa perquè això és precisament el que la fa còmica tractant-se d'un adhesiu de perfil:
+
+1. **Fase de "càrrega"** abans de girar la targeta (0,45s per a comú, fins a 2,4s per a llegendari): l'anell de la targeta pulsa amb una lluentor del color de la raresa, un so sintetitzat de "to que puja" (`playChargeSound`, un oscil·lador en dents de serra amb tremolo) i, per a èpic/llegendari, l'esquena de la pantalla comença a tremolar i uns raigs de sol rotatoris apareixen darrere la targeta.
+2. **Flaix i "cop" a l'impacte**: un flaix blanc a tota la pantalla i un so d'impacte (soroll blanc filtrat generat al navegador + un "boom" greu per a èpic/llegendari) al moment exacte en què la targeta comença a girar.
+3. **Revelació**: l'arpegi de sempre (ara amb un acord final "fanfara" cursi de debò per al llegendari), diversos esclats de partícules successius (1 a 3 segons l'un de l'altre) per a les raresa altes, pluja de confeti a tota la pantalla per a èpic/llegendari, i un **banner còmic gran** que apareix amb un rebot ("Bé... un més per la col·lecció." per al comú, fins a "★ LLEGENDARI ★ EL MILLOR DIA DE LA TEVA VIDA!!!" amb un fons arc de Sant Martí animat per al llegendari).
+4. Tot respecta `prefers-reduced-motion` (sense tremolor de pantalla ni animacions, el banner apareix directament).
+
+**Bug real detectat i corregut abans de publicar-se**: el filtre `|json` d'aquest projecte (`registry.filter('json', json.dumps)`) no marca la sortida com a seguim —cal encadenar-hi `|safe` sempre (com ja fan `organization/stats.html` i `problem/list.html`), o Jinja2 escapa les cometes com a `&#34;`, cosa que trenca la sintaxi de JavaScript dins un `<script>` (les entitats HTML no es descodifiquen mai dins d'un `<script>`) i hauria inutilitzat *tot* el bloc de script, ni tan sols el gir bàsic de la targeta hauria funcionat. Detectat abans de publicar-se perquè es va renderitzar la pàgina real i es va inspeccionar el JavaScript generat en lloc de confiar només en la revisió del codi font.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** provades les 4 rareses contra registres reals d'`AchievementObtained` (200 a totes 4), i el JavaScript renderitzat final validat amb `node --check` (sintaxi vàlida un cop aplicades totes les substitucions de Jinja2). Verificat **visualment** (no només revisió de codi): es va renderitzar la pàgina real, s'hi va injectar un clic automàtic, i es va capturar amb Chromium headless fent servir `--virtual-time-budget` perquè els `setTimeout`/`requestAnimationFrame` s'executessin abans de la captura —la imatge resultant mostra els raigs de sol rotatoris, la targeta ja girada, i el banner "★ LLEGENDARI ★" amb el degradat arc de Sant Martí, tal com estava dissenyat. `manage.py check` net, traduccions noves dels 4 textos del banner a es/en/de (el català ja n'és l'idioma font), `site` reiniciat.
+
+---
+
+### 41. Gacha: pausa de suspens abans de conèixer la raresa, llegendari encara més exagerat, i 15 frases per raresa (traduïdes)
+
+**Abans:** l'entrada #40 ja feia una revelació molt més dramàtica, però l'usuari en va demanar tres retocs concrets després de veure-la: (1) faltava una pausa d'expectació abans de saber quin color sortiria —ara mateix el color de la raresa es veia des del primer instant; (2) el llegendari s'havia de notar encara més exagerat i "rainbow"; (3) el text del banner era sempre la mateixa frase fixa per raresa, i calia assegurar la traducció i ampliar-ho a 10-20 frases per raresa triades a l'atzar.
+
+**Decisió:**
+
+1. **Un segon de suspens pur** (`GACHA_SUSPENSE_MS = 1000`) abans de cap pista de raresa: la seqüència sempre comença amb una lluentor grisa neutra i un so de càrrega genèric (qualitat 0), idèntic per a totes les raresa —només després d'aquest segon es revela el color/raigs/tremolor propis de la raresa real i continua la resta de la seqüència (entrada #40).
+2. **Llegendari encara més exagerat**: temps de càrrega de 2,4s → 3,2s, tremolor de pantalla de 9px → 15px, esclats de partícules de 3 → 5, paleta de partícules ampliada a un arc de Sant Martí complet (abans només tons taronja/vermell). A més, **els raigs de sol i la lluentor de la targeta ara canvien de to contínuament** (`filter: hue-rotate()` animat, classe nova `.rainbow-mode`, només per al llegendari) en lloc de quedar-se en un sol color, i el banner llegendari ara també oscil·la lleugerament (`gacha-banner-wiggle`) per rematar l'excés.
+3. **15 frases còmiques per raresa** (60 en total), triades a l'atzar a cada revelació, del deprimentment anticlimàtic per al comú ("Bé... un més per la col·lecció.", "Ah. Val.") fins al totalment desbocat per al llegendari ("EL GACHA HA PLORAT D'EMOCIÓ EN DONAR-TE AIXÒ!!!").
+
+**Bug real de disseny detectat i corregit durant la implementació**: l'extractor `babel`/Jinja2 d'aquest projecte **no detecta cap `_()` fet servir dins d'una llista `{% set %}`** —les 60 frases, escrites així en un primer intent, no apareixien enlloc al catàleg de traducció (0 de 60 extretes), tot i renderitzar-se bé en català (l'idioma font). Solució: renderitzar-les com a text ja traduït dins d'un `<div>` amagat (`#gacha-lines`, un `<span>` per frase amb `{{ _(...) }}` normal, el patró que sí que s'extreu correctament arreu del lloc) i llegir-les des de JavaScript per `textContent` en lloc de construir un array de JS directament amb Jinja.
+
+**Per què:** petició explícita de l'usuari, en tres punts concrets.
+
+**Resultat:** confirmades les 60 frases noves al catàleg de traducció (`polib`, cap ni una perduda) i totes traduïdes a es/en/de (el català ja n'és la font). Verificat en viu que el català i el castellà mostren les 15 frases de la raresa 4 correctament. Verificat **visualment** amb dues captures fetes a diferents `--virtual-time-budget` (700ms: encara en suspens, targeta sense girar, cap pista de color; ~4,8s: targeta girada, raigs ara en verd en lloc de taronja —confirmant el cicle de tonalitats—, confeti visible, i una frase *diferent* de la vista anteriorment —confirmant la tria a l'atzar). `manage.py check` net, `site` reiniciat.
+
+---
+
+### 42. Gacha: el missatge de "premi repetit" integrat a la revelació, en lloc de ser un text pla que feia spoiler
+
+**Abans:** el sistema de premis repetits (existent des de fa temps: si l'alumne ja tenia el mateix premi, es retornava un 50% dels GachaPoints gastats) seguia funcionant correctament per sota, però el missatge que ho explicava ("Però estava repetit...") es feia visible **instantàniament en clicar la targeta** (`document.getElementById("desc-item").style.display = "block"` disparat al primer clic, abans que comencés cap animació) —cosa que espatllava la sorpresa de tota la seqüència dramàtica de les entrades #40/#41: l'alumne ja sabia, abans que la targeta ni tan sols comencés a girar, tant quin premi li havia tocat com si estava repetit.
+
+**Decisió:**
+
+1. **Eliminat l'spoiler**: `desc-item` (nom/descripció del premi) i `desc-repeat` (el missatge de repetit) ja no es mostren en clicar —ara `desc-item` es revela com a part de la seqüència, al mateix moment que el banner i les partícules de la revelació principal (`runGachaSequence`), i `desc-repeat` ja no es mostra mai directament com a paràgraf.
+2. **El premi es "destrueix" i es substitueix per GachaPoints**, integrat a la mateixa targeta: ~2,8 segons després de la revelació principal (perquè l'alumne primer gaudeixi el moment gran), si el premi és repetit, la imatge del premi es difumina i es torna grisa (`filter: grayscale + opacity`, transició d'1,1s) mentre esclata un doll de monedes daurades des de la targeta (`burstCoinParticles`, reutilitzant el mateix canvas de partícules) i sona un "womp womp" descendent (`playDuplicateSound`, dues notes que baixen de to, el contrari exacte del so de càrrega ascendent). El banner de raresa (ja esvaït) es reutilitza per mostrar el text real de "repetit" (llegit del `desc-repeat` original via `textContent`, així el missatge —i la seva traducció— és sempre el mateix, no un de nou hardcodejat), amb un estil propi platejat/gris en lloc del color de la raresa.
+
+**Per què:** petició explícita de l'usuari, arran de veure que el missatge de repetit "spoilejava" la nova revelació dramàtica.
+
+**Resultat:** verificat que la lògica de joc (retorn del 50% de GachaPoints) no s'ha tocat, només la seva presentació. Verificat **visualment** amb dues captures a `--virtual-time-budget` diferents sobre una submissió real amb `repe=1`: a ~4,9s la revelació principal surt intacta i sense cap pista de repetit (imatge vibrant, banner normal de raresa); a ~8,5s la imatge ja apareix difuminada/grisa amb restes de monedes daurades, i el banner mostra el missatge real de repetit ("Però estava repetit... Quina llàstima!...") amb l'estil platejat, tal com estava dissenyat. `manage.py check` net, `site` reiniciat. Cap traducció nova (es reutilitza el text de `desc-repeat` ja existent i ja traduït).
+
+---
+
+### 43. Bonus de GachaPoints pel "primer problema nou del dia"
+
+**Abans:** resoldre problemes no donava cap incentiu addicional per dia; els GachaPoints només s'obtenien pels mecanismes ja existents (punts normals del problema). L'usuari va demanar una mecànica nova: la primera vegada que un alumne resol, cada dia, un problema que **no tingués ja resolt anteriorment**, ha de rebre GachaPoints extra de regal.
+
+**Decisió:**
+
+1. **Detecció d'"problema nou"**: es comprova, al moment de rebre el veredicte `AC` (a `judge_handler.py::on_grading_end`, abans de desar l'enviament actual), que no existeixi ja cap enviament `AC` previ del mateix (usuari, problema) i que el problema sigui públic i no restringit a organització —això evita que un enviament duplicat d'un problema ja resolt, o un problema privat d'un concurs, disparin el bonus.
+2. **Import: 5 GachaPoints** ("una tirada gratis", tal com va concretar l'usuari), aplicats **restant** del camp `Profile.gacha_points` (aquest camp desa els punts *gastats*, no els disponibles —restar-hi és el que dona punts extra a favor de l'alumne, tal com l'usuari va remarcar explícitament que calia fer).
+3. **Frontera de dia = data de calendari de Madrid (Europe/Madrid), no per usuari**: es guarda `Profile.last_daily_solve_bonus_date` i es compara amb `timezone.now()` convertit a `Europe/Madrid`; resoldre a les 23:59 i a les 00:01 (Madrid) compten com dos dies diferents, exactament com va demanar l'usuari, independentment de la zona horària configurada per cada alumne.
+4. **Idempotent i segur davant de condicions de carrera**: `Profile.grant_daily_solve_bonus()` fa servir `select_for_update()` dins una `transaction.atomic()`, de manera que si dos enviaments d'un mateix alumne acabessin de jutjar-se gairebé alhora el mateix dia, només un pot arribar a concedir el bonus.
+5. **Avís visible**: un banner nou (`daily-bonus-banner`, groc, amb icona d'estrella) a la pàgina de l'enviament, mostrat només si aquell enviament concret va ser el que ha concedit el bonus (`Submission.daily_bonus_awarded`, desat en el moment de jutjar i no recalculat mai després —per exemple, en un rejutjament no reapareix ni desapareix).
+6. **Marca persistent a un racó de la pantalla**: una insígnia rodona, taronja i amb pols (`#daily-bonus-badge`, icona de regal), fixa a la cantonada superior dreta de totes les pàgines, visible només si `profile.has_daily_solve_bonus_available` (és a dir, si `last_daily_solve_bonus_date` no és el dia de Madrid d'avui) i desapareix automàticament en el moment que l'alumne cobra el bonus (la pàgina següent que carregui ja no la mostrarà, perquè la condició deixa de complir-se). Enllaça a la pàgina del gacha.
+
+**Per què:** petició explícita de l'usuari, amb tots els detalls (import, restar de `gacha_points`, frontera horària global de Madrid, avís + marca persistent) concretats per ell mateix.
+
+**Resultat:** migració `0149_daily_solve_bonus.py` aplicada (camps `Profile.last_daily_solve_bonus_date` i `Submission.daily_bonus_awarded`). Verificat contra el sistema real: (1) via `manage.py shell`, `grant_daily_solve_bonus()` concedeix els 5 punts un únic cop per dia de Madrid, és idempotent en una segona crida el mateix dia, i torna a concedir-los si es simula un canvi de dia; (2) via el client de test de Django, la insígnia apareix a la pàgina d'inici quan el bonus està disponible i desapareix quan ja s'ha cobrat avui; (3) el banner es renderitza correctament a la pàgina de l'enviament quan `daily_bonus_awarded=True`. Verificat **visualment** amb captures reals de Chromium (sessió autenticada de veritat via el formulari de login, no només cookies injectades): la insígnia taronja amb la icona de regal apareix correctament a la cantonada superior dreta sense xocar amb la barra de navegació, i el banner groc ("First new problem of the day! ... +5 free GachaPoints!") apareix damunt dels resultats d'execució tal com estava dissenyat. Traduccions noves (els 2 camps del model i els 3 textos d'interfície) afegides i compilades a ca/es/en/de. `bridged` reiniciat (calia perquè `judge_handler.py` ha canviat) i `site` recarregat. `manage.py check` net.
+
+---
+
+### 44. Correcció de la mida de les banderes a les llistes d'usuaris i al rànquing de concursos
+
+**Abans:** l'usuari va reportar que les banderes s'havien tornat massa grans. En investigar-ho es va trobar un **bug real** anterior a aquesta petició: la cel·la `<td>` que mostra el logo de l'organització (`orgs[0].logo_override_image`, la columna "Flag") **mai havia tingut la classe `flag`** —només la capçalera `<th class="header flag">` la tenia— així que la regla CSS `#users-table .flag img` (afegida a l'entrada #37) no s'havia aplicat mai a aquesta columna en producció. El resultat era que cada logo es mostrava a la seva mida nativa sense cap límit: la majoria d'escoles tenen logos ja prou petits per casualitat, però alguns (per exemple un meme pujat com a logo per una organització sense nom) es mostraven enormes, trencant les files de la taula.
+
+**Decisió:**
+1. **Corregit el bug de la classe que faltava**: afegida `class="flag"` a la `<td>` del logo de l'organització (i a la seva variant buida `{% else %}`) a les 5 plantilles que en repeteixen la mateixa estructura: `templates/user/base-users-table.html`, `base-users-table-lliga1.html`, `base-users-table-lliga2.html`, `base-users-table-database.html` i `templates/contest/base-ranking-table.html`.
+2. **Reduïdes les mides màximes** a `resources/users.scss`, ja consistents ara que la regla afecta realment totes dues columnes: bandera d'equip de 190×70px (columna 200px) a **100×40px (columna 110px)**, bandera d'institut de 140×70px (columna 150px) a **80×40px (columna 90px)**.
+
+**Per què:** petició explícita de l'usuari ("ara es massa gran"); el bug de la classe que faltava es va descobrir pel camí en investigar per què una bandera concreta sortia desproporcionadament més gran que la resta tot i compartir la mateixa regla CSS nominal.
+
+**Resultat:** verificat **visualment** amb captures reals de Chromium (sessió autenticada de veritat) abans/després a `/users/` i al rànquing d'`xviiicodejam`: totes les banderes —incloent la que abans es mostrava enorme— ara es veuen a una mida consistent i compacta a totes dues pàgines. `manage.py check` net, CSS recompilat i publicat (`collectstatic`), `site` recarregat. Cap traducció nova (només CSS i un atribut `class` afegit).
+
+---
+
+### 45. Columna de "Classificació" (posició) més estreta, espai alliberat cedit a "Equip" (Organització)
+
+**Abans:** arran de la correcció de mida de les banderes (entrada #44), l'usuari va notar que la columna de posició/classificació ("Rank") havia quedat innecessàriament ampla (117px a la llista d'usuaris) per mostrar només un número d'1 a 4 xifres, mentre que la columna d'Equip/Organització sovint necessita més espai (noms llargs d'instituts i equips que es parteixen en diverses línies).
+
+**Decisió:** la columna de posició compartia la classe CSS `.rank` amb altres columnes sense relació (la d'Icona a la llista d'usuaris, la d'Organització al rànquing de concursos), així que no es podia estrènyer sense afectar-les. Es va afegir una classe pròpia i exclusiva `rank-number` (capçalera i cel·la) a les 5 plantilles que repeteixen aquesta taula (`base-users-table.html` i les seves 3 variants, i `contest/base-ranking-table.html`), fixada a 50px —de sobres per a qualsevol classificació real del lloc. Igualment, la columna d'Organització va deixar de compartir classe amb la d'Usuari (a la llista d'usuaris) o amb la de posició (al rànquing de concursos) i ara té la seva pròpia classe `organization-col`, ampliada del 18% al 24% de l'amplada de la taula.
+
+**Per què:** petició explícita de l'usuari, seguint directament de l'entrada #44.
+
+**Resultat:** verificat **amb mesures reals del DOM** (no només visualment): a `/users/`, la columna de posició ha passat de 117px a 66px, i la d'Organització de 240px a 320px. Verificat també **visualment** amb captures noves a `/users/` i al rànquing d'`xviiicodejam`: la posició ocupa l'espai just i l'Organització es llegeix amb menys línies partides, sense trencar cap altra columna. `manage.py check` net, CSS recompilat i publicat, `site` recarregat. Cap traducció nova.
+
+---
+
+### 46. Nom de l'institut destacat amb negreta i lletra més gran a la llista d'usuaris
+
+**Abans:** dins la cel·la d'Equip/Organització, el nom de l'institut (per exemple "Ins Sabadell") es mostrava amb exactament el mateix estil que el nom de l'equip/classe de sota (per exemple "Institut Sabadell - 1r DAMviA"), cosa que no deixava clar d'un cop d'ull quin dels dos era l'institut i quin l'equip concret.
+
+**Decisió:** afegit un estil propi a `.user-institutions` (`resources/users.scss`, dins `#users-table`) amb `font-weight: 700` i `font-size: 1.15em`, sense tocar cap altre estil de la cel·la (els noms d'equip de sota mantenen l'aparença de sempre).
+
+**Per què:** petició explícita de l'usuari ("marcar l'Institut d'una forma més clara... lletra més important").
+
+**Resultat:** verificat **visualment** amb captures noves a `/users/` i al rànquing d'`xviiicodejam`: el nom de l'institut ara destaca clarament en negreta i una mica més gran per sobre del nom de l'equip, a totes dues pàgines. `manage.py check` net, CSS recompilat i publicat, `site` recarregat. Cap traducció nova (només CSS).
+
+---
+
+### 47. Bloquejar l'accés directe per URL al resultat de gacha d'un altre usuari, i evitar el 500 en un id inexistent
+
+**Abans:** la vista `GachaResult` (`/gacha/result/<id>-<repe>`) identifica el resultat només per l'`id` d'`AchievementObtained` a la URL, sense cap comprovació de propietari —qualsevol usuari autenticat podia veure el resultat (imatge, nom, descripció del premi) de **qualsevol altre usuari** només canviant l'id a la URL (sense poder-hi interactuar ni que això li afegís res, però violant la privacitat del resultat). A més, un id que no existís (`AchievementObtained.objects.get(...)` sense capturar `DoesNotExist`) provocava un **error 500 real, amb el corresponent correu automàtic a l'administrador**, en lloc d'un simple 404.
+
+**Decisió:** moguda la consulta de l'`AchievementObtained` de `get_context_data` a `get()`, on ara es fan dues comprovacions abans de renderitzar res:
+1. Si l'id no existeix (`DoesNotExist`), es respon amb un **404** (`generic_message(..., status=404)`) en lloc de deixar-ho petar.
+2. Si l'`AchievementObtained` trobat **no pertany a l'usuari que fa la petició**, es respon amb un **403** (`generic_message(..., status=403)`), sense arribar mai a mostrar cap dada del premi d'un altre usuari.
+
+`get_context_data` reutilitza l'objecte ja validat (`self._ach`) en lloc de tornar-lo a consultar.
+
+**Per què:** petició explícita de l'usuari, en detectar que es podia accedir al gacha d'un altre per URL i que un id inexistent generava un error gros amb correu a l'admin.
+
+**Resultat:** verificat amb el client de test de Django amb 3 casos reals: el propi resultat (200, es veu amb normalitat), el resultat d'un altre usuari (403, bloquejat), i un id que no existeix (404, ja no 500). Verificat que els textos es renderitzen correctament en català ("Permís denegat", "No existeix aquest resultat de gacha"). Traduccions noves afegides i compilades a ca/es/en/de. `manage.py check` net, `site` recarregat.
+
+---
+
+### 48. Concursos "en grups": nom de grup triat per l'alumne en lloc del nom d'usuari a la classificació
+
+**Abans:** en unir-se a un concurs, un participant sempre s'identificava (a la classificació, etc.) pel seu propi nom d'usuari. No hi havia manera de fer que un grup/equip triés un nom propi per aparèixer a la classificació.
+
+**Decisió:**
+1. **Nou camp a l'admin de concursos**, dins "Settings": `use_group_names` ("usa noms de grup"), una simple casella de verificació.
+2. **Nou camp `ContestParticipation.group_name`**: es fixa un únic cop, en el moment d'unir-se, i mai es torna a modificar.
+3. **Flux d'unió al concurs**: si el concurs té `use_group_names` activat i encara no hi ha cap participació amb nom de grup fixat, en clicar "Unir-se" apareix un formulari nou (`contest/group_name.html`, seguint el mateix patró que el ja existent formulari de codi d'accés) demanant el nom de grup abans de crear la participació. Si l'usuari **abandona el concurs i hi torna a entrar**, com que la participació (no acabada) ja existeix amb el nom fixat, es reutilitza directament sense tornar a preguntar ni permetre canviar-lo —tal com es va demanar explícitament. El flux gestiona correctament també el cas (rar) que el concurs tingui alhora codi d'accés i noms de grup, arrossegant el codi ja validat cap al segon pas.
+4. **Classificació**: quan el concurs usa noms de grup, la columna que abans deia "Nom d'usuari" ara diu "Grup" i mostra el nom de grup en lloc del nom d'usuari real. Per als organitzadors del concurs, el nom de grup segueix enllaçant al perfil real de l'usuari (per poder gestionar-ho); per a la resta de participants, es mostra com a text pla, sense enllaç.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat de cap a cap amb el client de test de Django sobre un concurs real creat expressament per a la prova: (1) el primer clic per unir-se mostra el formulari de nom de grup i NO uneix encara l'usuari; (2) enviar el formulari amb un nom uneix l'usuari i desa el nom a la participació; (3) abandonar el concurs i tornar-s'hi a unir reutilitza la mateixa participació (mateix id) amb el mateix nom de grup, sense tornar a preguntar; (4) la classificació mostra el nom de grup ("Els Marcians") amb la capçalera "Grup", com a text pla per a un participant normal i com a enllaç per a un organitzador; (5) provada la regressió amb un concurs normal (`use_group_names=False`): la classificació segueix mostrant el nom d'usuari real i la capçalera "Nom d'usuari", exactament com abans. Comprovat que la casella `use_group_names` apareix a l'admin. Migració `0150_contest_group_names` aplicada. Traduccions noves a ca/es/en/de. `manage.py check` net, `site` recarregat.
+
+---
+
+### 49. Filtre per institut a la llista de Tasques
+
+**Abans:** la llista de Tasques (`/tasks/`) ja es podia filtrar per nom d'usuari i per equip (`Organization`), però no per institut —calia conèixer i seleccionar un per un tots els equips d'un institut per veure només les seves tasques.
+
+**Decisió:** afegit un tercer desplegable "Institution" (`judge/views/problem.py`, `TaskList`), seguint exactament el mateix patró ja existent per als altres dos: una tasca es considera "d'un institut" si el seu autor pertany a algun equip (`Organization`) enllaçat a aquell `Institution`. Es combina amb els altres filtres com un AND (seleccionar institut + usuari només mostra les tasques d'aquell usuari si a més pertany a l'institut triat).
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat amb dades reals (autors de `Institut Sabadell` vs. `Institut El Calamot`): filtrar per un institut mostra només les tasques d'autors d'aquell institut i n'exclou les de l'altre, sense filtre es veuen totes dues, i combinat amb el filtre d'usuari es comporta com un AND correctament. `manage.py check` net, traducció nova a ca/es/en/de, `site` recarregat.
+
+---
+
+### 50. Activada la generació de PDF dels enunciats de problemes (sense necessitat de Pdfoid)
+
+**Abans:** `HAS_PDF` era `False` i el botó "View as PDF" no sortia mai a cap problema —cap dels quatre motors de renderitzat que suporta aquest fork (`PhantomJSPdfMaker`, `SlimerJSPdfMaker`, `PuppeteerPDFRender`, `SeleniumPDFRender`, tots ja implementats a `judge/pdf_problems.py`) estava activat. La guia oficial de DMOJ que coneixia l'usuari només parla d'instal·lar un servei extern (Pdfoid, via Selenium+un servidor REST propi), pensat per a la versió original del projecte.
+
+**Decisió:** aquest fork **ja no necessita Pdfoid** —`SeleniumPDFRender` parla directament amb Chrome via Selenium, sense cap servei intermedi. `dmoj/local_settings.py` ja tenia (comentades) les línies exactes que calien, apuntant al `chromium-browser`/`chromedriver` que aquesta sessió ja fa servir per a captures de pantalla:
+```
+USE_SELENIUM = True
+SELENIUM_CUSTOM_CHROME_PATH = '/usr/bin/chromium-browser'
+SELENIUM_CHROMEDRIVER_PATH = '/usr/bin/chromedriver'
+```
+**Bug real detectat i corregut durant la primera prova**: amb aquesta configuració mínima, tota renderització fallava per timeout ("PDF math rendering timed out"). Causa: `chromium-browser` és un paquet **snap**, que aïlla l'accés al sistema de fitxers —només pot obrir `file://` sota el directori de l'usuari (`$HOME`), mai sota `/tmp` (el directori temporal per defecte, `DMOJ_PDF_PROBLEM_TEMP_DIR = tempfile.gettempdir()`, on es desa l'`input.html` que Chrome ha de llegir per renderitzar). Afegida una línia nova a `local_settings.py`:
+```
+DMOJ_PDF_PROBLEM_TEMP_DIR = '/home/ubuntu/pdf_render_tmp'
+```
+(un directori nou, sota `$HOME`, creat expressament). **`DMOJ_PDF_PROBLEM_CACHE` (`/joder-extras/pdfcache`, el PDF ja generat i servit) no es veu afectat per aquesta restricció**, perquè mai l'obre Chrome directament —només s'hi llegeix/escriu des de Django/nginx.
+
+`exiftool` (opcional, només serveix per posar el títol al PDF com a metadada) **no s'ha pogut instal·lar**: `apt-get install` falla per un problema previ no relacionat amb aquesta petició (un paquet de kernel amb dependències trencades al sistema). Es deixa pendent; sense ell, els PDF es generen igualment bé, només sense el títol incrustat als metadades del fitxer.
+
+**Per què:** petició explícita de l'usuari, seguint la guia oficial de DMOJ —adaptada al fet que aquest fork ja té un camí molt més senzill (Selenium directe) que no requereix cap servei extra.
+
+**Resultat:** verificat contra el procés `site` real (no només `manage.py shell`): `curl` real per HTTPS a `/problem/9barrisqueson13/pdf` i `/problem/laempresadeldiable/pdf` (aquest amb notació matemàtica LaTeX) retornen tots dos `200`, `Content-Type: application/pdf`, i un fitxer PDF vàlid (capçalera `%PDF-`). Provat també amb un problema amb una imatge incrustada a l'enunciat (Chrome la incrusta fidelment al PDF imprès, d'aquí que el fitxer pesi més —comportament esperat, no un error). Confirmat que la memòria cau funciona (segona petició servida en 0,03s, sense tornar a renderitzar). Confirmat que el botó "View as PDF" ja apareix a la pàgina del problema. `manage.py check` net; cap canvi de codi, només configuració, així que només ha calgut recarregar `site` (`sudo kill -HUP`), sense tocar `bridged` ni el jutge.
+
+---
+
+### 51. Revelació "mega fanfare" per a l'sticker especial ("Dret a Crear Achievements"), avís per correu, i accés d'admin al gacha de tothom
+
+**Abans:** tots els llegendaris (`quality=4`) es revelaven amb la mateixa posada en escena (entrades #40-#42). No hi havia manera de fer que un sticker concret destaqués encara més, ni cap avís automàtic quan algú l'obtingués —l'sticker "Dret a Crear Achievements" (l'únic que dona accés a crear nous stickers) depenia que l'alumne mateix enviés un correu manualment, tal com diu la seva pròpia descripció. A més, l'entrada #47 (bloqueig d'accés al gacha d'un altre usuari) impedia també als administradors veure el gacha de qualsevol alumne.
+
+**Decisió:**
+1. **Nou camp `Achievement.mega_fanfare`** (booleà, editable des de l'admin), marcat per a l'sticker "Dret a Crear Achievements" (l'únic marcat de moment). Quan un sticker el té activat, la seva revelació:
+   - Allarga la fase de "càrrega" un 40% i n'intensifica el tremolor de pantalla i el nombre d'esclats de partícules, per sobre de qualsevol llegendari normal.
+   - Fa sonar **`celebracio.mp3`** (l'únic so real d'aquest gacha —la resta són sintetitzats al navegador), publicat a `resources/celebracio.mp3` i servit com a fitxer estàtic normal.
+   - Fa aparèixer un **degradat arc de Sant Martí animat que cobreix tota la pàgina** (no només la targeta).
+   - Fa desfilar **una autèntica processó d'ànecs de goma (🦆)** creuant la pantalla en onades contínues durant uns 12 segons.
+2. **Avís automàtic per correu**: quan un usuari obté un sticker marcat `mega_fanfare`, s'envia un correu als administradors del lloc (`settings.ADMINS`, és a dir, malbareda@ies-sabadell.cat) amb el nom d'usuari, l'sticker obtingut, un enllaç al seu perfil i un enllaç directe al seu resultat de gacha —exactament la informació que abans calia que l'alumne enviés a mà. Seguint el mateix patró ja establert per als avisos de consultes destructives (entrada #33): sempre `fail_silently`, un correu que no arriba mai no ha de trencar la tirada de gacha de l'alumne.
+3. **Accés d'administradors al gacha de tothom**: el bloqueig de l'entrada #47 (403 si el resultat no és teu) ara es salta per a `request.user.is_staff` o `is_superuser` —els administradors poden veure el resultat de gacha de qualsevol usuari, la resta segueix exactament igual que abans.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** migració `0151_achievement_mega_fanfare` aplicada, camp activat per a l'sticker correcte (verificat: `Achievement.objects.get(id=156).mega_fanfare == True`, "Dret a Crear Achievements"). Verificat que `celebracio.mp3` es serveix correctament (`200`, `audio/mpeg`). Verificat el correu amb un backend de prova (sense enviar-ne cap de real durant la verificació): assumpte, destinatari i cos correctes, amb els dos enllaços. Verificat l'accés d'administrador amb el client de test (`200` per a un admin veient el resultat d'un altre usuari real que ja té l'sticker, `403` sense canvis per a un usuari normal, `200` sense canvis per al propietari). Verificat **visualment** amb una seqüència real de captures de Chromium (sessió autenticada de veritat, com a administrador, veient el resultat real d'un altre usuari): es veuen els raigs rosats/arc de Sant Martí de fons, la targeta girada mostrant l'sticker real, el banner llegendari, confeti, i **una desena d'ànecs de goma travessant la pantalla alhora**. `manage.py check` net, `site` recarregat. Cap traducció nova (cap text nou visible a l'usuari, només CSS/JS/so).
+
+**ID per comprovar-ho en producció**: `AchievementObtained` amb id **26101** (usuari `Wenjun`) —visitable a `https://jo-el.es/gacha/result/26101-0` (com a administrador, gràcies al punt 3 d'aquesta mateixa entrada).
+
+---
+
+### 52. Corregit bug real de rendiment: el filtre de nom d'usuari carregava els 14.705 usuaris registrats a cada pàgina (Submissions i Tasques)
+
+**Abans:** l'usuari va reportar que el JS trigava anormalment a la pàgina de Submissions. Investigant l'HTML real que servia el servidor (no només el codi), es va trobar que el desplegable de filtre "Nom d'usuari" contenia **14.705 etiquetes `<option>`** —literalment tots els comptes registrats al lloc (la immensa majoria, registres de bots/spam, a jutjar pels noms). Això feia que la pàgina pesés **~2,1 MB** només per aquest desplegable, i que `select2` (la llibreria del desplegable cercable) hagués d'inicialitzar-se sobre totes aquestes opcions al navegador —exactament el que es notava com "el JS carrega anormalment lent". El mateix patró exacte (`User.objects.all().values_list('username','username')`) existia també al filtre de la llista de Tasques (entrada #49).
+
+**Decisió**, triada explícitament per l'usuari entre dues opcions plantejades (retallar la llista vs. cerca en viu): **cerca AJAX real**, reutilitzant l'endpoint públic ja existent `user_search_select2_ajax` (el mateix que ja fa servir la caixa "Search by handle..." de `/users/`, que retorna com a màxim 20 coincidències per consulta, mai la llista sencera). Els dos desplegables (`judge/views/submission.py`, `judge/views/problem.py`) ja no reben `all_usernames` —només `selected_usernames` (típicament 0 o 1-2 elements), suficient perquè els filtres ja actius es vegin correctament sense haver de tornar a consultar res. Als dos JS (`templates/submission/list.html`, `templates/problem/tasklist.html`) el `select2` del camp d'usuari passa de `matcher` sobre opcions precarregades a `ajax: {url: ...}` amb `minimumInputLength: 1`.
+
+**Per què:** petició explícita de l'usuari en notar lentitud real; en investigar-ho es va trobar la causa concreta i mesurable.
+
+**Resultat:** verificat contra el `site` real: la pàgina de Submissions ha passat de **2.103.790 bytes a 101.978 bytes** (un 95% menys), i el desplegable d'usuari de 14.705 opcions a 0 (o només les seleccionades). Verificat que l'endpoint de cerca (`/widgets/select2/user_search?term=marc`) retorna coincidències reals paginades. Verificat que filtrar per `?username=marc` segueix funcionant idènticament a totes dues pàgines (Submissions i Tasques) després del canvi. `manage.py check` net, imports morts (`User`) eliminats de tots dos fitxers de vistes, `site` recarregat.
+
+---
+
+### 53. Corregida l'amplada del quadre de cerca de "Nom d'usuari" a Submissions i Tasques
+
+**Abans:** just després de l'entrada #52, el quadre de filtre "User Name" havia quedat visiblement minúscul (uns 17px, davant els ~338px dels altres quadres del mateix formulari) i pràcticament il·legible.
+
+**Causa:** `select2` calcula l'amplada del quadre a partir de l'element `<select>` original. Abans, aquest `<select>` es renderitzava sempre amb les 14.705 opcions precarregades, cosa que li donava prou amplada pròpia perquè `select2` la copiés. En treure aquestes opcions (entrada #52), l'element ja no tenia cap amplada pròpia i `select2` el col·lapsava a la mida mínima —exactament com ja els passava, abans d'aquesta sessió, als altres filtres (`#language`, `#status`), que ho tenen resolt amb una regla CSS `width: 100%` explícita.
+
+**Decisió:** afegida la mateixa regla `#username { width: 100%; }` a `resources/submission.scss`, seguint el patró ja existent.
+
+**Per què:** petició explícita de l'usuari, en veure el quadre massa estret arran del canvi de l'entrada #52.
+
+**Resultat:** verificat **amb mesures reals del DOM**: l'amplada del contenidor de `select2` per a `#username` ha passat de 17px a 338px, igual que `#status`/`#language`/`#equip`. Verificat també **visualment** amb captures de Chromium a `/submissions/` i a `/tasks/` (la mateixa regla és global i arregla totes dues pàgines alhora), incloent-hi una captura mentre s'escriu "marc" al quadre, mostrant els suggeriments de la cerca AJAX amb l'amplada correcta. `manage.py check` net, CSS recompilat i publicat, `site` recarregat.
+
+---
+
+### 54. Permisos per als alumnes amb accés limitat a crear stickers: pujar imatge en lloc d'URL, categories restringides, i `mega_fanfare` només per a admins
+
+**Abans:** l'sticker "Dret a Crear Achievements" ([entrada #51](#51-revelació-mega-fanfare-per-a-lsticker-especial-dret-a-crear-achievements-avís-per-correu-i-accés-dadmin-al-gacha-de-tothom)) dona accés a crear noves fites (`Achievement`) des de l'admin, però un cop allà, un alumne amb accés limitat podia: (1) enganxar qualsevol URL externa com a imatge (`logo_override_image` era un simple camp de text), (2) triar **qualsevol** categoria, incloent-hi colors, temes i fonts (pensats només per a l'equip de professorat), i (3) marcar el seu propi sticker com a `mega_fanfare` (l'efecte "molt més que un llegendari normal" + avís per correu als admins).
+
+**Decisió:**
+1. **`Achievement.logo_override_image` ara és una imatge pujada de veritat** (`ImageField`, mateix mecanisme que les imatges d'Institut de l'entrada #37), en lloc d'un camp de text amb una URL. **Els ~258 stickers ja existents, amb una URL externa desada com a valor** (p. ex. `https://i.postimg.cc/...`), es continuen mostrant correctament: `FieldFile.url` normalment *fa malbé* una URL absoluta enlloc de retornar-la tal qual (verificat directament, no és un comportament ben conegut de Django que calgués donar per fet), així que s'ha afegit `Achievement.get_image_url()`, que detecta si el valor desat ja és una URL absoluta i, si és així, la retorna directament; només resol via `.url` (el mecanisme normal de fitxers pujats) per als stickers nous.
+2. **Categories restringides per rol**: `category` ara té `choices` explícits al model (sticker/icona/color/tema/font/bonus intern). A l'admin (`AchievementAdmin.formfield_for_choice_field`), un usuari que no sigui superusuari només veu —i només pot desar— **sticker** i **icona**; color, tema, font i la categoria interna del bonus de GachaPoints queden fora d'abast, **validat també al servidor** (no és només amagar l'opció al desplegable: enviar `category=3` a mà des d'un compte limitat es rebutja com a valor no vàlid).
+3. **`mega_fanfare` només per a admins**: el camp desapareix directament del formulari (`AchievementAdmin.get_fields`) per a qui no sigui superusuari —no es pot ni veure ni, per tant, activar-lo, encara que s'intenti enviar el camp a mà.
+4. **Taula de l'admin**: la columna `mega_fanfare` se substitueix per la de **qualitat** (comú/rar/èpic/llegendari) —com que `quality` també té ara `choices`, l'admin ja mostra l'etiqueta llegible en lloc del número (1-4). De pas, la columna d'imatge (abans enllaçava trencat per als 258 stickers antics, pel mateix motiu del punt 1) passa a fer servir `get_image_url()`.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat contra el sistema real amb un compte de prova amb accés limitat (`is_staff=True`, `is_superuser=False`, únicament els permisos `add_achievement`/`change_achievement`/`view_achievement`, exactament l'escenari real d'un alumne): el formulari només mostra "sticker"/"icona" a categoria i no mostra el camp `mega_fanfare`; intentar enviar `category=3` a mà queda rebutjat (l'sticker no es crea), i enviar `mega_fanfare=on` a mà amb una categoria vàlida es desa igualment com a `False`. Verificat que un superusuari real conserva accés a totes 6 categories i al camp `mega_fanfare`. Verificat la pujada real d'una imatge de prova (es desa, es serveix per `/media/...`, `200`). Verificat que **cap dels 258 stickers existents s'ha vist afectat**: cap URL truncada (calia fixar `max_length=150` explícitament, ja que el valor per defecte d'`ImageField` és 100 i diverses URLs reals superaven els 100 caràcters), i totes seguint mostrant-se correctament via `get_image_url()`. Verificat que la revelació del gacha de l'sticker "Dret a Crear Achievements" segueix funcionant. Migració `0152_achievement_permissions_and_upload` aplicada. Traduccions noves a ca/es/en/de. Dades de prova netejades. `manage.py check` net, `site` recarregat.
+
+---
+
+### 55. Raresa limitada a 1 per als alumnes, i edició/esborrat només dels propis achievements
+
+**Abans:** continuació de l'entrada #54. Un alumne amb accés limitat encara podia pujar la `rarity` d'un sticker per sobre d'1 (fent-lo aparèixer amb més probabilitat que la resta dins la seva qualitat) i podia editar o esborrar **qualsevol** achievement de l'admin, no només el seu propi.
+
+**Decisió:**
+1. **`rarity` limitada a 1 per a no-admins**: el camp desapareix del formulari (`AchievementAdmin.get_fields`, mateix mecanisme que ja s'usava per a `mega_fanfare`) per a qui no sigui superusuari. Com que el valor per defecte del model és 1 i el camp mai és editable per a aquests comptes, qualsevol achievement que creïn té sempre raresa 1 —provat també que enviar `rarity=99` a mà queda ignorat.
+2. **Nou camp `Achievement.created_by`** (`ForeignKey` a `Profile`, `null=True`, assignat automàticament a `AchievementAdmin.save_model` en crear-se, mai en editar-se). Afegida també a la taula de l'admin (`list_display`) perquè es pugui veure qui ha creat cada entrada.
+3. **Editar i esborrar, només els propis**: `AchievementAdmin.has_change_permission`/`has_delete_permission` sobreescrits perquè, quan es demana permís sobre un objecte concret, un compte que no sigui superusuari només el tingui si `created_by` coincideix amb el seu propi perfil. Els superusuaris (els admins reals) mantenen accés total a qualsevol achievement, com sempre.
+
+**Efecte secundari (comportament estàndard de Django, no un bug)**: com que aquests comptes limitats conserven el permís de "veure" (`view_achievement`), poden obrir la pàgina d'edició d'un achievement d'un altre alumne, però Django la mostra automàticament en **mode només lectura** (sense botó de desar, camps deshabilitats) en lloc de donar un error —intentar desar-hi cap canvi de debò es continua rebutjant amb un 403.
+
+**Per què:** petició explícita de l'usuari, continuació directa de l'entrada #54.
+
+**Resultat:** verificat contra el sistema real amb dos comptes de prova amb accés limitat (`student_a`, `student_b`): (1) `student_a` crea un sticker, el camp de raresa no surt al formulari, i enviar `rarity=99` a mà queda ignorat (es desa com a `1.0`); `created_by` queda assignat correctament a `student_a`. (2) `student_b` obrint la pàgina d'edició de l'sticker de `student_a` la veu en mode només lectura (sense botó de desar); un intent real de `POST` per canviar-ne el nom es rebutja amb `403` i el nom no canvia; intentar esborrar-lo dona `403` directament. (3) `student_a` pot editar i **esborrar de veritat** el seu propi sticker (verificat: desapareix de la BD). (4) un superusuari real conserva accés total —camp de raresa visible, i pot obrir/editar l'sticker de `student_a` sense restriccions. Migració `0153_achievement_created_by` aplicada. Dades de prova netejades. `manage.py check` net, `site` recarregat. Cap traducció nova (cap text nou visible per a usuaris normals, només etiquetes internes de l'admin ja cobertes).
+
+---
+
+### 56. Normalitzada a 1 la raresa de tots els achievements el creador dels quals no és en Marc
+
+**Abans:** continuació de l'entrada #55. El camp `created_by` és nou (entrada #55) i, ara mateix, **cap dels 259 achievements existents el té assignat** (ni els d'en Marc mateix, creats abans que existís aquest mecanisme) —tècnicament, "el creador no és en Marc" hi incloïa el 100% dels achievements. D'aquests, 33 tenien una raresa personalitzada diferent d'1 (des de 0,05 fins a 5), incloent-hi l'sticker especial "Dret a Crear Achievements" (raresa 0,05, és a dir 20 vegades menys probable que la resta dins la seva qualitat).
+
+**Decisió**, confirmada explícitament amb l'usuari en veure l'abast real del canvi (afectava l'sticker especial i no només futures creacions d'alumnes): `Achievement.objects.exclude(created_by=<perfil de marc>).exclude(rarity=1).update(rarity=1)`, dins una transacció.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** 33 achievements actualitzats a `rarity=1.0` (verificats un a un abans i després: "Dret a Crear Achievements" 0,05→1, "Comic Sans"/"Papyrus" 0,5→1, la sèrie "paquirrin..." de 1,5 fins a 5→1, etc.). Verificat que no en queda cap amb raresa diferent d'1 enlloc del sistema. Cap canvi de codi ni de plantilla —només dades— així que no calia recarregar `site`.
+
+---
+
+### 57. Permisos dels "responsables d'institut": administrar equips i editar alumnes, però només dins el seu propi institut
+
+**Abans:** un responsable d'institut amb permís d'administrar organitzacions només podia veure/editar l'equip (`Organization`) concret on constava com a `admins` —cap altre equip del mateix institut, ni que en fos responsable de facto. I qui tenia permís per editar comptes d'usuari (`User`/`Profile`) —per exemple, per ajudar alumnes amb problemes de compte— podia veure i editar **qualsevol** usuari del lloc sencer, sense cap relació amb el seu propi institut.
+
+**Decisió:**
+1. **Nou mètode `Profile.administered_institution_ids`**: els instituts en què aquest perfil ja és admin d'algun equip (`Organization.admins`). És la peça compartida per les tres restriccions següents.
+2. **`OrganizationAdmin` ampliat, no restringit**: abans, sense el permís especial `judge.edit_all_organization`, un admin només veia/editava els equips on constava directament com a `admins`. Ara, a més d'aquests, també veu/edita **qualsevol altre equip que comparteixi institut** amb algun dels que ja administra —és a dir, passa de "administro aquest equip concret" a "administro tot l'institut d'aquest equip". Qui té `judge.edit_all_organization` (els admins reals) segueix veient-ho tot, sense cap canvi.
+3. **`ProfileAdmin` restringit per institut**: abans no hi havia cap restricció pròpia (qualsevol amb permís de model veia tots els perfils). Ara, per a qui no sigui superusuari, `get_queryset` es limita als perfils que són membres d'algun equip dins els instituts que administra —la resta ni tan sols surt a la llista.
+4. **Nou `RestrictedUserAdmin`** (`judge/admin/user.py`), que substitueix el `UserAdmin` per defecte de Django per al model `User`: mateixa restricció que `ProfileAdmin`, aplicada des de `User` (via `user.profile.organizations`).
+5. Els superusuaris (i, per a organitzacions, qui té `judge.edit_all_organization`) mantenen accés total a tot arreu, sense cap canvi de comportament.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat contra el sistema real amb un institut de prova, dos equips dins seu (un on l'usuari de prova hi constava com a admin directe, l'altre no) i un tercer equip en un institut diferent, més tres alumnes (un a cada equip): l'usuari de prova pot veure i editar tots dos equips del seu institut (`200` a totes dues pàgines d'edició) però **no** el de l'altre institut (redirigit, "no existeix" —Django amaga els objectes fora de l'abast de `get_queryset` així en lloc de donar un 404 pelat). Mateix resultat exactament amb els perfils i els comptes d'usuari dels tres alumnes de prova: veu els dos del seu institut, no el del tercer. Verificat que un superusuari real segueix veient-ho i editant-ho absolutament tot, sense cap restricció. `manage.py check` net, dades de prova netejades, `site` recarregat.
+
+---
+
+### 58. Descarregades i allotjades internament les imatges externes dels achievements
+
+**Abans:** 257 dels 258 achievements tenien la imatge (`logo_override_image`) apuntant a un enllaç extern (postimg.cc, ibb.co, imgur.com, discord, reddit, github...) —fràgil per definició: qualsevol d'aquests serveis pot esborrar o bloquejar l'enllaç en qualsevol moment i l'sticker deixaria de mostrar-se.
+
+**Decisió:** script (`ThreadPoolExecutor`, fora d'aquest repositori) que per a cada achievement amb imatge externa: la descarrega, la desa amb `logo_override_image.save(...)` (queda allotjada a `/media/achievements/`, servida des del mateix lloc), i actualitza el camp a l'enllaç intern. Fet en diverses passades progressivament més conservadores (menys connexions simultànies, més espera entre peticions) a mesura que alguns servidors (imgur.com, i.ibb.co, postimg.cc) responien amb bloquejos temporals de freqüència (`429`) davant tantes peticions seguides. Per a un grapat de casos especials —enllaços que apunten a la *pàgina* de visualització d'ibb.co/tenor.com en lloc de la imatge directa, enllaços `github.com/.../blob/...` (pàgina HTML, no el fitxer), i un enllaç embolicat de reddit.com— s'ha aplicat una petita conversió coneguda (`github.com/blob/` → `raw.githubusercontent.com/`, extreure la URL real del paràmetre `?url=` de reddit, o llegir l'etiqueta `og:image` de la pàgina) per arribar al fitxer real.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** **237 de 258 (92%) migrats correctament** a allotjament intern, verificat un a un que cada imatge nova serveix `200` amb el `Content-Type` correcte. **21 pendents**, tots del mateix origen (`i.imgur.com`), que després de tres intents en un interval d'uns 30 minuts continuen rebutjant-se amb `429` —sembla un bloqueig temporal d'imgur.com cap a la IP d'aquest servidor per l'acumulació de peticions, no un problema del script ni dels enllaços en si (que probablement encara són vàlids). Es poden reintentar més endavant (l'script queda desat, o es poden pujar a mà des de l'admin, ara que ja és un camp de pujada d'imatge —entrada #54). Cap canvi de codi en aquesta entrada —només dades— així que no calia recarregar `site`.
+
+---
+
+### 59. Corregit un bug real de l'entrada #57: "estar en un institut" era pertànyer, no administrar, i faltaven permisos al grup
+
+**Abans:** l'usuari va provar l'entrada #57 amb un compte real ("fletxa", del grup "Responsable d'Institut") i va reportar dues coses trencades: la pestanya "Equips" sortia buida, i entrar a la gestió d'usuaris fallava. Investigant-ho amb el compte real (no dades de prova):
+1. **Bug real de disseny**: `Profile.administered_institution_ids` es calculava a partir dels equips que el perfil **administra** (`Organization.admins`). Però "fletxa" no consta com a `admin` de cap equip —hi és com a **membre normal**. La intenció original de l'usuari ("les organitzacions en les que ells estiguin") volia dir pertinença, no administració, i jo ho vaig interpretar malament en implementar l'entrada #57.
+2. **Permisos incomplets**: el grup "Responsable d'Institut" tenia permisos sobre `Organization` (ja existents, d'abans d'aquesta sessió) però **cap permís sobre `Profile` ni `User`** —així que, encara que la lògica de restricció per institut hagués estat correcta, ningú d'aquest grup podia arribar-hi de cap manera.
+
+**Decisió:**
+1. `administered_institution_ids` ara es calcula a partir de **`self.organizations`** (els equips on el perfil és membre), no de `Organization.admins`.
+2. Afegits al grup "Responsable d'Institut" els permisos `view_profile`, `change_profile`, `view_user`, `change_user` (edició, no esborrat —tal com es va demanar a l'entrada #57, "permís per editar").
+
+**Per què:** bug real reportat per l'usuari en provar-ho amb un compte real, cosa que va revelar que la meva interpretació original de "en les que ells estiguin" no coincidia amb la intenció real (pertinença, no administració), i que faltava un pas de configuració (permisos del grup) per completar la petició original.
+
+**Resultat:** verificat contra el compte real de "fletxa" (institut real "Institut Sabadell", 19 equips): ara veu i pot editar tots els equips del seu institut, i pot accedir a la gestió d'usuaris i perfils. Verificat també que **no** pot veure ni editar un equip ("1r DAM 24-25 IES Jaume II") ni un alumne (`a25adataftaf`, d'un institut diferent), amb el mateix compte real —redirigit en tots dos casos. `manage.py check` net, `site` recarregat.
+
+---
+
+### 60. Imatges dels equips (Organization) també convertides de URL a pujada, i descarregades internament
+
+**Abans:** com els achievements abans de l'entrada #54, `Organization.logo_override_image` (la bandera/logo d'un equip) era un simple camp de text amb una URL externa.
+
+**Decisió:** exactament el mateix tractament que a les entrades #54/#58: el camp passa a ser una imatge pujada de veritat (`ImageField`, `upload_to='organizations/'`, `max_length=150` conservat per no truncar cap valor existent), amb un nou `Organization.get_image_url()` que detecta valors previs que ja siguin una URL absoluta (`http(s)://`) —o, es va trobar en revisar les dades reals, **dues organitzacions amb una imatge `data:` en base64 ja truncada a 150 caràcters** (dada corrupta d'abans d'aquesta sessió, no arreglable per descàrrega ja que no és una URL— es deixa tal qual, gestionada amb el mateix pass-through) i els retorna sense passar-los per `.url` (que els faria malbé). S'han actualitzat les 7 plantilles que mostren la bandera d'un equip (rànquings, llistes d'usuaris, `solvestatus`/`tasksolvestatus`) i el fallback de logo de capçalera d'un concurs (`judge/views/contests.py`) perquè facin servir aquest mètode.
+
+**Bug real trobat i corregit pel camí**: dues plantilles de l'entrada #54 (`edit-profile.html`, el selector d'icona del perfil, i `user-about.html`, la galeria d'stickers) encara feien servir `achievement.logo_override_image` directament en lloc de `.get_image_url()` —passades per alt en aquella revisió. Amb els 237 achievements ja migrats a pujada interna (entrada #58), això hauria mostrat una ruta relativa trencada (`achievements/xxx.png` en lloc de `/media/achievements/xxx.png`) tan bon punt un alumne triés un d'aquests icones/stickers com a preferit. Comprovat per BD que **cap alumne ho havia triat encara** (0 valors trencats), així que no calia cap reparació de dades, només corregir les dues plantilles.
+
+**Resultat de la descàrrega**: de les 93 organitzacions amb imatge externa, **83 (89%) migrades** a `/media/organizations/`. Queden 12 sense migrar: 6 d'`i.imgur.com` (el mateix bloqueig temporal per excés de peticions que a l'entrada #58) i 6 enllaços realment morts (dominis que ja no existeixen o retornen 404). Verificat amb una mostra real que les imatges migrades es serveixen correctament. Migració `0154_organization_image_upload` aplicada. `manage.py check` net, `site` recarregat.
+
+---
+
+### 61. Cap dependència externa: MathJax i html5shiv vendoritzats localment, icones de vot també allotjades al servidor
+
+**Abans:** la pàgina carregava MathJax (el motor de renderitzat de fórmules matemàtiques) i html5shiv des de `cdnjs.cloudflare.com` a totes les pàgines, i dues icones (vot a favor/en contra d'un enviament) des de wikimedia.org i flaticon.com.
+
+**Decisió:**
+1. **MathJax 2.7.5 vendoritzat sencer** a `resources/libs/mathjax/` (descarregat via el paquet npm oficial, retallat de fitxers no necessaris en producció —`test/`, `docs/`, `unpacked/`, manifests de node— però conservant `jax/`, `extensions/`, `fonts/` i `localization/` complets, ja que MathJax carrega aquests fitxers dinàmicament segons la fórmula i l'idioma, i retallar-los a ull hauria arriscat trencar algun cas d'ús). Actualitzades **totes** les referències trobades: `templates/mathjax-load.html` (la càrrega normal de qualsevol pàgina), `templates/problem/raw.html` (la vista especial per a la generació de PDF, entrada #50 —amb URL absoluta pròpia, ja que aquesta plantilla es renderitza com a fitxer local aïllat), `templates/comments/media-js.html`, `resources/dmmd-preview.js` i `resources/martor-mathjax.js` (les tres càrregues sota demanda de MathJax quan es prèvisualitza Markdown amb fórmules).
+2. **Bug real trobat i corregit pel camí**: `templates/comments/media-js.html` tenia una URL de MathJax trencada des de sempre (li faltava `MathJax.js` al mig de la URL) —mai hauria funcionat. Corregit en el mateix canvi.
+3. **html5shiv** (un pedaç per a Internet Explorer antic, dins un comentari condicional `<!--[if lt IE 9]-->`) descarregat i servit des de `resources/libs/html5shiv/`.
+4. **Icones de vot** (👍/👎 a la pàgina d'un enviament) descarregades i servides des de `resources/icons/vote/`.
+5. Eliminat `latest.js` del paquet de MathJax vendoritzat —un script auxiliar de MathJax mateix que, si mai s'invocés, consultaria cdnjs/jsdelivr per comprovar la versió més recent; no el fa servir ningú d'aquest projecte, però eliminar-lo talla de soca-rel qualsevol possibilitat que algú el referenciés per error en el futur.
+
+**Limitació coneguda, deixada tal com estava**: l'extensió opcional d'accessibilitat de MathJax (`extensions/a11y/mathjax-sre.js`, el suport de lector de pantalla per a fórmules) té, dins el seu propi codi ja minificat de fàbrica, referències fixes a `cdn.jsdelivr.net` i `cdnjs.cloudflare.com` per a les dades de pronunciació. Només s'activaria si un usuari obre el menú contextual de MathJax i activa explícitament l'accessibilitat —una funcionalitat opcional que ningú fa servir activament en aquest projecte. Modificar el codi ja minificat d'una llibreria de tercers per aquest cas extrem es va considerar més risc que benefici.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat **en viu i de dues maneres**: (1) capturant totes les peticions de xarxa d'una pàgina de problema real amb Chromium —cap petició a `cdnjs.cloudflare.com` ni a cap altre domini de CDN—, i (2) una pàgina de prova mínima amb una fórmula LaTeX real (`\sum_{i=1}^{n} i = \frac{n(n+1)}{2}`) carregada des de `https://jo-el.es/static/libs/mathjax/MathJax.js`, capturada amb Chromium, mostrant la fórmula renderitzada correctament (sumatori i fracció ben dibuixats). Verificada la **regressió crítica** de la generació de PDF (entrada #50): el mateix problema de prova d'abans torna a generar un PDF idèntic (mateixa mida en bytes) amb el nou MathJax local. `manage.py check` net, `collectstatic` executat (1961 fitxers, ~46 MB nous de MathJax), `site` recarregat.
+
+---
+
+### 62. Els 12 equips restants de l'entrada #60, pujats a mà per l'usuari
+
+**Abans:** de l'entrada #60 quedaven 12 organitzacions sense migrar (6 d'`i.imgur.com` bloquejat temporalment, 6 amb l'enllaç original ja mort).
+
+**Decisió:** l'usuari les ha pujat totes a mà des de l'admin (ara que el camp és una pujada real d'imatge, entrada #60).
+
+**Resultat:** verificat que **les 97 organitzacions amb imatge (100%) ja no en tenen cap d'externa** —`Organization.objects.exclude(...)` amb valor `http` dona 0 resultats. Verificat un a un que els 12 fitxers pujats existeixen al disc amb una mida real (entre 10 KB i 700 KB) i es serveixen correctament (`200`, `Content-Type` d'imatge vàlid: PNG i JPEG). `manage.py check` net. Cap canvi de codi en aquesta entrada —només dades pujades per l'usuari mateix.
+
+---
+
+### 63. Logo dels instituts omplert automàticament a partir dels equips, i nou "Institut JOEL"
+
+**Abans:** cap dels 37 instituts tenia una imatge pròpia (el camp existeix des de l'entrada #37, però mai s'havia omplert). "Institut Club de Fans de Kernel" (un equip de broma/prova, vegeu l'entrada #36) no tenia institut assignat.
+
+**Decisió:**
+1. **Logo automàtic**: per a cada institut, s'ha copiat la imatge d'un dels seus equips —preferint l'equip amb **el mateix nom exacte que l'institut** (el cas més habitual, p. ex. equip "Institut Sabadell" → institut "Institut Sabadell"), i si no n'hi ha cap, el primer equip de l'institut que tingui una imatge vàlida (no una URL externa ni la dada `data:` corrupta de l'entrada #60).
+2. **Nou "Institut JOEL"**: creat expressament, i "Institut Club de Fans de Kernel" (que no tenia institut) ara hi pertany. Se li ha posat com a logo la imatge del mateix equip (l'únic membre).
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat: 32 dels 38 instituts (84%) tenen ara logo** (31 de l'ompliment automàtic + Institut JOEL). **6 instituts s'han quedat sense logo**, perquè cap dels seus equips en té una imatge vàlida: **IES San Andrés, Institut Baix Camp, Institut El Calamot, Institut Nicolau Copèrnic, Institut Provençana i Institut Puig Castellar** —caldrà pujar-los-en una a mà des de l'admin si es vol. Verificat amb una mostra real que els fitxers copiats es serveixen correctament (`200`, tipus d'imatge vàlid), i **visualment** amb una captura de la pàgina pública `/institutions/`: cada institut mostra el seu logo correctament, i "IES San Andrés" surt en blanc tal com s'esperava. `manage.py check` net. Cap canvi de codi —només dades.
+
+---
+
+### 64. Traduccions per a les notícies (Blog) i les pàgines planes ("Sobre")
+
+**Abans:** els problemes (`ProblemTranslation`) i les guies (`GuideTranslation`, entrada #12) es podien traduir per idioma, però les notícies del blog i les pàgines planes de la secció "Sobre" (`FlatPage`, el mòdul estàndard de Django) sempre es mostraven en l'idioma en què s'havien escrit, sense cap manera d'oferir-ne una versió en un altre idioma.
+
+**Decisió**, calcada del patró ja establert per `ProblemTranslation`:
+1. **Nou `BlogPostTranslation`** (`ForeignKey` a `BlogPost`, `language` + `title`/`content`/`summary`, `unique_together=('post','language')`), amb un inline nou a `BlogPostAdmin`. Nous mètodes a `BlogPost` (`get_translated_title/content/summary`, amb la traducció consultada un sol cop per publicació i reutilitzada per als tres) que retornen la traducció de l'idioma de la petició si existeix, o el contingut original si no. Actualitzats `judge/views/blog.py` (el títol de la pàgina) i les plantilles `templates/blog/content.html` (la pàgina sencera d'una notícia) i `templates/blog/list.html` (la llista de notícies i el requadre de la pàgina d'inici, que l'hereta) —incloent-hi la clau de memòria cau (`{% cache %}`), que ara inclou l'idioma perquè no es mostri en cau el contingut d'un idioma a un altre.
+2. **Nou `FlatPageTranslation`** (`ForeignKey` a `flatpages.FlatPage`, un model de Django mateix, no d'aquest projecte). Com que `FlatPage` és un model de tercers sense cap punt d'extensió propi, i aquest projecte serveix les pàgines planes sempre pel mateix camí (`FlatpageFallbackMiddleware` → `views.flatpage()` → `views.render_flatpage()`), s'ha afegit `judge/flatpage_i18n.py`, que substitueix `render_flatpage` (cridat des de `JudgeAppConfig.ready()`, el mateix lloc on ja es feien altres inicialitzacions per efecte secundari) per una versió que, si hi ha una traducció per a l'idioma de la petició, en substitueix el títol i el contingut abans de renderitzar —**sense tocar la BD ni les plantilles existents**, ja que `render_flatpage` ja rep l'objecte per referència i les plantilles simplement mostren `flatpage.title`/`flatpage.content`. Inline nou a `FlatPageAdmin`.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** verificat en viu, dels dos tipus de contingut i en totes dues situacions (amb traducció i sense): (1) una notícia real (`JOEL 1.5!`) amb una traducció de prova a l'anglès mostra el títol i el contingut traduïts tant a la pàgina pròpia com al requadre de notícies de la pàgina d'inici, i en català (sense traducció) segueix mostrant l'original; (2) la pàgina plana `/sobre/` amb una traducció de prova a l'anglès mostra el títol i el contingut traduïts, i en català mostra l'original; (3) comprovat als dos admins que l'inline de traducció apareix correctament i reflecteix les traduccions ja existents. Migració `0155_blogpost_flatpage_translations` aplicada. Traduccions noves de les etiquetes de l'admin a ca/es/en/de. Dades de prova netejades. `manage.py check` net, `site` recarregat.
+
+---
+
+### 65. Contingut real de traducció per a les 3 notícies fixades, les 5 més recents, i la pàgina "Sobre"
+
+**Abans:** l'entrada #64 va crear la funcionalitat de traducció per a notícies i pàgines planes, però cap notícia ni la pàgina "Sobre" tenien encara cap traducció real escrita —la funcionalitat existia sense contingut.
+
+**Decisió:**
+1. **8 notícies traduïdes a es/en/de**: les 3 notícies fixades (`sticky=True`: #27 "JOEL 1.5!", #26 "Finalització de la II Lliga de Programació", #1 "Introducció") més les 5 més recents no fixades (#25, #24, #22, #21, #20), totes originalment en català. S'han escrit 24 files noves de `BlogPostTranslation` (8 notícies × 3 idiomes), traduint el contingut sencer (Markdown, enllaços, imatges, negretes i capçaleres conservats intactes; noms propis d'usuaris/equips/instituts no traduïts). **Cas especial, notícia #20**: el contingut original ja portava, enganxat dins del mateix cos amb un separador `---`, un bloc en castellà afegit a mà; en comptes de duplicar-ho, la traducció al castellà és només aquest bloc ja existent (net, sense el separador ni el text català), i les traduccions a l'anglès i l'alemany parteixen només del text català original.
+2. **Pàgina plana "Sobre" traduïda a ca/en/de**: cas particular, ja que el contingut original d'aquesta pàgina està escrit **en castellà** (no en català com la resta del lloc), excepte l'últim apartat ("Com es calculen els punts?"), que ja estava en català des de l'origen. Per tant aquí calia traduir *cap a* el català (no *des de*), a més d'anglès i alemany, conservant intactes tots els enllaços, blocs `<code>` (els correus ofuscats) i les dues imatges (`postimg.cc`) de la fórmula de puntuació.
+
+**Per què:** petició explícita de l'usuari, seguint directament de l'entrada #64.
+
+**Resultat:** verificat en viu contra les 4 combinacions d'idioma (`django_language` ca/es/en/de) per a totes les pàgines afectades (`/`, `/blog/`, cadascuna de les 8 notícies, `/sobre/`): totes retornen `200`, el títol de cada pàgina canvia correctament segons l'idioma (comprovat també el `<title>` HTML), i el contingut del cos es va inspeccionar directament per a casos concrets (capçaleres Markdown renderitzades correctament en alemany a la notícia #27, enllaç a `/user/marc` present, contingut net sense el bloc català incrustat en l'anglès de la notícia #20, blocs `<code>` i imatges de la fórmula intactes a la traducció anglesa de "Sobre"). `manage.py check` net. Cap canvi de codi en aquesta entrada —només contingut.
+
+---
+
+### 66. Esborrat el fitxer mort `templates/about/about.html`
+
+**Abans:** aquesta plantilla (entrada #2 de `TODO.md`) tenia el text original del DMOJ de referència
+sense adaptar (parlava del "DMOJ Monthly Open Programming Competition", donava `contact@dmoj.ca` com
+a contacte, i llistava administradors que no existeixen en aquest desplegament).
+
+**Decisió:** confirmat (`grep` de tot el projecte) que cap vista ni cap altra plantilla la
+referenciava enlloc —era un fitxer completament mort, no calia reescriure'n el contingut. S'ha
+esborrat el fitxer i el directori `templates/about/`, que ha quedat buit. Treta l'entrada
+corresponent de `TODO.md`.
+
+**Per què:** confirmació explícita de l'usuari que no es feia servir enlloc.
+
+**Resultat:** `manage.py check` net. Cap altre canvi de codi.
+
+---
+
+### 67. Límit de temps dur al checker Mongo (entrada #7 de `TODO.md`)
+
+**Abans:** el checker Mongo (`dmoj/checkers/mongo.py`, al repositori separat del motor de correcció
+—`~/dmojsite/lib/python3.8/site-packages/dmoj`, `github.com/malbareda/JODER-jutge`) no tenia cap
+mecanisme per tallar una consulta que trigués massa, a diferència del checker SQL
+(`set_progress_handler` de SQLite). Queda documentat a `docs/05-sistemes-mecanics/5.8-checker-mongo.md`
+i anotat com a pendent a `TODO.md`, entrada #7.
+
+**Decisió:** implementat `_run_with_timeout(func, *args, **kwargs)`, exactament com suggeria el
+`TODO.md`: executa la crida (`_run_read`/`_run_write`) en un fil (`threading.Thread(daemon=True)`) a
+part, i el fil principal hi fa `join(_QUERY_TIME_BUDGET_SECONDS)` (5 segons, el mateix valor que ja
+fa servir el checker SQL). Si el fil segueix viu passat el termini, es llença una nova
+`_MongoTimeoutError` (subclasse de `_MongoCallError`, així flueix pels mateixos `except` ja existents
+sense haver de tocar la resta del checker) amb un missatge clar. **Limitació assumida, tal com ja
+anticipava el `TODO.md`**: Python no pot matar un fil en marxa, així que això no interromp la
+consulta de veritat, només deixa d'esperar-la —el fil abandonat mai torna a tocar-se des d'aquest
+procés (cada crida sempre opera sobre un client `mongomock` acabat de carregar de zero,
+`_load_client`, mai compartit entre el fil principal i cap fil vigilat, seguint exactament la
+precaució que ja apuntava el `TODO.md` sobre no compartir client entre fils).
+
+**Verificació:** com que aquest checker viu al repositori separat del motor de correcció (procés
+"NouJutge", en marxa des del 17 d'agost, en una sessió `screen` independent), calia reiniciar-lo
+perquè el canvi tingués efecte —**confirmat explícitament amb l'usuari abans de fer-ho**, ja que és
+un procés de producció no tocat en tota la sessió i podia interrompre alguna correcció en curs. Fet
+enviant les tecles dins la sessió `screen` existent (`Ctrl+C` + relençar exactament la mateixa
+comanda, `dmoj -c judge.yml -p 48462 localhost`, trobada a l'historial de bash). Verificat: (1) totes
+les 17 preguntes reals dels 7 problemes Mongo existents (`mongofindemployees`, `mongoblogposts`,
+`mongoselectstudents`, `mongoinsertlibrary`, `mongoupdateinventory`, `mongoaggregateorders`,
+`mongoaggregateblog`) segueixen corregint-se correctament en mil·lisegons —sense regressió; (2) una
+consulta simulada artificialment lenta talla exactament al termini configurat, amb el missatge
+d'error esperat, sense esperar mai la consulta sencera; (3) el jutge reiniciat completa correctament
+el seu autotest de tots els executors i torna a fer *handshake* amb el servidor ("Judge 'NouJutge'
+online"); (4) una submissió real de prova a `/problem/mongofindemployees/submit` (les 3 preguntes,
+amb les respostes de referència reals) es va corregir de cap a cap contra el jutge ja reiniciat, amb
+resultat `AC, 3.0/3.0` —submissió de prova esborrada després. `manage.py check` net.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

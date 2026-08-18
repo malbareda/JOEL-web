@@ -1,5 +1,6 @@
 import itertools
 import json
+import logging
 import os
 import random
 from datetime import datetime
@@ -14,6 +15,7 @@ from django.contrib.auth.views import LoginView, PasswordChangeView, redirect_to
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.mail import mail_admins
 from django.db import transaction
 from django.db.models import Count, Max, Min
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -41,6 +43,8 @@ from judge.utils.subscription import Subscription
 from judge.utils.unicode import utf8text
 from judge.utils.views import DiggPaginatorMixin, QueryStringSortMixin, TitleMixin, add_file_response, generic_message
 from .contests import ContestRanking
+
+logger = logging.getLogger('judge.gacha')
 
 __all__ = ['GachaMain', 'GachaGo', 'UserPage', 'UserAboutPage', 'UserProblemsPage', 'UserDownloadData', 'UserPrepareData',
            'users', 'edit_profile']
@@ -183,6 +187,9 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
             repetit = 1
 
         profile.save()
+
+        if selach.mega_fanfare:
+            self._notify_mega_fanfare(profile, selach, achobt)
         
 
 
@@ -196,6 +203,29 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
         '''
         gachaArg = ""+str(achobt.id)+"-"+str(repetit)
         return HttpResponseRedirect(reverse('gacha_result', kwargs={'result':achobt.id,'repe':repetit}))
+
+    def _notify_mega_fanfare(self, profile, achievement, achobt):
+        """Emails the site admins (settings.ADMINS) whenever a user obtains an Achievement marked
+        `mega_fanfare` (e.g. "Dret a Crear Achievements", whose description asks the student to
+        email the admin with a link to their profile -- this automates exactly that instead).
+        Deliberately best-effort (fail_silently): a broken outgoing mailbox must never break a
+        gacha roll for the student."""
+        try:
+            lines = [
+                'Usuari: %s' % profile.user.username,
+                'Sticker: %s' % achievement.name,
+                'Perfil: https://jo-el.es%s' % reverse('user_page', args=[profile.user.username]),
+                'Resultat del gacha: https://jo-el.es%s' % reverse(
+                    'gacha_result', kwargs={'result': achobt.id, 'repe': 0}),
+            ]
+            mail_admins(
+                subject='[JOEL] %s ha obtingut "%s"' % (profile.user.username, achievement.name),
+                message='\n'.join(lines),
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception('Failed to send mega fanfare admin email for achievement %s obtained by profile %s',
+                             achievement.id, profile.id)
 
     def get_object(self, queryset=None):
         if self.kwargs.get(self.slug_url_kwarg, None) is None:
@@ -275,20 +305,31 @@ class GachaResult(TitleMixin, UserMixin, DetailView):
         context = super(GachaResult, self).get_context_data(**kwargs)
 
         achid = self.kwargs['result']
-        ach = AchievementObtained.objects.get(id=int(achid))
+        ach = self._ach
         repetit = int(self.kwargs['repe'])
 
         context['achname'] = ach.achievement.name
-        context['achpic'] = ach.achievement.logo_override_image
+        context['achpic'] = ach.achievement.get_image_url()
         context['achid'] = achid
         context['achcat'] = ach.achievement.category
         context['achq'] = ach.achievement.quality
         context['achdesc'] = ach.achievement.desc
         context['repetit'] = repetit
+        context['mega_fanfare'] = ach.achievement.mega_fanfare
 
         return context
 
     def get(self, request, *args, **kwargs):
+        achid = self.kwargs['result']
+        try:
+            self._ach = AchievementObtained.objects.get(id=int(achid))
+        except AchievementObtained.DoesNotExist:
+            return generic_message(request, _('No such gacha result'),
+                                   _('No gacha result with id "%s".') % achid, status=404)
+        is_admin = request.user.is_staff or request.user.is_superuser
+        if self._ach.user_id != request.profile.id and not is_admin:
+            return generic_message(request, _('Permission denied'),
+                                   _('You may not view someone else\'s gacha result.'), status=403)
 
         return super(GachaResult, self).get(request, *args, **kwargs)
 

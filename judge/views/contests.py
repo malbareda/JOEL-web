@@ -1,3 +1,4 @@
+import copy
 import json
 from calendar import Calendar, SUNDAY
 from collections import defaultdict, namedtuple
@@ -170,7 +171,7 @@ class ContestMixin(object):
         context['has_moss_api_key'] = settings.MOSS_API_KEY is not None
         context['logo_override_image'] = self.object.logo_override_image
         if not context['logo_override_image'] and self.object.organizations.count() == 1:
-            context['logo_override_image'] = self.object.organizations.first().logo_override_image
+            context['logo_override_image'] = self.object.organizations.first().get_image_url()
 
         return context
 
@@ -271,12 +272,32 @@ class ContestAccessDenied(Exception):
     pass
 
 
+class ContestGroupNameRequired(Exception):
+    def __init__(self, access_code=None):
+        super(ContestGroupNameRequired, self).__init__()
+        self.access_code = access_code
+
+
 class ContestAccessCodeForm(forms.Form):
     access_code = forms.CharField(max_length=255)
 
     def __init__(self, *args, **kwargs):
         super(ContestAccessCodeForm, self).__init__(*args, **kwargs)
         self.fields['access_code'].widget.attrs.update({'autocomplete': 'off'})
+
+
+class ContestGroupNameForm(forms.Form):
+    group_name = forms.CharField(max_length=100, label=_('Group name'))
+
+    def __init__(self, *args, **kwargs):
+        super(ContestGroupNameForm, self).__init__(*args, **kwargs)
+        self.fields['group_name'].widget.attrs.update({'autocomplete': 'off'})
+
+    def clean_group_name(self):
+        name = self.cleaned_data['group_name'].strip()
+        if not name:
+            raise forms.ValidationError(_('Group name cannot be blank.'))
+        return name
 
 
 class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
@@ -293,8 +314,13 @@ class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
                 return self.ask_for_access_code(ContestAccessCodeForm(request.POST))
             else:
                 return HttpResponseRedirect(request.path)
+        except ContestGroupNameRequired as e:
+            if request.POST.get('group_name'):
+                return self.ask_for_group_name(ContestGroupNameForm(request.POST), e.access_code)
+            else:
+                return self.ask_for_group_name(access_code=e.access_code)
 
-    def join_contest(self, request, access_code=None):
+    def join_contest(self, request, access_code=None, group_name=None):
         contest = self.object
 
         if not contest.can_join and not self.is_organizer:
@@ -315,6 +341,8 @@ class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
         if contest.ended:
             if requires_access_code:
                 raise ContestAccessDenied()
+            if contest.use_group_names and not group_name:
+                raise ContestGroupNameRequired(access_code=access_code)
 
             while True:
                 virtual_id = max((ContestParticipation.objects.filter(contest=contest, user=profile)
@@ -322,7 +350,7 @@ class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
                 try:
                     participation = ContestParticipation.objects.create(
                         contest=contest, user=profile, virtual=virtual_id,
-                        real_start=timezone.now(),
+                        real_start=timezone.now(), group_name=(group_name or ''),
                     )
                 # There is obviously a race condition here, so we keep trying until we win the race.
                 except IntegrityError:
@@ -339,17 +367,26 @@ class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
             except ContestParticipation.DoesNotExist:
                 if requires_access_code:
                     raise ContestAccessDenied()
+                if contest.use_group_names and not group_name:
+                    raise ContestGroupNameRequired(access_code=access_code)
 
                 participation = ContestParticipation.objects.create(
                     contest=contest, user=profile, virtual=(SPECTATE if self.is_organizer else LIVE),
-                    real_start=timezone.now(),
+                    real_start=timezone.now(), group_name=(group_name or ''),
                 )
             else:
                 if participation.ended:
-                    participation = ContestParticipation.objects.get_or_create(
-                        contest=contest, user=profile, virtual=SPECTATE,
-                        defaults={'real_start': timezone.now()},
-                    )[0]
+                    try:
+                        participation = ContestParticipation.objects.get(
+                            contest=contest, user=profile, virtual=SPECTATE,
+                        )
+                    except ContestParticipation.DoesNotExist:
+                        if contest.use_group_names and not group_name:
+                            raise ContestGroupNameRequired(access_code=access_code)
+                        participation = ContestParticipation.objects.create(
+                            contest=contest, user=profile, virtual=SPECTATE,
+                            real_start=timezone.now(), group_name=(group_name or ''),
+                        )
 
         profile.current_contest = participation
         profile.save()
@@ -363,13 +400,31 @@ class ContestJoin(LoginRequiredMixin, ContestMixin, BaseDetailView):
         if form:
             if form.is_valid():
                 if form.cleaned_data['access_code'] == contest.access_code:
-                    return self.join_contest(self.request, form.cleaned_data['access_code'])
+                    try:
+                        return self.join_contest(self.request, form.cleaned_data['access_code'])
+                    except ContestGroupNameRequired as e:
+                        return self.ask_for_group_name(access_code=e.access_code)
                 wrong_code = True
         else:
             form = ContestAccessCodeForm()
         return render(self.request, 'contest/access_code.html', {
             'form': form, 'wrong_code': wrong_code,
             'title': _('Enter access code for "%s"') % contest.name,
+        })
+
+    def ask_for_group_name(self, form=None, access_code=None):
+        contest = self.object
+        invalid = False
+        if form:
+            if form.is_valid():
+                return self.join_contest(self.request, access_code=access_code,
+                                         group_name=form.cleaned_data['group_name'])
+            invalid = True
+        else:
+            form = ContestGroupNameForm()
+        return render(self.request, 'contest/group_name.html', {
+            'form': form, 'invalid': invalid, 'access_code': access_code,
+            'title': _('Enter a group name to join "%s"') % contest.name,
         })
 
 
@@ -551,19 +606,38 @@ class ContestStats(TitleMixin, ContestMixin, DetailView):
 
 ContestRankingProfile = namedtuple(
     'ContestRankingProfile',
-    'id user css_class username points cumtime tiebreaker organizations participation '
+    'id user css_class username group_name points cumtime tiebreaker organizations participation '
     'participation_rating problem_cells result_cell',
 )
 
 BestSolutionData = namedtuple('BestSolutionData', 'code points time state is_pretested')
 
 
-def make_contest_ranking_profile(contest, participation, contest_problems):
+def make_contest_ranking_profile(contest, participation, contest_problems, can_see_frozen=True):
+    # While frozen (for viewers who can't see through it), scoring/cells are rendered from a
+    # throwaway snapshot built only from submissions before freeze_time -- the real, persisted
+    # participation (kept for `participation=` below: start time, disqualification, id...) is
+    # never touched.
+    display_participation = participation
+    cutoff = None
+    if not can_see_frozen and contest.is_frozen:
+        frozen = contest.format.get_frozen_state(participation, contest.freeze_time)
+        if frozen is not None:
+            format_data, score, cumtime, tiebreaker, pending = frozen
+            display_participation = copy.copy(participation)
+            display_participation.format_data = format_data
+            display_participation.score = score
+            display_participation.cumtime = cumtime
+            display_participation.tiebreaker = tiebreaker
+            display_participation._frozen_pending = pending
+            cutoff = contest.freeze_time
+    display_participation._frozen_cutoff = cutoff
+
     def display_user_problem(contest_problem):
         # When the contest format is changed, `format_data` might be invalid.
         # This will cause `display_user_problem` to error, so we display '???' instead.
         try:
-            return contest.format.display_user_problem(participation, contest_problem)
+            return contest.format.display_user_problem(display_participation, contest_problem)
         except (KeyError, TypeError, ValueError):
             return mark_safe('<td>???</td>')
 
@@ -573,33 +647,43 @@ def make_contest_ranking_profile(contest, participation, contest_problems):
         user=user.user,
         css_class=user.css_class,
         username=user.username,
-        points=participation.score,
-        cumtime=participation.cumtime,
-        tiebreaker=participation.tiebreaker,
+        group_name=participation.group_name,
+        points=display_participation.score,
+        cumtime=display_participation.cumtime,
+        tiebreaker=display_participation.tiebreaker,
         organizations=user.organizations,
         participation_rating=participation.rating.rating if hasattr(participation, 'rating') else None,
         problem_cells=[display_user_problem(contest_problem) for contest_problem in contest_problems],
-        result_cell=contest.format.display_participation_result(participation),
+        result_cell=contest.format.display_participation_result(display_participation),
         participation=participation,
     )
 
 
-def base_contest_ranking_list(contest, problems, queryset):
-    return [make_contest_ranking_profile(contest, participation, problems) for participation in
-            queryset.select_related('user__user', 'rating').defer('user__about', 'user__organizations__about')]
+def base_contest_ranking_list(contest, problems, queryset, can_see_frozen=True):
+    profiles = [make_contest_ranking_profile(contest, participation, problems, can_see_frozen) for participation in
+               queryset.select_related('user__user', 'rating').defer('user__about', 'user__organizations__about')]
+    # The queryset above is ordered by the *real*, persisted score/cumtime/tiebreaker -- while
+    # frozen, that no longer matches the (possibly frozen) values these profiles carry, so the
+    # actual standings order is decided here instead, from whatever this viewer can see.
+    profiles.sort(key=lambda p: (p.participation.is_disqualified, -p.points, p.cumtime, p.tiebreaker))
+    return profiles
 
 
-def contest_ranking_list(contest, problems):
+def contest_ranking_list(contest, problems, can_see_frozen=True):
     return base_contest_ranking_list(contest, problems, contest.users.filter(virtual=0, user__is_unlisted=False)
                                      .prefetch_related('user__organizations')
-                                     .order_by('is_disqualified', '-score', 'cumtime', 'tiebreaker'))
+                                     .order_by('is_disqualified', '-score', 'cumtime', 'tiebreaker'),
+                                     can_see_frozen=can_see_frozen)
 
 
 def get_contest_ranking_list(request, contest, participation=None, ranking_list=contest_ranking_list,
-                             show_current_virtual=True, ranker=ranker):
+                             show_current_virtual=True, ranker=ranker, can_see_frozen=None):
     problems = list(contest.contest_problems.select_related('problem').defer('problem__description').order_by('order'))
 
-    users = ranker(ranking_list(contest, problems), key=attrgetter('points', 'cumtime', 'tiebreaker'))
+    if can_see_frozen is None:
+        can_see_frozen = contest.can_see_frozen_scoreboard(request.user)
+    users = ranker(ranking_list(contest, problems, can_see_frozen=can_see_frozen),
+                   key=attrgetter('points', 'cumtime', 'tiebreaker'))
 
     if show_current_virtual:
         if participation is None and request.user.is_authenticated:
@@ -607,7 +691,8 @@ def get_contest_ranking_list(request, contest, participation=None, ranking_list=
             if participation is None or participation.contest_id != contest.id:
                 participation = None
         if participation is not None and participation.virtual:
-            users = chain([('-', make_contest_ranking_profile(contest, participation, problems))], users)
+            users = chain([('-', make_contest_ranking_profile(contest, participation, problems,
+                                                              can_see_frozen))], users)
     return users, problems
 
 
@@ -652,6 +737,8 @@ class ContestRankingBase(ContestMixin, TitleMixin, DetailView):
         context['problems'] = problems
         context['last_msg'] = event.last()
         context['tab'] = self.tab
+        context['scoreboard_is_frozen'] = (self.object.is_frozen and
+                                          not self.object.can_see_frozen_scoreboard(self.request.user))
         return context
 
 
@@ -694,8 +781,14 @@ class ContestParticipationList(LoginRequiredMixin, ContestRankingBase):
         live_link = format_html('<a href="{2}#!{1}">{0}</a>', _('Live'), self.profile.username,
                                 reverse('contest_ranking', args=[self.object.key]))
 
+        # A user's own participation history always shows their real results, even while the
+        # shared scoreboard is frozen -- only how *other* users' histories look is still gated by
+        # the freeze (otherwise this per-user page would be a side door around it).
+        can_see_frozen = (self.profile == self.request.profile or
+                         self.object.can_see_frozen_scoreboard(self.request.user))
+
         return get_contest_ranking_list(
-            self.request, self.object, show_current_virtual=False,
+            self.request, self.object, show_current_virtual=False, can_see_frozen=can_see_frozen,
             ranking_list=partial(base_contest_ranking_list, queryset=queryset),
             ranker=lambda users, key: ((user.participation.virtual or live_link, user) for user in users))
 

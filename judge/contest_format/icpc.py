@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.db.models import Max, Min
 from django.template.defaultfilters import floatformat
 from django.urls import reverse
 from django.utils.html import format_html
@@ -97,15 +98,70 @@ class ICPCContestFormat(DefaultContestFormat):
         participation.format_data = format_data
         participation.save()
 
+    def get_frozen_state(self, participation, freeze_time):
+        # Mirrors update_participation, but counting only submissions strictly before
+        # freeze_time -- both for the per-problem best result and for the penalty count of prior
+        # attempts. Never touches the persisted participation fields. Uses the ORM throughout
+        # (rather than update_participation's raw SQL) so the freeze_time comparison goes through
+        # Django's normal query compilation instead of a hand-built, timezone-fragile bind param.
+        cumtime = 0
+        last = 0
+        penalty = 0
+        score = 0
+        format_data = {}
+        pending = set(
+            participation.submissions.filter(submission__date__gte=freeze_time)
+                                     .values_list('problem_id', flat=True),
+        )
+
+        frozen_subs = participation.submissions.filter(submission__date__lt=freeze_time)
+
+        for result in frozen_subs.values('problem_id').annotate(points=Max('points')):
+            prob = result['problem_id']
+            points = result['points']
+            time = frozen_subs.filter(problem_id=prob, points=points) \
+                              .aggregate(time=Min('submission__date'))['time']
+            if time is None:
+                continue
+            dt = (time - participation.start).total_seconds()
+
+            if self.config['penalty']:
+                subs = participation.submissions.exclude(submission__result__isnull=True) \
+                                                .exclude(submission__result__in=['IE', 'CE']) \
+                                                .filter(problem_id=prob, submission__date__lt=freeze_time)
+                if points:
+                    prev = subs.filter(submission__date__lte=time).count() - 1
+                    penalty += prev * self.config['penalty'] * 60
+                else:
+                    prev = subs.count()
+            else:
+                prev = 0
+
+            if points:
+                cumtime += dt
+                last = max(last, dt)
+
+            format_data[str(prob)] = {'time': dt, 'points': points, 'penalty': prev}
+            score += points
+
+        return format_data, score, cumtime + penalty, last, pending
+
     def display_user_problem(self, participation, contest_problem):
+        if contest_problem.id in (getattr(participation, '_frozen_pending', None) or ()):
+            return self.pending_cell_html()
+
         format_data = (participation.format_data or {}).get(str(contest_problem.id))
         if format_data:
+            cutoff = getattr(participation, '_frozen_cutoff', None)
+            base_state = self.best_solution_state(format_data['points'], contest_problem.points)
+            if self.contest.run_pretests_only and contest_problem.is_pretested:
+                base_state = 'pretest-' + base_state
+            extra = self.solve_extra_classes(participation, contest_problem, format_data, cutoff)
             penalty = format_html('<small style="color:red"> ({penalty})</small>',
                                   penalty=floatformat(format_data['penalty'])) if format_data['penalty'] else ''
             return format_html(
                 '<td class="{state}"><a href="{url}">{points}{penalty}<div class="solving-time">{time}</div></a></td>',
-                state=(('pretest-' if self.contest.run_pretests_only and contest_problem.is_pretested else '') +
-                       self.best_solution_state(format_data['points'], contest_problem.points)),
+                state=' '.join([base_state] + extra),
                 url=reverse('contest_user_submissions',
                             args=[self.contest.key, participation.user.user.username, contest_problem.problem.code]),
                 points=floatformat(format_data['points']),

@@ -1,12 +1,13 @@
 <thead>
 <tr>
-    <th class="header rank">{{ rank_header or _("Rank") }}</th>
+    <th class="header rank rank-number">{{ rank_header or _("Rank") }}</th>
 
     {% block after_rank_head %}{% endblock %}
     <th class="header rank">{{ _("Icon") }}</th>
+    <th class="header institution-flag">{{ _('Institution') }}</th>
     <th class="header flag">{{ _('Flag') }}</th>
     <th class="header username">{{ _('Username') }}</th>
-    <th class="header username">{{ _('Organization') }}</th>
+    <th class="header organization-col">{{ _('Organization') }}</th>
     {% block before_point_head %}{% endblock %}
     <th class="problems">
         {% if sort_links %}<a href="{{ sort_links.sql_points }}">{% endif %}
@@ -22,7 +23,7 @@
 
     <tr id="user-{{ user.user.username }}" {% block row_extra2 scoped %}{% endblock %}>
 
-        <td>{{ rank }}</td>
+        <td class="rank-number">{{ rank }}</td>
 
         {% block after_rank scoped %}{% endblock %}
         <td>
@@ -30,20 +31,32 @@
                  <img src="{{user.preferred_icon}}" alt="icon" width="50" height="50">
         {% endif %}
         </td>
-        {% with orgs=user.organizations.all() %}
+        {% with orgs=user.organizations.all(), insts=distinct_institutions(user.organizations.all()) %}
+        {% if insts and insts[0].image %}
+        <td class="institution-flag"><img src="{{ insts[0].image.url }}" alt="institution flag"></td>
+        {% else %}
+        <td class="institution-flag"></td>
+        {% endif %}
         {% if orgs and orgs[0].logo_override_image %}
-        <td>
+        <td class="flag">
 
-         <img src="{{orgs[0].logo_override_image}}" alt="flag" width="90" height="40">
+         <img src="{{orgs[0].get_image_url()}}" alt="flag">
 
         </td>
         {% else %}
-        <td></td>
+        <td class="flag"></td>
         {% endif %}
         <td class="user-name">{{ link_user(user) }} {% block user_data scoped %}{% endblock %}</td>
 
 
                 <td >
+                    {% if insts %}
+                        <span class="user-institutions">
+                            {% for inst in insts -%}
+                                <a href="{{ inst.get_absolute_url() }}">{{ inst.short_name }}</a>{%- if not loop.last %}, {% endif -%}
+                            {% endfor %}
+                        </span><br>
+                    {% endif %}
                     {% for org in orgs -%}
                         <a href="{{ org.get_absolute_url() }}">{{ org.name }}</a>
                         {%- if not loop.last %}, {% endif %}

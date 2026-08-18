@@ -85,7 +85,7 @@
                 {% with orgs=entry.profile.organizations.all() %}
                 <td>
                     {% if orgs and orgs[0].logo_override_image %}
-                        <img src="{{ orgs[0].logo_override_image }}" alt="flag" width="90" height="40">
+                        <img src="{{ orgs[0].get_image_url() }}" alt="flag" width="90" height="40">
                     {% endif %}
                 </td>
                 <td>{{ link_user(entry.profile) }}</td>

@@ -4,14 +4,16 @@ from judge.models.choices import ACE_THEMES, EFFECTIVE_MATH_ENGINES, MATH_ENGINE
 from judge.models.comment import Comment, CommentLock, CommentVote
 from judge.models.contest import Contest, ContestMoss, ContestParticipation, ContestProblem, ContestSubmission, \
     ContestTag, Rating
-from judge.models.interface import BlogPost, MiscConfig, NavigationBar, validate_regex
+from judge.models.interface import BlogPost, BlogPostTranslation, FlatPageTranslation, MiscConfig, \
+    NavigationBar, validate_regex
 from judge.models.message import PrivateMessage, PrivateMessageThread
 from judge.models.problem import Guide, GuideTranslation, LanguageLimit, License, Problem, ProblemClarification, \
     ProblemGroup, ProblemTask, ProblemTranslation, ProblemType, Solution, TranslatedProblemForeignKeyQuerySet, \
     TranslatedProblemQuerySet
 from judge.models.problem_data import CHECKERS, ProblemData, ProblemTestCase, problem_data_storage, \
     problem_directory_file
-from judge.models.profile import Organization, OrganizationRequest, Profile, WebAuthnCredential, Achievement, AchievementObtained
+from judge.models.profile import Institution, Organization, OrganizationRequest, Profile, WebAuthnCredential, \
+    Achievement, AchievementObtained
 from judge.models.runtime import Judge, Language, RuntimeVersion
 from judge.models.submission import SUBMISSION_RESULT, Submission, SubmissionSource, SubmissionTestCase, SubmissionVote
 from judge.models.ticket import Ticket, TicketMessage
@@ -22,6 +24,7 @@ revisions.register(LanguageLimit)
 revisions.register(Contest, follow=['contest_problems'])
 revisions.register(ContestProblem)
 revisions.register(Organization)
+revisions.register(Institution)
 revisions.register(BlogPost)
 revisions.register(Solution)
 revisions.register(Judge, fields=['name', 'created', 'auth_key', 'description'])

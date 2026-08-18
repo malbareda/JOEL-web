@@ -92,7 +92,7 @@
                     {% if orgs and orgs[0].logo_override_image %}
 
                     <td>
-                    <img src="{{orgs[0].logo_override_image}}" alt="flag" width="90" height="40"> 
+                    <img src="{{orgs[0].get_image_url()}}" alt="flag" width="90" height="40"> 
                     
                     </td>
                     {% else %}
@@ -161,7 +161,7 @@
                     {% if orgs and orgs[0].logo_override_image %}
                     <td>
                     
-                    <img src="{{orgs[0].logo_override_image}}" alt="flag" width="90" height="40"> 
+                    <img src="{{orgs[0].get_image_url()}}" alt="flag" width="90" height="40"> 
                     
                     </td>
                     {% else %}

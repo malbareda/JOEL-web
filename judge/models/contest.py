@@ -81,6 +81,20 @@ class Contest(models.Model):
     view_contest_scoreboard = models.ManyToManyField(Profile, verbose_name=_('view contest scoreboard'), blank=True,
                                                      related_name='view_contest_scoreboard',
                                                      help_text=_('These users will be able to view the scoreboard.'))
+    freeze_time = models.DateTimeField(verbose_name=_('freeze time'), null=True, blank=True,
+                                       help_text=_('If set and in the past, the scoreboard stops updating for '
+                                                   'anyone who cannot edit this contest: submissions made at or '
+                                                   'after this time still show up as submitted, but never reveal '
+                                                   'whether they were correct, and never move anyone up or down '
+                                                   'the standings. Stays frozen until this field is cleared, '
+                                                   'regardless of the contest end time -- there is no automatic '
+                                                   'unfreeze.'))
+    use_group_names = models.BooleanField(
+        verbose_name=_('use group names'), default=False,
+        help_text=_('If enabled, users must pick a group name the first time they join this contest, '
+                    'instead of being identified by their own username. The scoreboard shows the group '
+                    'name in place of the username. The name is set once, when the user first joins, '
+                    'and can never be changed afterwards -- not even by leaving and rejoining.'))
     use_clarifications = models.BooleanField(verbose_name=_('no comments'),
                                              help_text=_("Use clarification system instead of comments."),
                                              default=True)
@@ -200,6 +214,16 @@ class Contest(models.Model):
         if self.hide_scoreboard and not self.ended:
             return False
         return True
+
+    @cached_property
+    def is_frozen(self):
+        return self.freeze_time is not None and self.freeze_time <= self._now
+
+    def can_see_frozen_scoreboard(self, user):
+        """Whether `user` sees the real, unfrozen scoreboard even while `is_frozen` is true --
+        i.e. can edit this contest (organizer/staff), matching who can already see the full
+        scoreboard before it's public (`can_see_full_scoreboard`)."""
+        return self.is_editable_by(user)
 
     @property
     def contest_window_length(self):
@@ -401,6 +425,11 @@ class ContestParticipation(models.Model):
     virtual = models.IntegerField(verbose_name=_('virtual participation id'), default=LIVE,
                                   help_text=_('0 means non-virtual, otherwise the n-th virtual participation.'))
     format_data = JSONField(verbose_name=_('contest format specific data'), null=True, blank=True)
+    group_name = models.CharField(
+        max_length=100, verbose_name=_('group name'), blank=True, default='',
+        help_text=_('Custom name chosen by the user for this participation, when the contest requires '
+                    'group names instead of usernames (Contest.use_group_names). Set once, at join '
+                    'time, and never changed afterwards.'))
 
     def recompute_results(self):
         with transaction.atomic():

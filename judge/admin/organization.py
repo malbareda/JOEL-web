@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Q
 from django.forms import ModelForm
 from django.urls import reverse_lazy
 from django.utils.html import format_html
@@ -20,9 +21,10 @@ class OrganizationForm(ModelForm):
 
 class OrganizationAdmin(VersionAdmin):
     readonly_fields = ('creation_date',)
-    fields = ('name', 'slug', 'short_name', 'is_open', 'about', 'logo_override_image', 'slots', 'registrant',
-              'creation_date', 'admins')
-    list_display = ('name', 'short_name', 'is_open', 'slots', 'registrant', 'show_public')
+    fields = ('name', 'slug', 'short_name', 'institution', 'is_open', 'about', 'logo_override_image', 'slots',
+              'registrant', 'creation_date', 'admins')
+    list_display = ('name', 'short_name', 'institution', 'is_open', 'slots', 'registrant', 'show_public')
+    list_filter = ('institution',)
     prepopulated_fields = {'slug': ('name',)}
     actions_on_top = True
     actions_on_bottom = True
@@ -37,22 +39,27 @@ class OrganizationAdmin(VersionAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = self.readonly_fields
         if not request.user.has_perm('judge.organization_admin'):
-            return fields + ('registrant', 'admins', 'is_open', 'slots')
+            return fields + ('registrant', 'admins', 'is_open', 'slots', 'institution')
         return fields
 
     def get_queryset(self, request):
         queryset = Organization.objects.all()
         if request.user.has_perm('judge.edit_all_organization'):
             return queryset
-        else:
-            return queryset.filter(admins=request.profile.id)
+        # An "institute lead" -- someone who is a member of at least one team under a given
+        # institute -- can administer every team under that same institute, not just teams they
+        # were separately made an admin of.
+        institution_ids = request.profile.administered_institution_ids
+        return queryset.filter(Q(admins=request.profile.id) | Q(institution_id__in=institution_ids)).distinct()
 
     def has_change_permission(self, request, obj=None):
         if not request.user.has_perm('judge.change_organization'):
             return False
         if request.user.has_perm('judge.edit_all_organization') or obj is None:
             return True
-        return obj.admins.filter(id=request.profile.id).exists()
+        if obj.admins.filter(id=request.profile.id).exists():
+            return True
+        return obj.institution_id is not None and obj.institution_id in request.profile.administered_institution_ids
 
 
 class OrganizationRequestAdmin(admin.ModelAdmin):

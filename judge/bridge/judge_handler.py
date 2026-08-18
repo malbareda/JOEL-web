@@ -8,7 +8,10 @@ from operator import itemgetter
 
 from django import db
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
+from django.core.mail import mail_admins
+from django.urls import reverse
 from django.utils import timezone
 
 from judge import event_poster as event
@@ -22,6 +25,14 @@ json_log = logging.getLogger('judge.json.bridge')
 
 UPDATE_RATE_LIMIT = 5
 UPDATE_RATE_TIME = 0.5
+
+# Must match the marker of the same name prepended to `feedback` by dmoj/checkers/sql.py and
+# dmoj/checkers/mongo.py (in the judge engine, not this repo) when a submission attempts a
+# destructive/escaping statement (DROP, DELETE, ATTACH, $where, an unsupported Mongo method, etc.)
+# -- never for an ordinary wrong answer. Recognized in on_test_case to mark that case 'SEC'
+# instead of 'WA', notify the admins by email, and let the submission page show a dedicated
+# warning instead of blending in with regular wrong answers.
+SECURITY_VIOLATION_MARKER = '@@SECVIOL@@'
 SubmissionData = namedtuple('SubmissionData', 'time memory short_circuit pretests_only contest_no attempt_no user_id')
 
 
@@ -357,7 +368,10 @@ class JudgeHandler(ZlibPacketHandler):
         points = 0.0
         total = 0
         status = 0
-        status_codes = ['SC', 'AC', 'WA', 'MLE', 'TLE', 'IR', 'RTE', 'OLE']
+        # 'SEC' ranks worst: a single blocked destructive/escaping attempt should mark the whole
+        # submission's overall result as 'SEC', not get quietly outranked by e.g. a slower-but-
+        # otherwise-normal TLE/OLE case elsewhere in the same submission.
+        status_codes = ['SC', 'AC', 'WA', 'MLE', 'TLE', 'IR', 'RTE', 'OLE', 'SEC']
         batches = {}  # batch number: (points, total)
 
         for case in SubmissionTestCase.objects.filter(submission=submission):
@@ -395,6 +409,16 @@ class JudgeHandler(ZlibPacketHandler):
         submission.memory = memory
         submission.points = sub_points
         submission.result = status_codes[status]
+
+        # "First new problem of the day" GachaPoints bonus -- checked before saving, so this
+        # query never sees the current submission itself. Only a genuinely first-ever AC on this
+        # problem for this user counts; a duplicate AC (already solved before) never re-triggers it.
+        if (submission.result == 'AC' and problem.is_public and not problem.is_organization_private and
+                not Submission.objects.filter(user_id=submission.user_id, problem_id=problem.id,
+                                              result='AC').exists()):
+            if submission.user.grant_daily_solve_bonus():
+                submission.daily_bonus_awarded = True
+
         submission.save()
 
         json_log.info(self._make_json_log(
@@ -516,6 +540,7 @@ class JudgeHandler(ZlibPacketHandler):
             return
 
         bulk_test_case_updates = []
+        security_violations = []
         for result in updates:
             test_case = SubmissionTestCase(submission_id=id, case=result['position'])
             status = result['status']
@@ -535,12 +560,19 @@ class JudgeHandler(ZlibPacketHandler):
                 test_case.status = 'SC'
             else:
                 test_case.status = 'AC'
+
+            raw_feedback = result.get('feedback') or ''
+            if test_case.status == 'WA' and raw_feedback.startswith(SECURITY_VIOLATION_MARKER):
+                test_case.status = 'SEC'
+                raw_feedback = raw_feedback[len(SECURITY_VIOLATION_MARKER):]
+                security_violations.append((test_case.case, raw_feedback))
+
             test_case.time = result['time']
             test_case.memory = result['memory']
             test_case.points = result['points']
             test_case.total = result['total-points']
             test_case.batch = self.batch_id if self.in_batch else None
-            test_case.feedback = (result.get('feedback') or '')[:max_feedback]
+            test_case.feedback = raw_feedback[:max_feedback]
             extended_feedback_text = result.get('extended-feedback') or ''
             if extended_feedback_text:
                 path = submission_feedback_file(test_case, 'feedback.txt')
@@ -578,6 +610,48 @@ class JudgeHandler(ZlibPacketHandler):
             self._post_update_submission(id, state='test-case')
 
         SubmissionTestCase.objects.bulk_create(bulk_test_case_updates)
+
+        if security_violations:
+            self._notify_security_violation(id, security_violations)
+
+    def _notify_security_violation(self, submission_id, violations):
+        """Emails the site admins (settings.ADMINS) when a submission attempts a destructive or
+        escaping statement (see SECURITY_VIOLATION_MARKER above) -- the query itself never had any
+        real effect (the checker only ever runs it against a throwaway copy, or rejects it before
+        running anything), this is purely a heads-up for the teacher. Deliberately best-effort
+        (fail_silently) -- a broken outgoing mailbox must never affect grading."""
+        try:
+            submission = Submission.objects.select_related('user__user', 'problem').get(id=submission_id)
+        except Submission.DoesNotExist:
+            return
+
+        try:
+            source_text = submission.source.source
+        except ObjectDoesNotExist:
+            source_text = '(source unavailable)'
+
+        lines = [
+            'User: %s' % submission.user.user.username,
+            'Problem: %s (%s)' % (submission.problem.name, submission.problem.code),
+            'Submission: https://jo-el.es%s' % reverse('submission_status', args=[submission.id]),
+            'Date: %s' % submission.date,
+            '',
+            'Blocked statement(s):',
+        ]
+        for case_number, feedback in violations:
+            lines.append('  - Case %d: %s' % (case_number, feedback))
+        lines.append('')
+        lines.append('Full submitted source:')
+        lines.append(source_text)
+
+        try:
+            mail_admins(
+                subject='[JOEL] Intent de consulta destructiva bloquejat (%s)' % submission.problem.code,
+                message='\n'.join(lines),
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception('Failed to send security violation admin email for submission %s', submission_id)
 
     def on_malformed(self, packet):
         logger.error('%s: Malformed packet: %s', self.name, packet)

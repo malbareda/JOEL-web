@@ -37,10 +37,40 @@ th.header.rank {
 #users-table {
     .flag{
         text-align:center;
+        width: 110px;
+    }
+
+    .flag img {
+        max-width: 100px;
+        max-height: 40px;
+    }
+
+    .institution-flag {
+        text-align: center;
+        width: 90px;
+    }
+
+    .institution-flag img {
+        max-width: 80px;
+        max-height: 40px;
     }
 
     .username {
-        width: 35%;
+        width: 18%;
+    }
+
+    .rank-number {
+        width: 50px;
+        text-align: center;
+    }
+
+    .organization-col {
+        width: 24%;
+    }
+
+    .user-institutions {
+        font-weight: 700;
+        font-size: 1.15em;
     }
 
     .header {

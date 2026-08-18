@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block media %}
+    <style>
+        #group-name-form {
+            margin: 50px auto 0;
+            display: block;
+            max-width: 500px;
+        }
+
+        #id_group_name {
+            width: 100%;
+        }
+
+        .button-line {
+            text-align: right;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <form id="group-name-form" action="" method="post" class="form-area">
+        {% csrf_token %}
+        {% if access_code %}
+            <input type="hidden" name="access_code" value="{{ access_code }}">
+        {% endif %}
+        {% if form.errors or invalid %}
+            <div id="form-errors">
+                <p class="error">{{ _('Please enter a group name.') }}</p>
+            </div>
+        {% endif %}
+        <p>{{ _('This contest identifies participants by a group name instead of their username. Choose the name your group will be shown as on the scoreboard -- you will not be able to change it afterwards.') }}</p>
+        <p>{{ form.group_name }}</p>
+        <p class="button-line">
+            <button type="submit">{{ _('Join Contest') }}</button>
+        </p>
+    </form>
+{% endblock %}

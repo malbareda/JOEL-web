@@ -14,9 +14,9 @@ from martor.views import markdown_search_user
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import BlogPostSitemap, ContestSitemap, HomePageSitemap, OrganizationSitemap, ProblemSitemap, \
     SolutionSitemap, UrlSitemap, UserSitemap
-from judge.views import TitledTemplateView, api, blog, comment, contests, language, license, mailgun, organization, \
-    preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, ticket, \
-    two_factor, user, widgets
+from judge.views import TitledTemplateView, api, blog, comment, contests, institution, language, license, mailgun, \
+    organization, preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, \
+    ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
     problem_data_file, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -270,6 +270,12 @@ urlpatterns = [
             name='contest_participation_disqualify'),
 
         url(r'^/$', lambda _, contest: HttpResponsePermanentRedirect(reverse('contest_view', args=[contest]))),
+    ])),
+
+    url(r'^institutions/$', institution.InstitutionList.as_view(), name='institution_list'),
+    url(r'^institution/(?P<pk>\d+)-(?P<slug>[\w-]*)', include([
+        url(r'^$', institution.InstitutionHome.as_view(), name='institution_home'),
+        url(r'^/$', lambda _, pk, slug: HttpResponsePermanentRedirect(reverse('institution_home', args=[pk, slug]))),
     ])),
 
     url(r'^organizations/$', organization.OrganizationList.as_view(), name='organization_list'),

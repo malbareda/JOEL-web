@@ -14,6 +14,9 @@ class JudgeAppConfig(AppConfig):
         # noinspection PyUnresolvedReferences
         from . import signals, jinja2  # noqa: F401, imported for side effects
 
+        from judge.flatpage_i18n import patch as patch_flatpage_i18n
+        patch_flatpage_i18n()
+
         from judge.models import Language, Profile
         from django.contrib.auth.models import User
 

@@ -6,13 +6,15 @@ import struct
 from operator import mul
 
 import pyotp
+import pytz
 import webauthn
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Max, OuterRef, Subquery
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -25,7 +27,8 @@ from judge.models.runtime import Language
 from judge.ratings import rating_class
 from judge.utils.two_factor import webauthn_decode
 
-__all__ = ['Organization', 'Profile', 'OrganizationRequest', 'Achievement', 'AchievementObtained', 'WebAuthnCredential']
+__all__ = ['Institution', 'Organization', 'Profile', 'OrganizationRequest', 'Achievement', 'AchievementObtained',
+          'WebAuthnCredential']
 
 
 class EncryptedNullCharField(EncryptedCharField):
@@ -35,20 +38,139 @@ class EncryptedNullCharField(EncryptedCharField):
         return super(EncryptedNullCharField, self).get_prep_value(value)
 
 class Achievement(models.Model):
+    QUALITY_COMMON = 1
+    QUALITY_RARE = 2
+    QUALITY_EPIC = 3
+    QUALITY_LEGENDARY = 4
+    QUALITY_CHOICES = (
+        (QUALITY_COMMON, _('common')),
+        (QUALITY_RARE, _('rare')),
+        (QUALITY_EPIC, _('epic')),
+        (QUALITY_LEGENDARY, _('legendary')),
+    )
+
+    CATEGORY_GACHA_POINTS_BONUS = -1
+    CATEGORY_STICKER = 1
+    CATEGORY_ICON = 2
+    CATEGORY_COLOR = 3
+    CATEGORY_THEME = 4
+    CATEGORY_FONT = 5
+    # Categories a student granted limited access to the admin can create -- everything else
+    # (colors, themes, fonts, and the internal GachaPoints-bonus sentinel) stays admin-only.
+    STUDENT_CATEGORIES = (CATEGORY_STICKER, CATEGORY_ICON)
+    CATEGORY_CHOICES = (
+        (CATEGORY_GACHA_POINTS_BONUS, _('GachaPoints bonus (internal)')),
+        (CATEGORY_STICKER, _('sticker')),
+        (CATEGORY_ICON, _('icon')),
+        (CATEGORY_COLOR, _('user color')),
+        (CATEGORY_THEME, _('theme')),
+        (CATEGORY_FONT, _('font')),
+    )
+
     name = models.CharField(max_length=128, verbose_name=_('achievement name'), unique=True)
     desc = models.TextField(verbose_name=_('achievement description'))
     rarity = models.FloatField(verbose_name=_('rarity'), default=1, help_text=_('raresa del Achievement. Una raresa de 1 significa que té una probabilitat normal en apareixer. Una de 2 significa que té el doble de probabilitats que la resta dintre de la seva categoria de qualitat,etc'))
-    quality = models.IntegerField(verbose_name=_('achievement quality'), default=1, help_text=_('Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari'))
-    category = models.IntegerField(verbose_name=_('achievement category'),default=1, help_text=('Categoria del Achievement. 1 es sticker. 2 icona, 3 color d\'usuari, 4 tema i 5 font'))
-    logo_override_image = models.CharField(verbose_name=_('achievement image'), default='', max_length=150,
-                                           blank=True,
-                                           help_text=_('this image will appear in the profile of those who completed the achievements.'))
+    quality = models.IntegerField(verbose_name=_('achievement quality'), default=1, choices=QUALITY_CHOICES,
+                                  help_text=_('Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari'))
+    category = models.IntegerField(verbose_name=_('achievement category'), default=1, choices=CATEGORY_CHOICES,
+                                   help_text=('Categoria del Achievement. 1 es sticker. 2 icona, 3 color d\'usuari, 4 tema i 5 font'))
+    logo_override_image = models.ImageField(verbose_name=_('achievement image'), upload_to='achievements/',
+                                            max_length=150, blank=True, null=True,
+                                            help_text=_('this image will appear in the profile of those who completed the achievements.'))
+    mega_fanfare = models.BooleanField(
+        verbose_name=_('mega fanfare'), default=False,
+        help_text=_('Marks this achievement for an even more over-the-top gacha reveal than a '
+                    'normal legendary (extra confetti, rubber duck parade, rainbow background, '
+                    "a celebration sound), and sends an email to the site admins (settings.ADMINS) "
+                    'every time a user obtains it.'))
+    created_by = models.ForeignKey(
+        'Profile', verbose_name=_('created by'), null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='created_achievements',
+        help_text=_('Set automatically to whoever created this achievement. A student with '
+                    'limited access to the admin can only edit or delete achievements they '
+                    'created themselves; real admins can edit or delete any achievement.'))
+
     def __str__(self):
         return self.name
+
+    def get_image_url(self):
+        """`logo_override_image` switched from a plain URL text field to a real upload
+        (ImageField), but ~258 pre-existing achievements still have an external URL (e.g.
+        postimg.cc, pinimg.com) stored as their raw value -- FileSystemStorage.url() mangles an
+        absolute URL instead of returning it as-is, so those need to be detected and used
+        directly rather than run through `.url`."""
+        value = str(self.logo_override_image)
+        if value.startswith('http://') or value.startswith('https://') or value.startswith('data:'):
+            return value
+        return self.logo_override_image.url if self.logo_override_image else ''
                                         
 
 
+class Institution(models.Model):
+    """A real educational institution (school). Purely a management container for Organization
+    ('equip') records -- it has no members of its own and no join mechanism (no `is_open`, no
+    `slots`), since students always join a team, never an institution directly. Introduced because
+    Organization had been doing double duty as both "a whole school" and "a class group at a
+    school", with no relationship between the two -- see TODO.md/CANVIS_I_MILLORES.md for context."""
+    name = models.CharField(max_length=128, verbose_name=_('institution name'))
+    slug = models.SlugField(max_length=128, verbose_name=_('institution slug'),
+                            help_text=_('Institution name shown in URL'), default='')
+    short_name = models.CharField(max_length=20, verbose_name=_('short name'),
+                                  help_text=_('Displayed anywhere the full institution name would be too long'))
+    image = models.ImageField(verbose_name=_('institution image'), upload_to='institutions/',
+                              blank=True, null=True)
+    creation_date = models.DateTimeField(verbose_name=_('creation date'), auto_now_add=True)
+
+    def __contains__(self, item):
+        if isinstance(item, int):
+            return self.organizations.filter(member__id=item).exists()
+        elif isinstance(item, Profile):
+            return self.organizations.filter(member__id=item.id).exists()
+        else:
+            raise TypeError('Institution membership test must be Profile or primary key')
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('institution_home', args=(self.id, self.slug))
+
+    @cached_property
+    def all_members(self):
+        return Profile.objects.filter(organizations__institution=self).distinct()
+
+    @cached_property
+    def instPoints(self):
+        acc = 0
+        for mem in self.all_members:
+            acc += mem.performance_points
+        return int(acc)
+
+    @cached_property
+    def instProblems(self):
+        acc = 0
+        for mem in self.all_members:
+            acc += mem.problem_count
+        return int(acc)
+
+    @cached_property
+    def instAverage(self):
+        members = self.all_members
+        count = len(members)
+        if count == 0:
+            return 0
+        return int(self.instPoints / count)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = _('institution')
+        verbose_name_plural = _('institutions')
+
+
 class Organization(models.Model):
+    institution = models.ForeignKey(Institution, verbose_name=_('institution'), null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='organizations',
+                                    help_text=_('The real institution this team belongs to, if any.'))
     name = models.CharField(max_length=128, verbose_name=_('organization title'))
     slug = models.SlugField(max_length=128, verbose_name=_('organization slug'),
                             help_text=_('Organization name shown in URL'))
@@ -67,10 +189,21 @@ class Organization(models.Model):
                                             'only applicable to private organizations'))
     access_code = models.CharField(max_length=7, help_text=_('Student access code'),
                                    verbose_name=_('access code'), null=True, blank=True)
-    logo_override_image = models.CharField(verbose_name=_('Logo override image'), default='', max_length=150,
-                                           blank=True,
-                                           help_text=_('This image will replace the default site logo for users '
-                                                       'viewing the organization.'))
+    logo_override_image = models.ImageField(verbose_name=_('Logo override image'), upload_to='organizations/',
+                                            max_length=150, blank=True, null=True,
+                                            help_text=_('This image will replace the default site logo for users '
+                                                        'viewing the organization.'))
+
+    def get_image_url(self):
+        """`logo_override_image` switched from a plain URL text field to a real upload
+        (ImageField); pre-existing organizations may still have an external URL (e.g. imgur.com,
+        ibb.co) stored as their raw value -- FileSystemStorage.url() mangles an absolute URL
+        instead of returning it as-is, so those need to be detected and used directly rather than
+        run through `.url` (see Achievement.get_image_url, the same fix applied there first)."""
+        value = str(self.logo_override_image)
+        if value.startswith('http://') or value.startswith('https://') or value.startswith('data:'):
+            return value
+        return self.logo_override_image.url if self.logo_override_image else ''
 
     def __contains__(self, item):
         if isinstance(item, int):
@@ -133,6 +266,12 @@ class Profile(models.Model):
     points = models.FloatField(default=0, db_index=True)
     performance_points = models.FloatField(default=0, db_index=True)
     gacha_points = models.FloatField(default=0, db_index=True, help_text=_('Els punts gacha que ha gastat un usuari. No els punts que te. Els punts disponibles es calculen dinamicament entre la resta dels seus punts totals i aquest valor. Per donar gachapoints a un alumne, restar aquest valor. Permet negatius'))
+    last_daily_solve_bonus_date = models.DateField(
+        null=True, blank=True, verbose_name=_('last daily solve bonus date'),
+        help_text=_("Madrid calendar date (Europe/Madrid) on which this user last collected the "
+                    "'first new problem of the day' GachaPoints bonus. Solving before and after "
+                    "Madrid midnight counts as two different days on purpose."),
+    )
     lliga_primera_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la primera divisio de la lliga actual'))
     lliga_segona_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en la segona divisio de la lliga actual'))
     sql_points = models.FloatField(default=0, db_index=True, help_text=_('Punts en problemes de la categoria SQL, separats dels punts de programacio'))
@@ -200,8 +339,39 @@ class Profile(models.Model):
 
     _pp_table = [pow(settings.DMOJ_PP_STEP, i) for i in range(settings.DMOJ_PP_ENTRIES)]
 
-    ##def calculate_gacha(self):
+    # "First new problem of the day" GachaPoints bonus. The day is always Europe/Madrid's
+    # calendar date, regardless of the user's own profile.timezone -- solving one problem at
+    # 23:59 and another at 00:01 Madrid time is deliberately two different days (and two bonuses).
+    DAILY_SOLVE_BONUS_POINTS = 5
+    _MADRID_TZ = pytz.timezone('Europe/Madrid')
 
+    @classmethod
+    def madrid_today(cls):
+        return timezone.now().astimezone(cls._MADRID_TZ).date()
+
+    @property
+    def has_daily_solve_bonus_available(self):
+        return self.last_daily_solve_bonus_date != self.madrid_today()
+
+    def grant_daily_solve_bonus(self):
+        """Grants the daily "first new problem solved" bonus, if not already granted for today's
+        Madrid calendar date -- idempotent, safe to call more than once for the same day (e.g. if
+        a student somehow solves two brand-new problems on the same day, only the first one
+        actually grants anything). Returns the number of points granted (0 if none).
+
+        Uses select_for_update so two submissions finishing grading at nearly the same moment
+        can't both slip through and double-grant the bonus."""
+        today = self.madrid_today()
+        with transaction.atomic():
+            profile = Profile.objects.select_for_update().get(pk=self.pk)
+            if profile.last_daily_solve_bonus_date == today:
+                return 0
+            profile.gacha_points -= self.DAILY_SOLVE_BONUS_POINTS
+            profile.last_daily_solve_bonus_date = today
+            profile.save(update_fields=['gacha_points', 'last_daily_solve_bonus_date'])
+        self.gacha_points = profile.gacha_points
+        self.last_daily_solve_bonus_date = today
+        return self.DAILY_SOLVE_BONUS_POINTS
 
     def calculate_points(self, table=_pp_table):
         from judge.models import Problem
@@ -333,6 +503,17 @@ class Profile(models.Model):
 
     def get_absolute_url(self):
         return reverse('user_page', args=(self.user.username,))
+
+    @cached_property
+    def administered_institution_ids(self):
+        """Institutes this profile is trusted to manage the whole roster of, because it already
+        belongs to (is a member of) at least one team ('equip') under that institute -- an
+        "institute lead" is identified by being placed in one of their own institute's teams, not
+        by being listed in that team's Organization.admins. Used to scope a non-superuser
+        "institute lead"'s admin access to every team -- and, for Profile/User, every member --
+        under the same institute(s), while keeping other institutes out of reach."""
+        return list(self.organizations.exclude(institution__isnull=True)
+                    .values_list('institution_id', flat=True).distinct())
 
     def __str__(self):
         return self.user.username

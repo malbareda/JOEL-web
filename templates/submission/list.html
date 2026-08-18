@@ -86,7 +86,10 @@
                 $('#username').select2({
                     multiple: 1,
                     placeholder: '{{ _('Filter by user name...') }}',
-                    matcher: idAndTextMatcher,
+                    minimumInputLength: 1,
+                    ajax: {
+                        url: '{{ url('user_search_select2_ajax') }}',
+                    },
                 }).css({'visibility': 'visible'});
 
                 $('#equip').select2({
@@ -353,9 +356,8 @@
                             <div class="filter-form-group">
                                 <label for="username"><i>{{ _('User Name') }}</i></label><br>
                                 <select id="username" name="username" multiple>
-                                    {% for code, name in all_usernames %}
-                                        <option {% if code in selected_usernames %}selected{% endif %}
-                                                value="{{ code }}">{{ name }}</option>
+                                    {% for name in selected_usernames %}
+                                        <option selected value="{{ name }}">{{ name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>

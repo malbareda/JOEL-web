@@ -40,7 +40,7 @@
         <meta property="og:description" content="{{ meta_description }}">
     {% endif %}
     <!--[if lt IE 9]>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="{{ static('libs/html5shiv/html5shiv.min.js') }}"></script>
     <script>window.bad_browser = true</script>
     <![endif]-->
     {% block meta %}{% endblock %}
@@ -275,6 +275,12 @@
             {% endif %}
         </a>
     </div>
+{% endif %}
+{% if request.user.is_authenticated and request.profile and request.profile.has_daily_solve_bonus_available %}
+    <a id="daily-bonus-badge" href="{{ url('gacha_main') }}"
+       title="{{ _('Encara pots guanyar el bonus del primer problema nou del dia!') }}">
+        <i class="fa fa-gift"></i>
+    </a>
 {% endif %}
 <div id="page-container">
     <noscript>

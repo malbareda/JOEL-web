@@ -70,6 +70,8 @@
 
         .gacha-wrapper .container {
         margin: 0;
+        position: relative;
+        z-index: 1;
         }
 
         #gacha-particles {
@@ -83,6 +85,218 @@
         z-index: 5;
         }
 
+        /* Rotating "sunburst" rays behind the card, shown only for epic/legendary. */
+        .gacha-wrapper::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 950px;
+        height: 950px;
+        transform: translate(-50%, -50%) rotate(0deg);
+        background: repeating-conic-gradient(var(--quality-color, #fff) 0deg 8deg, transparent 8deg 20deg);
+        opacity: 0;
+        z-index: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease-out;
+        }
+
+        .gacha-wrapper.show-rays::before {
+        opacity: 0.3;
+        animation: gacha-rays-spin 7s linear infinite;
+        }
+
+        .gacha-wrapper.charging .container {
+        animation: gacha-charge-pulse 0.45s ease-in-out infinite;
+        }
+
+        /* Legendary goes further still: the rays and the card's glow keep cycling through every
+           hue instead of sitting on one color -- "even more exaggerated and rainbow", as requested. */
+        .gacha-wrapper.rainbow-mode.show-rays::before {
+        opacity: 0.45;
+        animation: gacha-rays-spin 3.5s linear infinite, gacha-hue-cycle 2s linear infinite;
+        }
+
+        .gacha-wrapper.rainbow-mode.charging .container {
+        animation: gacha-charge-pulse 0.3s ease-in-out infinite, gacha-hue-cycle 1.4s linear infinite;
+        }
+
+        @keyframes gacha-rays-spin {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to   { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes gacha-hue-cycle {
+        from { filter: hue-rotate(0deg); }
+        to   { filter: hue-rotate(360deg); }
+        }
+
+        @keyframes gacha-charge-pulse {
+        0%, 100% { box-shadow: 0 0 12px 3px var(--quality-glow, rgba(255,255,255,0.5)); }
+        50%      { box-shadow: 0 0 48px 16px var(--quality-glow, rgba(255,255,255,0.5)); }
+        }
+
+        #gacha-flash {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 15;
+        }
+
+        #gacha-confetti {
+        position: fixed;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 16;
+        }
+
+        .gacha-reveal-banner {
+        position: fixed;
+        top: 18%;
+        left: 50%;
+        transform: translate(-50%, -20px) scale(0.4);
+        opacity: 0;
+        font-weight: 900;
+        font-size: 1.7em;
+        text-align: center;
+        line-height: 1.3;
+        padding: 0.5em 1em;
+        border-radius: 12px;
+        z-index: 20;
+        pointer-events: none;
+        max-width: 90vw;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+        }
+
+        .gacha-reveal-banner.show {
+        animation: gacha-banner-pop 3.4s cubic-bezier(.34,1.56,.64,1) forwards;
+        }
+
+        @keyframes gacha-banner-pop {
+        0%   { opacity: 0; transform: translate(-50%, -20px) scale(0.3); }
+        14%  { opacity: 1; transform: translate(-50%, 0) scale(1.18); }
+        24%  { transform: translate(-50%, 0) scale(0.94); }
+        32%  { transform: translate(-50%, 0) scale(1.06); }
+        40%  { transform: translate(-50%, 0) scale(1); }
+        88%  { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -10px) scale(1); }
+        }
+
+        .gacha-reveal-banner.quality-1 { background: #2ecc71; color: #08331a; }
+        .gacha-reveal-banner.quality-2 { background: #3498db; color: #062338; }
+        .gacha-reveal-banner.quality-3 { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; }
+
+        .gacha-reveal-banner.quality-4 {
+        color: #2a1400;
+        font-size: 1.25em;
+        background: linear-gradient(135deg, #f39c12, #e74c3c, #f1c40f, #2ecc71, #3498db, #9b59b6, #f39c12);
+        background-size: 400% 400%;
+        animation: gacha-banner-pop 3.4s cubic-bezier(.34,1.56,.64,1) forwards,
+                   gacha-banner-rainbow 1.2s linear infinite,
+                   gacha-banner-wiggle 0.4s ease-in-out infinite;
+        }
+
+        @keyframes gacha-banner-rainbow {
+        0%   { background-position: 0% 50%; }
+        100% { background-position: 100% 50%; }
+        }
+
+        @keyframes gacha-banner-wiggle {
+        0%, 100% { rotate: -1.5deg; }
+        50%      { rotate: 1.5deg; }
+        }
+
+        /* The "oh no, you already had this one" twist: the item on the card visibly dissolves
+           away instead of the duplicate notice just appearing as flat text underneath. */
+        .gacha-wrapper .back.gacha-dissolving {
+        transition: filter 1.1s ease, opacity 1.1s ease;
+        filter: grayscale(1) brightness(0.55);
+        opacity: 0.3;
+        }
+
+        .gacha-reveal-banner.duplicate {
+        color: #2b2b2b;
+        background: linear-gradient(135deg, #cfcfcf, #f2f2f2, #cfcfcf);
+        animation: gacha-banner-pop 3s cubic-bezier(.34,1.56,.64,1) forwards;
+        }
+
+        @keyframes gacha-shake {
+        10%, 90%  { transform: translate3d(-1px, 0, 0); }
+        20%, 80%  { transform: translate3d(2px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+        40%, 60%  { transform: translate3d(4px, 0, 0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+        .gacha-wrapper.charging .container,
+        .gacha-wrapper.show-rays::before {
+            animation: none !important;
+        }
+        .gacha-reveal-banner.show {
+            animation: none !important;
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+            rotate: 0deg;
+        }
+        }
+
+        /* Mega fanfare: reserved for the handful of achievements marked `mega_fanfare`, meant to
+           feel like an even bigger deal than an ordinary legendary -- a rainbow wash across the
+           *whole page* (not just the card) and a parade of rubber ducks marching across it. */
+        #mega-fanfare-bg {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        opacity: 0;
+        background: linear-gradient(120deg, #ff0040, #ff8c00, #ffee00, #22c55e, #0ea5e9, #8b5cf6, #ff0040);
+        background-size: 400% 400%;
+        transition: opacity 1.2s ease;
+        pointer-events: none;
+        }
+
+        #mega-fanfare-bg.show {
+        opacity: 0.35;
+        animation: mega-fanfare-bg-shift 3s linear infinite;
+        }
+
+        @keyframes mega-fanfare-bg-shift {
+        0%   { background-position: 0% 50%; }
+        100% { background-position: 100% 50%; }
+        }
+
+        #duck-parade {
+        position: fixed;
+        inset: 0;
+        z-index: 17;
+        overflow: hidden;
+        pointer-events: none;
+        }
+
+        #duck-parade .duck {
+        position: absolute;
+        left: -8%;
+        font-size: 2.6em;
+        animation-name: duck-march;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+        }
+
+        @keyframes duck-march {
+        from { transform: translateX(0); }
+        to   { transform: translateX(120vw); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+        #mega-fanfare-bg.show { animation: none !important; opacity: 0.18; }
+        #duck-parade { display: none !important; }
+        }
+
     </style>
 {% endblock %}
 
@@ -90,6 +304,119 @@
     {% block user_js_media %}
     <script>
     var gachaRevealed = false;
+
+    // The 15-lines-per-rarity pool lives as hidden, already-translated DOM text (see #gacha-lines
+    // in the body) rather than a JS array built here -- babel's jinja2 string extractor only
+    // picks up translation calls that reach the page as normal template output, not ones used
+    // inside a template variable-assignment list, so that's the only reliable place for them.
+    function getGachaLines(quality) {
+        var container = document.querySelector('#gacha-lines [data-quality="' + quality + '"]');
+        if (!container) return [''];
+        var spans = container.querySelectorAll('span');
+        var lines = [];
+        for (var i = 0; i < spans.length; i++) lines.push(spans[i].textContent);
+        return lines.length ? lines : [''];
+    }
+
+    // Quality-scaled "how over the top is this" table -- mirrors the escalating drama of a real
+    // gacha game's rarity reveal (bronze pulls are near-instant, top rarity gets a multi-second
+    // wind-up, screen shake, rainbow banner, and confetti), played completely straight for comic
+    // effect on something as low-stakes as a profile sticker.
+    var GACHA_QUALITY_META = {
+        1: {color: '#2ecc71', glow: 'rgba(46,204,113,0.55)', chargeMs: 450,  shakeAmp: 0,  bursts: 1, confetti: false, rays: false, rainbow: false},
+        2: {color: '#3498db', glow: 'rgba(52,152,219,0.6)',  chargeMs: 850,  shakeAmp: 2,  bursts: 1, confetti: false, rays: false, rainbow: false},
+        3: {color: '#9b59b6', glow: 'rgba(155,89,182,0.7)',  chargeMs: 1500, shakeAmp: 5,  bursts: 2, confetti: true,  rays: true,  rainbow: false},
+        4: {color: '#f39c12', glow: 'rgba(243,156,18,0.85)', chargeMs: 3200, shakeAmp: 15, bursts: 5, confetti: true,  rays: true,  rainbow: true}
+    };
+
+    // The full second of pure "we don't know what this is yet" suspense before ANY rarity hint
+    // shows -- every pull starts identical (a neutral grey glow) precisely so the color reveal
+    // itself lands as its own beat, instead of telegraphing the rarity from the very first frame.
+    var GACHA_SUSPENSE_MS = 1000;
+
+    function prefersReducedMotion() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function playChargeSound(quality, durationMs) {
+        try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            var ctx = new AudioContextClass();
+            var duration = durationMs / 1000;
+
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(90, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(220 + quality * 220, ctx.currentTime + duration);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.05 + quality * 0.03, ctx.currentTime + duration * 0.8);
+            gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+            // A slow tremolo (an oscillator modulating the main gain) sells the "charging up"
+            // feeling far better than a bare rising tone would on its own.
+            var tremolo = ctx.createOscillator();
+            var tremoloGain = ctx.createGain();
+            tremolo.frequency.value = 6 + quality * 4;
+            tremoloGain.gain.value = 0.5;
+            tremolo.connect(tremoloGain);
+            tremoloGain.connect(gain.gain);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            tremolo.start();
+            osc.stop(ctx.currentTime + duration + 0.05);
+            tremolo.stop(ctx.currentTime + duration + 0.05);
+        } catch (e) {
+            // Web Audio unavailable/blocked -- the visual sequence still plays without it.
+        }
+    }
+
+    function playImpactSound(quality) {
+        try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            var ctx = new AudioContextClass();
+
+            // Filtered white noise burst for the "whump" of the flash, generated in-browser same
+            // as the rest of the gacha audio (no audio assets exist in this repo).
+            var bufferSize = Math.floor(ctx.sampleRate * 0.25);
+            var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            var data = buffer.getChannelData(0);
+            for (var i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            var noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            var noiseGain = ctx.createGain();
+            noiseGain.gain.value = 0.16 + quality * 0.05;
+            var filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1200 + quality * 600;
+            noise.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+            noise.start();
+
+            if (quality >= 3) {
+                var boom = ctx.createOscillator();
+                var boomGain = ctx.createGain();
+                boom.type = 'sine';
+                boom.frequency.setValueAtTime(90, ctx.currentTime);
+                boom.frequency.exponentialRampToValueAtTime(38, ctx.currentTime + 0.3);
+                boomGain.gain.setValueAtTime(0.3, ctx.currentTime);
+                boomGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                boom.connect(boomGain);
+                boomGain.connect(ctx.destination);
+                boom.start();
+                boom.stop(ctx.currentTime + 0.4);
+            }
+        } catch (e) {
+            // Web Audio unavailable/blocked.
+        }
+    }
 
     function playGachaSound(quality) {
         try {
@@ -103,7 +430,7 @@
                 1: [523.25],
                 2: [523.25, 659.25],
                 3: [523.25, 659.25, 783.99],
-                4: [523.25, 659.25, 783.99, 1046.50]
+                4: [523.25, 659.25, 783.99, 1046.50, 1318.51]
             };
             var notes = notesByQuality[quality] || notesByQuality[1];
             var noteDuration = 0.16;
@@ -121,6 +448,24 @@
                 osc.start(startTime);
                 osc.stop(startTime + noteDuration + 0.05);
             });
+            // For a legendary pull, layer a cheesy triumphant chord stab under the arpeggio --
+            // played completely straight, which is exactly what makes it funny for a sticker.
+            if (quality >= 4) {
+                [523.25, 659.25, 783.99].forEach(function (freq) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = freq / 2;
+                    var startTime = ctx.currentTime + notes.length * noteDuration * 0.85;
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.09, startTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.9);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.95);
+                });
+            }
         } catch (e) {
             // Web Audio unavailable/blocked -- the visual reveal still works without it.
         }
@@ -137,10 +482,11 @@
             1: ['#2ecc71', '#27ae60'],
             2: ['#3498db', '#2980b9'],
             3: ['#9b59b6', '#8e44ad'],
-            4: ['#f39c12', '#e67e22', '#f1c40f']
+            // Legendary gets the full rainbow, not just its "theme color" -- see runGachaSequence.
+            4: ['#f39c12', '#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#e91e63']
         };
         var palette = palettes[quality] || palettes[1];
-        var counts = {1: 24, 2: 36, 3: 52, 4: 80};
+        var counts = {1: 24, 2: 36, 3: 52, 4: 110};
         var count = counts[quality] || counts[1];
 
         var particles = [];
@@ -184,29 +530,313 @@
         requestAnimationFrame(step);
     }
 
+    // The "already had this one" rug-pull: a distinct descending two-note "womp womp" instead of
+    // the triumphant charge-up/arpeggio, so it reads as a twist rather than more good news.
+    function playDuplicateSound() {
+        try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            var ctx = new AudioContextClass();
+            [392.00, 349.23].forEach(function (freq, i) {
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                var startTime = ctx.currentTime + i * 0.38;
+                osc.frequency.setValueAtTime(freq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.68, startTime + 0.32);
+                gain.gain.setValueAtTime(0.001, startTime);
+                gain.gain.linearRampToValueAtTime(0.22, startTime + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + 0.45);
+            });
+        } catch (e) {
+            // Web Audio unavailable/blocked.
+        }
+    }
+
+    // The obtained item "turning into" GachaPoints: a burst of gold coins instead of the usual
+    // rarity-colored confetti particles.
+    function burstCoinParticles() {
+        var canvas = document.getElementById('gacha-particles');
+        if (!canvas || !canvas.getContext) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var cx = w / 2, cy = h / 2;
+        var count = 46;
+        var particles = [];
+        for (var i = 0; i < count; i++) {
+            var angle = Math.random() * Math.PI * 2;
+            var speed = 1.5 + Math.random() * 3.5;
+            particles.push({
+                x: cx, y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                size: 4 + Math.random() * 3
+            });
+        }
+        var start = null;
+        var duration = 1500;
+        function step(timestamp) {
+            if (!start) start = timestamp;
+            var elapsed = timestamp - start;
+            ctx.clearRect(0, 0, w, h);
+            var life = Math.max(0, 1 - elapsed / duration);
+            particles.forEach(function (p) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.16;
+                ctx.globalAlpha = life;
+                ctx.fillStyle = '#f1c40f';
+                ctx.strokeStyle = '#a9790a';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+            ctx.globalAlpha = 1;
+            if (elapsed < duration) {
+                requestAnimationFrame(step);
+            } else {
+                ctx.clearRect(0, 0, w, h);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    // Mega fanfare extras, reserved for the handful of achievements marked `mega_fanfare` -- an
+    // even bigger deal than an ordinary legendary: the real celebration sound (celebracio.mp3,
+    // the only non-synthesized audio in the whole gacha), a rainbow wash across the whole page,
+    // and a parade of rubber ducks marching across the screen.
+    function playCelebrationSound() {
+        var audio = document.getElementById('celebracio-audio');
+        if (!audio) return;
+        try {
+            audio.currentTime = 0;
+            audio.play().catch(function () {});
+        } catch (e) {
+            // Autoplay blocked or audio unavailable -- the rest of the show still plays.
+        }
+    }
+
+    function startDuckParade() {
+        var parade = document.getElementById('duck-parade');
+        if (!parade || prefersReducedMotion()) return;
+        var totalMs = 12000;
+        function spawnDuck() {
+            var duck = document.createElement('span');
+            duck.className = 'duck';
+            duck.textContent = '🦆';
+            duck.style.top = (4 + Math.random() * 88) + '%';
+            var duration = 5 + Math.random() * 4;
+            duck.style.animationDuration = duration + 's';
+            parade.appendChild(duck);
+            setTimeout(function () { duck.remove(); }, duration * 1000 + 200);
+        }
+        spawnDuck();
+        spawnDuck();
+        var spawnInterval = setInterval(function () {
+            spawnDuck();
+            spawnDuck();
+        }, 350);
+        setTimeout(function () { clearInterval(spawnInterval); }, totalMs);
+    }
+
+    function triggerMegaFanfare(quality) {
+        var bg = document.getElementById('mega-fanfare-bg');
+        if (bg) bg.classList.add('show');
+        playCelebrationSound();
+        startDuckParade();
+        // A couple of extra confetti waves on top of the normal legendary payoff.
+        setTimeout(function () { burstGachaParticles(quality); }, 300);
+        setTimeout(function () { burstGachaParticles(quality); }, 700);
+    }
+
+    function runDuplicateTwist() {
+        var backEl = document.querySelector('.gacha-wrapper .back');
+        var banner = document.getElementById('gacha-reveal-banner');
+        var repeatText = document.getElementById('desc-repeat');
+        if (backEl) backEl.classList.add('gacha-dissolving');
+        playDuplicateSound();
+        burstCoinParticles();
+
+        setTimeout(function () {
+            if (banner) {
+                banner.textContent = repeatText ? repeatText.textContent : '';
+                banner.className = 'gacha-reveal-banner show duplicate';
+            }
+        }, 350);
+    }
+
+    function startConfettiRain(quality) {
+        var canvas = document.getElementById('gacha-confetti');
+        if (!canvas || !canvas.getContext || prefersReducedMotion()) return;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        var ctx = canvas.getContext('2d');
+        var colors = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'];
+        var count = 60 + quality * 25;
+        var pieces = [];
+        for (var i = 0; i < count; i++) {
+            pieces.push({
+                x: Math.random() * canvas.width,
+                y: -20 - Math.random() * canvas.height * 0.6,
+                vy: 2 + Math.random() * 3,
+                vx: (Math.random() - 0.5) * 2,
+                size: 5 + Math.random() * 6,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rot: Math.random() * Math.PI * 2,
+                vrot: (Math.random() - 0.5) * 0.3
+            });
+        }
+        var start = null;
+        var duration = 3600;
+        function step(ts) {
+            if (!start) start = ts;
+            var elapsed = ts - start;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pieces.forEach(function (p) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rot += p.vrot;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+                ctx.restore();
+            });
+            if (elapsed < duration) {
+                requestAnimationFrame(step);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    function flashScreen() {
+        var el = document.getElementById('gacha-flash');
+        if (!el || prefersReducedMotion()) return;
+        el.style.transition = 'none';
+        el.style.opacity = '0.9';
+        requestAnimationFrame(function () {
+            el.style.transition = 'opacity 0.45s ease-out';
+            el.style.opacity = '0';
+        });
+    }
+
+    function shakeElement(el, durationMs) {
+        if (prefersReducedMotion()) return;
+        el.style.animation = 'none';
+        // Force reflow so a second shake (e.g. charge then payoff) restarts the animation
+        // instead of being ignored as "already running".
+        void el.offsetWidth;
+        el.style.animation = 'gacha-shake ' + durationMs + 'ms cubic-bezier(.36,.07,.19,.97) both';
+    }
+
+    function runGachaSequence(cardElement, quality, repetit, megaFanfare) {
+        var meta = GACHA_QUALITY_META[quality] || GACHA_QUALITY_META[1];
+        if (megaFanfare) {
+            // Even more over-the-top than a normal legendary: longer wind-up, more shake, more
+            // particle bursts -- on top of the mp3/ducks/rainbow-page extras fired at the payoff.
+            meta = {
+                color: meta.color, glow: meta.glow,
+                chargeMs: Math.round(meta.chargeMs * 1.4),
+                shakeAmp: meta.shakeAmp + 6,
+                bursts: meta.bursts + 4,
+                confetti: true, rays: true, rainbow: true
+            };
+        }
+        var wrapper = document.querySelector('.gacha-wrapper');
+
+        // Phase 1: pure suspense. Identical for every rarity -- a neutral grey glow, a generic
+        // "charging" tone (quality 0) -- specifically so nothing hints at what's coming yet.
+        wrapper.style.setProperty('--quality-color', '#bdbdbd');
+        wrapper.style.setProperty('--quality-glow', 'rgba(255,255,255,0.55)');
+        wrapper.classList.add('charging');
+        playChargeSound(0, GACHA_SUSPENSE_MS);
+
+        setTimeout(function () {
+            // Phase 2: the rarity is revealed via color/rays/shake, and the "real" charge-up
+            // (scaled to how big a deal this pull is) takes over from the neutral one.
+            wrapper.style.setProperty('--quality-color', meta.color);
+            wrapper.style.setProperty('--quality-glow', meta.glow);
+            if (meta.rays) wrapper.classList.add('show-rays');
+            if (meta.rainbow) wrapper.classList.add('rainbow-mode');
+
+            playChargeSound(quality, meta.chargeMs);
+            if (meta.shakeAmp > 0) shakeElement(wrapper, meta.chargeMs);
+
+            setTimeout(function () {
+                wrapper.classList.remove('charging');
+                flashScreen();
+                playImpactSound(quality);
+                cardElement.style.transform = 'rotateY(180deg)';
+
+                // Delayed to roughly match the midpoint of the 2s CSS flip, so the payoff lands
+                // as the back face comes into view instead of firing at the very start of the flip.
+                setTimeout(function () {
+                    playGachaSound(quality);
+                    for (var b = 0; b < meta.bursts; b++) {
+                        setTimeout((function () {
+                            return function () { burstGachaParticles(quality); };
+                        })(), b * 220);
+                    }
+                    if (meta.confetti) startConfettiRain(quality);
+                    showRevealBanner(quality);
+                    if (meta.shakeAmp > 0) shakeElement(wrapper, 450);
+                    if (megaFanfare) triggerMegaFanfare(quality);
+
+                    // Reveal the item's name/description now, as part of the payoff -- not the
+                    // instant the card was clicked, which used to spoil it before any of this
+                    // sequence even started.
+                    var descItem = document.getElementById('desc-item');
+                    if (descItem) descItem.style.display = 'block';
+
+                    // The rug-pull: let the player enjoy the big reveal for a couple seconds,
+                    // then the item visibly dissolves into GachaPoints instead of a plain
+                    // "by the way, you already had this" line appearing underneath.
+                    if (repetit) {
+                        setTimeout(function () { runDuplicateTwist(); }, 2800);
+                    }
+                }, 300);
+            }, meta.chargeMs);
+        }, GACHA_SUSPENSE_MS);
+    }
+
+    function showRevealBanner(quality) {
+        var banner = document.getElementById('gacha-reveal-banner');
+        if (!banner) return;
+        var lines = getGachaLines(quality);
+        var text = lines[Math.floor(Math.random() * lines.length)];
+        banner.textContent = text;
+        banner.className = 'gacha-reveal-banner show quality-' + quality;
+    }
+
     function flip(event){
         var element = event.currentTarget;
+
+        if (element.className !== "card") return;
+
+        if (!gachaRevealed) {
+            gachaRevealed = true;
+            runGachaSequence(element, {{ achq }}, {{ repetit }}, {{ 1 if mega_fanfare else 0 }});
+            return;
+        }
+
+        // Already revealed: a plain re-flip, nothing left to spoil.
         document.getElementById("desc-item").style.display = "block";
         var descRepeat = document.getElementById("desc-repeat");
         if (descRepeat) descRepeat.style.display = "block";
 
-        if (element.className === "card") {
-        if(element.style.transform == "rotateY(180deg)") {
-        element.style.transform = "rotateY(0deg)";
-        }
-        else {
-        element.style.transform = "rotateY(180deg)";
-        if (!gachaRevealed) {
-            gachaRevealed = true;
-            var quality = {{ achq }};
-            // Delayed to roughly match the midpoint of the 2s CSS flip, so the payoff lands as
-            // the back face comes into view instead of firing at the very start of the flip.
-            setTimeout(function () {
-                playGachaSound(quality);
-                burstGachaParticles(quality);
-            }, 300);
-        }
-        }
+        if (element.style.transform == "rotateY(180deg)") {
+            element.style.transform = "rotateY(0deg)";
+        } else {
+            element.style.transform = "rotateY(180deg)";
         }
     };
     </script>
@@ -217,6 +847,88 @@
 
     {% set gpoints = user.points - user.gacha_points %}
     <p>{{_('Punts Disponibles')}}: {{gpoints|floatformat(2)}}</p>
+    <div id="gacha-flash"></div>
+    <canvas id="gacha-confetti"></canvas>
+    <div id="gacha-reveal-banner" class="gacha-reveal-banner"></div>
+    {% if mega_fanfare %}
+        <div id="mega-fanfare-bg"></div>
+        <div id="duck-parade"></div>
+        <audio id="celebracio-audio" src="{{ static('celebracio.mp3') }}" preload="auto"></audio>
+    {% endif %}
+
+    {# Pool of comic reveal lines per rarity -- rendered as hidden, already-translated text (not
+       a JS array) because babel's jinja2 extractor only picks up _() calls that reach the page as
+       normal template output. JS (getGachaLines) reads these back by textContent when needed. #}
+    <div id="gacha-lines" style="display:none" aria-hidden="true">
+        <div data-quality="1">
+            <span>{{ _("Bé... un més per la col·lecció.") }}</span>
+            <span>{{ _("Ah. Val.") }}</span>
+            <span>{{ _("Suposo que compta.") }}</span>
+            <span>{{ _("Ni fu ni fa.") }}</span>
+            <span>{{ _("Almenys no ha costat res.") }}</span>
+            <span>{{ _("Un clàssic sempre funciona.") }}</span>
+            <span>{{ _("Sorpresa: cap sorpresa.") }}</span>
+            <span>{{ _("Ja en tenia un d'igual. I un altre. I un altre.") }}</span>
+            <span>{{ _("El destí ha parlat, i ha dit \"meh\".") }}</span>
+            <span>{{ _("Segur que a algú li fa il·lusió.") }}</span>
+            <span>{{ _("Redoblament de tambors... per a això?") }}</span>
+            <span>{{ _("Com deia la iaia: no tot poden ser diamants.") }}</span>
+            <span>{{ _("Tècnicament és una victòria.") }}</span>
+            <span>{{ _("La sort no hi era, avui.") }}</span>
+            <span>{{ _("Un pas més cap a completar la col·lecció (algun dia).") }}</span>
+        </div>
+        <div data-quality="2">
+            <span>{{ _("Ei, no està gens malament!") }}</span>
+            <span>{{ _("Mira mira, quina sorpresa més agradable!") }}</span>
+            <span>{{ _("Això sí que és un bon tirat!") }}</span>
+            <span>{{ _("M'agrada com sona, això.") }}</span>
+            <span>{{ _("Un pas per sobre de la mitjana, i ja és molt!") }}</span>
+            <span>{{ _("Ara sí que comencem a parlar.") }}</span>
+            <span>{{ _("Prou bo per presumir-ne una mica.") }}</span>
+            <span>{{ _("Rar de veritat, no rar de \"bé, suposo\".") }}</span>
+            <span>{{ _("Els déus del gacha t'han somrigut avui.") }}</span>
+            <span>{{ _("Uau, mira com brilla!") }}</span>
+            <span>{{ _("Això val la pena ensenyar-ho als amics.") }}</span>
+            <span>{{ _("Bon començament, seguim pujant!") }}</span>
+            <span>{{ _("Ni el pitjor ni el millor, però queda genial.") }}</span>
+            <span>{{ _("Ostres, quina gràcia que ha fet!") }}</span>
+            <span>{{ _("Ep, ep, ep, mira qui s'ho ha guanyat!") }}</span>
+        </div>
+        <div data-quality="3">
+            <span>{{ _("IMPRESSIONANT!! Quina sort!") }}</span>
+            <span>{{ _("AIXÒ SÍ QUE ÉS ÈPIC!") }}</span>
+            <span>{{ _("NO M'HO PUC CREURE!!") }}</span>
+            <span>{{ _("QUINA BOMBA ACABES DE TREURE!!") }}</span>
+            <span>{{ _("ÈPIC DE VERITAT, NO ÈPIC DE MENTIDA!") }}</span>
+            <span>{{ _("EL TEU EQUIP ET FELICITARÀ PER AIXÒ!") }}</span>
+            <span>{{ _("AIXÒ SÍ QUE MEREIX UNA CAPTURA DE PANTALLA!") }}</span>
+            <span>{{ _("INCREÏBLE!! GUARDA'T AQUEST MOMENT!") }}</span>
+            <span>{{ _("HAS DESBLOQUEJAT EL NIVELL \"SORTUT\"!") }}</span>
+            <span>{{ _("QUIN COP DE SORT MÉS BRUTAL!") }}</span>
+            <span>{{ _("ELS ALTRES ET TINDRAN ENVEJA, I RAÓ NO ELS FALTARÀ!") }}</span>
+            <span>{{ _("AIXÒ ÉS DEL QUE ES PARLA A LA SALA DE PROFESSORAT!") }}</span>
+            <span>{{ _("HAS GUANYAT LA LOTERIA DEL GACHA!") }}</span>
+            <span>{{ _("ÈPIC ÉS QUEDAR-SE CURT!") }}</span>
+            <span>{{ _("AIXÒ HAURIA DE SORTIR ALS INFORMATIUS!") }}</span>
+        </div>
+        <div data-quality="4">
+            <span>{{ _("★ LLEGENDARI ★ EL MILLOR DIA DE LA TEVA VIDA!!!") }}</span>
+            <span>{{ _("★★★ ATURA-HO TOT, HAS FET HISTÒRIA!!! ★★★") }}</span>
+            <span>{{ _("LES ESTRELLES S'HAN ALINEAT NOMÉS PER TU!!!") }}</span>
+            <span>{{ _("AIXÒ ÉS LLEGENDA, LITERALMENT!!!") }}</span>
+            <span>{{ _("TRUCA A LA FAMÍLIA, TRUCA ALS AMICS, TRUCA A TOTHOM!!!") }}</span>
+            <span>{{ _("EL GACHA HA PLORAT D'EMOCIÓ EN DONAR-TE AIXÒ!!!") }}</span>
+            <span>{{ _("AQUEST MOMENT ES RECORDARÀ PER GENERACIONS!!!") }}</span>
+            <span>{{ _("HAS ARRIBAT AL CIM DE L'OLIMP DEL GACHA!!!") }}</span>
+            <span>{{ _("NI EN ELS TEUS MILLORS SOMNIS T'HO ESPERAVES!!!") }}</span>
+            <span>{{ _("EL SERVIDOR SENCER HAURIA DE SABER-HO, AVUI!!!") }}</span>
+            <span>{{ _("QUE SONIN LES CAMPANES, HAS ACONSEGUIT EL LLEGENDARI!!!") }}</span>
+            <span>{{ _("AIXÒ NO ÉS SORT, ÉS DESTÍ!!!") }}</span>
+            <span>{{ _("GUARDA AQUESTA CAPTURA PER SEMPRE!!!") }}</span>
+            <span>{{ _("EL MULTIVERS SENCER T'HA SOMRIGUT AVUI!!!") }}</span>
+            <span>{{ _("ELS DÉUS DEL CODI T'HAN BENEÏT!!!") }}</span>
+        </div>
+    </div>
     <div class="gacha-wrapper">
         <canvas id="gacha-particles" width="700" height="700"></canvas>
         <div class="container">

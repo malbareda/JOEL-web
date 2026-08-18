@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dmoj\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-16 22:29+0000\n"
+"POT-Creation-Date: 2026-08-17 08:09+0000\n"
 "PO-Revision-Date: 2020-08-23 18:58\n"
 "Last-Translator: \n"
 "Language-Team: Chinese Simplified\n"
@@ -975,7 +975,7 @@ msgstr ""
 
 #: judge/models/contest.py:385 judge/models/contest.py:483
 #: judge/models/contest.py:520 judge/models/contest.py:542
-#: judge/models/submission.py:85
+#: judge/models/submission.py:87
 msgid "contest"
 msgstr "竞赛"
 
@@ -1087,7 +1087,7 @@ msgstr "竞赛题目"
 msgid "contest problems"
 msgstr "竞赛题目"
 
-#: judge/models/contest.py:502 judge/models/submission.py:202
+#: judge/models/contest.py:502 judge/models/submission.py:204
 msgid "submission"
 msgstr "提交信息"
 
@@ -2399,41 +2399,41 @@ msgstr "裁判服务器"
 msgid "judge"
 msgstr "裁判服务器"
 
-#: judge/models/submission.py:21 judge/models/submission.py:48
+#: judge/models/submission.py:21 judge/models/submission.py:49
 #: judge/utils/problems.py:75
 msgid "Accepted"
 msgstr "接受"
 
-#: judge/models/submission.py:22 judge/models/submission.py:49
+#: judge/models/submission.py:22 judge/models/submission.py:50
 msgid "Wrong Answer"
 msgstr "答案错误"
 
-#: judge/models/submission.py:23 judge/models/submission.py:51
+#: judge/models/submission.py:23 judge/models/submission.py:52
 msgid "Time Limit Exceeded"
 msgstr "超出时间限制"
 
-#: judge/models/submission.py:24 judge/models/submission.py:52
+#: judge/models/submission.py:24 judge/models/submission.py:53
 msgid "Memory Limit Exceeded"
 msgstr "超出内存限制"
 
-#: judge/models/submission.py:25 judge/models/submission.py:53
+#: judge/models/submission.py:25 judge/models/submission.py:54
 msgid "Output Limit Exceeded"
 msgstr "超出输出限制"
 
-#: judge/models/submission.py:26 judge/models/submission.py:54
+#: judge/models/submission.py:26 judge/models/submission.py:55
 msgid "Invalid Return"
 msgstr "错误退出代码"
 
-#: judge/models/submission.py:27 judge/models/submission.py:55
+#: judge/models/submission.py:27 judge/models/submission.py:56
 msgid "Runtime Error"
 msgstr "运行错误"
 
-#: judge/models/submission.py:28 judge/models/submission.py:42
-#: judge/models/submission.py:56 judge/utils/problems.py:77
+#: judge/models/submission.py:28 judge/models/submission.py:43
+#: judge/models/submission.py:57 judge/utils/problems.py:77
 msgid "Compile Error"
 msgstr "编译错误"
 
-#: judge/models/submission.py:29 judge/models/submission.py:41
+#: judge/models/submission.py:29 judge/models/submission.py:42
 msgid "Internal Error"
 msgstr "内部错误"
 
@@ -2441,184 +2441,193 @@ msgstr "内部错误"
 msgid "Short circuit"
 msgstr "跳过"
 
-#: judge/models/submission.py:31 judge/models/submission.py:43
-#: judge/models/submission.py:62
+#: judge/models/submission.py:31 judge/models/submission.py:44
+#: judge/models/submission.py:63
 msgid "Aborted"
 msgstr "中止"
 
-#: judge/models/submission.py:37 judge/models/submission.py:58
+#: judge/models/submission.py:32
+#| msgid "Submit solution"
+msgid "Security Violation"
+msgstr "安全违规"
+
+#: judge/models/submission.py:38 judge/models/submission.py:59
 msgid "Queued"
 msgstr "等待中"
 
-#: judge/models/submission.py:38 judge/models/submission.py:59
+#: judge/models/submission.py:39 judge/models/submission.py:60
 msgid "Processing"
 msgstr "处理中"
 
-#: judge/models/submission.py:39 judge/models/submission.py:60
+#: judge/models/submission.py:40 judge/models/submission.py:61
 msgid "Grading"
 msgstr "评分中"
 
-#: judge/models/submission.py:40 judge/models/submission.py:61
+#: judge/models/submission.py:41 judge/models/submission.py:62
 msgid "Completed"
 msgstr "完成"
 
-#: judge/models/submission.py:57
+#: judge/models/submission.py:58
 msgid "Internal Error (judging server error)"
 msgstr "内部错误 (裁判服务器错误)"
 
-#: judge/models/submission.py:67
+#: judge/models/submission.py:64
+msgid "Security Violation (blocked destructive query)"
+msgstr "安全违规(已阻止破坏性查询)"
+
+#: judge/models/submission.py:69
 msgid "submission time"
 msgstr "提交时间"
 
-#: judge/models/submission.py:68 judge/models/submission.py:232
+#: judge/models/submission.py:70 judge/models/submission.py:234
 msgid "execution time"
 msgstr "执行时间"
 
-#: judge/models/submission.py:69 judge/models/submission.py:233
+#: judge/models/submission.py:71 judge/models/submission.py:235
 msgid "memory usage"
 msgstr "内存使用"
 
-#: judge/models/submission.py:70 judge/models/submission.py:234
+#: judge/models/submission.py:72 judge/models/submission.py:236
 msgid "points granted"
 msgstr "获得分数"
 
-#: judge/models/submission.py:71
+#: judge/models/submission.py:73
 msgid "submission language"
 msgstr "提交语言"
 
-#: judge/models/submission.py:72
+#: judge/models/submission.py:74
 msgid "status"
 msgstr "状态"
 
-#: judge/models/submission.py:73
+#: judge/models/submission.py:75
 msgid "result"
 msgstr "结果"
 
-#: judge/models/submission.py:75
+#: judge/models/submission.py:77
 msgid "compile errors"
 msgstr "编译错误"
 
-#: judge/models/submission.py:77
+#: judge/models/submission.py:79
 msgid "batched cases"
 msgstr "测试组"
 
-#: judge/models/submission.py:78
+#: judge/models/submission.py:80
 msgid "test case points"
 msgstr "测试点分值"
 
-#: judge/models/submission.py:79
+#: judge/models/submission.py:81
 msgid "test case total points"
 msgstr "测试用例总分"
 
-#: judge/models/submission.py:80
+#: judge/models/submission.py:82
 msgid "judged on"
 msgstr "裁判服务器"
 
-#: judge/models/submission.py:82
+#: judge/models/submission.py:84
 msgid "submission judge time"
 msgstr ""
 
-#: judge/models/submission.py:83
+#: judge/models/submission.py:85
 msgid "was rejudged by admin"
 msgstr "被管理员重新评分"
 
-#: judge/models/submission.py:84
+#: judge/models/submission.py:86
 msgid "was ran on pretests only"
 msgstr "只进行过预测试"
 
-#: judge/models/submission.py:87
+#: judge/models/submission.py:89
 msgid "lock submission"
 msgstr ""
 
-#: judge/models/submission.py:88 judge/models/submission.py:241
+#: judge/models/submission.py:90 judge/models/submission.py:243
 msgid "is flagged"
 msgstr ""
 
-#: judge/models/submission.py:194
+#: judge/models/submission.py:196
 msgid "Abort any submission"
 msgstr ""
 
-#: judge/models/submission.py:195
+#: judge/models/submission.py:197
 msgid "Rejudge the submission"
 msgstr ""
 
-#: judge/models/submission.py:196
+#: judge/models/submission.py:198
 msgid "Rejudge a lot of submissions"
 msgstr ""
 
-#: judge/models/submission.py:197
+#: judge/models/submission.py:199
 msgid "Submit without limit"
 msgstr ""
 
-#: judge/models/submission.py:198
+#: judge/models/submission.py:200
 msgid "View all submission"
 msgstr ""
 
-#: judge/models/submission.py:199
+#: judge/models/submission.py:201
 msgid "Resubmit others' submission"
 msgstr ""
 
-#: judge/models/submission.py:200
+#: judge/models/submission.py:202
 msgid "Change lock status of submission"
 msgstr ""
 
-#: judge/models/submission.py:203 templates/contest/moss.html:58
+#: judge/models/submission.py:205 templates/contest/moss.html:58
 msgid "submissions"
 msgstr "提交历史"
 
-#: judge/models/submission.py:207 judge/models/submission.py:228
+#: judge/models/submission.py:209 judge/models/submission.py:230
 msgid "associated submission"
 msgstr "相关提交"
 
-#: judge/models/submission.py:209
+#: judge/models/submission.py:211
 msgid "source code"
 msgstr "源码"
 
-#: judge/models/submission.py:221
+#: judge/models/submission.py:223
 #, fuzzy
 #| msgid "submission time"
 msgid "submission vote"
 msgstr "提交时间"
 
-#: judge/models/submission.py:222
+#: judge/models/submission.py:224
 #, fuzzy
 #| msgid "submission time"
 msgid "submission votes"
 msgstr "提交时间"
 
-#: judge/models/submission.py:230
+#: judge/models/submission.py:232
 msgid "test case ID"
 msgstr "测试编号"
 
-#: judge/models/submission.py:231
+#: judge/models/submission.py:233
 msgid "status flag"
 msgstr "状态标志"
 
-#: judge/models/submission.py:235
+#: judge/models/submission.py:237
 msgid "points possible"
 msgstr "满分"
 
-#: judge/models/submission.py:236
+#: judge/models/submission.py:238
 msgid "batch number"
 msgstr "批号"
 
-#: judge/models/submission.py:237
+#: judge/models/submission.py:239
 msgid "judging feedback"
 msgstr "评测反馈"
 
-#: judge/models/submission.py:238
+#: judge/models/submission.py:240
 msgid "extended judging feedback"
 msgstr ""
 
-#: judge/models/submission.py:240
+#: judge/models/submission.py:242
 msgid "program output"
 msgstr "程序输出"
 
-#: judge/models/submission.py:263
+#: judge/models/submission.py:265
 msgid "submission test case"
 msgstr "程序测试"
 
-#: judge/models/submission.py:264
+#: judge/models/submission.py:266
 msgid "submission test cases"
 msgstr "程序测试"
 
@@ -3245,118 +3254,118 @@ msgstr "你想踢的用户不是组织成员：%s"
 msgid "No preview data specified."
 msgstr "未指定预览数据。"
 
-#: judge/views/problem.py:70
+#: judge/views/problem.py:71
 #, fuzzy
 #| msgid "No such user"
 msgid "No such task"
 msgstr "无该用户"
 
-#: judge/views/problem.py:71
+#: judge/views/problem.py:72
 #, fuzzy, python-format
 #| msgid "Could not find a problem with the code \"%s\"."
 msgid "Could not find a task with the code \"%s\"."
 msgstr "找不到代码为“%s”的题目。"
 
-#: judge/views/problem.py:94
+#: judge/views/problem.py:95
 msgid "No such problem"
 msgstr "无该题目"
 
-#: judge/views/problem.py:95
+#: judge/views/problem.py:96
 #, python-format
 msgid "Could not find a problem with the code \"%s\"."
 msgstr "找不到代码为“%s”的题目。"
 
-#: judge/views/problem.py:137
+#: judge/views/problem.py:138
 #, python-brace-format
 msgid "Editorial for {0}"
 msgstr "{0} 的题解"
 
-#: judge/views/problem.py:140
+#: judge/views/problem.py:141
 #, python-brace-format
 msgid "Editorial for <a href=\"{1}\">{0}</a>"
 msgstr "<a href=\"{1}\">{0}</a>的题解"
 
-#: judge/views/problem.py:163
+#: judge/views/problem.py:164
 #, fuzzy, python-brace-format
 #| msgid "Editing data for {0}"
 msgid "Guide for {0}"
 msgstr "正在编辑 {0} 的数据"
 
-#: judge/views/problem.py:166
+#: judge/views/problem.py:167
 #, fuzzy, python-brace-format
 #| msgid "Editorial for <a href=\"{1}\">{0}</a>"
 msgid "Guide for <a href=\"{1}\">{0}</a>"
 msgstr "<a href=\"{1}\">{0}</a>的题解"
 
-#: judge/views/problem.py:206
+#: judge/views/problem.py:207
 #, python-brace-format
 msgid "Database schema for {0}"
 msgstr "{0} 的数据库架构"
 
-#: judge/views/problem.py:433 judge/views/problem.py:602
+#: judge/views/problem.py:496 judge/views/problem.py:665
 #, python-brace-format
 msgid "Solve status for {0}"
 msgstr ""
 
-#: judge/views/problem.py:437 judge/views/problem.py:605
+#: judge/views/problem.py:500 judge/views/problem.py:668
 #, fuzzy, python-brace-format
 #| msgid "Best solutions for <a href=\"{1}\">{0}</a>"
 msgid "Solve status for <a href=\"{1}\">{0}</a>"
 msgstr "<a href=\"{1}\">{0}</a> 排行榜"
 
-#: judge/views/problem.py:732
+#: judge/views/problem.py:795
 #, fuzzy, python-format
 #| msgid "Editing data for %s"
 msgid "Stats for %s"
 msgstr "编辑%s的测试数据"
 
-#: judge/views/problem.py:951 judge/views/problem.py:1171
-#: judge/views/problem.py:1306
+#: judge/views/problem.py:1014 judge/views/problem.py:1234
+#: judge/views/problem.py:1369
 msgid "FTS syntax error"
 msgstr "搜索语法错误"
 
-#: judge/views/problem.py:963 templates/contest/contest.html:79
+#: judge/views/problem.py:1026 templates/contest/contest.html:79
 #: templates/user/user-tabs.html:5 templates/user/users-table.html:14
 msgid "Problems"
 msgstr "题目"
 
-#: judge/views/problem.py:1186 templates/problem/problem-list-tabs.html:8
+#: judge/views/problem.py:1249 templates/problem/problem-list-tabs.html:8
 #: templates/problem/tasklist.html:56
 msgid "Tasks"
 msgstr ""
 
-#: judge/views/problem.py:1390 judge/views/problem.py:1398
+#: judge/views/problem.py:1453 judge/views/problem.py:1461
 #, python-format
 msgid "Submit to %s"
 msgstr ""
 
-#: judge/views/problem.py:1447
+#: judge/views/problem.py:1510
 msgid "Banned from submitting"
 msgstr "禁止提交"
 
-#: judge/views/problem.py:1448
+#: judge/views/problem.py:1511
 msgid ""
 "You have been declared persona non grata for this problem. You are "
 "permanently barred from submitting this problem."
 msgstr "您在该题目不受欢迎。您被永久禁止为该题目提交解决程序。"
 
-#: judge/views/problem.py:1452
+#: judge/views/problem.py:1515
 msgid "Too many submissions"
 msgstr "提交太多了"
 
-#: judge/views/problem.py:1453
+#: judge/views/problem.py:1516
 msgid "You have exceeded the submission limit for this problem."
 msgstr "您已超出此问题的提交限制。"
 
-#: judge/views/problem.py:1499
+#: judge/views/problem.py:1562
 msgid "Do you want me to ban you?"
 msgstr "你想被封禁吗？"
 
-#: judge/views/problem.py:1517
+#: judge/views/problem.py:1580
 msgid "Clone Problem"
 msgstr ""
 
-#: judge/views/problem.py:1543 templates/problem/task.html:64
+#: judge/views/problem.py:1606 templates/problem/task.html:64
 #, fuzzy
 #| msgid "Clone contest"
 msgid "Clone task"
@@ -3538,86 +3547,86 @@ msgstr "版本矩阵"
 msgid "Submission of %(problem)s by %(user)s"
 msgstr "%(user)s 在 %(problem)s 的提交结果"
 
-#: judge/views/submission.py:251
+#: judge/views/submission.py:252
 msgid "Liant-la eh?"
 msgstr ""
 
-#: judge/views/submission.py:323
+#: judge/views/submission.py:324
 msgid ""
 "You have already used your hint for this problem on a different test case."
 msgstr ""
 
-#: judge/views/submission.py:328
+#: judge/views/submission.py:329
 #, fuzzy
 #| msgid "No judge is available for this problem."
 msgid "You have no hint reveals left for this problem."
 msgstr "此题目没有可用的裁判服务器。"
 
-#: judge/views/submission.py:365 judge/views/submission.py:366
+#: judge/views/submission.py:366 judge/views/submission.py:367
 #: templates/problem/problem.html:174
 msgid "All submissions"
 msgstr "所有提交历史"
 
-#: judge/views/submission.py:528
+#: judge/views/submission.py:529
 msgid "All my submissions"
 msgstr "我提交的程序"
 
-#: judge/views/submission.py:529
+#: judge/views/submission.py:530
 #, python-format
 msgid "All submissions by %s"
 msgstr "%s 的提交历史"
 
-#: judge/views/submission.py:560
+#: judge/views/submission.py:561
 #, python-format
 msgid "All submissions for %s"
 msgstr "%s 的提交历史"
 
-#: judge/views/submission.py:579
+#: judge/views/submission.py:580
 msgid "Must pass a problem"
 msgstr "必须给予题目"
 
-#: judge/views/submission.py:618
+#: judge/views/submission.py:619
 #, python-format
 msgid "My submissions for %(problem)s"
 msgstr "我对 %(problem)s 提交的程序"
 
-#: judge/views/submission.py:619
+#: judge/views/submission.py:620
 #, python-format
 msgid "%(user)s's submissions for %(problem)s"
 msgstr "%(user)s 在 %(problem)s 的提交历史"
 
-#: judge/views/submission.py:715
+#: judge/views/submission.py:716
 msgid "Must pass a contest"
 msgstr "必须给予竞赛"
 
-#: judge/views/submission.py:723
+#: judge/views/submission.py:724
 #, python-format
 msgid "My submissions in %(contest)s"
 msgstr ""
 
-#: judge/views/submission.py:724
+#: judge/views/submission.py:725
 #, python-format
 msgid "%(user)s's submissions in %(contest)s"
 msgstr ""
 
-#: judge/views/submission.py:738
+#: judge/views/submission.py:739
 #, python-brace-format
 msgid "My submissions in <a href=\"{1}\">{0}</a>"
 msgstr ""
 
-#: judge/views/submission.py:740
+#: judge/views/submission.py:741
 #, python-brace-format
 msgid "<a href=\"{1}\">{0}</a>'s submissions in <a href=\"{3}\">{2}</a>"
 msgstr ""
 
-#: judge/views/submission.py:764
+#: judge/views/submission.py:765
 #, python-brace-format
 msgid ""
 "<a href=\"{1}\">{0}</a>'s submissions for <a href=\"{3}\">{2}</a> in <a "
 "href=\"{5}\">{4}</a>"
 msgstr "<a href=\"{5}\">{4}</a> 中 <a href=\"{1}\">{0}</a> 在 <a href=\"{3}\">{2}</a> 的提交历史"
 
-#: judge/views/submission.py:769
+#: judge/views/submission.py:770
 #, python-brace-format
 msgid ""
 "<a href=\"{1}\">{0}</a>'s submissions for problem {2} in <a "
@@ -4092,7 +4101,7 @@ msgid "Voter"
 msgstr ""
 
 #: templates/comments/votes.html:6
-#: templates/submission/status-testcases.html:80
+#: templates/submission/status-testcases.html:90
 #: templates/user/user-problems.html:99
 msgid "Score"
 msgstr "得分"
@@ -4493,9 +4502,6 @@ msgstr ""
 
 #: templates/gacha/gacharesult.html:242
 #, python-format
-#| msgid ""
-#| "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-#| " 50% dels teus GachaPoints"
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
 " 50%% dels teus GachaPoints"
@@ -4786,7 +4792,7 @@ msgstr "检查器"
 msgid "Generator args"
 msgstr "生成器参数"
 
-#: templates/problem/data.html:428 templates/problem/database.html:78
+#: templates/problem/data.html:428 templates/problem/database.html:112
 msgid "Type"
 msgstr "类型"
 
@@ -4815,38 +4821,42 @@ msgstr "添加新的用例"
 msgid "Save"
 msgstr "保存"
 
-#: templates/problem/database.html:52
+#: templates/problem/database.html:78
 msgid ""
 "This is the schema of the database used by this problem — the collections "
 "you can query against. In MongoDB, documents in the same collection can have"
 " different fields; the example below only shows one document."
 msgstr ""
 
-#: templates/problem/database.html:60
+#: templates/problem/database.html:86
 msgid "This collection is empty."
 msgstr ""
 
-#: templates/problem/database.html:64
+#: templates/problem/database.html:90
 #, fuzzy
 #| msgid "No tables found in this database."
 msgid "No collections found in this database."
 msgstr "此数据库中未找到任何表。"
 
-#: templates/problem/database.html:69
+#: templates/problem/database.html:95
 msgid ""
 "This is the schema of the database used by this problem — the tables and "
 "columns you can query against."
 msgstr ""
 
-#: templates/problem/database.html:77
+#: templates/problem/database.html:99
+msgid "Diagrama ER"
+msgstr "ER图"
+
+#: templates/problem/database.html:111
 msgid "Column"
 msgstr "列"
 
-#: templates/problem/database.html:92
+#: templates/problem/database.html:126
 msgid "No tables found in this database."
 msgstr "此数据库中未找到任何表。"
 
-#: templates/problem/database.html:97 templates/problem/guide.html:73
+#: templates/problem/database.html:131 templates/problem/guide.html:73
 msgid "Back to problem"
 msgstr "返回题目"
 
@@ -5657,92 +5667,113 @@ msgstr "查看原始源代码"
 msgid "Resubmit"
 msgstr "重新提交"
 
-#: templates/submission/status-testcases.html:12
+#: templates/submission/status-testcases.html:14
+msgid "Intent de consulta destructiva detectat"
+msgstr "检测到破坏性查询尝试"
+
+#: templates/submission/status-testcases.html:15
+msgid ""
+"Aquesta consulta ha intentat executar una operació que podria haver destruït"
+" o alterat dades reals (per exemple un DROP, un DELETE, o sortir del fitxer "
+"de base de dades assignat). No ha tingut cap efecte real: el sistema la "
+"bloqueja sempre abans d'executar-la."
+msgstr ""
+"此查询试图执行可能会破坏或更改真实数据的操作(例如 "
+"DROP、DELETE,或者试图跳出分配的数据库文件)。它没有产生任何真实的影响:系统在执行之前总是会将其阻止。"
+
+#: templates/submission/status-testcases.html:16
+msgid ""
+"Aquest intent ha quedat registrat i s'ha notificat al professorat. Fer això "
+"en un sistema real (no en un exercici) pot tenir conseqüències "
+"disciplinàries greus i, segons el cas, ser constitutiu de delicte."
+msgstr "此次尝试已被记录并通报给教师。在真实系统(而非练习)中这样做可能会带来严重的纪律处分后果,视情况甚至可能构成犯罪行为。"
+
+#: templates/submission/status-testcases.html:22
 msgid "We are waiting for a suitable judge to process your submission..."
 msgstr "我们正在等待合适的裁判服务端来处理您的提交程序…"
 
-#: templates/submission/status-testcases.html:14
+#: templates/submission/status-testcases.html:24
 msgid "Your submission is being processed..."
 msgstr "正在处理您提交的程序…"
 
-#: templates/submission/status-testcases.html:16
+#: templates/submission/status-testcases.html:26
 msgid "Compilation Error"
 msgstr "编译错误"
 
-#: templates/submission/status-testcases.html:20
+#: templates/submission/status-testcases.html:30
 msgid "Compilation Warnings"
 msgstr "编译警告"
 
-#: templates/submission/status-testcases.html:25
+#: templates/submission/status-testcases.html:35
 msgid "Pretest Execution Results"
 msgstr "预测试执行结果"
 
-#: templates/submission/status-testcases.html:27
+#: templates/submission/status-testcases.html:37
 msgid "Execution Results"
 msgstr "执行结果"
 
-#: templates/submission/status-testcases.html:28
+#: templates/submission/status-testcases.html:38
 msgid "Hints Used/Allowed:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:55
+#: templates/submission/status-testcases.html:65
 msgid "Batch "
 msgstr "批"
 
-#: templates/submission/status-testcases.html:68
+#: templates/submission/status-testcases.html:78
 msgid "Case"
 msgstr "测试"
 
-#: templates/submission/status-testcases.html:70
+#: templates/submission/status-testcases.html:80
 msgid "Pretest"
 msgstr "预测试"
 
-#: templates/submission/status-testcases.html:72
+#: templates/submission/status-testcases.html:82
 msgid "Test case"
 msgstr "测试情况"
 
-#: templates/submission/status-testcases.html:107
+#: templates/submission/status-testcases.html:117
 msgid "You already requested a hint on this case in"
 msgstr ""
 
-#: templates/submission/status-testcases.html:108
+#: templates/submission/status-testcases.html:118
 #, fuzzy, python-format
 #| msgid "submissions"
 msgid "submission #%(id)s"
 msgstr "提交历史"
 
-#: templates/submission/status-testcases.html:115
+#: templates/submission/status-testcases.html:125
 msgid ""
 "Si demanes ajuda es mostrara el primer cas de prova que hagis fallat. Això "
 "farà servir una pista. Un cop arribis a les pistes permeses, ja no podras "
 "demanar ajuda. Estàs segur?"
 msgstr ""
 
-#: templates/submission/status-testcases.html:116
+#: templates/submission/status-testcases.html:126
 msgid "Help!"
 msgstr ""
 
-#: templates/submission/status-testcases.html:136
+#: templates/submission/status-testcases.html:146
 msgid "Resources:"
 msgstr ""
 
-#: templates/submission/status-testcases.html:145
+#: templates/submission/status-testcases.html:155
 msgid "Final pretest score:"
 msgstr "最终预测试得分："
 
-#: templates/submission/status-testcases.html:147
+#: templates/submission/status-testcases.html:157
 msgid "Final score:"
 msgstr "最终得分："
 
-#: templates/submission/status-testcases.html:161
+#: templates/submission/status-testcases.html:171
 msgid "Passing pretests does not guarantee a full score on system tests."
 msgstr "通过预测试不代表程序可以通过完整测试。"
 
-#: templates/submission/status-testcases.html:164
+#: templates/submission/status-testcases.html:174
 msgid "Submission aborted!"
 msgstr "评分终止！"
 
-#: templates/submission/status-testcases.html:191
+#: templates/submission/status-testcases.html:201
 msgid "Something went wrong requesting the hint."
 msgstr ""
 

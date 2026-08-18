@@ -105,7 +105,7 @@ class PostView(TitleMixin, CommentedDetailView):
     template_name = 'blog/content.html'
 
     def get_title(self):
-        return self.object.title
+        return self.object.get_translated_title(self.request.LANGUAGE_CODE)
 
     def get_comment_page(self):
         return 'b:%s' % self.object.id

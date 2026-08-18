@@ -7,6 +7,25 @@
 {% endif %}
 {% set is_pretest = submission.is_pretested %}
 <body onload="foo()">
+{% if has_security_violation %}
+    <div class="security-violation-banner">
+        <div class="security-violation-icon">&#9760;</div>
+        <div>
+            <h2>{{ _('Intent de consulta destructiva detectat') }}</h2>
+            <p>{{ _('Aquesta consulta ha intentat executar una operació que podria haver destruït o alterat dades reals (per exemple un DROP, un DELETE, o sortir del fitxer de base de dades assignat). No ha tingut cap efecte real: el sistema la bloqueja sempre abans d\'executar-la.') }}</p>
+            <p><strong>{{ _('Aquest intent ha quedat registrat i s\'ha notificat al professorat. Fer això en un sistema real (no en un exercici) pot tenir conseqüències disciplinàries greus i, segons el cas, ser constitutiu de delicte.') }}</strong></p>
+        </div>
+    </div>
+{% endif %}
+{% if submission.daily_bonus_awarded %}
+    <div class="daily-bonus-banner">
+        <div class="daily-bonus-icon">&#9733;</div>
+        <div>
+            <h2>{{ _('Primer problema nou del dia!') }}</h2>
+            <p>{{ _('És el primer problema nou que resols avui — +%(points)s GachaPoints de regal!', points=submission.user.DAILY_SOLVE_BONUS_POINTS) }}</p>
+        </div>
+    </div>
+{% endif %}
 {% if submission.status != 'IE' %}
     {% if submission.status == 'QU' %}
         <h4>{{ _('We are waiting for a suitable judge to process your submission...') }}</h4>

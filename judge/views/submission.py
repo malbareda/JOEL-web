@@ -21,7 +21,6 @@ from django.utils.translation import gettext as _, gettext_lazy
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.views.generic import DetailView, ListView
-from django.contrib.auth.models import User
 
 
 from judge import event_poster as event
@@ -184,6 +183,7 @@ class SubmissionStatus(SubmissionDetailBase):
         ).all()
         context['batches'], statuses = group_test_cases(cases)
         context['statuses'] = combine_statuses(statuses, submission)
+        context['has_security_violation'] = any(case.status == 'SEC' for case in cases)
         context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
 
         votes = SubmissionVote.objects.filter(submission_id=submission.id).aggregate(
@@ -462,8 +462,11 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
         context['all_statuses'] = self.get_searchable_status_codes()
         context['selected_statuses'] = self.selected_statuses
 
-        #He d'accedir a User, no puc desde Profile. No m'agrada pero...
-        context['all_usernames'] = User.objects.all().values_list('username','username')
+        # The username filter is populated via AJAX search (user_search_select2_ajax) instead of
+        # dumping every registered user into the page -- with ~14700 accounts (mostly spam
+        # registrations), rendering them all as <option> tags made the page ~2MB and made select2
+        # initialization visibly slow in the browser. Only the already-selected usernames (if any)
+        # need to be pre-rendered, so their labels show up before any search happens.
         context['selected_usernames'] = self.selected_usernames
 
         context['all_equips'] = Organization.objects.all().values_list('name','name')

@@ -125,6 +125,12 @@ label[for="language"], label[for="status"] {
     width: 100%;
 }
 
+// #username used to size itself off its (pre-rendered) options; now that it starts empty and
+// fills via AJAX search, select2 has nothing to measure and collapses it to a sliver.
+#username {
+    width: 100%;
+}
+
 #statistics-table tr:not(:first-child) td {
     border-top: 1px solid white !important;
 }
@@ -390,6 +396,67 @@ label[for="language"], label[for="status"] {
 
 .case-bad {
     text-decoration: underline;
+}
+
+.case-SEC {
+    color: #fff;
+    background: #b00020;
+    font-weight: bold;
+    padding: 0 0.3em;
+    border-radius: 3px;
+}
+
+.security-violation-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    margin-bottom: 1.2em;
+    padding: 1em 1.2em;
+    border-radius: 6px;
+    background: #b00020;
+    color: #fff;
+    border: 2px solid #7a0016;
+
+    .security-violation-icon {
+        font-size: 2.4em;
+        line-height: 1;
+    }
+
+    h2 {
+        margin: 0 0 0.3em 0;
+        color: #fff;
+    }
+
+    p {
+        margin: 0.2em 0;
+    }
+}
+
+.daily-bonus-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    margin-bottom: 1.2em;
+    padding: 0.9em 1.2em;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f39c12, #f1c40f);
+    color: #3a2600;
+    border: 2px solid #c9880a;
+
+    .daily-bonus-icon {
+        font-size: 2.2em;
+        line-height: 1;
+    }
+
+    h2 {
+        margin: 0 0 0.15em 0;
+        color: #3a2600;
+        font-size: 1.15em;
+    }
+
+    p {
+        margin: 0;
+    }
 }
 
 .half-hr {

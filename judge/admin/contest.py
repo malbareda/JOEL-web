@@ -111,8 +111,8 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
     fieldsets = (
         (None, {'fields': ('key', 'name', 'organizers')}),
         (_('Settings'), {'fields': ('is_visible', 'use_clarifications', 'hide_problem_tags', 'hide_scoreboard',
-                                    'run_pretests_only', 'is_locked')}),
-        (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit')}),
+                                    'run_pretests_only', 'is_locked', 'use_group_names')}),
+        (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit', 'freeze_time')}),
         (_('Details'), {'fields': ('description', 'og_image', 'logo_override_image', 'tags', 'summary')}),
         (_('Format'), {'fields': ('format_name', 'format_config', 'problem_label_script')}),
         (_('Rating'), {'fields': ('is_rated', 'is_primera', 'is_segona', 'rate_all', 'rating_floor', 'rating_ceiling', 'rate_exclude')}),
@@ -121,7 +121,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
         (_('Justice'), {'fields': ('banned_users',)}),
     )
     list_display = ('key', 'name', 'is_visible', 'is_rated', 'is_primera', 'is_segona', 'is_locked', 'start_time', 'end_time', 'time_limit',
-                    'user_count')
+                    'freeze_time', 'user_count')
     search_fields = ('key', 'name')
     inlines = [ContestProblemInline]
     actions_on_top = True

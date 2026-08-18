@@ -8,7 +8,13 @@ trobar. Cada entrada indica quan es va detectar i per què s'ha deixat pendent.
 ## 1. Traduir el contingut de funcionalitats que mai han passat per `makemessages`
 
 **Detectat:** 2026-08-15/16, en fer l'auditoria i correcció d'i18n (veure `CANVIS_I_MILLORES.md`,
-entrada #19).
+entrada #19). **Parcialment resolt el 2026-08-17** (veure `CANVIS_I_MILLORES.md`, entrada #35): les
+5 àrees llistades sota queden traduïdes a `ca`/`es`/`en`/`de` (77 missatges únics). **Encara
+pendent**: les mateixes 77 cadenes a `zh_Hans` (l'usuari va decidir explícitament deixar-lo fora
+d'aquesta tanda), i la resta del backlog d'i18n que no forma part d'aquestes 5 àrees concretes
+(sobretot text tècnic del DMOJ original —`verbose_name`/`help_text` de formularis i admin— que mai
+s'ha traduït a cap idioma; sortia de l'abast que l'usuari va triar explícitament per a aquesta
+tanda).
 
 Diverses funcionalitats pròpies d'aquest fork ja tenen el seu text embolicat en `_()`/
 `{{ _(...) }}`, però **el contingut mai s'ha traduït a cap idioma** (ni tan sols al català, en els
@@ -16,39 +22,28 @@ casos on el text font ja és en anglès), perquè `manage.py makemessages` no s'
 des que es van construir:
 
 - **Guies per a problemes d'introducció** (`Guide`/`GuideTranslation`, secció
-  `docs/02-sistemes/2.2-problemes-guiats.md`).
-- **Tasques** (`ProblemTask`, l'agrupació de problemes en "Tasques").
-- **Checker SQL**: els noms de les opcions de checker ("Compara contra fitxer", "Linea a Linea",
-  etc.) i missatges d'error del formulari de dades del problema.
+  `docs/02-sistemes/2.2-problemes-guiats.md`). ✅ traduït (ca/es/en/de).
+- **Tasques** (`ProblemTask`, l'agrupació de problemes en "Tasques"). ✅ traduït (ca/es/en/de).
+- **Checker SQL/Mongo**: els noms de les opcions de checker ("Compara contra fitxer", "SQL
+  checker"...) i missatges d'error del formulari de dades del problema. ✅ traduït (ca/es/en/de).
 - **Gacha**: força text (`"Has aconseguit"`, `"un Sticker!"`, `"una Icona!"`, etc. a
-  `templates/gacha/gacharesult.html`) segueix sense traduir a cap dels 5 idiomes actius, tot i estar
-  correctament embolicat.
-- **Lliga de Programació FP**: alguns textos relacionats.
+  `templates/gacha/gacharesult.html`). ✅ traduït (ca/es/en/de).
+- **Lliga de Programació FP**: alguns textos relacionats. ✅ traduït (ca/es/en/de).
 
-Estat aproximat a data d'avui (`msgfmt --statistics` sobre `locale/*/LC_MESSAGES/django.po`): ~58-66
-missatges sense traduir a ca/es, ~380 a zh_Hans, i una part important (difícil de quantificar sense
-revisar-los un a un) dels ~1280-1320 "sense traduir" a en/de correspon realment a text d'origen
-català que mai s'ha traduït a l'anglès/alemany (la resta són missatges ja en anglès, que
-correctament es deixen en blanc perquè `gettext` recorre al `msgid`).
+Estat aproximat abans d'aquesta tanda (`msgfmt --statistics` sobre `locale/*/LC_MESSAGES/django.po`):
+~58-66 missatges sense traduir a ca/es, ~380 a zh_Hans, i una part important (difícil de quantificar
+sense revisar-los un a un) dels ~1280-1320 "sense traduir" a en/de corresponia realment a text
+d'origen català que mai s'havia traduït a l'anglès/alemany (la resta són missatges ja en anglès, que
+correctament es deixen en blanc perquè `gettext` recorre al `msgid`). Després d'aquesta tanda
+(només les 5 àrees de dalt): ca 92 pendents (-19), es 42 (-42), en 1336 (-18, tot i que la xifra
+global segueix dominada pel backlog general no tocat), de 1231 (-69); zh_Hans sense canvis (399).
 
-**Per fer-ho**: revisar entrada per entrada els missatges marcats `#, fuzzy` (`msgmerge` n'hi ha
-aparellat molts amb traduccions antigues no relacionades — cal comprovar-los un a un abans de
-donar-los per bons) i traduir els que queden buits. Recompilar amb `manage.py compilemessages` i
-reiniciar `site` per aplicar-ho.
-
-## 2. La pàgina "About" (`templates/about/about.html`) té contingut equivocat, no només sense traduir
-
-**Detectat:** 2026-08-15/16, durant la mateixa auditoria d'i18n.
-
-Aquesta pàgina és el text original del DMOJ de referència, sense adaptar: parla del "DMOJ Monthly
-Open Programming Competition", demana contactar per Slack a `slack.dmoj.ca`, dona `contact -at-
-dmoj.ca` com a adreça de contacte, i llista com a administradors usuaris que no existeixen en aquest
-desplegament (`quantum`, `Xyene`, `FatalEagle`, `WallE256`, `Kirito`). No té sentit limitar-se a
-embolicar-la en `_()` sense abans reescriure'n el contingut perquè parli d'aquest institut i
-d'aquest jutge, no del DMOJ original.
-
-**Per fer-ho**: reescriure el contingut de la pàgina (en català, com a idioma font) amb informació
-real d'aquest desplegament, i llavors sí, embolicar-lo en `_()` per als altres idiomes actius.
+**Per fer-ho (la resta)**: repetir el mateix procés (auditoria per fitxer/plantilla, classificar
+cada `msgid` com a font-català o font-anglès abans de traduir per no perpetuar l'error de
+`msgmerge`, mai reaprofitar cegament un `msgstr` marcat `#, fuzzy`) per a `zh_Hans` en aquestes
+mateixes 5 àrees, i després per a la resta del backlog (text tècnic del DMOJ original a l'admin de
+Django, visible sobretot per a professorat/administració, no per l'alumnat). Recompilar amb
+`manage.py compilemessages` i reiniciar `site` per aplicar-ho.
 
 ## 3. Camp mort `Organization.access_code`
 
@@ -73,24 +68,6 @@ sons amb llicència compatible), un per raresa, si es vol un resultat més polit
 **Per fer-ho, si mai cal:** afegir els fitxers (`.mp3`/`.ogg`) a `resources/` (no al submòdul
 `resources/libs/`), i canviar `playGachaSound(quality)` per crear un `&lt;audio&gt;`/`Audio()` amb
 la ruta corresponent en lloc dels osciŀladors actuals.
-
-## 7. Checker Mongo: sense límit de temps dur per consulta
-
-**Detectat:** 2026-08-16, en construir el checker Mongo (`dmoj/checkers/mongo.py`, vegeu
-`docs/05-sistemes-mecanics/5.8-checker-mongo.md`).
-
-El checker SQL talla una consulta patològica a mig fer amb `sqlite3`'s `set_progress_handler`
-(`_QUERY_TIME_BUDGET_SECONDS`, 5 segons). `mongomock` no té cap equivalent net per interrompre una
-operació ja en marxa. Decisió conscient de no implementar-hi res en aquesta primera versió. Des de
-2026-08-16 el checker també admet `aggregate` (vegeu `CANVIS_I_MILLORES.md`, entrada #27), cosa que
-eixampla una mica el risc real (una pipeline amb `$lookup` mal dissenyada, o sobre una col·lecció
-gran, podria trigar) —però les bases de dades d'exemple són petites i les pipelines les escriu un
-professor a mà, així que el risc es manté baix a la pràctica.
-
-**Per fer-ho, si mai cal:** executar la crida Mongo en un fil a part i fer-hi `join(timeout=...)`,
-matant/ignorant el resultat si es passa del límit (amb cura: `mongomock` no és necessàriament
-thread-safe per a escriptures concurrents sobre el mateix client, així que caldria un client nou
-per intent, no compartir-ne un entre el fil principal i el fil vigilat).
 
 ## 8. Auditoria de cadenes `_()`/`{{ _(...) }}` amb un `%` literal (risc d'error 500)
 

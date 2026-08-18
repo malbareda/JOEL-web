@@ -29,6 +29,7 @@ SUBMISSION_RESULT = (
     ('IE', _('Internal Error')),
     ('SC', _('Short circuit')),
     ('AB', _('Aborted')),
+    ('SEC', _('Security Violation')),
 )
 
 
@@ -60,6 +61,7 @@ class Submission(models.Model):
         'G': _('Grading'),
         'D': _('Completed'),
         'AB': _('Aborted'),
+        'SEC': _('Security Violation (blocked destructive query)'),
     }
 
     user = models.ForeignKey(Profile, on_delete=models.CASCADE)
@@ -81,6 +83,12 @@ class Submission(models.Model):
                                   on_delete=models.SET_NULL)
     judged_date = models.DateTimeField(verbose_name=_('submission judge time'), default=None, null=True)
     was_rejudged = models.BooleanField(verbose_name=_('was rejudged by admin'), default=False)
+    daily_bonus_awarded = models.BooleanField(
+        verbose_name=_('daily solve bonus awarded'), default=False,
+        help_text=_('Whether this submission was the one that earned its author the "first new '
+                    'problem of the day" GachaPoints bonus -- shown once on this submission\'s '
+                    'page, not recomputed afterwards (e.g. on rejudge).'),
+    )
     is_pretested = models.BooleanField(verbose_name=_('was ran on pretests only'), default=False)
     contest_object = models.ForeignKey('Contest', verbose_name=_('contest'), null=True, blank=True,
                                        on_delete=models.SET_NULL, related_name='+')

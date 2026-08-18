@@ -27,13 +27,11 @@ from django.views.generic import ListView, View
 from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.detail import SingleObjectMixin
 
-from django.contrib.auth.models import User
-
 from judge.comments import CommentedDetailView
 from judge.forms import ProblemCloneForm, ProblemSubmitForm, TaskCloneForm
-from judge.models import ContestSubmission, Guide, GuideTranslation, Judge, Language, Problem, ProblemGroup, \
-    ProblemTask, ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, SubmissionSource, Profile, \
-    Organization, TranslatedProblemForeignKeyQuerySet
+from judge.models import ContestSubmission, Guide, GuideTranslation, Institution, Judge, Language, Problem, \
+    ProblemGroup, ProblemTask, ProblemTranslation, ProblemType, RuntimeVersion, Solution, Submission, \
+    SubmissionSource, Profile, Organization, TranslatedProblemForeignKeyQuerySet
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
@@ -1292,6 +1290,10 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
             #No es pot fer queryset per user, ha de ser per profile
             #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
             queryset = queryset.filter(authors__organizations__in=Organization.objects.filter(name__in=self.selected_equips))
+        if self.selected_instituts:
+            # Un autor "és" d'un institut si pertany a algun equip (Organization) enllaçat a aquell institut.
+            queryset = queryset.filter(
+                authors__organizations__institution__in=Institution.objects.filter(name__in=self.selected_instituts))
         return queryset.distinct()
 
     def get_queryset(self):
@@ -1315,12 +1317,18 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
         context['attempted_problems'] = self.get_attempted_problems()
         context['alltasks'] = self.get_queryset()
 
-        #He d'accedir a User, no puc desde Profile. No m'agrada pero...
-        context['all_usernames'] = User.objects.all().values_list('username','username')
+        # The username filter is populated via AJAX search (user_search_select2_ajax) instead of
+        # dumping every registered user into the page -- with ~14700 accounts (mostly spam
+        # registrations), rendering them all as <option> tags made the page ~2MB and made select2
+        # initialization visibly slow in the browser. Only the already-selected usernames (if any)
+        # need to be pre-rendered, so their labels show up before any search happens.
         context['selected_usernames'] = self.selected_usernames
 
         context['all_equips'] = Organization.objects.all().values_list('name','name')
         context['selected_equips'] = self.selected_equips
+
+        context['all_instituts'] = Institution.objects.all().values_list('name','name')
+        context['selected_instituts'] = self.selected_instituts
 
 
         context.update(self.get_sort_paginate_context())
@@ -1363,6 +1371,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
 
         self.selected_usernames = set(request.GET.getlist('username'))
         self.selected_equips = set(request.GET.getlist('equip'))
+        self.selected_instituts = set(request.GET.getlist('institut'))
         try:
             return super(TaskList, self).get(request, *args, **kwargs)
         except ProgrammingError as e:
