@@ -1190,6 +1190,82 @@ resultat `AC, 3.0/3.0` —submissió de prova esborrada després. `manage.py che
 
 ---
 
+### 68. Segon jutge de correcció al mateix servidor ("EdgTest")
+
+**Abans:** un sol procés de jutge ("NouJutge") corregia totes les submissions. Dades reals del
+servidor: 8 cores, `load average` 0.12-0.14 (pràcticament idle), 5 GB de RAM lliure, i el procés del
+jutge fent servir un 0.1% de CPU en repòs. El motor DMOJ, però, corregeix **una sola submissió alhora
+per procés de jutge** (`Judge.current_submission_id`/`current_submission_thread`, un sol slot), així
+que amb un únic jutge els 8 cores es quedaven a mitges buits durant moments de molta afluència (p. ex.
+la Lliga de Programació, on hi ha entregues quasi simultànies de molts alumnes).
+
+**Decisió:** creat un segon jutge, `EdgTest`:
+1. Fila nova a `Judge` (taula de la web) amb `name='EdgTest'` i una clau d'autenticació nova,
+   generada aleatòriament (100 caràcters, mateix format que les existents).
+2. Còpia de `/judge/judge.yml` a `/judge/judge_edgtest.yml`, amb `id: EdgTest` i la clau nova (la
+   resta de la configuració —rutes dels llenguatges, `problem_storage_root: /judge`— idèntica, ja
+   que els dos processos només *llegeixen* els fitxers de problemes, mai els escriuen, així que
+   compartir el mateix directori entre dos processos no suposa cap conflicte).
+3. Llançat en una sessió `screen` pròpia i separada (`edgtest-judge`), amb la mateixa comanda que
+   `NouJutge` (`dmoj -c judge_edgtest.yml -p 48462 localhost`) —es connecta al mateix pont
+   (`bridged`), que ja sap repartir submissions entre jutges connectats.
+
+**Per què:** petició explícita de l'usuari, després de preguntar si valia la pena vist l'estat real
+del servidor. Resposta: sí —el coll d'ampolla no és CPU/RAM (pràcticament buits), sinó el disseny
+d'"un jutge = una submissió alhora"; un segon procés dona un segon slot de correcció en paral·lel
+sense cap cost pràctic de recursos.
+
+**Resultat:** verificat en viu: (1) el procés `EdgTest` ha completat el seu autotest de tots els
+llenguatges i ha fet *handshake* correctament ("Judge 'EdgTest' online"); (2) a la BD, els dos jutges
+(`NouJutge` i `EdgTest`) surten `online=True`; (3) una submissió real de prova (`holamon`, en Python),
+enviada demanant explícitament el jutge `EdgTest`, s'ha corregit de cap a cap i ha quedat marcada
+`judged_on='EdgTest'` amb resultat `AC` —submissió de prova esborrada després. `manage.py check` net.
+Cap canvi de codi —només configuració i un procés nou.
+
+---
+
+### 69. Kotlin: eliminat `-include-runtime` per accelerar una mica la compilació
+
+**Abans:** l'usuari va reportar que els enviaments en Kotlin triguen molt, per la lentitud coneguda
+de `kotlinc`. El checker compilava sempre amb `kotlinc -include-runtime -d <jar> <font>`, que
+empaqueta tot l'stdlib de Kotlin dins del jar de l'alumne a cada compilació, i executava amb
+`java -jar <jar>`.
+
+**Decisió:** abans de tocar res, es va **mesurar** l'impacte real: 5 compilacions d'un "Hello World"
+amb `-include-runtime` (mitjana 6.31s) contra 5 sense (mitjana 5.79s) —una millora d'uns 0.5s (~8%),
+ja que el gruix del temps és arrencar la JVM i carregar el compilador sencer, no l'empaquetat de
+l'stdlib. Es va decidir aplicar-ho igualment (guany petit però real i sense cost). També es va
+verificar explícitament, a petició de l'usuari, que el canvi no afecta el sandbox: provat amb
+l'agent de seguretat real (`java_sandbox.jar` + `java-security.policy`) que codi normal (stdlib
+pesant, `readLine`) i codi adversarial (llegir `/etc/passwd`, `ProcessBuilder("id")`) es comporten
+**exactament igual** en mode `-cp` que en l'antic `-jar` —la política és un únic `grant {}` sense
+`codeBase`, i el "fs jail" del sandbox a nivell de sistema ja és `None` per a Java/Kotlin
+(`java_executor.py::get_security`), així que afegir un segon jar al classpath no canvia res d'això.
+**Troballa incidental, no relacionada, fora d'abast d'aquesta entrada**: es va detectar que tant
+abans com després es pot llegir `/etc/passwd` i executar processos sense cap bloqueig —queda anotat
+aquí per si es vol investigar en una altra sessió, ja que no és conseqüència d'aquest canvi.
+
+**Implementació** (`dmoj/executors/KOTLIN.py`, al repositori del jutge):
+1. `get_compile_args` ja no passa `-include-runtime`.
+2. Nou `get_compiled_file()`: un cop compilat, llegeix el `Main-Class` del manifest del jar
+   (`kotlinc` ja el genera correctament tot i no incloure el runtime) en lloc de re-derivar les
+   regles de Kotlin per passar de nom de fitxer a nom de classe.
+3. `get_cmdline` canvia de `-jar <jar>` a `-cp <jar>:<kotlin-stdlib.jar> <MainClass>`.
+4. Nova clau de configuració `kotlin_stdlib`, afegida a `judge.yml` i `judge_edgtest.yml`
+   (`/snap/kotlin/current/lib/kotlin-stdlib.jar` —el símlink `current` d'snap es manté estable entre
+   actualitzacions). `initialize()` i `autoconfig()` actualitzats per validar/localitzar aquesta ruta.
+
+**Per què:** petició explícita de l'usuari, després de demanar que es mesurés l'impacte abans
+d'aplicar-ho, i de preguntar explícitament si podia afectar el sandbox.
+
+**Resultat:** reiniciats els dos jutges (`NouJutge` i `EdgTest`) per aplicar el canvi. Verificat:
+(1) el autotest de KOTLIN passa als dos jutges amb la nova comanda (`-cp self_test.jar:.../kotlin-
+stdlib.jar Self_testKt`); (2) els dos surten `online=True` i amb Kotlin disponible
+(`Judge.runtimes` inclou `KOTLIN`); (3) una submissió real (`holamon`, Kotlin) enviada al jutge
+`EdgTest` s'ha corregit de cap a cap amb `AC` —esborrada després. `manage.py check` net.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

@@ -88,3 +88,70 @@ seguit de `d/s/i/x/o/f/g/c/r/a/%` sense espai).
 continguin un caràcter `%`, i comprovar una per una si el caràcter següent formaria un
 especificador de format vàlid de Python; escapar-les com `%%` on calgui. Es podria automatitzar amb
 un script que provi `"cadena" % {}` per a cada `msgid` i reporti els que peten.
+
+## 9. Aïllament real dels enviaments: lectura de fitxers i `exec` de processos
+
+**Detectat:** 2026-08-18, arran de la investigació del canvi de Kotlin (entrada #10 d'aquest mateix
+fitxer / `CANVIS_I_MILLORES.md` entrada #69), i de proves explícites demanades per l'usuari amb
+enviaments reals (Kotlin i Python) contra el jutge en producció.
+
+**Lectura de `/etc/passwd`, confirmada als dos llenguatges provats** (Kotlin i Python), amb
+enviaments reals via `holamon`: el contingut real de `/etc/passwd` del servidor es pot llegir i
+mostrar a la sortida. **Risc baix, no una fuga greu**: `/etc/passwd` és a la llista blanca explícita
+de `BASE_FILESYSTEM` (`dmoj/executors/mixins.py`, al repositori del jutge) per a tots els llenguatges
+que fan servir el sandbox de sistema (`cptbox`) —necessari perquè moltes llibreries estàndard
+(resolució de noms d'usuari, DNS...) el necessiten per funcionar— i no conté contrasenyes (això és a
+`/etc/shadow`, no inclòs a la llista blanca, i ja restringit per permisos normals del sistema
+operatiu independentment del sandbox). Per a Java/Kotlin, a més, no hi ha cap sandbox de sistema
+(`java_executor.py::get_security` torna `None`), així que la protecció allà depèn només de la
+política de Java (`java-security.policy`), que és un únic bloc `grant {}` sense `codeBase` —permet
+llegir explícitament `/inputfiles/`, `/outputfiles/`, `in/`, `out/`, però no restringeix cap altra
+ruta a nivell de `SecurityManager` (i el sandbox de sistema, que sí que ho faria, està desactivat per
+aquest llenguatge concret).
+
+**`exec` de processos, resultat ambigu i pendent d'investigar**:
+- En **Kotlin/Java** (sense sandbox de sistema, entrada #69): en una prova manual directa (fora del
+  procés real del jutge) amb l'agent i política reals, `ProcessBuilder("id").start()` **funcionava
+  sense cap bloqueig**. Però en un enviament real fet a través del jutge en producció, el mateix codi
+  no va imprimir ni el missatge d'èxit ni el de captura d'excepció —es va quedar sense resposta
+  d'aquella part, tot i acabar en 0.169s (no és un mata per timeout). No està clar si això és un
+  bloqueig de seguretat real o un detall tècnic de com es gestionen els pipes del procés fill dins
+  del llançador (`launch()`/`TimedPopen`) del jutge real, diferent del meu test manual.
+- En **Python** (amb sandbox de sistema `cptbox`, filtratge de syscalls): el mateix intent
+  (`subprocess.run(["id"], ...)`) tampoc va imprimir cap dels dos missatges en un enviament real.
+  Aquí és més versemblant que el procés es mati directament en l'intent de fer `exec` (per
+  filtratge de syscalls), sense arribar a llençar una excepció capturable en Python —però no s'ha
+  confirmat mirant els logs interns del jutge en viu.
+
+**Per fer-ho:** revisar els logs del procés del jutge (`screen -r` a la sessió corresponent, o
+`extended_feedback`/stderr de la submissió) durant un enviament de prova similar, per veure
+exactament quin syscall/excepció talla l'intent d'`exec` a cada llenguatge, i decidir si cal reforçar
+alguna cosa més (per exemple, si `ProcessBuilder`/`Runtime.exec()` haurien d'estar explícitament
+bloquejats per política a Java/Kotlin, ja que ara mateix no ho estan de manera demostrada —només no
+s'ha vist que funcionin en un enviament real, cosa diferent de saber que estan bloquejats).
+
+## 10. Dimoni de compilació persistent per a Kotlin (millora molt més gran que l'entrada #69)
+
+**Detectat:** 2026-08-18, en la mateixa conversa sobre la lentitud de `kotlinc` que va portar a
+l'entrada #69 (eliminar `-include-runtime`, ~8% de millora, ~0.5s d'uns ~6.3s).
+
+El gruix del temps de compilació de Kotlin (uns 5-6 segons, fins i tot per a un "Hello World") és
+l'arrencada de la JVM i la càrrega de tot el compilador de Kotlin, no la mida del programa —cost que
+es paga sencer a cada enviament perquè no hi ha cap dimoni (`kotlin.daemon`) actiu al servidor (es
+va comprovar explícitament: `ps aux | grep kotlin` no mostra cap procés de dimoni). El propi
+`kotlinc` sap arrencar i reaprofitar un dimoni (una JVM que es queda calenta entre compilacions, via
+socket) que reduiria dràsticament aquest temps en compilacions successives —potencialment un ordre
+de magnitud més ràpid que l'actual.
+
+**Per què no s'ha fet ja:** cada enviament es corregeix de manera aïllada (procés/entorn propi per
+seguretat), i no està clar si el sandbox actual permetria que diferents enviaments d'alumnes
+diferents reutilitzessin el mateix dimoni (procés JVM persistent i compartit) sense trencar aquest
+aïllament o introduir algun vector nou (per exemple, si el dimoni manté cap estat entre compilacions
+que un enviament maliciós pogués llegir o corrompre per afectar el següent alumne que compili).
+
+**Per fer-ho, si es vol perseguir:** investigar si `kotlinc` es pot fer servir amb
+`-Dkotlin.compiler.execution.strategy=daemon` (o el comportament per defecte) de manera seva pel
+jutge —per exemple, un dimoni compartit però on cada compilació és una crida independent sense estat
+persistent visible entre alumnes (el dimoni de Kotlin normalment només manté calenta la JVM i les
+classes carregades, no dades de l'usuari)— i mesurar l'impacte real (comparant amb els ~5.79s ja
+mesurats a l'entrada #69) abans de decidir si val la pena el risc/complexitat addicional.
