@@ -1,0 +1,129 @@
+{
+  "database": "miniwind",
+  "code_prefix": "sqlminiwind",
+  "label": "Miniwind (botiga d'aliments a l'engròs: clients, empleats, productes, comandes i factures)",
+  "problems": [
+    {
+      "name": "Miniwind 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra tots els camps de la taula `orders_status`.",
+         "sql": "SELECT * FROM orders_status"},
+        {"text": "Mostra el nom del producte (`product_name`) i el preu de venda (`list_price`) de tots els productes de la categoria 'Beverages'.",
+         "sql": "SELECT product_name, list_price FROM products WHERE category = 'Beverages'"},
+        {"text": "Mostra el cognom (`last_name`) i el nom (`first_name`) de tots els empleats, ordenats alfabèticament pel cognom.",
+         "sql": "SELECT last_name, first_name FROM employees ORDER BY last_name"}
+      ]
+    },
+    {
+      "name": "Miniwind 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions, `AND`/`OR` i `NULL`.",
+      "questions": [
+        {"text": "Mostra el nom del producte i el preu de venda (`list_price`) dels productes que costen més de 20.",
+         "sql": "SELECT product_name, list_price FROM products WHERE list_price > 20"},
+        {"text": "Mostra l'identificador (`id`) de les comandes (`orders`) que encara no s'han enviat (`shipped_date` no té valor).",
+         "sql": "SELECT id FROM orders WHERE shipped_date IS NULL"},
+        {"text": "Mostra el nom del producte i la categoria dels productes de la categoria 'Candy' o 'Soups'.",
+         "sql": "SELECT product_name, category FROM products WHERE category IN ('Candy', 'Soups')"}
+      ]
+    },
+    {
+      "name": "Miniwind 3: Cerques de text",
+      "intro": "Usa `LIKE` i els operadors de text per fer cerques parcials.",
+      "questions": [
+        {"text": "Mostra el nom de l'empresa (`company`) dels clients el nom de l'empresa dels quals comença per la lletra 'L'.",
+         "sql": "SELECT company FROM customers WHERE company LIKE 'L%'"},
+        {"text": "Mostra el nom del producte dels productes que contenen la paraula 'Sauce' en el seu nom.",
+         "sql": "SELECT product_name FROM products WHERE product_name LIKE '%Sauce%'"},
+        {"text": "Mostra el cognom i el càrrec (`job_title`) dels empleats que tenen el càrrec 'Sales Representative'.",
+         "sql": "SELECT last_name, job_title FROM employees WHERE job_title = 'Sales Representative'"}
+      ]
+    },
+    {
+      "name": "Miniwind 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
+      "questions": [
+        {"text": "Mostra quants productes hi ha a la taula `products`.",
+         "sql": "SELECT COUNT(*) FROM products"},
+        {"text": "Mostra el preu de venda (`list_price`) més alt i el més baix de tots els productes, en aquest ordre.",
+         "sql": "SELECT MAX(list_price), MIN(list_price) FROM products"},
+        {"text": "Mostra la suma de les quantitats (`quantity`) de tots els detalls de comanda (`order_details`).",
+         "sql": "SELECT SUM(quantity) FROM order_details"}
+      ]
+    },
+    {
+      "name": "Miniwind 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada categoria (`category`) de productes, mostra la categoria i el nombre de productes que conté.",
+         "sql": "SELECT category, COUNT(*) FROM products GROUP BY category"},
+        {"text": "Per cada tipus de pagament (`payment_type`) de les comandes, mostra el tipus i la suma de les despeses d'enviament (`shipping_fee`). Ignora les comandes sense tipus de pagament.",
+         "sql": "SELECT payment_type, SUM(shipping_fee) FROM orders WHERE payment_type IS NOT NULL AND payment_type <> '' GROUP BY payment_type"},
+        {"text": "Per cada comanda (`order_id`) de la taula `order_details`, mostra l'identificador de la comanda i el nombre de línies de detall que té.",
+         "sql": "SELECT order_id, COUNT(*) FROM order_details GROUP BY order_id"}
+      ]
+    },
+    {
+      "name": "Miniwind 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra les categories que tenen més de 3 productes, juntament amb el nombre de productes de cadascuna.",
+         "sql": "SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) > 3"},
+        {"text": "Mostra els identificadors de comanda (`order_id`) dels detalls de comanda la quantitat total de les quals (suma de `quantity`) supera 100, juntament amb aquesta suma.",
+         "sql": "SELECT order_id, SUM(quantity) FROM order_details GROUP BY order_id HAVING SUM(quantity) > 100"},
+        {"text": "Mostra el nom de la categoria i el preu de venda mitjà (`AVG` de `list_price`) de les categories amb un preu mitjà superior a 30.",
+         "sql": "SELECT category, AVG(list_price) FROM products GROUP BY category HAVING AVG(list_price) > 30"}
+      ]
+    },
+    {
+      "name": "Miniwind 7: Primers JOINs",
+      "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
+      "questions": [
+        {"text": "Per cada comanda, mostra el seu identificador (`orders.id`) i el nom de l'empresa del client (`customers.company`) que l'ha feta.",
+         "sql": "SELECT o.id, c.company FROM orders o INNER JOIN customers c ON o.customer_id = c.id"},
+        {"text": "Per cada comanda, mostra el seu identificador i el cognom (`last_name`) de l'empleat que l'ha gestionada.",
+         "sql": "SELECT o.id, e.last_name FROM orders o INNER JOIN employees e ON o.employee_id = e.id"},
+        {"text": "Per cada línia de `order_details`, mostra el nom del producte (`product_name`) i la quantitat (`quantity`).",
+         "sql": "SELECT p.product_name, d.quantity FROM order_details d INNER JOIN products p ON d.product_id = p.id"}
+      ]
+    },
+    {
+      "name": "Miniwind 8: JOINs amb filtres i agrupacions",
+      "intro": "Combina `JOIN`, `WHERE` i `GROUP BY` en una mateixa consulta.",
+      "questions": [
+        {"text": "Mostra el cognom de cada empleat i el nombre de comandes que ha gestionat (només els empleats que n'han gestionat alguna).",
+         "sql": "SELECT e.last_name, COUNT(*) FROM employees e INNER JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name"},
+        {"text": "Mostra el nom de l'empresa de cada client i la suma de les despeses d'enviament (`shipping_fee`) de les seves comandes (només els clients que tinguin comandes).",
+         "sql": "SELECT c.company, SUM(o.shipping_fee) FROM customers c INNER JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company"},
+        {"text": "Mostra el nom de cada categoria de producte i la quantitat total (`SUM` de `quantity`) que se n'ha venut segons `order_details`.",
+         "sql": "SELECT p.category, SUM(d.quantity) FROM products p INNER JOIN order_details d ON d.product_id = p.id GROUP BY p.category"}
+      ]
+    },
+    {
+      "name": "Miniwind 9: LEFT JOIN i subconsultes",
+      "intro": "Quan cal incloure també les files sense coincidència, o calcular un valor intermedi.",
+      "questions": [
+        {"text": "Mostra el nom de l'empresa de tots els clients i el nombre de comandes que han fet, incloent-hi els que no n'han fet cap (amb un 0).",
+         "sql": "SELECT c.company, COUNT(o.id) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company"},
+        {"text": "Mostra el nom del producte i el preu de venda dels productes el preu dels quals és superior al preu mitjà de tots els productes.",
+         "sql": "SELECT product_name, list_price FROM products WHERE list_price > (SELECT AVG(list_price) FROM products)"},
+        {"text": "Mostra el nom del producte dels productes que no apareixen en cap línia de `order_details`.",
+         "sql": "SELECT product_name FROM products WHERE id NOT IN (SELECT product_id FROM order_details WHERE product_id IS NOT NULL)"}
+      ]
+    },
+    {
+      "name": "Miniwind 10: Repte final",
+      "intro": "Consultes de més d'un pas: `JOIN` de tres taules, subconsultes i càlculs.",
+      "questions": [
+        {"text": "Per cada comanda, mostra el seu identificador i l'import total de les seves línies, calculat com la suma de `quantity * unit_price` de `order_details`. Només cal incloure les comandes que tinguin línies de detall.",
+         "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id"},
+        {"text": "Mostra el nom de l'empresa del client i el nom del producte per a cada producte comprat, unint `customers`, `orders`, `order_details` i `products`. Cada combinació client-producte ha de sortir una sola vegada.",
+         "sql": "SELECT DISTINCT c.company, p.product_name FROM customers c INNER JOIN orders o ON o.customer_id = c.id INNER JOIN order_details d ON d.order_id = o.id INNER JOIN products p ON p.id = d.product_id"},
+        {"text": "Mostra el cognom de l'empleat que ha gestionat més comandes, i el nombre de comandes.",
+         "sql": "SELECT e.last_name, COUNT(*) FROM employees e INNER JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name ORDER BY COUNT(*) DESC LIMIT 1"},
+        {"text": "Mostra l'identificador de les comandes l'import total de les quals (suma de `quantity * unit_price`) és superior a la mitjana dels imports totals de totes les comandes.",
+         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))"}
+      ]
+    }
+  ]
+}

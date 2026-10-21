@@ -1,0 +1,129 @@
+{
+  "database": "groupbytest",
+  "code_prefix": "sqlgroupbytest",
+  "label": "GroupBy (tres taules d'empleats per practicar GROUP BY, HAVING, DISTINCT i operacions de conjunts)",
+  "problems": [
+    {
+      "name": "GroupBy 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre les taules d'empleats.",
+      "questions": [
+        {"text": "Mostra tots els camps de la taula `Employees`.",
+         "sql": "SELECT * FROM Employees"},
+        {"text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels empleats de la taula `Employees2` que cobren més de 1500.",
+         "sql": "SELECT FirstName, LastName FROM Employees2 WHERE Salary > 1500"},
+        {"text": "Mostra el cognom i el sou (`Salary`) de tots els empleats de la taula `Employees`, ordenats pel sou de més alt a més baix.",
+         "sql": "SELECT LastName, Salary FROM Employees ORDER BY Salary DESC"}
+      ]
+    },
+    {
+      "name": "GroupBy 2: Filtrant i limitant",
+      "intro": "Combina condicions amb `AND`, la comprovació de `NULL` i `LIMIT`.",
+      "questions": [
+        {"text": "Mostra l'identificador (`Id`) i el cognom dels empleats de la taula `Employees2` que es diuen 'Pere' i cobren 1500 o més.",
+         "sql": "SELECT Id, LastName FROM Employees2 WHERE FirstName = 'Pere' AND Salary >= 1500"},
+        {"text": "Mostra l'identificador i el cognom dels empleats de la taula `Employees3` que no tenen sou informat (`Salary` és NULL).",
+         "sql": "SELECT Id, LastName FROM Employees3 WHERE Salary IS NULL"},
+        {"text": "Mostra el cognom i el sou dels 3 empleats de la taula `Employees2` amb el sou més alt, ordenats de més a menys sou.",
+         "sql": "SELECT LastName, Salary FROM Employees2 ORDER BY Salary DESC LIMIT 3"}
+      ]
+    },
+    {
+      "name": "GroupBy 3: DISTINCT, LIKE i BETWEEN",
+      "intro": "Elimina duplicats i filtra amb patrons i intervals.",
+      "questions": [
+        {"text": "Mostra els noms (`FirstName`) diferents que hi ha a la taula `Employees2`, sense repeticions.",
+         "sql": "SELECT DISTINCT FirstName FROM Employees2"},
+        {"text": "Mostra el cognom dels empleats de la taula `Employees2` el cognom dels quals comença per la lletra 'M'.",
+         "sql": "SELECT LastName FROM Employees2 WHERE LastName LIKE 'M%'"},
+        {"text": "Mostra el cognom i el sou dels empleats de la taula `Employees2` amb un sou entre 1200 i 1600, ambdós inclosos.",
+         "sql": "SELECT LastName, Salary FROM Employees2 WHERE Salary BETWEEN 1200 AND 1600"}
+      ]
+    },
+    {
+      "name": "GroupBy 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
+      "questions": [
+        {"text": "Mostra quants empleats hi ha a la taula `Employees2`.",
+         "sql": "SELECT COUNT(*) FROM Employees2"},
+        {"text": "Mostra, en aquest ordre, el sou mínim, el sou màxim i la suma de tots els sous de la taula `Employees2`.",
+         "sql": "SELECT MIN(Salary), MAX(Salary), SUM(Salary) FROM Employees2"},
+        {"text": "Mostra, en aquest ordre, el sou mitjà (`AVG`) de la taula `Employees3` i el nombre d'empleats d'aquesta taula que tenen sou informat (no NULL).",
+         "sql": "SELECT AVG(Salary), COUNT(Salary) FROM Employees3"}
+      ]
+    },
+    {
+      "name": "GroupBy 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada nom (`FirstName`) de la taula `Employees2`, mostra el nom i el nombre d'empleats que el tenen.",
+         "sql": "SELECT FirstName, COUNT(*) FROM Employees2 GROUP BY FirstName"},
+        {"text": "Per cada sou (`Salary`) diferent de la taula `Employees2`, mostra el sou i el nombre d'empleats que el cobren.",
+         "sql": "SELECT Salary, COUNT(*) FROM Employees2 GROUP BY Salary"},
+        {"text": "Per cada nom de la taula `Employees3`, mostra el nom i el sou mitjà dels empleats que el tenen (els sous NULL s'ignoren en la mitjana).",
+         "sql": "SELECT FirstName, AVG(Salary) FROM Employees3 GROUP BY FirstName"}
+      ]
+    },
+    {
+      "name": "GroupBy 6: Filtrant grups amb HAVING",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra els noms de la taula `Employees2` que comparteixen més d'un empleat, juntament amb el nombre d'empleats de cadascun.",
+         "sql": "SELECT FirstName, COUNT(*) FROM Employees2 GROUP BY FirstName HAVING COUNT(*) > 1"},
+        {"text": "Mostra els noms de la taula `Employees2` la suma de sous dels quals supera 3500, juntament amb aquesta suma.",
+         "sql": "SELECT FirstName, SUM(Salary) FROM Employees2 GROUP BY FirstName HAVING SUM(Salary) > 3500"},
+        {"text": "Considerant només els empleats de la taula `Employees2` que cobren 1500 o més, mostra els noms que hi apareixen 2 o més vegades, juntament amb el nombre d'empleats de cadascun.",
+         "sql": "SELECT FirstName, COUNT(*) FROM Employees2 WHERE Salary >= 1500 GROUP BY FirstName HAVING COUNT(*) >= 2"}
+      ]
+    },
+    {
+      "name": "GroupBy 7: Operacions de conjunts",
+      "intro": "`UNION`, `UNION ALL`, `INTERSECT` i `EXCEPT` combinen els resultats de dues consultes.",
+      "questions": [
+        {"text": "Mostra els cognoms de la taula `Employees2` que no apareixen a la taula `Employees`.",
+         "sql": "SELECT LastName FROM Employees2 EXCEPT SELECT LastName FROM Employees"},
+        {"text": "Mostra les files completes (`Id`, `FirstName`, `LastName`, `Salary`, en aquest ordre) que són idèntiques a les taules `Employees2` i `Employees3`.",
+         "sql": "SELECT Id, FirstName, LastName, Salary FROM Employees2 INTERSECT SELECT Id, FirstName, LastName, Salary FROM Employees3"},
+        {"text": "Mostra, en una sola columna i sense eliminar repeticions, els cognoms dels empleats de `Employees` que cobren 1500 o més, seguits dels cognoms dels empleats de `Employees2` que cobren exactament 1400.",
+         "sql": "SELECT LastName FROM Employees WHERE Salary >= 1500 UNION ALL SELECT LastName FROM Employees2 WHERE Salary = 1400"}
+      ]
+    },
+    {
+      "name": "GroupBy 8: JOINs entre taules",
+      "intro": "Uneix les taules d'empleats per `Id` o per nom, fins i tot una taula amb ella mateixa.",
+      "questions": [
+        {"text": "Mostra el cognom i el sou (de la taula `Employees2`) dels empleats que a la taula `Employees3` (mateix `Id`) tenen el sou NULL.",
+         "sql": "SELECT e2.LastName, e2.Salary FROM Employees2 e2 INNER JOIN Employees3 e3 ON e2.Id = e3.Id WHERE e3.Salary IS NULL"},
+        {"text": "Mostra totes les parelles de cognoms de la taula `Employees2` de dos empleats diferents amb el mateix nom. Cada parella ha de sortir una sola vegada: el primer cognom ha de ser el de l'empleat amb l'`Id` més petit.",
+         "sql": "SELECT a.LastName, b.LastName FROM Employees2 a INNER JOIN Employees2 b ON a.FirstName = b.FirstName AND a.Id < b.Id"},
+        {"text": "Per cada empleat de la taula `Employees`, mostra el seu cognom i el cognom dels empleats de `Employees2` que tenen el mateix nom però un `Id` diferent.",
+         "sql": "SELECT e.LastName, e2.LastName FROM Employees e INNER JOIN Employees2 e2 ON e.FirstName = e2.FirstName AND e.Id <> e2.Id"}
+      ]
+    },
+    {
+      "name": "GroupBy 9: Subconsultes i CASE",
+      "intro": "Usa una consulta dins d'una altra i classifica valors amb `CASE`.",
+      "questions": [
+        {"text": "Mostra el cognom i el sou dels empleats de la taula `Employees2` que cobren més que el sou mitjà dels empleats de la taula `Employees`.",
+         "sql": "SELECT LastName, Salary FROM Employees2 WHERE Salary > (SELECT AVG(Salary) FROM Employees)"},
+        {"text": "Per cada empleat de la taula `Employees2`, mostra el seu cognom i una etiqueta: 'Alt' si cobra 1500 o més, i 'Baix' en cas contrari.",
+         "sql": "SELECT LastName, CASE WHEN Salary >= 1500 THEN 'Alt' ELSE 'Baix' END FROM Employees2"},
+        {"text": "Mostra el nom i el cognom dels empleats de la taula `Employees2` que tenen el mateix nom que algun empleat de la mateixa taula que cobra exactament 1400 (inclòs aquest mateix empleat).",
+         "sql": "SELECT FirstName, LastName FROM Employees2 WHERE FirstName IN (SELECT FirstName FROM Employees2 WHERE Salary = 1400)"}
+      ]
+    },
+    {
+      "name": "GroupBy 10: Repte final",
+      "intro": "Consultes de més d'un pas que combinen agrupacions, subconsultes i comptatges.",
+      "questions": [
+        {"text": "Mostra el nom que apareix més vegades a la taula `Employees2`, juntament amb el nombre de vegades que hi apareix.",
+         "sql": "SELECT FirstName, COUNT(*) FROM Employees2 GROUP BY FirstName ORDER BY COUNT(*) DESC LIMIT 1"},
+        {"text": "Mostra un únic valor: la suma de tots els sous de `Employees2` menys la suma de tots els sous de `Employees3` (els NULL no compten).",
+         "sql": "SELECT (SELECT SUM(Salary) FROM Employees2) - (SELECT SUM(Salary) FROM Employees3)"},
+        {"text": "Per cada nom de la taula `Employees3`, mostra el nom i el nombre d'empleats amb sou NULL, només per als noms que tenen almenys un empleat amb sou NULL.",
+         "sql": "SELECT FirstName, COUNT(*) - COUNT(Salary) FROM Employees3 GROUP BY FirstName HAVING COUNT(*) - COUNT(Salary) > 0"},
+        {"text": "Per cada sou de la taula `Employees2`, mostra el sou i el nombre de noms diferents (`COUNT(DISTINCT FirstName)`) entre els empleats que el cobren, només per als sous que comparteixen 2 o més noms diferents.",
+         "sql": "SELECT Salary, COUNT(DISTINCT FirstName) FROM Employees2 GROUP BY Salary HAVING COUNT(DISTINCT FirstName) >= 2"}
+      ]
+    }
+  ]
+}

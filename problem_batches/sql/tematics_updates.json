@@ -1,0 +1,299 @@
+{
+ "problems": [
+  {
+   "code": "sqlupd01",
+   "database": "groupbytest",
+   "type": "sqlupdate",
+   "name": "SQL Updates 1: UPDATE bàsic",
+   "intro": "Primer contacte amb `UPDATE`: canviar una columna d'una o diverses files amb `WHERE` (per `Id`, per nom, per cognom) i veure què passa quan s'oblida el `WHERE`.",
+   "questions": [
+    {
+     "text": "A la taula `Employees`, canvia el sou (`Salary`) a 1200 de l'empleat amb `Id` 2.",
+     "sql": "UPDATE Employees SET Salary = 1200 WHERE Id = 2",
+     "explain": "El `WHERE Id = 2` limita el canvi a una sola fila (la clau primària és única); la resta d'empleats no es toquen."
+    },
+    {
+     "text": "A la taula `Employees`, posa el sou (`Salary`) a 2000 per a tots els empleats que es diuen `Maria` (`FirstName`).",
+     "sql": "UPDATE Employees SET Salary = 2000 WHERE FirstName = 'Maria'",
+     "explain": "El filtre és per nom, de manera que afecta totes les files que el compleixen (aquí només una). Els textos es comparen entre cometes simples."
+    },
+    {
+     "text": "A la taula `Employees`, canvia el cognom (`LastName`) de l'empleat amb `Id` 3 pel text `Garcia Lopez`.",
+     "sql": "UPDATE Employees SET LastName = 'Garcia Lopez' WHERE Id = 3",
+     "explain": "`UPDATE` també serveix per modificar columnes de text; només s'hi escriu el nou valor entre cometes."
+    },
+    {
+     "text": "A la taula `Employees2`, posa el sou (`Salary`) a 1600 de l'empleat que té el cognom (`LastName`) `Rovira`.",
+     "sql": "UPDATE Employees2 SET Salary = 1600 WHERE LastName = 'Rovira'",
+     "explain": "Es filtra pel cognom en comptes de per la clau. Cal vigilar que la taula sigui `Employees2` i no `Employees`."
+    },
+    {
+     "text": "A la taula `Employees2`, puja 100 el sou (`Salary`) de tots els empleats que es diuen `Pere` (`FirstName`).",
+     "sql": "UPDATE Employees2 SET Salary = Salary + 100 WHERE FirstName = 'Pere'",
+     "explain": "El nou valor es calcula a partir de l'actual (`Salary + 100`), de manera que cada fila rep el seu propi resultat."
+    },
+    {
+     "text": "A la taula `Employees2`, canvia a 1800 el sou (`Salary`) de tots els empleats que ara mateix cobren exactament 1700.",
+     "sql": "UPDATE Employees2 SET Salary = 1800 WHERE Salary = 1700",
+     "explain": "El `WHERE` pot filtrar per la mateixa columna que es modifica: es decideix quines files es toquen abans de canviar-les."
+    },
+    {
+     "text": "A la taula `Employees`, multiplica per 2 el sou (`Salary`) de TOTS els empleats (sense cap condicio).",
+     "sql": "UPDATE Employees SET Salary = Salary * 2",
+     "explain": "Sense `WHERE`, l'`UPDATE` afecta totes les files de la taula; per això convé escriure sempre el `WHERE` quan no es vol tocar tothom."
+    },
+    {
+     "text": "A la taula `Employees3`, el sou (`Salary`) d'alguns empleats és nul. Posa'l a 1000 només per als empleats que no tenen sou (`Salary IS NULL`).",
+     "sql": "UPDATE Employees3 SET Salary = 1000 WHERE Salary IS NULL",
+     "explain": "Un valor nul no es pot comparar amb `=`; cal fer servir `IS NULL`. Els empleats que ja tenen sou queden igual."
+    },
+    {
+     "text": "A la taula `Employees2`, posa el sou (`Salary`) a 1300 dels empleats que es diuen `Pere` (`FirstName`) i que cobren 1100 o menys.",
+     "sql": "UPDATE Employees2 SET Salary = 1300 WHERE FirstName = 'Pere' AND Salary <= 1100",
+     "explain": "Les dues condicions s'han de complir alhora (`AND`): els Pere que cobren 1500 no es toquen."
+    },
+    {
+     "text": "A la taula `Employees3`, posa el sou (`Salary`) a 1200 de TOTS els empleats, tant dels que tenen sou com dels que el tenen nul.",
+     "sql": "UPDATE Employees3 SET Salary = 1200",
+     "explain": "Sense `WHERE` es toquen totes les files, també les que tenen `NULL`, que passen a valer 1200."
+    }
+   ]
+  },
+  {
+   "code": "sqlupd02",
+   "database": "chinook",
+   "type": "sqlupdate",
+   "name": "SQL Updates 2: expressions al SET",
+   "intro": "Practiques expressions dins del `SET`: percentatges i sumes, concatenació amb `||`, `UPPER`, `LOWER`, `TRIM`, i actualitzar diverses columnes alhora, sempre amb `WHERE` selectius.",
+   "questions": [
+    {
+     "text": "A la taula `Track`, puja un 10% el preu (`UnitPrice`) de les cançons del gènere amb `GenreId` 2. El nou preu ha de ser `ROUND(UnitPrice * 1.1, 2)` (arrodonit a 2 decimals).",
+     "sql": "UPDATE Track SET UnitPrice = ROUND(UnitPrice * 1.1, 2) WHERE GenreId = 2",
+     "explain": "El `SET` pot usar la mateixa columna en una expressió. `ROUND(...,2)` evita que s'acumulin decimals de coma flotant."
+    },
+    {
+     "text": "A la taula `Track`, afegeix 1000 milisegons (`Milliseconds`) a la durada de les cançons de l'àlbum amb `AlbumId` 1.",
+     "sql": "UPDATE Track SET Milliseconds = Milliseconds + 1000 WHERE AlbumId = 1",
+     "explain": "Una suma sobre una columna entera no té problemes d'arrodoniment. El `WHERE` limita l'efecte a les 10 cançons de l'àlbum."
+    },
+    {
+     "text": "A la taula `Track`, afegeix el text ` (Remastered)` (amb l'espai inicial) al final del nom (`Name`) de les cançons de l'àlbum amb `AlbumId` 2.",
+     "sql": "UPDATE Track SET Name = Name || ' (Remastered)' WHERE AlbumId = 2",
+     "explain": "L'operador `||` concatena textos; el nou valor es construeix a partir del nom actual."
+    },
+    {
+     "text": "A la taula `Artist`, passa a majúscules (`UPPER`) el nom (`Name`) dels artistes amb `ArtistId` 2, 3 i 4.",
+     "sql": "UPDATE Artist SET Name = UPPER(Name) WHERE ArtistId IN (2, 3, 4)",
+     "explain": "`UPPER` converteix un text a majúscules. `IN` permet llistar els identificadors que es volen tocar."
+    },
+    {
+     "text": "A la taula `Customer`, passa a minúscules (`LOWER`) el cognom (`LastName`) dels clients del país (`Country`) `Brazil`.",
+     "sql": "UPDATE Customer SET LastName = LOWER(LastName) WHERE Country = 'Brazil'",
+     "explain": "`LOWER` fa l'operació contrària a `UPPER`. Només es modifiquen els clients que compleixen el filtre de país."
+    },
+    {
+     "text": "A la taula `Employee`, passa a majúscules la ciutat (`City`) i el país (`Country`) alhora dels empleats que viuen a `Canada` (`Country`).",
+     "sql": "UPDATE Employee SET City = UPPER(City), Country = UPPER(Country) WHERE Country = 'Canada'",
+     "explain": "Es poden modificar diverses columnes en un sol `UPDATE` separant les assignacions amb comes; el `WHERE` s'avalua amb els valors originals."
+    },
+    {
+     "text": "A la taula `Invoice`, redueix un 10% el total (`Total`) de les factures amb `InvoiceId` entre 1 i 5 (ambdues incloses). El nou valor ha de ser `ROUND(Total * 0.9, 2)`.",
+     "sql": "UPDATE Invoice SET Total = ROUND(Total * 0.9, 2) WHERE InvoiceId BETWEEN 1 AND 5",
+     "explain": "`BETWEEN` inclou els dos extrems. Multiplicar per 0.9 aplica el descompte i `ROUND` fixa els decimals."
+    },
+    {
+     "text": "A la taula `InvoiceLine`, suma 1 a la quantitat (`Quantity`) de les línies de la factura amb `InvoiceId` 1.",
+     "sql": "UPDATE InvoiceLine SET Quantity = Quantity + 1 WHERE InvoiceId = 1",
+     "explain": "Aquesta factura té dues línies, i totes dues s'incrementen perquè el `WHERE` filtra per la factura."
+    },
+    {
+     "text": "A la taula `Track`, per a les cançons de l'àlbum amb `AlbumId` 2 que no tenen compositor (`Composer IS NULL`), posa `Composer` a `Desconegut` i multiplica per 2 els `Milliseconds`.",
+     "sql": "UPDATE Track SET Composer = 'Desconegut', Milliseconds = Milliseconds * 2 WHERE AlbumId = 2 AND Composer IS NULL",
+     "explain": "Combina diverses assignacions al `SET` amb dues condicions al `WHERE`. Les cançons que ja tenen compositor es queden igual."
+    },
+    {
+     "text": "A la taula `Customer`, posa el camp `Company` al text `Particular` per als clients que no tenen empresa (`Company IS NULL`) i que són del país (`Country`) `France`.",
+     "sql": "UPDATE Customer SET Company = 'Particular' WHERE Company IS NULL AND Country = 'France'",
+     "explain": "Per detectar els valors nuls s'ha de fer servir `IS NULL`; combinat amb `AND` acota el canvi als clients francesos sense empresa."
+    }
+   ]
+  },
+  {
+   "code": "sqlupd03",
+   "database": "hotel",
+   "type": "sqlupdate",
+   "name": "SQL Updates 3: condicions riques i CASE",
+   "intro": "Practiques `WHERE` ben acotats amb `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `AND`/`OR` amb parèntesis, i `CASE WHEN` dins del `SET` per donar valors diferents segons cada fila.",
+   "questions": [
+    {
+     "text": "A la taula `Bookings`, marca com `Cancelled` (columna `State`) totes les reserves amb data d'entrada (`CheckIn`) entre `2021-06-01` i `2021-06-07`, ambdues incloses.",
+     "sql": "UPDATE Bookings SET State = 'Cancelled' WHERE CheckIn BETWEEN '2021-06-01' AND '2021-06-07'",
+     "explain": "Les dates es guarden com a text `AAAA-MM-DD`, per això `BETWEEN` funciona bé comparant-les alfabèticament."
+    },
+    {
+     "text": "A la taula `Customers`, canvia el domini dels correus (`Email`) que acaben en `@fastcompany.com` perquè acabin en `@fastcompany.net`. Només s'ha de canviar aquest tros final.",
+     "sql": "UPDATE Customers SET Email = REPLACE(Email, '@fastcompany.com', '@fastcompany.net') WHERE Email LIKE '%@fastcompany.com'",
+     "explain": "`LIKE '%...'` selecciona els correus pel final, i `REPLACE` canvia només el tros indicat mantenint la part local."
+    },
+    {
+     "text": "A la taula `Bookings`, marca com `Cancelled` les reserves que estan `Reserved` (columna `State`), amb `RoomTypeId` 7 o 8 i amb `CheckIn` entre `2021-01-01` i `2021-01-31` (ambdues incloses).",
+     "sql": "UPDATE Bookings SET State = 'Cancelled' WHERE State = 'Reserved' AND RoomTypeId IN (7, 8) AND CheckIn BETWEEN '2021-01-01' AND '2021-01-31'",
+     "explain": "Es combinen tres condicions amb `AND`: estat actual, tipus d'habitació amb `IN` i rang de dates amb `BETWEEN`."
+    },
+    {
+     "text": "A la taula `Stays`, posa `PaymentType` al valor `Pending` en les estades que no tenen tipus de pagament (`PaymentType IS NULL`).",
+     "sql": "UPDATE Stays SET PaymentType = 'Pending' WHERE PaymentType IS NULL",
+     "explain": "Les files sense pagament tenen `NULL`, que només es detecta amb `IS NULL` (mai amb `= NULL`)."
+    },
+    {
+     "text": "A la taula `Stays`, posa `PaymentType` a `Card` de les estades que ara estan pagades amb `Cash` i que tenen `TotalPrice` menor que 100 o `CheckOut` igual a `2021-01-12`.",
+     "sql": "UPDATE Stays SET PaymentType = 'Card' WHERE PaymentType = 'Cash' AND (TotalPrice < 100 OR CheckOut = '2021-01-12')",
+     "explain": "Els parèntesis fan que l'`OR` s'avaluï abans de l'`AND`; sense ells el significat seria un altre."
+    },
+    {
+     "text": "A la taula `Bookings`, per a les reserves amb `CheckIn` entre `2021-01-04` i `2021-01-10` (ambdues incloses), posa `State` a `Cancelled` si `NHosts` és 3 o més, i a `Reserved` en la resta de casos. Usa `CASE WHEN`.",
+     "sql": "UPDATE Bookings SET State = CASE WHEN NHosts >= 3 THEN 'Cancelled' ELSE 'Reserved' END WHERE CheckIn BETWEEN '2021-01-04' AND '2021-01-10'",
+     "explain": "`CASE WHEN` permet que cada fila rebi un valor diferent segons una condició pròpia dins del mateix `UPDATE`."
+    },
+    {
+     "text": "A la taula `Stays`, per a les estades amb `CheckIn` entre `2021-01-04` i `2021-01-10` (ambdues incloses), posa `PaymentType` a `Card` si `TotalPrice` és 1000 o més, i a `Cash` si és menor. Usa `CASE WHEN`.",
+     "sql": "UPDATE Stays SET PaymentType = CASE WHEN TotalPrice >= 1000 THEN 'Card' ELSE 'Cash' END WHERE CheckIn BETWEEN '2021-01-04' AND '2021-01-10'",
+     "explain": "El `WHERE` acota les files i el `CASE` decideix el valor de cada una a partir del preu."
+    },
+    {
+     "text": "A la taula `Seasons`, substitueix els espais del nom (`Name`) per un guió (`-`) a les estacions el nom de les quals comença per `Summer`.",
+     "sql": "UPDATE Seasons SET Name = REPLACE(Name, ' ', '-') WHERE Name LIKE 'Summer%'",
+     "explain": "`LIKE 'Summer%'` filtra pel principi del text i `REPLACE` canvia l'espai per un guió (p. ex. `Summer-2020`)."
+    },
+    {
+     "text": "A la taula `Rooms`, posa `Empty` a 1 a les habitacions de tipus (`RoomTypeId`) 1, 2 o 3 que ara tenen `Empty` igual a 0.",
+     "sql": "UPDATE Rooms SET Empty = 1 WHERE RoomTypeId IN (1, 2, 3) AND Empty = 0",
+     "explain": "Només es toquen les habitacions ocupades dels tipus indicats; les ja buides es queden igual."
+    },
+    {
+     "text": "A la taula `Customers`, canvia el prefix `+34` per `0034` al telèfon (`PhoneNumber`) dels clients amb telèfon que comença per `+34` i cognom (`LastName`) que comença per `GARC`.",
+     "sql": "UPDATE Customers SET PhoneNumber = '0034' || SUBSTR(PhoneNumber, 4) WHERE PhoneNumber LIKE '+34%' AND LastName LIKE 'GARC%'",
+     "explain": "`SUBSTR(PhoneNumber, 4)` retorna el telèfon a partir del 4t caràcter (sense `+34`) i `||` hi enganxa el nou prefix."
+    }
+   ]
+  },
+  {
+   "code": "sqlupd04",
+   "database": "lastnames",
+   "type": "sqlupdate",
+   "name": "SQL Updates 4: UPDATE amb subconsultes",
+   "intro": "Practiques subconsultes dins d'un `UPDATE`: valors escalars calculats amb `SELECT` al `SET`, subconsultes al `WHERE` amb `IN` o comparacions amb agregats (`AVG`, `MAX`, `MIN`, `COUNT`).",
+   "questions": [
+    {
+     "text": "A la taula `LastNames`, posa a la columna `Freq1` del cognom `MARTINEZ` el mateix valor que té `Freq2` del cognom `GARCIA`. Usa una subconsulta.",
+     "sql": "UPDATE LastNames SET Freq1 = (SELECT Freq2 FROM LastNames WHERE Name = 'GARCIA') WHERE Name = 'MARTINEZ'",
+     "explain": "Una subconsulta que retorna un sol valor es pot usar com a valor del `SET`."
+    },
+    {
+     "text": "A la taula `LastNames`, per als cognoms amb `Freq1` superior a 50 vegades la mitjana de `Freq1` de tota la taula (`50 * AVG(Freq1)`), posa `Freq2` igual al seu `Freq1`.",
+     "sql": "UPDATE LastNames SET Freq2 = Freq1 WHERE Freq1 > (SELECT AVG(Freq1) * 50 FROM LastNames)",
+     "explain": "La subconsulta calcula una sola vegada el llindar (mitjana per 50) i el `WHERE` el compara amb cada fila."
+    },
+    {
+     "text": "A la taula `LastNames`, posa `Freq2` a 0 dels 3 cognoms amb el `Freq1` més alt. Usa una subconsulta amb `ORDER BY Freq1 DESC LIMIT 3` que retorni els `LastNameId`.",
+     "sql": "UPDATE LastNames SET Freq2 = 0 WHERE LastNameId IN (SELECT LastNameId FROM LastNames ORDER BY Freq1 DESC LIMIT 3)",
+     "explain": "`IN` amb subconsulta permet escollir les files amb una consulta de rànquing; el `LIMIT` dins de la subconsulta fixa quantes."
+    },
+    {
+     "text": "A la taula `LastNames`, posa a `Freq1` del cognom `PUIG` el valor màxim de `Freq1` de tota la taula.",
+     "sql": "UPDATE LastNames SET Freq1 = (SELECT MAX(Freq1) FROM LastNames) WHERE Name = 'PUIG'",
+     "explain": "`MAX` dins d'una subconsulta escalar dona el valor que s'assigna a una fila concreta."
+    },
+    {
+     "text": "A la taula `LastNames`, posa `Freq2` al valor mínim de `Freq2` de tota la taula per als cognoms que tenen `Freq1` superior al `Freq1` del cognom `LOPEZ`.",
+     "sql": "UPDATE LastNames SET Freq2 = (SELECT MIN(Freq2) FROM LastNames) WHERE Freq1 > (SELECT Freq1 FROM LastNames WHERE Name = 'LOPEZ')",
+     "explain": "Hi ha dues subconsultes: una al `SET` que dona el valor mínim i una al `WHERE` que dona el llindar de comparació."
+    },
+    {
+     "text": "A la taula `LastNames`, suma 1000 a `Freq2` dels cognoms amb `Freq1` igual o superior a `MAX(Freq1) / 10` (divisió entera, ja que `Freq1` és un enter).",
+     "sql": "UPDATE LastNames SET Freq2 = Freq2 + 1000 WHERE Freq1 >= (SELECT MAX(Freq1) / 10 FROM LastNames)",
+     "explain": "La divisió entre enters és entera a SQLite. La subconsulta calcula el llindar un cop i després es filtra amb ell."
+    },
+    {
+     "text": "A la taula `LastNames`, afegeix un asterisc (`*`) al final del nom (`Name`) dels cognoms que comencen per `AB` i que tenen el `Freq1` mínim de la taula. Usa `WHERE LastNameId IN (SELECT ...)` amb una subconsulta dins d'una altra.",
+     "sql": "UPDATE LastNames SET Name = Name || '*' WHERE LastNameId IN (SELECT LastNameId FROM LastNames WHERE Name LIKE 'AB%' AND Freq1 = (SELECT MIN(Freq1) FROM LastNames))",
+     "explain": "Les subconsultes es poden niuar: la interior calcula el mínim i l'exterior tria els identificadors."
+    },
+    {
+     "text": "A la taula `LastNames`, copia `Freq2PerThousand` dins de `Freq1PerThousand` per als cognoms amb `LastNameId` entre 1 i 5. Usa una subconsulta correlacionada que busqui la fila del mateix `LastNameId`.",
+     "sql": "UPDATE LastNames SET Freq1PerThousand = (SELECT l2.Freq2PerThousand FROM LastNames l2 WHERE l2.LastNameId = LastNames.LastNameId) WHERE LastNameId BETWEEN 1 AND 5",
+     "explain": "La subconsulta correlacionada es refereix a la fila que s'està actualitzant (`LastNames.LastNameId`) i retorna el seu valor."
+    },
+    {
+     "text": "A la taula `LastNames`, suma a `Freq1` del cognom amb `LastNameId` 6 el nombre de cognoms que tenen `Freq1` superior a 100000 (`COUNT(*)`).",
+     "sql": "UPDATE LastNames SET Freq1 = Freq1 + (SELECT COUNT(*) FROM LastNames WHERE Freq1 > 100000) WHERE LastNameId = 6",
+     "explain": "Un `COUNT(*)` en una subconsulta dona un enter que es pot usar dins d'una expressió del `SET`."
+    },
+    {
+     "text": "A la taula `LastNames`, posa `Freq2` a la part entera de la mitjana de `Freq1` de tota la taula (`CAST((SELECT AVG(Freq1) FROM LastNames) AS INTEGER)`) per als cognoms amb `LastNameId` entre 1 i 3.",
+     "sql": "UPDATE LastNames SET Freq2 = CAST((SELECT AVG(Freq1) FROM LastNames) AS INTEGER) WHERE LastNameId BETWEEN 1 AND 3",
+     "explain": "`CAST(... AS INTEGER)` trunca la mitjana a un enter, així que tothom obté el mateix resultat exacte."
+    }
+   ]
+  },
+  {
+   "code": "sqlupd05",
+   "database": "northwind",
+   "type": "sqlupdate",
+   "name": "SQL Updates 5: problema final mesclat",
+   "intro": "Problema final: `UPDATE` amb diverses columnes al `SET`, subconsultes correlacionades amb dades agregades d'una altra taula, `CASE` i condicions amb `EXISTS` / `NOT EXISTS`.",
+   "questions": [
+    {
+     "text": "A la taula `products`, posa `reorder_level` igual a la suma de `quantity` de totes les seves línies a `order_details` (`order_details.product_id = products.id`), només per als productes que apareixen en alguna línia de detall (`EXISTS`).",
+     "sql": "UPDATE products SET reorder_level = (SELECT SUM(quantity) FROM order_details WHERE product_id = products.id) WHERE EXISTS (SELECT 1 FROM order_details WHERE product_id = products.id)",
+     "explain": "La subconsulta correlacionada agrega les línies de cada producte i l'`EXISTS` evita posar `NULL` als productes que mai s'han venut."
+    },
+    {
+     "text": "A la taula `products`, marca com a descatalogats (`discontinued = 1`) i posa `reorder_level = 0` per als productes que no apareixen a cap línia d'`order_details` (`NOT EXISTS`).",
+     "sql": "UPDATE products SET discontinued = 1, reorder_level = 0 WHERE NOT EXISTS (SELECT 1 FROM order_details WHERE product_id = products.id)",
+     "explain": "`NOT EXISTS` selecciona les files sense cap correspondència a l'altra taula, i el `SET` modifica dues columnes alhora."
+    },
+    {
+     "text": "A la taula `orders`, posa `notes` al text `Comanda gran` per a les comandes la suma de `quantity` de les quals a `order_details` (per `order_id`) és 100 o més.",
+     "sql": "UPDATE orders SET notes = 'Comanda gran' WHERE (SELECT SUM(quantity) FROM order_details WHERE order_id = orders.id) >= 100",
+     "explain": "Una subconsulta correlacionada al `WHERE` calcula un agregat per a cada comanda i es compara amb el llindar."
+    },
+    {
+     "text": "A la taula `customers`, per als clients que tenen alguna comanda a `orders` (`orders.customer_id = customers.id`), posa `job_title` a `Client actiu` i `notes` a `Comandes: ` seguit del nombre de comandes del client (p. ex. `Comandes: 3`).",
+     "sql": "UPDATE customers SET job_title = 'Client actiu', notes = 'Comandes: ' || (SELECT COUNT(*) FROM orders WHERE customer_id = customers.id) WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)",
+     "explain": "El `COUNT(*)` correlacionat es concatena amb el text, i l'`EXISTS` deixa intactes els clients sense comandes."
+    },
+    {
+     "text": "A la taula `employees`, posa `notes` segons quantes comandes té cada empleat a `orders` (`orders.employee_id = employees.id`): `Alt` si en té 10 o més, `Mitja` si en té 4 o més, i `Baix` en la resta de casos (inclosos els que no en tenen cap). Afecta tots els empleats. Usa `CASE WHEN`.",
+     "sql": "UPDATE employees SET notes = CASE WHEN (SELECT COUNT(*) FROM orders WHERE employee_id = employees.id) >= 10 THEN 'Alt' WHEN (SELECT COUNT(*) FROM orders WHERE employee_id = employees.id) >= 4 THEN 'Mitja' ELSE 'Baix' END",
+     "explain": "Un `CASE` pot contenir subconsultes correlacionades a cada `WHEN`; l'`ELSE` cobreix també els empleats sense comandes."
+    },
+    {
+     "text": "A la taula `invoices`, copia a la columna `shipping` el valor de `shipping_fee` de la comanda corresponent (`orders.id = invoices.order_id`), només per a les factures la comanda de les quals tingui `shipping_fee` major que 0.",
+     "sql": "UPDATE invoices SET shipping = (SELECT shipping_fee FROM orders WHERE orders.id = invoices.order_id) WHERE EXISTS (SELECT 1 FROM orders WHERE orders.id = invoices.order_id AND shipping_fee > 0)",
+     "explain": "La subconsulta del `SET` cerca la comanda de cada factura i l'`EXISTS` filtra les factures amb cost d'enviament positiu."
+    },
+    {
+     "text": "A la taula `orders`, posa `status_id` a 3 per a les comandes que tenen `shipped_date` no nul i que tenen alguna factura a `invoices` (`invoices.order_id = orders.id`).",
+     "sql": "UPDATE orders SET status_id = 3 WHERE shipped_date IS NOT NULL AND EXISTS (SELECT 1 FROM invoices WHERE order_id = orders.id)",
+     "explain": "Combina una condició simple (`IS NOT NULL`) amb un `EXISTS` sobre una altra taula."
+    },
+    {
+     "text": "A la taula `inventory_transactions`, posa `comments` al text `Sense vendes` per a les transaccions amb `transaction_type = 1` el `product_id` de les quals no apareix a cap línia d'`order_details` (usa `NOT IN` amb una subconsulta que ignori els `product_id` nuls).",
+     "sql": "UPDATE inventory_transactions SET comments = 'Sense vendes' WHERE transaction_type = 1 AND product_id NOT IN (SELECT product_id FROM order_details WHERE product_id IS NOT NULL)",
+     "explain": "Cal filtrar els `NULL` dins del `NOT IN`: si la subconsulta en retornés algun, la condició no seleccionaria cap fila."
+    },
+    {
+     "text": "A la taula `order_details`, posa `discount = 0.1` a les línies amb `quantity` de 30 o més que corresponen a productes de la categoria (`products.category`) `Beverages` (usa `EXISTS` amb una subconsulta correlacionada sobre `products`).",
+     "sql": "UPDATE order_details SET discount = 0.1 WHERE quantity >= 30 AND EXISTS (SELECT 1 FROM products WHERE products.id = order_details.product_id AND products.category = 'Beverages')",
+     "explain": "L'`EXISTS` correlacionat permet filtrar una taula segons una propietat d'una altra sense necessitar un `JOIN`."
+    },
+    {
+     "text": "A la taula `purchase_orders`, per a les comandes de compra que tenen `payment_amount = 0` i alguna línia a `purchase_order_details`, posa `payment_amount` a `ROUND(SUM(quantity * unit_cost), 2)` de les seves línies i `payment_method` a `Check`.",
+     "sql": "UPDATE purchase_orders SET payment_amount = (SELECT ROUND(SUM(quantity * unit_cost), 2) FROM purchase_order_details WHERE purchase_order_id = purchase_orders.id), payment_method = 'Check' WHERE payment_amount = 0 AND EXISTS (SELECT 1 FROM purchase_order_details WHERE purchase_order_id = purchase_orders.id)",
+     "explain": "Es calcula l'import total de cada comanda de compra amb una subconsulta correlacionada i s'assigna juntament amb el mètode de pagament."
+    }
+   ]
+  }
+ ]
+}

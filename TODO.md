@@ -91,6 +91,42 @@ un script que provi `"cadena" % {}` per a cada `msgid` i reporti els que peten.
 
 ## 9. Aïllament real dels enviaments: lectura de fitxers i `exec` de processos
 
+> **ACTUALITZACIÓ 2026-10-21 — RESOLT EL DUBTE, I ÉS GREU (vegeu `CANVIS_I_MILLORES.md` entrada #83).** Prova amb
+> enviaments reals al jutge en producció (problema privat `aplusb`, un directori testimoni a `/tmp`): **Java 11 i
+> Kotlin poden llançar processos (`ProcessBuilder`, `Runtime.exec("sh -c ...")`) i escriure fitxers fora de les
+> carpetes permeses (`FileWriter`, `File.writeText`)**. Tots cinc fitxers testimoni es van crear. La JVM s'engega
+> amb `-javaagent:java_sandbox.jar=policy:...` i la política només permet escriure a `out/` i `/outputfiles/`, però **no
+> s'aplica**. Python 3, en canvi, ho va bloquejar tot (`cptbox`): `subprocess` → `BlockingIOError`, `open(...,'w')`
+> fora del sandbox → `FileNotFoundError`, `os.system` no va crear res.
+> **Conseqüència:** qualsevol usuari registrat pot executar codi arbitrari al servidor com a `ubuntu`, que és
+> propietari de tot `/judge`, del codi del lloc i de les còpies de seguretat, i **té `sudo` sense contrasenya**.
+> En la pràctica, això vol dir control total del servidor a través d'un enviament Java.
+> **Pendent de decidir (urgent):** (1) contenció immediata, (2) descobrir per què l'agent `java_sandbox.jar` no
+> aplica la política, (3) fer córrer els jutges amb un usuari propi sense `sudo` ni permisos d'escriptura fora del que
+> necessiten.
+>
+> **Estat 2026-10-21: RESOLT per a tots els Java.** Java 8, Java 11 i Kotlin, amb l'agent antic i el `SecurityManager`
+> (`CANVIS_I_MILLORES.md` #86 i #88); Java 25, amb `cptbox` (#89). Verificat amb proves del testimoni als dos jutges i regressions amb
+> solucions `AC` reals. Queda: fer commit dels canvis al repositori del jutge, i (opcional) jutges amb un usuari propi sense `sudo`.
+>
+> **Causa (2026-10-21, `CANVIS_I_MILLORES.md` #84):** el commit `3fb52a5` del jutge va substituir `java_sandbox.jar` per
+> l'agent nou del DMOJ, que ignora `policy:` i no instal·la cap `SecurityManager`; `JavaExecutor.get_security()` torna
+> `None`, així que Java i Kotlin no tenen cap sandbox. Opcions d'arreglament:
+> - JAVA8, JAVA11 i KOTLIN (Java 11): tornar a fer servir l'agent antic (`git show 9e45a91:executors/java_sandbox.jar`)
+>   només per a ells, que sí que activa el `SecurityManager` amb la política. Cal provar-ho (prova del testimoni + que
+>   programes normals continuïn donant AC) i reiniciar els jutges.
+> - JAVA25: el `SecurityManager` ja no existeix al JDK 25, així que cal el sandbox `cptbox` (com al DMOJ actual), o
+>   desactivar-lo temporalment (31.950 enviaments: molt disruptiu).
+> - En qualsevol cas: jutges amb un usuari propi, sense `sudo`, i treure `ubuntu` del grup `lxd` si no es fa servir LXD.
+>
+> **Treure el `sudo` sense contrasenya (a fer per l'usuari, el classificador no deixa Claude fer-ho amb seguretat):**
+> 1. Comprovar que es recorda la contrasenya d'`ubuntu`: `su - ubuntu -c true` (ha de demanar-la i acceptar-la).
+> 2. Obrir una segona sessió i deixar-hi `sudo -i` obert, com a xarxa de seguretat.
+> 3. `sudo visudo -f /etc/sudoers.d/90-cloud-init-users` i esborrar o comentar la línia `ubuntu ALL=(ALL) NOPASSWD:ALL`.
+> 4. A la primera sessió: `sudo -k; sudo -v` ha de demanar la contrasenya i acceptar-la. Si falla, desfer el pas 3 des
+>    de la sessió de root oberta.
+> 5. Opcional: `sudo gpasswd -d ubuntu lxd` (el grup `lxd` equival a root) si no es fa servir LXD (`lxc list`).
+
 **Detectat:** 2026-08-18, arran de la investigació del canvi de Kotlin (entrada #10 d'aquest mateix
 fitxer / `CANVIS_I_MILLORES.md` entrada #69), i de proves explícites demanades per l'usuari amb
 enviaments reals (Kotlin i Python) contra el jutge en producció.
@@ -155,3 +191,14 @@ jutge —per exemple, un dimoni compartit però on cada compilació és una crid
 persistent visible entre alumnes (el dimoni de Kotlin normalment només manté calenta la JVM i les
 classes carregades, no dades de l'usuari)— i mesurar l'impacte real (comparant amb els ~5.79s ja
 mesurats a l'entrada #69) abans de decidir si val la pena el risc/complexitat addicional.
+
+## 11. Kotlin amb declaració `package`: el jutge no troba la classe principal
+
+**Detectat:** 2026-10-21, durant la regressió de `CANVIS_I_MILLORES.md` #88. Una solució `AC` de febrer del 2026 de `tortasaceitepro` (Kotlin)
+que comença per `package org.example.Lliga2526.Jornada11.TortasAceitePro` ara falla: "Could not find or load main class
+org.example.Lliga2526.Jornada11.TortasAceitePro.Tortasaceite". Passa igual amb l'agent antic i amb el nou, així que no és el sandbox: ve del
+canvi de #69 (Kotlin sense `-include-runtime`, executat amb `-cp` i la classe principal del manifest).
+
+**Per fer-ho:** reproduir-ho amb `KOTLIN.Executor` fora dels jutges (com a #88) i mirar per què la classe que es fa servir no és la
+`Main-Class` del manifest que genera `kotlinc` (`...TortasAceitePro.MainKt` en compilar-ho a mà).
+

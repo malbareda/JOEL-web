@@ -1,0 +1,129 @@
+{
+  "database": "knights",
+  "code_prefix": "sqlknights",
+  "label": "Cavallers i Dracs (cavallers medievals i els dracs que van matar)",
+  "problems": [
+    {
+      "name": "Cavallers i Dracs 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra tots els camps de la taula `Knights`.",
+         "sql": "SELECT * FROM Knights"},
+        {"text": "Mostra el nom (`Name`) i el color (`Color`) dels dracs de color 'Green'.",
+         "sql": "SELECT Name, Color FROM Dragons WHERE Color = 'Green'"},
+        {"text": "Mostra el sobrenom (`Nickname`) i el títol (`Title`) de tots els cavallers, ordenats per data de naixement (`BirthDate`) de més antic a més modern.",
+         "sql": "SELECT Nickname, Title FROM Knights ORDER BY BirthDate"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions i `AND`/`OR`.",
+      "questions": [
+        {"text": "Mostra el nom i el nombre de víctimes conegudes (`KnownVictims`) dels dracs amb més de 900 víctimes.",
+         "sql": "SELECT Name, KnownVictims FROM Dragons WHERE KnownVictims > 900"},
+        {"text": "Mostra el nom i el color dels dracs que són de color 'Black' i van acabar la batalla 'Unharmed' (`BattleOutcome`).",
+         "sql": "SELECT Name, Color FROM Dragons WHERE Color = 'Black' AND BattleOutcome = 'Unharmed'"},
+        {"text": "Mostra el nom (`Firstname`) i el cognom (`Lastname`) dels cavallers de gènere 'F' (`Gender`) que van morir després de l'any 1200, és a dir, amb `DeathDate` posterior a '1200-01-01'.",
+         "sql": "SELECT Firstname, Lastname FROM Knights WHERE Gender = 'F' AND DeathDate > '1200-01-01'"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 3: LIKE, IN i BETWEEN",
+      "intro": "Cerques de text, llistes de valors i rangs.",
+      "questions": [
+        {"text": "Mostra el nom dels dracs que contenen la paraula 'Champion' en el seu nom.",
+         "sql": "SELECT Name FROM Dragons WHERE Name LIKE '%Champion%'"},
+        {"text": "Mostra el sobrenom i el títol dels cavallers que tenen el títol 'Sir', 'Dame' o 'Baron'.",
+         "sql": "SELECT Nickname, Title FROM Knights WHERE Title IN ('Sir', 'Dame', 'Baron')"},
+        {"text": "Mostra el nom i el nombre de víctimes conegudes dels dracs que tenen entre 300 i 500 víctimes (tots dos valors inclosos).",
+         "sql": "SELECT Name, KnownVictims FROM Dragons WHERE KnownVictims BETWEEN 300 AND 500"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
+      "questions": [
+        {"text": "Mostra quants dracs hi ha a la taula `Dragons`.",
+         "sql": "SELECT COUNT(*) FROM Dragons"},
+        {"text": "Mostra la suma i la mitjana (`AVG`) del nombre de víctimes conegudes de tots els dracs, en aquest ordre.",
+         "sql": "SELECT SUM(KnownVictims), AVG(KnownVictims) FROM Dragons"},
+        {"text": "Mostra la data de naixement més antiga (`MIN` de `BirthDate`) i la data de defunció més recent (`MAX` de `DeathDate`) de la taula `Knights`, en aquest ordre.",
+         "sql": "SELECT MIN(BirthDate), MAX(DeathDate) FROM Knights"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada color de drac, mostra el color i el nombre de dracs d'aquest color.",
+         "sql": "SELECT Color, COUNT(*) FROM Dragons GROUP BY Color"},
+        {"text": "Per cada resultat de batalla (`BattleOutcome`) de la taula `Dragons`, mostra el resultat i la suma de víctimes conegudes dels dracs amb aquest resultat.",
+         "sql": "SELECT BattleOutcome, SUM(KnownVictims) FROM Dragons GROUP BY BattleOutcome"},
+        {"text": "Per cada gènere (`Gender`) de la taula `Knights`, mostra el gènere i el nombre de cavallers.",
+         "sql": "SELECT Gender, COUNT(*) FROM Knights GROUP BY Gender"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra els colors que tenen 5 o més dracs, juntament amb el nombre de dracs de cadascun.",
+         "sql": "SELECT Color, COUNT(*) FROM Dragons GROUP BY Color HAVING COUNT(*) >= 5"},
+        {"text": "Mostra el color i la mitjana de víctimes conegudes (`AVG` de `KnownVictims`) dels colors amb una mitjana superior a 600.",
+         "sql": "SELECT Color, AVG(KnownVictims) FROM Dragons GROUP BY Color HAVING AVG(KnownVictims) > 600"},
+        {"text": "Mostra el valor de `KilledBy` i el nombre de dracs que ha matat cada cavaller, només dels cavallers que han matat 4 dracs o més.",
+         "sql": "SELECT KilledBy, COUNT(*) FROM Dragons GROUP BY KilledBy HAVING COUNT(*) >= 4"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 7: Primers JOINs",
+      "intro": "`INNER JOIN` per relacionar cada drac amb el cavaller que el va matar (`KilledBy` = `Nickname`).",
+      "questions": [
+        {"text": "Per cada drac, mostra el seu nom (`Dragons.Name`) i el nom (`Firstname`) del cavaller que el va matar.",
+         "sql": "SELECT d.Name, k.Firstname FROM Dragons d INNER JOIN Knights k ON d.KilledBy = k.Nickname"},
+        {"text": "Mostra el nom i el color dels dracs que van ser morts per cavallers amb el títol 'Sir'.",
+         "sql": "SELECT d.Name, d.Color FROM Dragons d INNER JOIN Knights k ON d.KilledBy = k.Nickname WHERE k.Title = 'Sir'"},
+        {"text": "Mostra el nom dels dracs de color 'Red' juntament amb el cognom (`Lastname`) del cavaller que els va matar.",
+         "sql": "SELECT d.Name, k.Lastname FROM Dragons d INNER JOIN Knights k ON d.KilledBy = k.Nickname WHERE d.Color = 'Red'"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 8: JOINs i subconsultes",
+      "intro": "Combina `JOIN` amb agrupacions, i usa subconsultes per comparar amb un valor calculat.",
+      "questions": [
+        {"text": "Mostra el sobrenom de cada cavaller i la suma de les víctimes conegudes dels dracs que ha matat, només dels cavallers amb una suma superior a 2000.",
+         "sql": "SELECT k.Nickname, SUM(d.KnownVictims) FROM Knights k INNER JOIN Dragons d ON d.KilledBy = k.Nickname GROUP BY k.Nickname HAVING SUM(d.KnownVictims) > 2000"},
+        {"text": "Mostra el nom dels dracs que van ser morts per cavallers de gènere 'F' i que van acabar la batalla 'Unharmed', juntament amb el nom (`Firstname`) del cavaller.",
+         "sql": "SELECT d.Name, k.Firstname FROM Dragons d INNER JOIN Knights k ON d.KilledBy = k.Nickname WHERE k.Gender = 'F' AND d.BattleOutcome = 'Unharmed'"},
+        {"text": "Mostra el nom dels dracs el nombre de víctimes conegudes dels quals és superior a la mitjana de víctimes de tots els dracs.",
+         "sql": "SELECT Name FROM Dragons WHERE KnownVictims > (SELECT AVG(KnownVictims) FROM Dragons)"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 9: CASE, text i dates",
+      "intro": "Expressions `CASE`, funcions de text i funcions de data sobre columnes de tipus text.",
+      "questions": [
+        {"text": "Per cada drac, mostra el seu nom i una classificació segons les víctimes conegudes: 'Gran' si en té 800 o més, 'Mitja' si en té 300 o més però menys de 800, i 'Petit' si en té menys de 300.",
+         "sql": "SELECT Name, CASE WHEN KnownVictims >= 800 THEN 'Gran' WHEN KnownVictims >= 300 THEN 'Mitja' ELSE 'Petit' END FROM Dragons"},
+        {"text": "Per cada cavaller, mostra el cognom en majúscules (`UPPER` de `Lastname`) i la llargada del sobrenom (`LENGTH` de `Nickname`), en aquest ordre.",
+         "sql": "SELECT UPPER(Lastname), LENGTH(Nickname) FROM Knights"},
+        {"text": "Per cada cavaller, mostra el sobrenom i l'edat a la qual va morir, calculada com la diferència entre l'any de `DeathDate` i l'any de `BirthDate` (extreu els anys amb `strftime('%Y', ...)`).",
+         "sql": "SELECT Nickname, CAST(strftime('%Y', DeathDate) AS INTEGER) - CAST(strftime('%Y', BirthDate) AS INTEGER) FROM Knights"}
+      ]
+    },
+    {
+      "name": "Cavallers i Dracs 10: Repte final",
+      "intro": "Consultes de més d'un pas: comparacions de dates entre taules, autojoin, agrupacions i el cavaller amb més víctimes.",
+      "questions": [
+        {"text": "Mostra el nom dels dracs que van morir el mateix dia que el cavaller que els va matar (la `DeathDate` del drac coincideix amb la `DeathDate` del cavaller), juntament amb el sobrenom d'aquest cavaller.",
+         "sql": "SELECT d.Name, k.Nickname FROM Dragons d INNER JOIN Knights k ON d.KilledBy = k.Nickname WHERE d.DeathDate = k.DeathDate"},
+        {"text": "Mostra totes les parelles de cavallers que comparteixen cognom (`Lastname`), amb els dos sobrenoms en cada fila. Fes servir una autocombinació de `Knights` i evita parelles repetides o d'un cavaller amb ell mateix (per exemple, exigint que el primer sobrenom sigui alfabèticament menor que el segon).",
+         "sql": "SELECT a.Nickname, b.Nickname FROM Knights a INNER JOIN Knights b ON a.Lastname = b.Lastname AND a.Nickname < b.Nickname"},
+        {"text": "Mostra el sobrenom de cada cavaller que ha matat 3 dracs o més, juntament amb el nombre de dracs que ha matat i la suma de les seves víctimes conegudes, en aquest ordre.",
+         "sql": "SELECT k.Nickname, COUNT(*), SUM(d.KnownVictims) FROM Knights k INNER JOIN Dragons d ON d.KilledBy = k.Nickname GROUP BY k.Nickname HAVING COUNT(*) >= 3"},
+        {"text": "Mostra el sobrenom del cavaller els dracs del qual sumen més víctimes conegudes, juntament amb aquesta suma.",
+         "sql": "SELECT k.Nickname, SUM(d.KnownVictims) FROM Knights k INNER JOIN Dragons d ON d.KilledBy = k.Nickname GROUP BY k.Nickname ORDER BY SUM(d.KnownVictims) DESC LIMIT 1"}
+      ]
+    }
+  ]
+}

@@ -478,8 +478,18 @@ class TaskDetail(TaskMixin, SolvedProblemMixin, CommentedDetailView):
         context['tasks'] = ProblemTask.objects.all()
         context['completed_problem_ids'] = self.get_completed_problems()
         context['attempted_problems'] = self.get_attempted_problems()
-        context['task_problems'] = self.object.problems.annotate(
-            has_guide=Exists(Guide.objects.filter(problem_id=OuterRef('pk'))))
+        task_problems = list(self.object.problems.annotate(
+            has_guide=Exists(Guide.objects.filter(problem_id=OuterRef('pk')))))
+        # Database tasks (all problems in the SQL group, same rule as TaskList.database_task_ids) show their problems
+        # in the order they were added to the task -- the teaching order. Programming tasks keep the order they've
+        # always had (by problem id), since most of them were never added in any meaningful order.
+        sql_group_id = ProblemGroup.objects.filter(name='sql').values_list('id', flat=True).first()
+        if task_problems and all(problem.group_id == sql_group_id for problem in task_problems):
+            position = {problem_id: i for i, problem_id in enumerate(
+                ProblemTask.problems.through.objects.filter(problemtask=self.object)
+                .order_by('id').values_list('problem_id', flat=True))}
+            task_problems.sort(key=lambda problem: position[problem.id])
+        context['task_problems'] = task_problems
         return context
 
 
@@ -1247,6 +1257,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
     title = gettext_lazy('Tasks')
     context_object_name = 'tasks'
     template_name = 'problem/tasklist.html'
+    database = False  # True in DatabaseTaskList: which of the two task tabs this list is
     paginate_by = 50
     sql_sort = frozenset(('points', 'ac_rate', 'user_count', 'code'))
     manual_sort = frozenset(('name', 'group', 'solved', 'type'))
@@ -1275,6 +1286,15 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
             return None
         return self.request.profile
 
+    def database_task_ids(self):
+        """Ids of the database tasks: those whose problems are ALL in the SQL ("Bases de Dades") group. They get
+        their own tab (DatabaseTaskList), like the database leaderboard. Counted in a separate query because the
+        list filters below join through authors/organizations, which would inflate a Count on the same queryset."""
+        return (ProblemTask.objects
+                .annotate(total=Count('problems', distinct=True),
+                          sql=Count('problems', filter=Q(problems__group_id=self.sql_group_id), distinct=True))
+                .filter(total__gt=0, total=F('sql')).values('id'))
+
     def get_normal_queryset(self):
         filter = Q(is_public=True)
         if self.profile is not None:
@@ -1282,6 +1302,10 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
             filter |= Q(curators=self.profile)
             filter |= Q(testers=self.profile)
         queryset = ProblemTask.objects.all()
+        if self.database:
+            queryset = queryset.filter(id__in=self.database_task_ids())
+        else:
+            queryset = queryset.exclude(id__in=self.database_task_ids())
         if self.selected_usernames:
             #No es pot fer queryset per user, ha de ser per profile
             #__ et permet accedir a coses linkades, per exemple user__username accedeix al camp username del teu camp user
@@ -1316,6 +1340,7 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
         context['completed_problem_ids'] = self.get_completed_problems()
         context['attempted_problems'] = self.get_attempted_problems()
         context['alltasks'] = self.get_queryset()
+        context['task_tab'] = 'task_database' if self.database else 'task'
 
         # The username filter is populated via AJAX search (user_search_select2_ajax) instead of
         # dumping every registered user into the page -- with ~14700 accounts (mostly spam
@@ -1386,6 +1411,14 @@ class TaskList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView):
             else:
                 request.session.pop(key, None)
         return HttpResponseRedirect(request.get_full_path())
+
+
+class DatabaseTaskList(TaskList):
+    """The database tasks (see TaskList.database_task_ids), in their own tab so they don't mix with the
+    programming ones -- the same split as the leaderboard's separate "Bases de Dades" tab (/users/bd)."""
+    title = gettext_lazy('Tasques de Bases de Dades')
+    database = True
+
 
 class LanguageTemplateAjax(View):
     def get(self, request, *args, **kwargs):

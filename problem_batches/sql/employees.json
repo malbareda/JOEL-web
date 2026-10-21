@@ -1,0 +1,191 @@
+{
+ "database": "employees",
+ "code_prefix": "sqlemployees",
+ "label": "Employees (plantilla d'empleats: una sola taula amb càrrec, salari i data de naixement)",
+ "problems": [
+  {
+   "name": "Empleats 1: Primeres consultes",
+   "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre la taula d'empleats.",
+   "questions": [
+    {
+     "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de tots els empleats.",
+     "sql": "SELECT FirstName, LastName FROM Employees"
+    },
+    {
+     "text": "Mostra el nom, el cognom i el salari (`Salary`) dels empleats que cobren més de 2000, en aquest ordre de columnes.",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary > 2000"
+    },
+    {
+     "text": "Mostra el cognom i la data de naixement (`BirthDate`) de tots els empleats, ordenats de més gran a més jove (data de naixement més antiga primer).",
+     "sql": "SELECT LastName, BirthDate FROM Employees ORDER BY BirthDate"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 2: Filtrant files",
+   "intro": "Combina condicions amb `AND`, `OR` i `IN`, i limita el resultat amb `LIMIT`.",
+   "questions": [
+    {
+     "text": "Mostra el cognom i el càrrec (`JobTitle`) dels empleats que tenen el càrrec 'Accountant', 'Tax Accountant' o 'Financial Analyst'.",
+     "sql": "SELECT LastName, JobTitle FROM Employees WHERE JobTitle IN ('Accountant','Tax Accountant','Financial Analyst')"
+    },
+    {
+     "text": "Mostra el nom i el cognom dels empleats que cobren 1900 o menys i que han nascut l'1 de gener de 1980 o més tard (`BirthDate` >= '1980-01-01').",
+     "sql": "SELECT FirstName, LastName FROM Employees WHERE Salary <= 1900 AND BirthDate >= '1980-01-01'"
+    },
+    {
+     "text": "Mostra el cognom i el salari dels 3 empleats que cobren més, ordenats de major a menor salari.",
+     "sql": "SELECT LastName, Salary FROM Employees ORDER BY Salary DESC LIMIT 3"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 3: Text, rangs i NULL",
+   "intro": "Usa `LIKE`, `BETWEEN` i `IS NULL` per filtrar amb criteris més fins.",
+   "questions": [
+    {
+     "text": "Mostra el cognom dels empleats el cognom dels quals comença per la lletra 'L'.",
+     "sql": "SELECT LastName FROM Employees WHERE LastName LIKE 'L%'"
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el nom dels empleats que no tenen correu electrònic (`EMail`) o no tenen telèfon (`Phone`).",
+     "sql": "SELECT Id, FirstName FROM Employees WHERE EMail IS NULL OR Phone IS NULL"
+    },
+    {
+     "text": "Mostra el cognom i la data de naixement dels empleats nascuts entre l'1 de gener de 1980 i el 31 de desembre de 1989, tots dos inclosos.",
+     "sql": "SELECT LastName, BirthDate FROM Employees WHERE BirthDate BETWEEN '1980-01-01' AND '1989-12-31'"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 4: Funcions d'agregat",
+   "intro": "Resumeix tota la taula amb `COUNT`, `SUM`, `AVG`, `MIN` i `MAX`.",
+   "questions": [
+    {
+     "text": "Mostra el nombre total d'empleats.",
+     "sql": "SELECT COUNT(*) FROM Employees"
+    },
+    {
+     "text": "Mostra, en una sola fila i en aquest ordre, el salari mínim, el salari màxim i el salari mitjà de tots els empleats.",
+     "sql": "SELECT MIN(Salary), MAX(Salary), AVG(Salary) FROM Employees"
+    },
+    {
+     "text": "Mostra, en una sola fila i en aquest ordre, el nombre de càrrecs (`JobTitle`) diferents i el nombre d'empleats que tenen telèfon (`Phone` no és `NULL`).",
+     "sql": "SELECT COUNT(DISTINCT JobTitle), COUNT(Phone) FROM Employees"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 5: Agrupant dades",
+   "intro": "Agrupa files amb `GROUP BY` i filtra grups amb `HAVING`.",
+   "questions": [
+    {
+     "text": "Mostra cada càrrec i el nombre d'empleats que el tenen, en aquest ordre de columnes.",
+     "sql": "SELECT JobTitle, COUNT(*) FROM Employees GROUP BY JobTitle"
+    },
+    {
+     "text": "Mostra cada càrrec i el salari més alt que cobra algun empleat d'aquest càrrec, en aquest ordre de columnes.",
+     "sql": "SELECT JobTitle, MAX(Salary) FROM Employees GROUP BY JobTitle"
+    },
+    {
+     "text": "Mostra el càrrec i el salari mitjà dels càrrecs que tenen més d'un empleat.",
+     "sql": "SELECT JobTitle, AVG(Salary) FROM Employees GROUP BY JobTitle HAVING COUNT(*) > 1"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 6: Grups i dates",
+   "intro": "Agrupa per valors calculats, com ara la dècada de naixement, i per salari.",
+   "questions": [
+    {
+     "text": "Mostra la dècada de naixement de cada empleat com a text (per exemple '1980') i el nombre d'empleats nascuts en aquesta dècada, en aquest ordre de columnes. Calcula la dècada com `SUBSTR(BirthDate, 1, 3) || '0'`.",
+     "sql": "SELECT SUBSTR(BirthDate,1,3) || '0', COUNT(*) FROM Employees GROUP BY SUBSTR(BirthDate,1,3) || '0'"
+    },
+    {
+     "text": "Mostra la dècada de naixement (calculada com `SUBSTR(BirthDate, 1, 3) || '0'`) i el salari mitjà dels empleats d'aquella dècada, només per a les dècades en què el salari mitjà supera 2000.",
+     "sql": "SELECT SUBSTR(BirthDate,1,3) || '0', AVG(Salary) FROM Employees GROUP BY SUBSTR(BirthDate,1,3) || '0' HAVING AVG(Salary) > 2000"
+    },
+    {
+     "text": "Mostra els salaris que cobren exactament dos o més empleats, juntament amb el nombre d'empleats que cobren cada un d'aquests salaris, en aquest ordre de columnes.",
+     "sql": "SELECT Salary, COUNT(*) FROM Employees GROUP BY Salary HAVING COUNT(*) >= 2"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 7: Subconsultes",
+   "intro": "Fes servir subconsultes escalars i amb `IN` per comparar cada fila amb un resultat calculat.",
+   "questions": [
+    {
+     "text": "Mostra el nom, el cognom i el salari dels empleats que cobren més que el salari mitjà de tots els empleats.",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary > (SELECT AVG(Salary) FROM Employees)"
+    },
+    {
+     "text": "Mostra el nom i el cognom dels empleats que comparteixen càrrec amb algun altre empleat (és a dir, el seu càrrec el tenen més d'un empleat).",
+     "sql": "SELECT FirstName, LastName FROM Employees WHERE JobTitle IN (SELECT JobTitle FROM Employees GROUP BY JobTitle HAVING COUNT(*) > 1)"
+    },
+    {
+     "text": "Mostra el nom, el cognom i la data de naixement de l'empleat més gran (la data de naixement més antiga).",
+     "sql": "SELECT FirstName, LastName, BirthDate FROM Employees WHERE BirthDate = (SELECT MIN(BirthDate) FROM Employees)"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 8: Autojoins",
+   "intro": "Uneix la taula amb ella mateixa per comparar empleats entre ells.",
+   "questions": [
+    {
+     "text": "Mostra totes les parelles d'empleats que tenen el mateix càrrec, amb el cognom del primer i el del segon, en aquest ordre de columnes. Cada parella ha d'aparèixer només un cop (usa `a.Id < b.Id`).",
+     "sql": "SELECT a.LastName, b.LastName FROM Employees a JOIN Employees b ON a.JobTitle = b.JobTitle AND a.Id < b.Id"
+    },
+    {
+     "text": "Mostra el nom i el cognom dels empleats que cobren més que l'empleat de cognom 'Durdan'. Resol-ho amb un autojoin.",
+     "sql": "SELECT a.FirstName, a.LastName FROM Employees a JOIN Employees b ON b.LastName = 'Durdan' AND a.Salary > b.Salary"
+    },
+    {
+     "text": "Mostra totes les parelles d'empleats que cobren exactament el mateix salari però tenen càrrecs diferents: cognom del primer, cognom del segon i salari, en aquest ordre de columnes. Cada parella només un cop (`a.Id < b.Id`).",
+     "sql": "SELECT a.LastName, b.LastName, a.Salary FROM Employees a JOIN Employees b ON a.Salary = b.Salary AND a.JobTitle <> b.JobTitle AND a.Id < b.Id"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 9: CASE i funcions de text",
+   "intro": "Transforma valors amb `CASE`, `UPPER`, `LENGTH`, `SUBSTR` i concatenació.",
+   "questions": [
+    {
+     "text": "Mostra el cognom en majúscules (`UPPER`) i el nombre de lletres del cognom (`LENGTH`), en aquest ordre de columnes.",
+     "sql": "SELECT UPPER(LastName), LENGTH(LastName) FROM Employees"
+    },
+    {
+     "text": "Mostra el nom de cada empleat i una categoria salarial calculada amb `CASE`: 'Alt' si cobra 2200 o més, 'Mitjà' si cobra 1900 o més (i menys de 2200), i 'Baix' en la resta de casos.",
+     "sql": "SELECT FirstName, CASE WHEN Salary >= 2200 THEN 'Alt' WHEN Salary >= 1900 THEN 'Mitjà' ELSE 'Baix' END FROM Employees"
+    },
+    {
+     "text": "Mostra el cognom i el domini del correu electrònic (la part posterior al caràcter '@') dels empleats que tenen correu, en aquest ordre de columnes. Usa `SUBSTR` i `INSTR`.",
+     "sql": "SELECT LastName, SUBSTR(EMail, INSTR(EMail,'@')+1) FROM Employees WHERE EMail IS NOT NULL"
+    }
+   ]
+  },
+  {
+   "name": "Empleats 10: Repte final",
+   "intro": "Combina dates, subconsultes, agrupacions i càlculs en consultes de diversos passos.",
+   "questions": [
+    {
+     "text": "Mostra el cognom i l'edat aproximada de cada empleat, calculada com 2026 menys l'any de naixement (usa `CAST(strftime('%Y', BirthDate) AS INTEGER)` per obtenir l'any com a enter), en aquest ordre de columnes.",
+     "sql": "SELECT LastName, 2026 - CAST(strftime('%Y', BirthDate) AS INTEGER) FROM Employees"
+    },
+    {
+     "text": "Mostra el nom, el cognom i el salari dels empleats que cobren més que el salari mitjà dels empleats del seu mateix càrrec (subconsulta correlacionada o autojoin).",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees e WHERE Salary > (SELECT AVG(Salary) FROM Employees WHERE JobTitle = e.JobTitle)"
+    },
+    {
+     "text": "Mostra el càrrec i el salari mitjà de cada càrrec, només dels càrrecs el salari mitjà dels quals supera el salari mitjà de tots els empleats.",
+     "sql": "SELECT JobTitle, AVG(Salary) FROM Employees GROUP BY JobTitle HAVING AVG(Salary) > (SELECT AVG(Salary) FROM Employees)"
+    },
+    {
+     "text": "Mostra, en una sola columna, la diferència en anys entre l'any de naixement de l'empleat més jove i el de l'empleat més gran (usa `CAST(strftime('%Y', BirthDate) AS INTEGER)` per obtenir els anys com a enters).",
+     "sql": "SELECT MAX(CAST(strftime('%Y', BirthDate) AS INTEGER)) - MIN(CAST(strftime('%Y', BirthDate) AS INTEGER)) FROM Employees"
+    }
+   ]
+  }
+ ]
+}

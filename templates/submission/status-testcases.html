@@ -7,7 +7,16 @@
 {% endif %}
 {% set is_pretest = submission.is_pretested %}
 <body onload="foo()">
-{% if has_security_violation %}
+{% if sandbox_violation %}
+    <div class="security-violation-banner">
+        <div class="security-violation-icon">&#9760;</div>
+        <div>
+            <h2>{{ _('Programa aturat pel sistema de seguretat del jutge') }}</h2>
+            <p>{{ _('Aquest programa ha intentat fer una operació que el jutge no permet (per exemple, executar altres programes o accedir a fitxers del servidor que no són de l\'exercici), i s\'ha aturat abans que tingués cap efecte.') }}</p>
+            <p><strong>{{ _('Aquest intent ha quedat registrat i s\'ha notificat al professorat.') }}</strong> {{ _('Si creus que el teu programa no feia res d\'això i és un error, parla-ho amb el professorat.') }}</p>
+        </div>
+    </div>
+{% elif has_security_violation %}
     <div class="security-violation-banner">
         <div class="security-violation-icon">&#9760;</div>
         <div>

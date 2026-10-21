@@ -1,0 +1,247 @@
+{
+  "author": "marc",
+  "tasks": [
+    {
+      "name": "bdintroselect",
+      "full_name": "BD 01 00 Introducció a SELECT",
+      "about": "Primeres consultes amb `SELECT`: triar columnes, `*`, i ordenar amb `ORDER BY`. Comença pels problemes amb el birret (**Introducció**): tenen una guia que explica la tècnica pas a pas.",
+      "problems": [
+        "sqlselects",
+        "sqlemployees01",
+        "sqlknights01",
+        "sqlminiwind01",
+        "sqlnorthwind01",
+        "sqlchinook01",
+        "sqlgroupbytest01",
+        "sqlhotel01",
+        "sqllastnames01",
+        "sqltraders01"
+      ]
+    },
+    {
+      "name": "bdwhere",
+      "full_name": "BD 01 01 Filtrar files amb WHERE",
+      "about": "Filtrar files amb `WHERE`: comparacions, `AND`, `OR` i `NOT`, sobre cadascuna de les bases de dades d'exemple.",
+      "problems": [
+        "sqlemployees02",
+        "sqlknights02",
+        "sqlminiwind02",
+        "sqlnorthwind02",
+        "sqlchinook02",
+        "sqlgroupbytest02",
+        "sqlhotel02",
+        "sqllastnames02",
+        "sqltraders02"
+      ]
+    },
+    {
+      "name": "bdcerques",
+      "full_name": "BD 01 02 LIKE, IN, BETWEEN i NULL",
+      "about": "Cerques de text amb `LIKE`, llistes amb `IN`, rangs amb `BETWEEN` i valors buits amb `IS NULL`.",
+      "problems": [
+        "sqlemployees03",
+        "sqlknights03",
+        "sqlminiwind03",
+        "sqlnorthwind03",
+        "sqlchinook03",
+        "sqlgroupbytest03",
+        "sqlhotel03",
+        "sqllastnames03",
+        "sqltraders03"
+      ]
+    },
+    {
+      "name": "bdfuncionscase",
+      "full_name": "BD 01 03 Funcions, expressions i CASE",
+      "about": "Columnes calculades, funcions de text i de dates de SQLite, `COALESCE` i `CASE WHEN`.",
+      "problems": [
+        "sqlemployees09",
+        "sqlknights09",
+        "sqllastnames09",
+        "sqlsel03"
+      ]
+    },
+    {
+      "name": "bdrepasselects",
+      "full_name": "BD 01 04 Repàs de consultes bàsiques",
+      "about": "Dos problemes llargs (10 preguntes cadascun) per repassar tot el que s'ha vist de `SELECT`, `WHERE`, `ORDER BY`, `LIKE`, `IN`, `BETWEEN` i `NULL`.",
+      "problems": [
+        "sqlsel01",
+        "sqlsel02"
+      ]
+    },
+    {
+      "name": "bdintroagregacions",
+      "full_name": "BD 02 00 Introducció a les agregacions",
+      "about": "Resumir una taula en un sol valor: `COUNT`, `SUM`, `AVG`, `MIN` i `MAX`. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlemployees04",
+        "sqlknights04",
+        "sqlminiwind04",
+        "sqlnorthwind04",
+        "sqlchinook04",
+        "sqlgroupbytest04",
+        "sqlhotel04",
+        "sqllastnames04",
+        "sqltraders04",
+        "sqlagg01",
+        "sqlagg04"
+      ]
+    },
+    {
+      "name": "bdgroupby",
+      "full_name": "BD 02 01 Agrupar amb GROUP BY",
+      "about": "Una fila de resultat per cada grup: `GROUP BY` combinat amb les funcions d'agregació. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlemployees05",
+        "sqlknights05",
+        "sqlgroupbytest05",
+        "sqlminiwind05",
+        "sqlnorthwind05",
+        "sqlchinook05",
+        "sqlhotel05",
+        "sqllastnames05",
+        "sqltraders05",
+        "sqlagregacions",
+        "sqlagg02"
+      ]
+    },
+    {
+      "name": "bdhaving",
+      "full_name": "BD 02 02 Filtrar grups amb HAVING",
+      "about": "Filtrar grups amb `HAVING` (i la diferència amb `WHERE`, que filtra files abans d'agrupar).",
+      "problems": [
+        "sqlemployees06",
+        "sqlknights06",
+        "sqlminiwind06",
+        "sqlnorthwind06",
+        "sqlchinook06",
+        "sqlgroupbytest06",
+        "sqlhotel06",
+        "sqllastnames06",
+        "sqltraders06",
+        "sqlagg03",
+        "sqlagg05"
+      ]
+    },
+    {
+      "name": "bdintrojoins",
+      "full_name": "BD 03 00 Introducció als JOINs",
+      "about": "Combinar dues taules relacionades amb `INNER JOIN ... ON`. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqljoins",
+        "sqlknights07",
+        "sqlminiwind07",
+        "sqlnorthwind07",
+        "sqlchinook07",
+        "sqlhotel07",
+        "sqltraders07",
+        "sqlgroupbytest08"
+      ]
+    },
+    {
+      "name": "bdouterjoins",
+      "full_name": "BD 03 01 LEFT JOIN i RIGHT JOIN",
+      "about": "Conservar també les files sense parella: `LEFT JOIN`, `RIGHT JOIN`, anti-joins (`... IS NULL`) i com triar el join correcte en cada cas.",
+      "problems": [
+        "sqlchinook09",
+        "sqlhotel09",
+        "sqlnorthwind09",
+        "sqltraders09",
+        "sqljoin01",
+        "sqljoin02",
+        "sqljoin03"
+      ]
+    },
+    {
+      "name": "bdjoinscomplexos",
+      "full_name": "BD 03 02 Joins encadenats i autojoins",
+      "about": "Joins de tres o més taules, joins amb filtres i agrupacions, i autojoins (una taula unida amb ella mateixa). Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlemployees08",
+        "sqlknights08",
+        "sqlminiwind08",
+        "sqlnorthwind08",
+        "sqlchinook08",
+        "sqlhotel08",
+        "sqllastnames08",
+        "sqltraders08",
+        "sqljoin04",
+        "sqljoin05"
+      ]
+    },
+    {
+      "name": "bdintrosubconsultes",
+      "full_name": "BD 04 00 Introducció a les subconsultes",
+      "about": "Consultes dins de consultes: subconsultes escalars al `WHERE` i al `SELECT`, i `IN` amb una subconsulta. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlemployees07",
+        "sqllastnames07",
+        "sqlgroupbytest09",
+        "sqlminiwind09",
+        "sqlsub01"
+      ]
+    },
+    {
+      "name": "bdsubconsultes",
+      "full_name": "BD 04 01 Subconsultes avançades",
+      "about": "`IN` i `NOT IN` (i el parany dels `NULL`), `EXISTS` i `NOT EXISTS`, subconsultes correlacionades i taules derivades al `FROM`.",
+      "problems": [
+        "sqlsub02",
+        "sqlsub03",
+        "sqlsub04",
+        "sqlsub05"
+      ]
+    },
+    {
+      "name": "bdreptes",
+      "full_name": "BD 05 00 Reptes finals",
+      "about": "Problemes que barregen totes les tècniques: joins, agrupacions, subconsultes, operacions de conjunts (`UNION`, `INTERSECT`, `EXCEPT`) i `CASE`. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlgroupbytest07",
+        "sqlemployees10",
+        "sqlknights10",
+        "sqlminiwind10",
+        "sqlnorthwind10",
+        "sqlchinook10",
+        "sqlgroupbytest10",
+        "sqlhotel10",
+        "sqllastnames10",
+        "sqltraders10",
+        "sqlmix01",
+        "sqlmix02",
+        "sqldificil"
+      ]
+    },
+    {
+      "name": "bdinserts",
+      "full_name": "BD 06 00 INSERT",
+      "about": "Afegir files amb `INSERT`: una fila, diverses files, llistes de columnes parcials i `INSERT ... SELECT`. Cada pregunta parteix de la base de dades original. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlinsertemployees",
+        "sqlinsertknights",
+        "sqlinsertchinook",
+        "sqlins01",
+        "sqlins02",
+        "sqlins03",
+        "sqlins04",
+        "sqlins05"
+      ]
+    },
+    {
+      "name": "bdupdates",
+      "full_name": "BD 06 01 UPDATE",
+      "about": "Modificar files amb `UPDATE ... SET ... WHERE`: expressions, condicions, `CASE` i subconsultes. Cada pregunta parteix de la base de dades original. Comença pels problemes amb el birret.",
+      "problems": [
+        "sqlupdategroupby",
+        "sqlupdatehotel",
+        "sqlupdatetraders",
+        "sqlupd01",
+        "sqlupd02",
+        "sqlupd03",
+        "sqlupd04",
+        "sqlupd05"
+      ]
+    }
+  ]
+}

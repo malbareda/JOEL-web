@@ -30,6 +30,7 @@ from judge.utils.hints import parse_generic_teacher, parse_linecount_all, parse_
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.problems import get_result_data, user_completed_ids, user_editable_ids, user_tester_ids
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
+from judge.utils.sandbox import is_sandbox_feedback
 from judge.utils.views import DiggPaginatorMixin, TitleMixin
 
 
@@ -184,6 +185,8 @@ class SubmissionStatus(SubmissionDetailBase):
         context['batches'], statuses = group_test_cases(cases)
         context['statuses'] = combine_statuses(statuses, submission)
         context['has_security_violation'] = any(case.status == 'SEC' for case in cases)
+        # SEC from the judge's own sandbox (judge/utils/sandbox.py), not from the SQL/Mongo checkers.
+        context['sandbox_violation'] = any(case.status == 'SEC' and is_sandbox_feedback(case.feedback) for case in cases)
         context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
 
         votes = SubmissionVote.objects.filter(submission_id=submission.id).aggregate(

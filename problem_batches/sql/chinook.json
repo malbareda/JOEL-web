@@ -1,0 +1,129 @@
+{
+  "database": "chinook",
+  "code_prefix": "sqlchinook",
+  "label": "Chinook (botiga de música digital: artistes, àlbums, pistes, clients, factures i empleats)",
+  "problems": [
+    {
+      "name": "Chinook 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra tots els camps de la taula `Genre`.",
+         "sql": "SELECT * FROM Genre"},
+        {"text": "Mostra el cognom (`LastName`), el nom (`FirstName`) i el càrrec (`Title`) de tots els empleats, en aquest ordre, ordenats per data de contractació (`HireDate`) de la més antiga a la més recent.",
+         "sql": "SELECT LastName, FirstName, Title FROM Employee ORDER BY HireDate"},
+        {"text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la ciutat (`City`) dels clients de `Country` 'Brazil', en aquest ordre.",
+         "sql": "SELECT FirstName, LastName, City FROM Customer WHERE Country = 'Brazil'"}
+      ]
+    },
+    {
+      "name": "Chinook 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions, `AND` i `NULL`.",
+      "questions": [
+        {"text": "Mostra el nom (`Name`) i la durada en mil·lisegons (`Milliseconds`) de les pistes (`Track`) que costen 1.99 (`UnitPrice`) i duren més de 2.700.000 mil·lisegons, en aquest ordre.",
+         "sql": "SELECT Name, Milliseconds FROM Track WHERE UnitPrice = 1.99 AND Milliseconds > 2700000"},
+        {"text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures (`Invoice`) amb un total superior a 15, en aquest ordre.",
+         "sql": "SELECT InvoiceId, Total FROM Invoice WHERE Total > 15"},
+        {"text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients dels Estats Units (`Country` = 'USA') que no tenen empresa (`Company` no té valor).",
+         "sql": "SELECT FirstName, LastName FROM Customer WHERE Country = 'USA' AND Company IS NULL"}
+      ]
+    },
+    {
+      "name": "Chinook 3: Cerques i rangs",
+      "intro": "Usa `LIKE`, `BETWEEN` i `IN` per filtrar amb patrons, intervals i llistes de valors.",
+      "questions": [
+        {"text": "Mostra el nom (`Name`) dels artistes (`Artist`) el nom dels quals comença per 'The ' (la paraula The seguida d'un espai).",
+         "sql": "SELECT Name FROM Artist WHERE Name LIKE 'The %'"},
+        {"text": "Mostra l'identificador (`InvoiceId`), la data (`InvoiceDate`) i el total (`Total`) de les factures emeses entre l'1 de gener de 2013 i el 31 de març de 2013, tots dos inclosos, en aquest ordre. Recorda que la data és un text de la forma 'AAAA-MM-DD HH:MM:SS'.",
+         "sql": "SELECT InvoiceId, InvoiceDate, Total FROM Invoice WHERE InvoiceDate BETWEEN '2013-01-01' AND '2013-03-31 23:59:59'"},
+        {"text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el país (`Country`) dels clients que són d'Spain, Portugal o Italy, en aquest ordre.",
+         "sql": "SELECT FirstName, LastName, Country FROM Customer WHERE Country IN ('Spain', 'Portugal', 'Italy')"}
+      ]
+    },
+    {
+      "name": "Chinook 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
+      "questions": [
+        {"text": "Mostra quants clients hi ha a la taula `Customer`.",
+         "sql": "SELECT COUNT(*) FROM Customer"},
+        {"text": "Mostra el total (`Total`) mínim, el màxim i el mitjà de totes les factures, en aquest ordre.",
+         "sql": "SELECT MIN(Total), MAX(Total), AVG(Total) FROM Invoice"},
+        {"text": "Mostra, en aquest ordre, el nombre de pistes que tenen compositor (`Composer` amb valor) i el nombre total de pistes de la taula `Track`.",
+         "sql": "SELECT COUNT(Composer), COUNT(*) FROM Track"}
+      ]
+    },
+    {
+      "name": "Chinook 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada país (`Country`) de la taula `Customer`, mostra el país i el nombre de clients que hi té, en aquest ordre.",
+         "sql": "SELECT Country, COUNT(*) FROM Customer GROUP BY Country"},
+        {"text": "Per cada país de facturació (`BillingCountry`) de la taula `Invoice`, mostra el país i la suma dels totals (`Total`) de les seves factures, en aquest ordre.",
+         "sql": "SELECT BillingCountry, SUM(Total) FROM Invoice GROUP BY BillingCountry"},
+        {"text": "Per cada identificador de gènere (`GenreId`) de la taula `Track`, mostra l'identificador i el nombre de pistes d'aquest gènere, en aquest ordre.",
+         "sql": "SELECT GenreId, COUNT(*) FROM Track GROUP BY GenreId"}
+      ]
+    },
+    {
+      "name": "Chinook 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra els països (`Country`) que tenen més de 4 clients a la taula `Customer`, juntament amb el nombre de clients de cadascun, en aquest ordre.",
+         "sql": "SELECT Country, COUNT(*) FROM Customer GROUP BY Country HAVING COUNT(*) > 4"},
+        {"text": "Mostra els identificadors d'àlbum (`AlbumId`) de la taula `Track` que tenen més de 20 pistes, juntament amb el nombre de pistes de cadascun, en aquest ordre.",
+         "sql": "SELECT AlbumId, COUNT(*) FROM Track GROUP BY AlbumId HAVING COUNT(*) > 20"},
+        {"text": "Mostra l'identificador de gènere (`GenreId`) i la durada mitjana de les pistes (`AVG` de `Milliseconds`) dels gèneres amb una durada mitjana superior a 400.000 mil·lisegons, en aquest ordre.",
+         "sql": "SELECT GenreId, AVG(Milliseconds) FROM Track GROUP BY GenreId HAVING AVG(Milliseconds) > 400000"}
+      ]
+    },
+    {
+      "name": "Chinook 7: Primers JOINs",
+      "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
+      "questions": [
+        {"text": "Mostra el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) dels àlbums els artistes dels quals tenen un nom que comença per la lletra 'B', en aquest ordre.",
+         "sql": "SELECT al.Title, ar.Name FROM Album al INNER JOIN Artist ar ON al.ArtistId = ar.ArtistId WHERE ar.Name LIKE 'B%'"},
+        {"text": "Per cada client, mostra el seu nom (`Customer.FirstName`), el seu cognom (`Customer.LastName`) i el cognom de l'empleat que li dóna suport (`Employee.LastName`, mitjançant `SupportRepId`), en aquest ordre.",
+         "sql": "SELECT c.FirstName, c.LastName, e.LastName FROM Customer c INNER JOIN Employee e ON c.SupportRepId = e.EmployeeId"},
+        {"text": "Mostra el nom de la pista (`Track.Name`) i el nom del seu gènere (`Genre.Name`) de les pistes que duren més de 3.000.000 de mil·lisegons, en aquest ordre.",
+         "sql": "SELECT t.Name, g.Name FROM Track t INNER JOIN Genre g ON t.GenreId = g.GenreId WHERE t.Milliseconds > 3000000"}
+      ]
+    },
+    {
+      "name": "Chinook 8: JOINs de diverses taules",
+      "intro": "Combina `JOIN` de tres taules amb `WHERE`, `GROUP BY` i `HAVING`.",
+      "questions": [
+        {"text": "Mostra el nom de la pista (`Track.Name`), el títol del seu àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) de les pistes que costen 1.99 i duren més de 2.700.000 mil·lisegons, en aquest ordre.",
+         "sql": "SELECT t.Name, al.Title, ar.Name FROM Track t INNER JOIN Album al ON t.AlbumId = al.AlbumId INNER JOIN Artist ar ON al.ArtistId = ar.ArtistId WHERE t.UnitPrice = 1.99 AND t.Milliseconds > 2700000"},
+        {"text": "Mostra el nom de l'artista i el nombre d'àlbums que té, només dels artistes amb 5 àlbums o més, en aquest ordre.",
+         "sql": "SELECT ar.Name, COUNT(*) FROM Artist ar INNER JOIN Album al ON al.ArtistId = ar.ArtistId GROUP BY ar.ArtistId, ar.Name HAVING COUNT(*) >= 5"},
+        {"text": "Mostra el nom de cada gènere (`Genre.Name`) i la quantitat total venuda (`SUM` de `InvoiceLine.Quantity`) de pistes d'aquest gènere, unint `Genre`, `Track` i `InvoiceLine`, en aquest ordre. Només cal incloure els gèneres amb alguna venda.",
+         "sql": "SELECT g.Name, SUM(il.Quantity) FROM Genre g INNER JOIN Track t ON t.GenreId = g.GenreId INNER JOIN InvoiceLine il ON il.TrackId = t.TrackId GROUP BY g.GenreId, g.Name"}
+      ]
+    },
+    {
+      "name": "Chinook 9: LEFT JOIN i CASE",
+      "intro": "Quan cal incloure també les files sense coincidència, o classificar valors amb `CASE`.",
+      "questions": [
+        {"text": "Mostra el cognom (`LastName`) de tots els empleats i el nombre de clients als quals donen suport (segons `Customer.SupportRepId`), incloent-hi els que no en tenen cap (amb un 0), en aquest ordre.",
+         "sql": "SELECT e.LastName, COUNT(c.CustomerId) FROM Employee e LEFT JOIN Customer c ON c.SupportRepId = e.EmployeeId GROUP BY e.EmployeeId, e.LastName"},
+        {"text": "Mostra el nom (`Name`) dels artistes que no tenen cap àlbum a la taula `Album`.",
+         "sql": "SELECT ar.Name FROM Artist ar LEFT JOIN Album al ON al.ArtistId = ar.ArtistId WHERE al.AlbumId IS NULL"},
+        {"text": "Classifica les factures segons el seu total: 'Baix' si `Total` és menor que 2, 'Mitja' si és entre 2 i 7 (tots dos inclosos) i 'Alt' si és superior a 7. Mostra la categoria i el nombre de factures de cada categoria, en aquest ordre.",
+         "sql": "SELECT CASE WHEN Total < 2 THEN 'Baix' WHEN Total <= 7 THEN 'Mitja' ELSE 'Alt' END, COUNT(*) FROM Invoice GROUP BY 1"}
+      ]
+    },
+    {
+      "name": "Chinook 10: Repte final",
+      "intro": "Consultes de més d'un pas: subconsultes, `JOIN` de diverses taules, agrupacions i ordenacions.",
+      "questions": [
+        {"text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures el total de les quals és superior al total mitjà de totes les factures, en aquest ordre.",
+         "sql": "SELECT InvoiceId, Total FROM Invoice WHERE Total > (SELECT AVG(Total) FROM Invoice)"},
+        {"text": "Mostra el nom, el cognom i la suma dels totals (`Invoice.Total`) de les factures dels 3 clients que més han gastat en total, en aquest ordre de columnes.",
+         "sql": "SELECT c.FirstName, c.LastName, SUM(i.Total) FROM Customer c INNER JOIN Invoice i ON i.CustomerId = c.CustomerId GROUP BY c.CustomerId, c.FirstName, c.LastName ORDER BY SUM(i.Total) DESC LIMIT 3"},
+        {"text": "Per cada empleat que dóna suport a algun client (`Customer.SupportRepId`), mostra el seu cognom i la suma dels totals de les factures dels seus clients, unint `Employee`, `Customer` i `Invoice`, en aquest ordre.",
+         "sql": "SELECT e.LastName, SUM(i.Total) FROM Employee e INNER JOIN Customer c ON c.SupportRepId = e.EmployeeId INNER JOIN Invoice i ON i.CustomerId = c.CustomerId GROUP BY e.EmployeeId, e.LastName"},
+        {"text": "Mostra el nom de l'artista que té més pistes (unint `Artist`, `Album` i `Track`) i el nombre de pistes, en aquest ordre.",
+         "sql": "SELECT ar.Name, COUNT(*) FROM Artist ar INNER JOIN Album al ON al.ArtistId = ar.ArtistId INNER JOIN Track t ON t.AlbumId = al.AlbumId GROUP BY ar.ArtistId, ar.Name ORDER BY COUNT(*) DESC LIMIT 1"}
+      ]
+    }
+  ]
+}

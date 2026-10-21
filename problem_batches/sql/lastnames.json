@@ -1,0 +1,129 @@
+{
+  "database": "lastnames",
+  "code_prefix": "sqllastnames",
+  "label": "Cognoms (freqüència de cada cognom com a primer i com a segon cognom)",
+  "problems": [
+    {
+      "name": "Cognoms 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE`, `ORDER BY` i `LIMIT` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra el nom (`Name`) i la freqüència com a primer cognom (`Freq1`) del cognom 'PUIG'.",
+         "sql": "SELECT Name, Freq1 FROM LastNames WHERE Name = 'PUIG'"},
+        {"text": "Mostra el nom i `Freq1` dels cognoms que tenen més de 50.000 persones com a primer cognom (`Freq1` > 50000), ordenats de més a menys `Freq1`.",
+         "sql": "SELECT Name, Freq1 FROM LastNames WHERE Freq1 > 50000 ORDER BY Freq1 DESC"},
+        {"text": "Mostra el nom i `Freq2` dels 5 cognoms amb més persones com a segon cognom (`Freq2`), del més freqüent al menys.",
+         "sql": "SELECT Name, Freq2 FROM LastNames ORDER BY Freq2 DESC LIMIT 5"}
+      ]
+    },
+    {
+      "name": "Cognoms 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE` combinant comparacions amb `AND` i `OR`.",
+      "questions": [
+        {"text": "Mostra el nom, `Freq1` i `Freq2` dels cognoms que tenen almenys 10.000 persones com a primer cognom (`Freq1` >= 10000) i, a més, més persones com a segon cognom que com a primer (`Freq2` > `Freq1`).",
+         "sql": "SELECT Name, Freq1, Freq2 FROM LastNames WHERE Freq1 >= 10000 AND Freq2 > Freq1"},
+        {"text": "Mostra el nom i `Freq1PerThousand` dels cognoms amb `Freq1PerThousand` d'almenys 5 (és a dir, 5 o més persones de cada mil).",
+         "sql": "SELECT Name, Freq1PerThousand FROM LastNames WHERE Freq1PerThousand >= 5"},
+        {"text": "Mostra l'identificador (`LastNameId`) i el nom dels cognoms que tenen `Freq1` superior a 20.000 o `Freq2` superior a 20.000, ordenats per `LastNameId`.",
+         "sql": "SELECT LastNameId, Name FROM LastNames WHERE Freq1 > 20000 OR Freq2 > 20000 ORDER BY LastNameId"}
+      ]
+    },
+    {
+      "name": "Cognoms 3: Cerques de text, llistes i rangs",
+      "intro": "Usa `LIKE`, `IN` i `BETWEEN` per seleccionar cognoms.",
+      "questions": [
+        {"text": "Mostra el nom i `Freq1` dels cognoms que comencen per 'PUIG' (inclòs el propi 'PUIG') i que tenen `Freq1` superior a 50.",
+         "sql": "SELECT Name, Freq1 FROM LastNames WHERE Name LIKE 'PUIG%' AND Freq1 > 50"},
+        {"text": "Mostra el nom, `Freq1` i `Freq2` dels cognoms 'FERRER', 'SOLER', 'VILA', 'SERRA' i 'ROCA'.",
+         "sql": "SELECT Name, Freq1, Freq2 FROM LastNames WHERE Name IN ('FERRER', 'SOLER', 'VILA', 'SERRA', 'ROCA')"},
+        {"text": "Mostra el nom i `Freq1` dels cognoms amb `Freq1` entre 5.000 i 5.100, tots dos inclosos.",
+         "sql": "SELECT Name, Freq1 FROM LastNames WHERE Freq1 BETWEEN 5000 AND 5100"}
+      ]
+    },
+    {
+      "name": "Cognoms 4: Agregats",
+      "intro": "Resumeix tota la taula amb `COUNT`, `SUM`, `AVG`, `MIN` i `MAX`.",
+      "questions": [
+        {"text": "Quants cognoms hi ha a la taula? Retorna una sola columna amb el recompte.",
+         "sql": "SELECT COUNT(*) FROM LastNames"},
+        {"text": "Calcula la suma de `Freq1` i la suma de `Freq2` de tots els cognoms. Retorna dues columnes, en aquest ordre: suma de `Freq1`, suma de `Freq2`.",
+         "sql": "SELECT SUM(Freq1), SUM(Freq2) FROM LastNames"},
+        {"text": "Considerant només els cognoms compostos (els que contenen un espai en el nom), retorna tres columnes, en aquest ordre: quants n'hi ha, la mitjana de `Freq1` (sense arrodonir) i el valor màxim de `Freq1`.",
+         "sql": "SELECT COUNT(*), AVG(Freq1), MAX(Freq1) FROM LastNames WHERE Name LIKE '% %'"}
+      ]
+    },
+    {
+      "name": "Cognoms 5: Agrupant",
+      "intro": "Agrupa els cognoms amb `GROUP BY` per calcular un resum per cada grup.",
+      "questions": [
+        {"text": "Per a cada longitud de cognom (`LENGTH(Name)`), mostra la longitud i quants cognoms tenen aquesta longitud. Retorna dues columnes: longitud, recompte.",
+         "sql": "SELECT LENGTH(Name), COUNT(*) FROM LastNames GROUP BY LENGTH(Name)"},
+        {"text": "Per a cada lletra inicial del cognom (`SUBSTR(Name, 1, 1)`), mostra la lletra i la suma de `Freq1` dels cognoms que comencen per ella. Retorna dues columnes: lletra, suma de `Freq1`.",
+         "sql": "SELECT SUBSTR(Name, 1, 1), SUM(Freq1) FROM LastNames GROUP BY SUBSTR(Name, 1, 1)"},
+        {"text": "Per a cada longitud de cognom, mostra la longitud i el màxim de `Freq2` entre els cognoms d'aquesta longitud. Retorna dues columnes: longitud, màxim de `Freq2`.",
+         "sql": "SELECT LENGTH(Name), MAX(Freq2) FROM LastNames GROUP BY LENGTH(Name)"}
+      ]
+    },
+    {
+      "name": "Cognoms 6: Filtrant grups",
+      "intro": "Filtra els grups amb `HAVING` després d'agrupar.",
+      "questions": [
+        {"text": "Mostra les lletres inicials del cognom (`SUBSTR(Name, 1, 1)`) amb més de 1.000 cognoms que comencen per elles, juntament amb aquest recompte. Retorna dues columnes: lletra, recompte.",
+         "sql": "SELECT SUBSTR(Name, 1, 1), COUNT(*) FROM LastNames GROUP BY SUBSTR(Name, 1, 1) HAVING COUNT(*) > 1000"},
+        {"text": "Mostra les lletres finals del cognom (`SUBSTR(Name, -1)`) tals que la suma de `Freq1` dels cognoms que acaben per aquesta lletra supera 900.000, juntament amb aquesta suma. Retorna dues columnes: lletra, suma de `Freq1`.",
+         "sql": "SELECT SUBSTR(Name, -1), SUM(Freq1) FROM LastNames GROUP BY SUBSTR(Name, -1) HAVING SUM(Freq1) > 900000"},
+        {"text": "Mostra els dos primers caràcters del cognom (`SUBSTR(Name, 1, 2)`) que són prefix d'almenys 400 cognoms, amb el recompte de cognoms corresponent. Retorna dues columnes: prefix, recompte.",
+         "sql": "SELECT SUBSTR(Name, 1, 2), COUNT(*) FROM LastNames GROUP BY SUBSTR(Name, 1, 2) HAVING COUNT(*) >= 400"}
+      ]
+    },
+    {
+      "name": "Cognoms 7: Subconsultes",
+      "intro": "Fes servir subconsultes per comparar cada cognom amb valors calculats sobre la taula.",
+      "questions": [
+        {"text": "Mostra el nom i `Freq1` dels cognoms amb `Freq1` superior a 50 vegades la mitjana de `Freq1` de tota la taula (`Freq1 > 50 * AVG(Freq1)`).",
+         "sql": "SELECT Name, Freq1 FROM LastNames WHERE Freq1 > 50 * (SELECT AVG(Freq1) FROM LastNames)"},
+        {"text": "Mostra el nom i `Freq2` del cognom que té el `Freq2` més alt de tots els cognoms que comencen per la lletra 'Z'. Fes-ho amb una subconsulta, sense `LIMIT`.",
+         "sql": "SELECT Name, Freq2 FROM LastNames WHERE Freq2 = (SELECT MAX(Freq2) FROM LastNames WHERE Name LIKE 'Z%') AND Name LIKE 'Z%'"},
+        {"text": "Mostra el nom i la longitud (`LENGTH(Name)`) dels cognoms que tenen la longitud màxima de tota la taula. Retorna dues columnes: nom, longitud.",
+         "sql": "SELECT Name, LENGTH(Name) FROM LastNames WHERE LENGTH(Name) IN (SELECT MAX(LENGTH(Name)) FROM LastNames)"}
+      ]
+    },
+    {
+      "name": "Cognoms 8: Autojoins",
+      "intro": "Combina la taula amb ella mateixa per relacionar cognoms entre si.",
+      "questions": [
+        {"text": "Troba els parells de cognoms diferents que tenen exactament el mateix `Freq1` i amb `Freq1` de 5.000 o més. Retorna tres columnes: nom del primer cognom, nom del segon cognom, `Freq1`. Mostra cada parell una sola vegada, el primer cognom ha de ser el de `LastNameId` més petit.",
+         "sql": "SELECT a.Name, b.Name, a.Freq1 FROM LastNames a JOIN LastNames b ON a.Freq1 = b.Freq1 AND a.LastNameId < b.LastNameId WHERE a.Freq1 >= 5000"},
+        {"text": "Troba els cognoms amb `Freq1` d'almenys 1.500 tals que existeix un altre cognom que és el mateix afegint-hi una 'S' al final (per exemple 'MARTI' i 'MARTIS'). Retorna tres columnes: el cognom, el cognom amb la 'S' final, i la suma dels `Freq1` dels dos.",
+         "sql": "SELECT a.Name, b.Name, a.Freq1 + b.Freq1 FROM LastNames a JOIN LastNames b ON b.Name = a.Name || 'S' WHERE a.Freq1 >= 1500"},
+        {"text": "Mostra el nom i `Freq1` dels cognoms que són més freqüents com a primer cognom que 'ROCA' (`Freq1` més gran) però menys que 'VILA' (`Freq1` més petit). Fes-ho amb un autojoin amb dues còpies de la taula més, una per a 'ROCA' i una altra per a 'VILA' (tres àlies en total).",
+         "sql": "SELECT a.Name, a.Freq1 FROM LastNames a JOIN LastNames r ON r.Name = 'ROCA' JOIN LastNames v ON v.Name = 'VILA' WHERE a.Freq1 > r.Freq1 AND a.Freq1 < v.Freq1"}
+      ]
+    },
+    {
+      "name": "Cognoms 9: CASE i funcions de text",
+      "intro": "Transforma i classifica cognoms amb `CASE`, `SUBSTR`, `INSTR`, `LOWER` i `||`.",
+      "questions": [
+        {"text": "Mostra els 10 cognoms amb més `Freq1` escrits amb només la primera lletra en majúscula i la resta en minúscula (per exemple 'Garcia'). Retorna dues columnes: cognom formatat (`UPPER(SUBSTR(Name,1,1)) || LOWER(SUBSTR(Name,2))`), `Freq1`. Ordena de més a menys `Freq1`.",
+         "sql": "SELECT UPPER(SUBSTR(Name, 1, 1)) || LOWER(SUBSTR(Name, 2)), Freq1 FROM LastNames ORDER BY Freq1 DESC LIMIT 10"},
+        {"text": "Classifica cada cognom segons `Freq1`: 'Molt comú' si `Freq1` >= 20000, 'Comú' si `Freq1` >= 5000 (i menys de 20000), i 'Rar' per a la resta. Mostra quants cognoms hi ha de cada categoria. Retorna dues columnes: categoria, recompte.",
+         "sql": "SELECT CASE WHEN Freq1 >= 20000 THEN 'Molt comú' WHEN Freq1 >= 5000 THEN 'Comú' ELSE 'Rar' END, COUNT(*) FROM LastNames GROUP BY 1"},
+        {"text": "Als cognoms compostos (amb un espai al nom), agafa la primera paraula, és a dir el text anterior al primer espai (`SUBSTR(Name, 1, INSTR(Name, ' ') - 1)`). Mostra les primeres paraules que apareixen en més de 20 cognoms compostos, amb el recompte. Retorna dues columnes: primera paraula, recompte.",
+         "sql": "SELECT SUBSTR(Name, 1, INSTR(Name, ' ') - 1), COUNT(*) FROM LastNames WHERE INSTR(Name, ' ') > 0 GROUP BY SUBSTR(Name, 1, INSTR(Name, ' ') - 1) HAVING COUNT(*) > 20"}
+      ]
+    },
+    {
+      "name": "Cognoms 10: Repte final",
+      "intro": "Combina subconsultes, agrupacions i càlculs en consultes de diversos passos.",
+      "questions": [
+        {"text": "Considerant només els cognoms amb `Freq1` d'almenys 5.000, mostra els 5 amb la proporció `Freq2 * 1.0 / Freq1` més alta. Retorna dues columnes: nom, proporció. Ordena de més a menys proporció.",
+         "sql": "SELECT Name, Freq2 * 1.0 / Freq1 FROM LastNames WHERE Freq1 >= 5000 ORDER BY Freq2 * 1.0 / Freq1 DESC LIMIT 5"},
+        {"text": "Per a cada longitud de cognom, mostra la longitud i quants cognoms d'aquesta longitud tenen `Freq2` superior a `Freq1`, però només per a les longituds que tenen almenys 100 cognoms en total. Retorna dues columnes: longitud, recompte de cognoms amb `Freq2 > Freq1`.",
+         "sql": "SELECT LENGTH(Name), SUM(Freq2 > Freq1) FROM LastNames GROUP BY LENGTH(Name) HAVING COUNT(*) >= 100"},
+        {"text": "Per a cada lletra inicial del cognom, mostra la lletra, el nom del cognom amb `Freq1` més alt d'aquesta lletra i el seu `Freq1`. Fes-ho amb una subconsulta correlacionada o amb un join amb la subconsulta del màxim per lletra. Inclou només les lletres inicials A, B, C i D. Retorna tres columnes: lletra, nom, `Freq1`.",
+         "sql": "SELECT SUBSTR(a.Name, 1, 1), a.Name, a.Freq1 FROM LastNames a JOIN (SELECT SUBSTR(Name, 1, 1) AS l, MAX(Freq1) AS m FROM LastNames GROUP BY SUBSTR(Name, 1, 1)) t ON SUBSTR(a.Name, 1, 1) = t.l AND a.Freq1 = t.m WHERE t.l IN ('A', 'B', 'C', 'D')"},
+        {"text": "Mostra el nom, la longitud i `Freq1` dels cognoms de 15 o més lletres (`LENGTH(Name) >= 15`) que tenen `Freq1` superior a la mitjana de `Freq1` de tots els cognoms de 15 o més lletres. Retorna tres columnes: nom, longitud, `Freq1`.",
+         "sql": "SELECT Name, LENGTH(Name), Freq1 FROM LastNames WHERE LENGTH(Name) >= 15 AND Freq1 > (SELECT AVG(Freq1) FROM LastNames WHERE LENGTH(Name) >= 15)"}
+      ]
+    }
+  ]
+}

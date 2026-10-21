@@ -1,0 +1,199 @@
+{
+  "database": "traders",
+  "code_prefix": "sqltraders",
+  "label": "Traders (comerciants espacials: planetes, naus, productes, preus i transaccions)",
+  "problems": [
+    {
+      "name": "Traders 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {
+          "text": "Mostra tots els camps de la taula `SolarSystems`.",
+          "sql": "SELECT * FROM SolarSystems"
+        },
+        {
+          "text": "Mostra el nom (`Name`) i la capacitat (`Capacity`) de totes les naus de tipus 'Battleship', en aquest ordre.",
+          "sql": "SELECT Name, Capacity FROM Ships WHERE Type = 'Battleship'"
+        },
+        {
+          "text": "Mostra el sobrenom (`Nickname`) i el nom (`Firstname`) de tots els comerciants, ordenats alfabèticament pel sobrenom.",
+          "sql": "SELECT Nickname, Firstname FROM Traders ORDER BY Nickname"
+        }
+      ]
+    },
+    {
+      "name": "Traders 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions i operadors lògics.",
+      "questions": [
+        {
+          "text": "Mostra el nom i la distància mitjana (`AverageDistance`) dels planetes la distància mitjana dels quals és superior a 10, en aquest ordre.",
+          "sql": "SELECT Name, AverageDistance FROM Planets WHERE AverageDistance > 10"
+        },
+        {
+          "text": "Mostra el nom i la capacitat de les naus amb una capacitat de 300 o més, en aquest ordre.",
+          "sql": "SELECT Name, Capacity FROM Ships WHERE Capacity >= 300"
+        },
+        {
+          "text": "Mostra el nom i la posició (`Position`) dels planetes del sistema solar amb `SystemId` igual a 8, ordenats per posició.",
+          "sql": "SELECT Name, Position FROM Planets WHERE SystemId = 8 ORDER BY Position"
+        }
+      ]
+    },
+    {
+      "name": "Traders 3: Cerques, llistes i NULL",
+      "intro": "Usa `LIKE`, `IN`, `BETWEEN` i `IS NULL` per filtrar amb condicions més expressives.",
+      "questions": [
+        {
+          "text": "Mostra el nom dels productes que contenen la paraula 'Leaf' en el seu nom.",
+          "sql": "SELECT Name FROM Products WHERE Name LIKE '%Leaf%'"
+        },
+        {
+          "text": "Mostra el nom i el tipus de les naus que són de tipus 'Battle cruiser' o 'Space cruiser', en aquest ordre.",
+          "sql": "SELECT Name, Type FROM Ships WHERE Type IN ('Battle cruiser', 'Space cruiser')"
+        },
+        {
+          "text": "Mostra el sobrenom dels comerciants que encara són vius (`DeceaseDate` no té valor).",
+          "sql": "SELECT Nickname FROM Traders WHERE DeceaseDate IS NULL"
+        },
+        {
+          "text": "Mostra el nom i la capacitat de les naus amb una capacitat entre 100 i 200, ambdós inclosos, en aquest ordre.",
+          "sql": "SELECT Name, Capacity FROM Ships WHERE Capacity BETWEEN 100 AND 200"
+        }
+      ]
+    },
+    {
+      "name": "Traders 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
+      "questions": [
+        {
+          "text": "Mostra quantes naus hi ha a la taula `Ships`.",
+          "sql": "SELECT COUNT(*) FROM Ships"
+        },
+        {
+          "text": "Mostra la capacitat més gran i la més petita de totes les naus, en aquest ordre.",
+          "sql": "SELECT MAX(Capacity), MIN(Capacity) FROM Ships"
+        },
+        {
+          "text": "Mostra la suma de les quantitats (`Quantity`) de totes les línies de la taula `TradeLines`.",
+          "sql": "SELECT SUM(Quantity) FROM TradeLines"
+        },
+        {
+          "text": "Mostra la mitjana del total (`Total`) de les transaccions (`Trades`) de tipus 'Sell'.",
+          "sql": "SELECT AVG(Total) FROM Trades WHERE Type = 'Sell'"
+        }
+      ]
+    },
+    {
+      "name": "Traders 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {
+          "text": "Per cada tipus de nau (`Type`), mostra el tipus i el nombre de naus d'aquell tipus.",
+          "sql": "SELECT Type, COUNT(*) FROM Ships GROUP BY Type"
+        },
+        {
+          "text": "Per cada tipus de transacció (`Type`) de la taula `Trades`, mostra el tipus i la suma dels seus totals (`Total`).",
+          "sql": "SELECT Type, SUM(Total) FROM Trades GROUP BY Type"
+        },
+        {
+          "text": "Per cada planeta (`PlanetId`) de la taula `Stays`, mostra l'identificador del planeta i el nombre d'estades que s'hi han fet.",
+          "sql": "SELECT PlanetId, COUNT(*) FROM Stays GROUP BY PlanetId"
+        }
+      ]
+    },
+    {
+      "name": "Traders 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {
+          "text": "Mostra els tipus de nau que tenen una capacitat mitjana superior a 100, juntament amb aquesta capacitat mitjana.",
+          "sql": "SELECT Type, AVG(Capacity) FROM Ships GROUP BY Type HAVING AVG(Capacity) > 100"
+        },
+        {
+          "text": "Mostra els planetes (`PlanetId` de `Stays`) on s'han fet més de 10 estades, juntament amb el nombre d'estades.",
+          "sql": "SELECT PlanetId, COUNT(*) FROM Stays GROUP BY PlanetId HAVING COUNT(*) > 10"
+        },
+        {
+          "text": "Mostra l'identificador del producte (`ProductId` de `TradeLines`) i la quantitat total comercialitzada (suma de `Quantity`) dels productes amb una quantitat total superior a 5000.",
+          "sql": "SELECT ProductId, SUM(Quantity) FROM TradeLines GROUP BY ProductId HAVING SUM(Quantity) > 5000"
+        }
+      ]
+    },
+    {
+      "name": "Traders 7: Primers JOINs",
+      "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
+      "questions": [
+        {
+          "text": "Per cada planeta, mostra el seu nom (`Planets.Name`) i el nom del sistema solar al qual pertany (`SolarSystems.Name`), en aquest ordre.",
+          "sql": "SELECT p.Name, s.Name FROM Planets p INNER JOIN SolarSystems s ON p.SystemId = s.Id"
+        },
+        {
+          "text": "Per cada estada (`Stays`), mostra la seva data d'inici (`StartDate`) i el sobrenom del comerciant que l'ha fet, en aquest ordre.",
+          "sql": "SELECT s.StartDate, t.Nickname FROM Stays s INNER JOIN Traders t ON s.TraderId = t.Id"
+        },
+        {
+          "text": "Per cada registre de `ShipOwners`, mostra el nom de la nau i la data d'adquisició (`AcquisitionDate`), en aquest ordre.",
+          "sql": "SELECT s.Name, o.AcquisitionDate FROM ShipOwners o INNER JOIN Ships s ON o.ShipId = s.Id"
+        }
+      ]
+    },
+    {
+      "name": "Traders 8: JOINs amb filtres i agrupacions",
+      "intro": "Combina `JOIN`, `WHERE` i `GROUP BY` unint tres o més taules.",
+      "questions": [
+        {
+          "text": "Per cada estada, mostra el sobrenom del comerciant i el nom del planeta on l'ha fet, unint `Stays`, `Traders` i `Planets`. Mostra només les estades fetes en planetes del sistema solar anomenat 'Cailt' (uneix també `SolarSystems`).",
+          "sql": "SELECT t.Nickname, p.Name FROM Stays s INNER JOIN Traders t ON s.TraderId = t.Id INNER JOIN Planets p ON s.PlanetId = p.Id INNER JOIN SolarSystems ss ON p.SystemId = ss.Id WHERE ss.Name = 'Cailt'"
+        },
+        {
+          "text": "Mostra el sobrenom de cada comerciant i el nombre de transaccions (`Trades`) que ha fet, unint `Traders`, `Stays` i `Trades`. Només cal incloure els comerciants que hagin fet alguna transacció.",
+          "sql": "SELECT t.Nickname, COUNT(*) FROM Traders t INNER JOIN Stays s ON s.TraderId = t.Id INNER JOIN Trades tr ON tr.StayId = s.Id GROUP BY t.Id, t.Nickname"
+        },
+        {
+          "text": "Mostra el nom de cada producte i la quantitat total (suma de `Quantity`) que se n'ha comercialitzat segons `TradeLines`. Només cal incloure els productes que apareguin a alguna línia.",
+          "sql": "SELECT p.Name, SUM(l.Quantity) FROM Products p INNER JOIN TradeLines l ON l.ProductId = p.Id GROUP BY p.Id, p.Name"
+        }
+      ]
+    },
+    {
+      "name": "Traders 9: LEFT JOIN, CASE i dates",
+      "intro": "Quan cal incloure files sense coincidència, classificar valors amb `CASE` o treballar amb dates (guardades com a text).",
+      "questions": [
+        {
+          "text": "Mostra el nom de les naus que no han tingut mai cap propietari (no apareixen a `ShipOwners`), fent servir un `LEFT JOIN`.",
+          "sql": "SELECT s.Name FROM Ships s LEFT JOIN ShipOwners o ON o.ShipId = s.Id WHERE o.Id IS NULL"
+        },
+        {
+          "text": "Mostra el nom de cada nau i la seva mida segons la capacitat, amb aquests valors: 'Petita' si la capacitat és menor que 50, 'Mitjana' si és de 50 a 199, i 'Gran' si és de 200 o més. Mostra les columnes en aquest ordre: nom i mida.",
+          "sql": "SELECT Name, CASE WHEN Capacity < 50 THEN 'Petita' WHEN Capacity < 200 THEN 'Mitjana' ELSE 'Gran' END FROM Ships"
+        },
+        {
+          "text": "Mostra el sobrenom i l'any de mort (els quatre primers caràcters de `DeceaseDate`, com a text) dels comerciants que han mort, en aquest ordre.",
+          "sql": "SELECT Nickname, SUBSTR(DeceaseDate, 1, 4) FROM Traders WHERE DeceaseDate IS NOT NULL"
+        }
+      ]
+    },
+    {
+      "name": "Traders 10: Repte final",
+      "intro": "Consultes de més d'un pas: `JOIN` de diverses taules, subconsultes i càlculs.",
+      "questions": [
+        {
+          "text": "Per cada transacció (`Trades`), mostra el seu identificador i l'import calculat com la suma de `Quantity * UnitPrice` de les seves línies a `TradeLines`. Mostra només les transaccions amb un import superior a 10000000, i les columnes en aquest ordre: identificador i import.",
+          "sql": "SELECT TradeId, SUM(Quantity * UnitPrice) FROM TradeLines GROUP BY TradeId HAVING SUM(Quantity * UnitPrice) > 10000000"
+        },
+        {
+          "text": "Mostra el sobrenom dels comerciants que han fet més estades que la mitjana d'estades per comerciant (calculada només entre els comerciants que tenen alguna estada), juntament amb el seu nombre d'estades.",
+          "sql": "SELECT t.Nickname, COUNT(*) FROM Traders t INNER JOIN Stays s ON s.TraderId = t.Id GROUP BY t.Id, t.Nickname HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Stays GROUP BY TraderId))"
+        },
+        {
+          "text": "Mostra el nom de cada producte i el seu preu màxim (`MAX` de `NewPrice`) a `PriceChanges`, només per als productes que mai han aparegut a `TradeLines`. Uneix `Products` i `PriceChanges`, i mostra només els productes amb algun canvi de preu.",
+          "sql": "SELECT p.Name, MAX(pc.NewPrice) FROM Products p INNER JOIN PriceChanges pc ON pc.ProductId = p.Id WHERE p.Id NOT IN (SELECT ProductId FROM TradeLines) GROUP BY p.Id, p.Name"
+        },
+        {
+          "text": "Mostra el nom del planeta que té més canvis de preu registrats a `PriceChanges` i el nombre de canvis.",
+          "sql": "SELECT p.Name, COUNT(*) FROM Planets p INNER JOIN PriceChanges pc ON pc.PlanetId = p.Id GROUP BY p.Id, p.Name ORDER BY COUNT(*) DESC LIMIT 1"
+        }
+      ]
+    }
+  ]
+}

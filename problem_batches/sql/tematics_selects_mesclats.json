@@ -1,0 +1,299 @@
+{
+ "problems": [
+  {
+   "code": "sqlsel01",
+   "database": "northwind",
+   "type": "sqlselbasic",
+   "name": "SQL Selects bàsics 1: triar, filtrar i ordenar",
+   "intro": "Practica `SELECT` de columnes, àlies, `WHERE`, `ORDER BY`, `LIMIT` i `DISTINCT` sobre la base de dades Northwind.",
+   "questions": [
+    {
+     "text": "Mostra totes les columnes i totes les files de la taula `shippers`.",
+     "sql": "SELECT * FROM shippers",
+     "explain": "L'asterisc `*` equival a demanar totes les columnes de la taula; sense `WHERE` es retornen totes les files."
+    },
+    {
+     "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de tots els clients de la taula `customers`, en aquest ordre.",
+     "sql": "SELECT first_name, last_name FROM customers",
+     "explain": "Només cal llistar les dues columnes després de `SELECT`, en l'ordre en què es volen veure; així la consulta no retorna la resta de camps."
+    },
+    {
+     "text": "Mostra el nom del producte (`product_name`) amb l'àlies `producte` i el preu de venda (`list_price`) amb l'àlies `preu` de tots els productes.",
+     "sql": "SELECT product_name AS producte, list_price AS preu FROM products",
+     "explain": "`AS` posa un nom nou a la columna del resultat sense canviar la taula; és útil per fer capçaleres més clares."
+    },
+    {
+     "text": "Mostra el nom del producte i el preu de venda (`list_price`) dels productes que costen més de 30.",
+     "sql": "SELECT product_name, list_price FROM products WHERE list_price > 30",
+     "explain": "`WHERE` filtra les files abans de mostrar-les; la comparació `>` és estricta, així que un preu de 30 exacte no entra."
+    },
+    {
+     "text": "Mostra el nom de l'empresa (`company`) i l'estat (`state_province`) dels clients que són de l'estat 'CA' o de l'estat 'TX'.",
+     "sql": "SELECT company, state_province FROM customers WHERE state_province = 'CA' OR state_province = 'TX'",
+     "explain": "Amb `OR` n'hi ha prou que es compleixi una de les dues condicions. Els textos van entre cometes simples."
+    },
+    {
+     "text": "Mostra el nom del producte, la categoria (`category`) i el preu de venda dels productes de la categoria 'Sauces' o de la categoria 'Soups' que costen menys de 20. Compte amb la precedència: els parèntesis són necessaris.",
+     "sql": "SELECT product_name, category, list_price FROM products WHERE (category = 'Sauces' OR category = 'Soups') AND list_price < 20",
+     "explain": "`AND` s'avalua abans que `OR`; sense parèntesis, la condició de preu només s'aplicaria a 'Soups'. Els parèntesis agrupen primer les dues categories."
+    },
+    {
+     "text": "Mostra el nom i el cognom dels clients ordenats pel càrrec (`job_title`) de manera ascendent i, dins del mateix càrrec, pel cognom de manera descendent. Mostra només aquestes tres columnes en aquest ordre: `job_title`, `last_name`, `first_name`.",
+     "sql": "SELECT job_title, last_name, first_name FROM customers ORDER BY job_title ASC, last_name DESC",
+     "explain": "`ORDER BY` accepta diversos criteris separats per comes: el segon només desfà els empats del primer. `ASC` és el valor per defecte i `DESC` inverteix l'ordre."
+    },
+    {
+     "text": "Mostra les categories de producte (`category`) diferents que existeixen, sense repetir-ne cap, ordenades alfabèticament.",
+     "sql": "SELECT DISTINCT category FROM products ORDER BY category",
+     "explain": "`DISTINCT` elimina les files repetides del resultat; així cada categoria apareix una sola vegada encara que tingui molts productes."
+    },
+    {
+     "text": "Mostra el nom i el preu de venda dels 5 productes més cars, del més car al menys car.",
+     "sql": "SELECT product_name, list_price FROM products ORDER BY list_price DESC LIMIT 5",
+     "explain": "Per obtenir el 'top N' cal ordenar de més a menys amb `ORDER BY ... DESC` i després retallar amb `LIMIT 5`; `LIMIT` sense ordre no tindria cap significat."
+    },
+    {
+     "text": "Mostra el nom del producte, el preu de venda i el benefici unitari (`list_price - standard_cost`) amb l'àlies `benefici` dels 3 productes de benefici unitari més alt, ordenats de més a menys benefici.",
+     "sql": "SELECT product_name, list_price, list_price - standard_cost AS benefici FROM products ORDER BY benefici DESC LIMIT 3",
+     "explain": "Es pot calcular una expressió al `SELECT`, posar-li un àlies i fer-lo servir a `ORDER BY`. Després `LIMIT 3` es queda amb els tres primers."
+    }
+   ]
+  },
+  {
+   "code": "sqlsel02",
+   "database": "chinook",
+   "type": "sqlselbasic",
+   "name": "SQL Selects bàsics 2: filtres avançats",
+   "intro": "Practica `LIKE`, `IN`, `NOT IN`, `BETWEEN`, `IS NULL` i la precedència de `AND`/`OR`/`NOT` amb parèntesis a Chinook.",
+   "questions": [
+    {
+     "text": "Mostra el nom (`Name`) dels artistes de la taula `Artist` que comencen per 'The ' (la paraula The seguida d'un espai).",
+     "sql": "SELECT Name FROM Artist WHERE Name LIKE 'The %'",
+     "explain": "`LIKE` compara amb un patró; `%` representa qualsevol seqüència de caràcters (també buida), de manera que 'The %' vol dir 'comença per The i un espai'."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`) dels clients de la taula `Customer` que tenen exactament 4 lletres.",
+     "sql": "SELECT FirstName FROM Customer WHERE FirstName LIKE '____'",
+     "explain": "El comodí `_` representa exactament un caràcter, així que quatre guions baixos validen només noms de quatre lletres."
+    },
+    {
+     "text": "Mostra el nom del tema (`Name`) i l'identificador de l'àlbum (`AlbumId`) dels temes de la taula `Track` que contenen la paraula 'Moon' en qualsevol posició del nom.",
+     "sql": "SELECT Name, AlbumId FROM Track WHERE Name LIKE '%Moon%'",
+     "explain": "Posant `%` a banda i banda es busca el text a qualsevol lloc del camp. A SQLite `LIKE` no distingeix majúscules de minúscules."
+    },
+    {
+     "text": "Mostra el nom, el cognom i el país (`Country`) dels clients que viuen a Espanya, Portugal, Itàlia o França ('Spain', 'Portugal', 'Italy', 'France').",
+     "sql": "SELECT FirstName, LastName, Country FROM Customer WHERE Country IN ('Spain', 'Portugal', 'Italy', 'France')",
+     "explain": "`IN` és una manera compacta d'escriure diverses comparacions d'igualtat unides amb `OR`."
+    },
+    {
+     "text": "Mostra el nom, el cognom i el país dels clients que NO viuen als Estats Units, Canadà ni Brasil ('USA', 'Canada', 'Brazil').",
+     "sql": "SELECT FirstName, LastName, Country FROM Customer WHERE Country NOT IN ('USA', 'Canada', 'Brazil')",
+     "explain": "`NOT IN` descarta les files el valor de les quals és a la llista. Funciona bé aquí perquè `Country` no té valors nuls."
+    },
+    {
+     "text": "Mostra l'identificador de la factura (`InvoiceId`), la data (`InvoiceDate`) i el total (`Total`) de les factures de la taula `Invoice` amb un total entre 14 i 15, ambdós inclosos.",
+     "sql": "SELECT InvoiceId, InvoiceDate, Total FROM Invoice WHERE Total BETWEEN 14 AND 15",
+     "explain": "`BETWEEN a AND b` inclou els dos extrems, i equival a `Total >= 14 AND Total <= 15`."
+    },
+    {
+     "text": "Mostra el nom, el cognom i el país dels clients que no tenen estat informat (`State` és nul).",
+     "sql": "SELECT FirstName, LastName, Country FROM Customer WHERE State IS NULL",
+     "explain": "Un valor `NULL` no es pot comparar amb `=`: cal fer servir `IS NULL` (o `IS NOT NULL`) perquè la comparació amb NULL mai és certa."
+    },
+    {
+     "text": "Mostra el nom, el cognom i l'empresa (`Company`) dels clients que sí que tenen empresa informada.",
+     "sql": "SELECT FirstName, LastName, Company FROM Customer WHERE Company IS NOT NULL",
+     "explain": "`IS NOT NULL` queda només amb les files on el camp té algun valor."
+    },
+    {
+     "text": "Mostra el nom, el cognom i l'estat (`State`) dels clients dels Estats Units ('USA') que són de l'estat 'CA' o de l'estat 'NY'.",
+     "sql": "SELECT FirstName, LastName, State FROM Customer WHERE Country = 'USA' AND (State = 'CA' OR State = 'NY')",
+     "explain": "Sense parèntesis `AND` s'avalua abans que `OR` i el resultat canviaria (entrarien tots els de 'NY' de qualsevol país). Els parèntesis forcen a avaluar primer l'`OR`."
+    },
+    {
+     "text": "Mostra el nom, el cognom, el país i l'estat dels clients que viuen als Estats Units ('USA') o al Canadà ('Canada') i que tenen fax (`Fax` no és nul), però deixant fora els de l'estat 'CA'. Usa `NOT` o `<>` amb els parèntesis que calguin.",
+     "sql": "SELECT FirstName, LastName, Country, State FROM Customer WHERE (Country = 'USA' OR Country = 'Canada') AND Fax IS NOT NULL AND NOT (State = 'CA')",
+     "explain": "Es combinen tres filtres amb `AND`; l'`OR` dels països va entre parèntesis. Atenció: `NOT (State = 'CA')` també descarta els `State` nuls, perquè la comparació amb NULL no és certa."
+    }
+   ]
+  },
+  {
+   "code": "sqlsel03",
+   "database": "hotel",
+   "type": "sqlselbasic",
+   "name": "SQL Selects bàsics 3: expressions i funcions",
+   "intro": "Practica càlculs, `CASE WHEN`, `COALESCE`, funcions de text i funcions de dates a la base de dades de l'hotel.",
+   "questions": [
+    {
+     "text": "Mostra l'identificador del tipus d'habitació (`RoomTypeId`), el preu (`Price`) i el preu amb un 10% d'IVA arrodonit a 2 decimals (`ROUND(Price * 1.10, 2)`) de la taula `PriceSeasons` per a la temporada 1 (`SeasonId = 1`).",
+     "sql": "SELECT RoomTypeId, Price, ROUND(Price * 1.10, 2) FROM PriceSeasons WHERE SeasonId = 1",
+     "explain": "Es poden fer operacions aritmètiques amb columnes directament al `SELECT`; `ROUND(x, 2)` arrodoneix a dos decimals."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`), el preu (`Price`) i el preu per hoste (`Price / NHosts`) arrodonit a 2 decimals de les reserves de la taula `Bookings` amb `Id` entre 1 i 15.",
+     "sql": "SELECT Id, Price, ROUND(Price / NHosts, 2) FROM Bookings WHERE Id BETWEEN 1 AND 15",
+     "explain": "Dividim una columna per una altra fila a fila. Com que `Price` és decimal, la divisió no és entera."
+    },
+    {
+     "text": "Mostra el nom del tipus d'habitació (`Name`) i una classificació segons la capacitat (`Capacity`): 'Petita' si és com a màxim 2, 'Mitjana' si és 3 o 4 i 'Gran' en la resta de casos. Fes servir `CASE WHEN` sobre la taula `RoomTypes`.",
+     "sql": "SELECT Name, CASE WHEN Capacity <= 2 THEN 'Petita' WHEN Capacity <= 4 THEN 'Mitjana' ELSE 'Gran' END FROM RoomTypes",
+     "explain": "`CASE WHEN` avalua les condicions en ordre i retorna el resultat de la primera certa; per això la segona branca ja només cobreix capacitats de 3 i 4. `ELSE` recull la resta."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i la data de sortida (`CheckOut`) de totes les estades (`Stays`) que encara no tenen data de sortida, però escrivint el text 'En curs' en lloc del valor nul (fes servir `COALESCE`).",
+     "sql": "SELECT Id, COALESCE(CheckOut, 'En curs') FROM Stays WHERE CheckOut IS NULL",
+     "explain": "`COALESCE(a, b)` retorna el primer valor no nul. Aquí totes les files filtrades tenen `CheckOut` nul, així que sempre mostra el text de substitució."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`), el nom complet en minúscules (`FirstName`, un espai i `LastName`, units amb `||`) i la longitud del correu (`LENGTH(Email)`) dels clients de la taula `Customers` amb `Id` entre 1 i 10.",
+     "sql": "SELECT Id, LOWER(FirstName) || ' ' || LOWER(LastName), LENGTH(Email) FROM Customers WHERE Id BETWEEN 1 AND 10",
+     "explain": "`||` concatena textos, `LOWER` passa a minúscules i `LENGTH` compta caràcters. Es poden niar funcions i combinar-les amb literals."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i la part del correu electrònic que hi ha abans de l'arrova (`@`) dels clients amb `Id` entre 1 i 10. Fes servir `SUBSTR` i `INSTR`.",
+     "sql": "SELECT Id, SUBSTR(Email, 1, INSTR(Email, '@') - 1) FROM Customers WHERE Id BETWEEN 1 AND 10",
+     "explain": "`INSTR` retorna la posició de l'arrova i `SUBSTR(text, 1, n)` agafa els n primers caràcters. Cal restar 1 perquè l'arrova mateixa no entri."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el telèfon (`PhoneNumber`) amb el símbol `+` substituït per `00` (`REPLACE`) dels clients amb `Id` entre 1 i 10.",
+     "sql": "SELECT Id, REPLACE(PhoneNumber, '+', '00') FROM Customers WHERE Id BETWEEN 1 AND 10",
+     "explain": "`REPLACE(text, vell, nou)` canvia totes les aparicions del text 'vell' pel 'nou' sense modificar la taula."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el nombre de nits de cada reserva de la taula `Bookings` amb `Id` entre 1 i 15, calculat com a diferència entre `CheckOut` i `CheckIn` en dies amb `julianday` i convertit a enter (`CAST(... AS INTEGER)`).",
+     "sql": "SELECT Id, CAST(julianday(CheckOut) - julianday(CheckIn) AS INTEGER) FROM Bookings WHERE Id BETWEEN 1 AND 15",
+     "explain": "`julianday` converteix una data en un nombre de dies, de manera que la resta dóna els dies entre dues dates. `CAST` treu el decimal que SQLite hi afegeix."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el mes de la data d'entrada en format 'AAAA-MM' (`strftime('%Y-%m', CheckIn)`) de les estades de la taula `Stays` amb `Id` entre 1 i 20.",
+     "sql": "SELECT Id, strftime('%Y-%m', CheckIn) FROM Stays WHERE Id BETWEEN 1 AND 20",
+     "explain": "`strftime` formata una data text amb codis: `%Y` és l'any de 4 xifres i `%m` el mes de 2 xifres. SQLite no té tipus data propi i treballa amb text 'AAAA-MM-DD'."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`), el nombre de nits (diferència de dies entre `CheckOut` i `CheckIn` convertida a enter amb `julianday` i `CAST`) i una durada ('Curta' si són 2 nits o menys, 'Mitjana' si són de 3 a 6 i 'Llarga' si són 7 o més) de les estades amb `Id` entre 1 i 25 que tenen data de sortida (`CheckOut` no és nul).",
+     "sql": "SELECT Id, CAST(julianday(CheckOut) - julianday(CheckIn) AS INTEGER), CASE WHEN julianday(CheckOut) - julianday(CheckIn) <= 2 THEN 'Curta' WHEN julianday(CheckOut) - julianday(CheckIn) < 7 THEN 'Mitjana' ELSE 'Llarga' END FROM Stays WHERE Id BETWEEN 1 AND 25 AND CheckOut IS NOT NULL",
+     "explain": "Es combinen càlcul de dates i `CASE WHEN`: primer es resta amb `julianday` i després es classifica el resultat. El filtre `IS NOT NULL` evita restes amb dates absents."
+    }
+   ]
+  },
+  {
+   "code": "sqlmix01",
+   "database": "knights",
+   "type": "sqlmixed",
+   "name": "SQL Mesclat 1: cavallers i dragons",
+   "intro": "Repàs mesclat de `SELECT`, `JOIN`, agregats amb `GROUP BY`/`HAVING` i subconsultes sobre cavallers i dragons.",
+   "questions": [
+    {
+     "text": "Mostra el sobrenom (`Nickname`) i el títol (`Title`) dels cavallers de la taula `Knights` que són dones (`Gender = 'F'`).",
+     "sql": "SELECT Nickname, Title FROM Knights WHERE Gender = 'F'",
+     "explain": "Un `SELECT` simple amb `WHERE` sobre una columna de text; el valor 'F' va entre cometes."
+    },
+    {
+     "text": "Mostra el nom (`Name`) i el nombre de víctimes conegudes (`KnownVictims`) dels dragons de color 'Red', ordenats de més a menys víctimes.",
+     "sql": "SELECT Name, KnownVictims FROM Dragons WHERE Color = 'Red' ORDER BY KnownVictims DESC",
+     "explain": "Es filtra pel color amb `WHERE` i s'ordena amb `ORDER BY ... DESC`."
+    },
+    {
+     "text": "Mostra el nom i les víctimes conegudes dels 3 dragons amb més víctimes, del que en té més al que en té menys.",
+     "sql": "SELECT Name, KnownVictims FROM Dragons ORDER BY KnownVictims DESC LIMIT 3",
+     "explain": "`ORDER BY ... DESC` col·loca els dragons amb més víctimes al principi i `LIMIT 3` es queda amb els tres primers."
+    },
+    {
+     "text": "Mostra el nom de cada drac i el nom complet (`Firstname`, un espai i `Lastname`) del cavaller que el va matar, només dels dragons amb resultat de batalla (`BattleOutcome`) 'Dead'.",
+     "sql": "SELECT d.Name, k.Firstname || ' ' || k.Lastname FROM Dragons d JOIN Knights k ON d.KilledBy = k.Nickname WHERE d.BattleOutcome = 'Dead'",
+     "explain": "`KilledBy` és una clau forana cap a `Knights.Nickname`, així que s'uneixen les dues taules amb aquesta igualtat. Després `WHERE` filtra i `||` forma el nom complet."
+    },
+    {
+     "text": "Mostra cada color de drac (`Color`) i quants dragons hi ha d'aquest color.",
+     "sql": "SELECT Color, COUNT(*) FROM Dragons GROUP BY Color",
+     "explain": "`GROUP BY` crea un grup per color i `COUNT(*)` compta les files de cada grup."
+    },
+    {
+     "text": "Mostra el sobrenom de cada cavaller i la suma de les víctimes conegudes dels dragons que ha matat. Només apareixen els cavallers que han matat algun drac.",
+     "sql": "SELECT k.Nickname, SUM(d.KnownVictims) FROM Knights k JOIN Dragons d ON d.KilledBy = k.Nickname GROUP BY k.Nickname",
+     "explain": "Primer s'uneixen cavallers i dragons i després s'agrupa per cavaller, sumant `KnownVictims` dins de cada grup."
+    },
+    {
+     "text": "Mostra el sobrenom i el nombre de dragons matats dels cavallers que n'han matat més de 3.",
+     "sql": "SELECT KilledBy, COUNT(*) FROM Dragons GROUP BY KilledBy HAVING COUNT(*) > 3",
+     "explain": "`HAVING` filtra grups ja agregats, mentre que `WHERE` filtra files abans d'agrupar. No cal `JOIN`: `KilledBy` ja conté el sobrenom."
+    },
+    {
+     "text": "Mostra el nom i les víctimes conegudes dels dragons que tenen més víctimes que la mitjana de víctimes de tots els dragons.",
+     "sql": "SELECT Name, KnownVictims FROM Dragons WHERE KnownVictims > (SELECT AVG(KnownVictims) FROM Dragons)",
+     "explain": "Una subconsulta escalar calcula la mitjana global i la consulta externa la fa servir com a valor de comparació. No es pot posar `AVG` directament al `WHERE`."
+    },
+    {
+     "text": "Mostra el sobrenom dels cavallers que no han matat cap drac de color 'Red'.",
+     "sql": "SELECT Nickname FROM Knights WHERE Nickname NOT IN (SELECT KilledBy FROM Dragons WHERE Color = 'Red')",
+     "explain": "La subconsulta troba els cavallers que sí que han matat algun drac vermell i `NOT IN` els exclou. Funciona bé perquè `KilledBy` mai és nul."
+    },
+    {
+     "text": "Mostra el sobrenom i la mitjana de víctimes conegudes dels dragons que ha matat (arrodonida a 2 decimals) dels cavallers la mitjana dels quals supera la mitjana de víctimes de tots els dragons.",
+     "sql": "SELECT KilledBy, ROUND(AVG(KnownVictims), 2) FROM Dragons GROUP BY KilledBy HAVING AVG(KnownVictims) > (SELECT AVG(KnownVictims) FROM Dragons)",
+     "explain": "Es combina agrupació i subconsulta: `HAVING` compara l'agregat de cada cavaller amb la mitjana global calculada a una subconsulta."
+    }
+   ]
+  },
+  {
+   "code": "sqlmix02",
+   "database": "miniwind",
+   "type": "sqlmixed",
+   "name": "SQL Mesclat 2: anàlisi de vendes",
+   "intro": "Repàs final que combina `JOIN` de diverses taules, `GROUP BY`/`HAVING`, subconsultes i `CASE` amb càlculs d'imports.",
+   "questions": [
+    {
+     "text": "Mostra l'identificador de cada comanda (`order_id`) i el seu import total, calculat com a suma de `quantity * unit_price` de les seves línies de la taula `order_details` (sense tenir en compte descomptes).",
+     "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id",
+     "explain": "L'import d'una línia és quantitat per preu, i la suma d'aquestes línies agrupades per comanda dóna l'import de la comanda."
+    },
+    {
+     "text": "Mostra el nom de l'empresa (`company`) de cada client i l'import total de les seves comandes (suma de `quantity * unit_price`). Només apareixen els clients amb alguna línia de comanda.",
+     "sql": "SELECT c.company, SUM(d.quantity * d.unit_price) FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_details d ON d.order_id = o.id GROUP BY c.id, c.company",
+     "explain": "Cal encadenar tres taules: clients, comandes i línies. Després s'agrupa per client i se sumen els imports de totes les seves línies."
+    },
+    {
+     "text": "Mostra cada categoria de producte (`category`) i el benefici total que ha generat, calculat com a suma de `quantity * (unit_price - standard_cost)`, només per a les categories que s'han venut.",
+     "sql": "SELECT p.category, SUM(d.quantity * (d.unit_price - p.standard_cost)) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.category",
+     "explain": "El `JOIN` porta el cost estàndard del producte a cada línia i el benefici es calcula línia a línia abans d'agregar per categoria."
+    },
+    {
+     "text": "Mostra les categories de producte i el seu import total venut (suma de `quantity * unit_price`) només per a les categories amb un import total superior a 500.",
+     "sql": "SELECT p.category, SUM(d.quantity * d.unit_price) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.category HAVING SUM(d.quantity * d.unit_price) > 500",
+     "explain": "La condició és sobre un agregat, per tant va a `HAVING` i no a `WHERE`, que s'executa abans d'agrupar."
+    },
+    {
+     "text": "Mostra el nom complet de cada empleat (`first_name`, un espai i `last_name`), el nombre de comandes diferents que ha gestionat i l'import total d'aquestes comandes (suma de `quantity * unit_price`), només per als empleats amb alguna línia de comanda.",
+     "sql": "SELECT e.first_name || ' ' || e.last_name, COUNT(DISTINCT o.id), SUM(d.quantity * d.unit_price) FROM employees e JOIN orders o ON o.employee_id = e.id JOIN order_details d ON d.order_id = o.id GROUP BY e.id, e.first_name, e.last_name",
+     "explain": "En unir comandes amb línies cada comanda apareix repetida; per això es compta amb `COUNT(DISTINCT o.id)` i no amb `COUNT(*)`, que comptaria línies."
+    },
+    {
+     "text": "Mostra l'identificador (`order_id`) i l'import total (suma de `quantity * unit_price`) de les comandes amb un import superior a la mitjana dels imports totals de totes les comandes.",
+     "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))",
+     "explain": "La subconsulta interna calcula l'import de cada comanda, la de fora en fa la mitjana, i el `HAVING` compara cada comanda amb aquesta mitjana."
+    },
+    {
+     "text": "Mostra el nom del producte (`product_name`) dels productes que no apareixen a cap línia de comanda (`order_details`).",
+     "sql": "SELECT product_name FROM products WHERE id NOT IN (SELECT product_id FROM order_details WHERE product_id IS NOT NULL)",
+     "explain": "`NOT IN` amb subconsulta exclou els productes venuts. El filtre `IS NOT NULL` a dins és una precaució: si la subconsulta tingués un NULL, `NOT IN` no retornaria cap fila."
+    },
+    {
+     "text": "Classifica les comandes segons el seu import total (suma de `quantity * unit_price`): 'Gran' si és 1000 o més, 'Mitjana' si és 300 o més però menys de 1000, i 'Petita' si és menys de 300. Mostra cada classe i quantes comandes hi ha de cada una.",
+     "sql": "SELECT CASE WHEN t >= 1000 THEN 'Gran' WHEN t >= 300 THEN 'Mitjana' ELSE 'Petita' END, COUNT(*) FROM (SELECT order_id, SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) GROUP BY 1",
+     "explain": "Primer es calcula l'import per comanda en una subconsulta a `FROM`; fora s'hi aplica `CASE` per classificar i `GROUP BY 1` agrupa per aquesta expressió."
+    },
+    {
+     "text": "Mostra el nom de l'empresa del client, la categoria del producte i l'import total (suma de `quantity * unit_price`) per a cada parella client-categoria amb un import superior a 300.",
+     "sql": "SELECT c.company, p.category, SUM(d.quantity * d.unit_price) FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_details d ON d.order_id = o.id JOIN products p ON p.id = d.product_id GROUP BY c.id, c.company, p.category HAVING SUM(d.quantity * d.unit_price) > 300",
+     "explain": "Un `JOIN` de quatre taules enllaça client, comanda, línia i producte. S'agrupa per dues columnes (client i categoria) i `HAVING` filtra pels imports grans."
+    },
+    {
+     "text": "Mostra el nom de l'empresa dels 3 clients amb més import total comprat (suma de `quantity * unit_price`), el seu import i el percentatge que representa sobre l'import total de totes les línies de comanda, arrodonit a 2 decimals. Ordena de més a menys import.",
+     "sql": "SELECT c.company, SUM(d.quantity * d.unit_price) AS total, ROUND(100.0 * SUM(d.quantity * d.unit_price) / (SELECT SUM(quantity * unit_price) FROM order_details), 2) FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_details d ON d.order_id = o.id GROUP BY c.id, c.company ORDER BY total DESC LIMIT 3",
+     "explain": "S'agrupa per client, es calcula la quota dividint per una subconsulta escalar amb l'import global, i s'ordena de més a menys per quedar-se amb el top 3 amb `LIMIT`."
+    }
+   ]
+  }
+ ]
+}

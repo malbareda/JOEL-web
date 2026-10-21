@@ -1,0 +1,129 @@
+{
+  "database": "northwind",
+  "code_prefix": "sqlnorthwind",
+  "label": "Northwind (empresa d'aliments: clients, empleats, productes, comandes, factures i compres a proveïdors)",
+  "problems": [
+    {
+      "name": "Northwind 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra l'identificador (`id`) i el nom de l'empresa (`company`) de tots els transportistes (`shippers`), en aquest ordre.",
+         "sql": "SELECT id, company FROM shippers"},
+        {"text": "Mostra el nom del producte (`product_name`) i el preu de venda (`list_price`) de tots els productes de la categoria 'Beverages', en aquest ordre.",
+         "sql": "SELECT product_name, list_price FROM products WHERE category = 'Beverages'"},
+        {"text": "Mostra el cognom (`last_name`) i el càrrec (`job_title`) de tots els empleats, ordenats alfabèticament pel cognom.",
+         "sql": "SELECT last_name, job_title FROM employees ORDER BY last_name"}
+      ]
+    },
+    {
+      "name": "Northwind 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions, `AND`/`OR` i `NULL`.",
+      "questions": [
+        {"text": "Mostra el nom del producte i el preu de venda (`list_price`) dels productes que costen més de 40, en aquest ordre.",
+         "sql": "SELECT product_name, list_price FROM products WHERE list_price > 40"},
+        {"text": "Mostra l'identificador (`id`) de les comandes (`orders`) que encara no s'han enviat (`shipped_date` no té valor).",
+         "sql": "SELECT id FROM orders WHERE shipped_date IS NULL"},
+        {"text": "Mostra el nom del producte i el preu de venda dels productes de la categoria 'Beverages' que costen menys de 10, en aquest ordre.",
+         "sql": "SELECT product_name, list_price FROM products WHERE category = 'Beverages' AND list_price < 10"}
+      ]
+    },
+    {
+      "name": "Northwind 3: Cerques, rangs i NULL",
+      "intro": "Usa `LIKE`, `IN`, `BETWEEN` i `IS NULL` per filtrar amb més precisió.",
+      "questions": [
+        {"text": "Mostra el nom de l'empresa (`company`) dels clients (`customers`) el nom de la qual comença per la lletra 'L'.",
+         "sql": "SELECT company FROM customers WHERE company LIKE 'L%'"},
+        {"text": "Mostra el nom del producte i el preu de venda dels productes amb un preu entre 10 i 20, tots dos inclosos, en aquest ordre.",
+         "sql": "SELECT product_name, list_price FROM products WHERE list_price BETWEEN 10 AND 20"},
+        {"text": "Mostra l'identificador (`id`) i la data de comanda (`order_date`) de les comandes que no tenen tipus de pagament (`payment_type` no té valor), en aquest ordre.",
+         "sql": "SELECT id, order_date FROM orders WHERE payment_type IS NULL"}
+      ]
+    },
+    {
+      "name": "Northwind 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
+      "questions": [
+        {"text": "Mostra quantes comandes hi ha a la taula `orders`.",
+         "sql": "SELECT COUNT(*) FROM orders"},
+        {"text": "Mostra el preu de venda (`list_price`) mitjà de tots els productes.",
+         "sql": "SELECT AVG(list_price) FROM products"},
+        {"text": "Mostra la despesa d'enviament (`shipping_fee`) més alta i la més baixa de totes les comandes, en aquest ordre.",
+         "sql": "SELECT MAX(shipping_fee), MIN(shipping_fee) FROM orders"}
+      ]
+    },
+    {
+      "name": "Northwind 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada categoria (`category`) de productes, mostra la categoria i el nombre de productes que conté, en aquest ordre.",
+         "sql": "SELECT category, COUNT(*) FROM products GROUP BY category"},
+        {"text": "Per cada tipus de pagament (`payment_type`) de les comandes, mostra el tipus i el nombre de comandes. Ignora les comandes sense tipus de pagament.",
+         "sql": "SELECT payment_type, COUNT(*) FROM orders WHERE payment_type IS NOT NULL GROUP BY payment_type"},
+        {"text": "Per cada empleat (`employee_id`) de la taula `orders`, mostra l'identificador de l'empleat i la suma de les despeses d'enviament (`shipping_fee`) de les seves comandes, en aquest ordre.",
+         "sql": "SELECT employee_id, SUM(shipping_fee) FROM orders GROUP BY employee_id"}
+      ]
+    },
+    {
+      "name": "Northwind 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra les categories que tenen 3 productes o més, juntament amb el nombre de productes de cadascuna, en aquest ordre.",
+         "sql": "SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) >= 3"},
+        {"text": "Mostra l'identificador de l'empleat (`employee_id`) i el nombre de comandes de la taula `orders` dels empleats que n'han gestionat 6 o més, en aquest ordre.",
+         "sql": "SELECT employee_id, COUNT(*) FROM orders GROUP BY employee_id HAVING COUNT(*) >= 6"},
+        {"text": "Mostra l'identificador del producte (`product_id`) i la quantitat total venuda (suma de `quantity` a `order_details`) dels productes que se n'han venut més de 100 unitats en total, en aquest ordre.",
+         "sql": "SELECT product_id, SUM(quantity) FROM order_details GROUP BY product_id HAVING SUM(quantity) > 100"}
+      ]
+    },
+    {
+      "name": "Northwind 7: Primers JOINs",
+      "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
+      "questions": [
+        {"text": "Per cada comanda, mostra el seu identificador (`orders.id`) i el nom de l'empresa del client (`customers.company`) que l'ha feta, en aquest ordre.",
+         "sql": "SELECT o.id, c.company FROM orders o INNER JOIN customers c ON o.customer_id = c.id"},
+        {"text": "Per cada comanda, mostra el seu identificador i el cognom (`last_name`) de l'empleat que l'ha gestionada, en aquest ordre.",
+         "sql": "SELECT o.id, e.last_name FROM orders o INNER JOIN employees e ON o.employee_id = e.id"},
+        {"text": "Per cada línia de `order_details`, mostra el nom del producte (`product_name`) i la quantitat (`quantity`), en aquest ordre.",
+         "sql": "SELECT p.product_name, d.quantity FROM order_details d INNER JOIN products p ON d.product_id = p.id"}
+      ]
+    },
+    {
+      "name": "Northwind 8: JOINs de diverses taules",
+      "intro": "Combina `JOIN`, `WHERE` i `GROUP BY`, arribant a unir tres taules.",
+      "questions": [
+        {"text": "Per cada comanda, mostra el seu identificador, el nom de l'empresa del client i el cognom de l'empleat que l'ha gestionada, en aquest ordre.",
+         "sql": "SELECT o.id, c.company, e.last_name FROM orders o INNER JOIN customers c ON o.customer_id = c.id INNER JOIN employees e ON o.employee_id = e.id"},
+        {"text": "Mostra el nom de l'empresa de transport (`shippers.company`) i el nombre de comandes que ha enviat, només dels transportistes que n'han enviat alguna, en aquest ordre.",
+         "sql": "SELECT s.company, COUNT(*) FROM shippers s INNER JOIN orders o ON o.shipper_id = s.id GROUP BY s.id, s.company"},
+        {"text": "Mostra el cognom de cada empleat i la suma de `quantity * unit_price` de les línies de detall de les comandes que ha gestionat, unint `employees`, `orders` i `order_details`, en aquest ordre. Només cal incloure els empleats amb comandes amb línies de detall.",
+         "sql": "SELECT e.last_name, SUM(d.quantity * d.unit_price) FROM employees e INNER JOIN orders o ON o.employee_id = e.id INNER JOIN order_details d ON d.order_id = o.id GROUP BY e.id, e.last_name"}
+      ]
+    },
+    {
+      "name": "Northwind 9: LEFT JOIN, subconsultes i CASE",
+      "intro": "Quan cal incloure les files sense coincidència, calcular un valor intermedi o classificar amb `CASE`.",
+      "questions": [
+        {"text": "Mostra el nom de l'empresa de tots els clients i el nombre de comandes que han fet, incloent-hi els que no n'han fet cap (amb un 0), en aquest ordre.",
+         "sql": "SELECT c.company, COUNT(o.id) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company"},
+        {"text": "Mostra el nom del producte dels productes que no apareixen en cap línia de `order_details`.",
+         "sql": "SELECT product_name FROM products WHERE id NOT IN (SELECT product_id FROM order_details WHERE product_id IS NOT NULL)"},
+        {"text": "Mostra el nom del producte i una classificació segons el preu de venda (`list_price`): 'Car' si costa 40 o més, 'Normal' si costa 10 o més però menys de 40, i 'Barat' si costa menys de 10 (escrits exactament així). Mostra les columnes en aquest ordre.",
+         "sql": "SELECT product_name, CASE WHEN list_price >= 40 THEN 'Car' WHEN list_price >= 10 THEN 'Normal' ELSE 'Barat' END FROM products"}
+      ]
+    },
+    {
+      "name": "Northwind 10: Repte final",
+      "intro": "Consultes de més d'un pas: `JOIN` de diverses taules, subconsultes i càlculs.",
+      "questions": [
+        {"text": "Per cada comanda, mostra el seu identificador i l'import total de les seves línies, calculat com la suma de `quantity * unit_price` de `order_details`, en aquest ordre. Només cal incloure les comandes que tinguin línies de detall.",
+         "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id"},
+        {"text": "Mostra el cognom de l'empleat que ha gestionat més comandes, i el nombre de comandes, en aquest ordre.",
+         "sql": "SELECT e.last_name, COUNT(*) FROM employees e INNER JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name ORDER BY COUNT(*) DESC LIMIT 1"},
+        {"text": "Mostra l'identificador de les comandes l'import total de les quals (suma de `quantity * unit_price` de `order_details`) és superior a la mitjana dels imports totals de totes les comandes que tenen línies de detall.",
+         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))"},
+        {"text": "Mostra el nom de l'empresa dels clients que han comprat el producte 'Northwind Traders Coffee' (unint `customers`, `orders`, `order_details` i `products`). Cada empresa ha de sortir una sola vegada.",
+         "sql": "SELECT DISTINCT c.company FROM customers c INNER JOIN orders o ON o.customer_id = c.id INNER JOIN order_details d ON d.order_id = o.id INNER JOIN products p ON p.id = d.product_id WHERE p.product_name = 'Northwind Traders Coffee'"}
+      ]
+    }
+  ]
+}

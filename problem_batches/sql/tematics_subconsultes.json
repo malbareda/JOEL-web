@@ -1,0 +1,299 @@
+{
+ "problems": [
+  {
+   "code": "sqlsub01",
+   "database": "employees",
+   "type": "sqlsubq",
+   "name": "SQL Subconsultes 1: Subconsultes escalars",
+   "intro": "Subconsultes que retornen un sol valor (mitjana, màxim, mínim) i que s'usen al `WHERE` i al `SELECT`.",
+   "questions": [
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el sou (`Salary`) dels empleats que cobren més que la mitjana de sou de tots els empleats.",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary > (SELECT AVG(Salary) FROM Employees)",
+     "explain": "La subconsulta calcula una sola vegada la mitjana de sous (1970) i retorna un únic valor, de manera que es pot comparar amb `>` com si fos una constant. No es pot escriure `Salary > AVG(Salary)` directament al `WHERE`, perquè les agregacions no hi són permeses."
+    },
+    {
+     "text": "Mostra el cognom (`LastName`) i el sou (`Salary`) dels empleats que cobren menys que la mitjana de sou de tots els empleats.",
+     "sql": "SELECT LastName, Salary FROM Employees WHERE Salary < (SELECT AVG(Salary) FROM Employees)",
+     "explain": "Igual que abans, la subconsulta escalar dóna la mitjana global i la consulta exterior es queda amb les files per sota d'aquest valor. Canviar el sentit de la comparació és l'únic que canvia."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de l'empleat que té el sou més alt.",
+     "sql": "SELECT FirstName, LastName FROM Employees WHERE Salary = (SELECT MAX(Salary) FROM Employees)",
+     "explain": "La subconsulta troba el sou màxim i la consulta exterior recupera qui el cobra amb una igualtat. Fer-ho així (en lloc d'`ORDER BY ... LIMIT 1`) també retornaria tots els empleats en cas d'empat."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la data de naixement (`BirthDate`) de l'empleat més jove (el que ha nascut més tard).",
+     "sql": "SELECT FirstName, LastName, BirthDate FROM Employees WHERE BirthDate = (SELECT MAX(BirthDate) FROM Employees)",
+     "explain": "Les dates guardades en format text `AAAA-MM-DD` s'ordenen cronològicament, així que `MAX(BirthDate)` és la data més recent, és a dir, el més jove. La subconsulta dóna aquesta data i la consulta exterior busca qui la té."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la data de naixement (`BirthDate`) dels empleats que han nascut abans que l'empleat de cognom 'Rizzi'.",
+     "sql": "SELECT FirstName, LastName, BirthDate FROM Employees WHERE BirthDate < (SELECT BirthDate FROM Employees WHERE LastName = 'Rizzi')",
+     "explain": "La subconsulta recupera la data de naixement d'un únic empleat (el cognom 'Rizzi' és únic), de manera que és escalar. Després es comparen dates amb `<`: una data menor és una persona nascuda abans."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el sou (`Salary`) dels empleats que cobren més que la mitjana de sou dels empleats amb el càrrec (`JobTitle`) 'Software Engineer'.",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary > (SELECT AVG(Salary) FROM Employees WHERE JobTitle = 'Software Engineer')",
+     "explain": "La subconsulta té el seu propi `WHERE`: calcula la mitjana només d'un grup (els Software Engineer, 2100) i no de tota la taula. La consulta exterior compara tots els empleats amb aquest valor."
+    },
+    {
+     "text": "Mostra els empleats (nom `FirstName`, cognom `LastName` i sou `Salary`) que cobren com a mínim 500 més que el sou més baix de l'empresa.",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary >= (SELECT MIN(Salary) FROM Employees) + 500",
+     "explain": "La subconsulta escalar es pot usar dins d'una expressió aritmètica: aquí `MIN(Salary)` (1400) se li suma 500 i el resultat és el llindar de la comparació. L'empleat amb sou 1400 queda exclòs de forma natural."
+    },
+    {
+     "text": "Mostra el cognom (`LastName`), el sou (`Salary`) i una columna calculada amb la diferència entre el sou de cada empleat i la mitjana de sou de tots els empleats (sou menys mitjana), per a tots els empleats.",
+     "sql": "SELECT LastName, Salary, Salary - (SELECT AVG(Salary) FROM Employees) AS Diferencia FROM Employees",
+     "explain": "Una subconsulta escalar també es pot posar al `SELECT`: es calcula una vegada i el mateix valor (la mitjana, 1970) es resta del sou de cada fila. Sortirà negatiu per als empleats que cobren menys que la mitjana."
+    },
+    {
+     "text": "Mostra el cognom (`LastName`) i el percentatge que representa el sou de cada empleat sobre la suma de tots els sous, calculat com `100.0 * Salary / suma` i arrodonit a 2 decimals amb `ROUND`.",
+     "sql": "SELECT LastName, ROUND(100.0 * Salary / (SELECT SUM(Salary) FROM Employees), 2) AS Percentatge FROM Employees",
+     "explain": "La subconsulta del `SELECT` retorna el total de sous (19700) com a denominador comú. Es multiplica per `100.0` perquè la divisió sigui decimal i no entera, i `ROUND` deixa 2 decimals."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el sou (`Salary`) dels empleats que tenen el segon sou més alt de l'empresa (el valor més gran que hi ha just per sota del màxim; si diversos empleats comparteixen aquest sou, mostra'ls tots).",
+     "sql": "SELECT FirstName, LastName, Salary FROM Employees WHERE Salary = (SELECT MAX(Salary) FROM Employees WHERE Salary < (SELECT MAX(Salary) FROM Employees))",
+     "explain": "Les subconsultes es poden niuar: la de dins calcula el sou màxim (2300), la del mig busca el màxim dels sous estrictament menors (2200) i la consulta exterior recupera qui el cobra. Cada nivell retorna un únic valor."
+    }
+   ]
+  },
+  {
+   "code": "sqlsub02",
+   "database": "northwind",
+   "type": "sqlsubq",
+   "name": "SQL Subconsultes 2: IN i NOT IN",
+   "intro": "Subconsultes que retornen una llista de valors, ús d'`IN` i `NOT IN` i el perill dels `NULL` amb `NOT IN`.",
+   "questions": [
+    {
+     "text": "Mostra l'identificador (`id`) i el nom de l'empresa (`company`) dels clients (`customers`) que han fet alguna comanda (`orders`).",
+     "sql": "SELECT id, company FROM customers WHERE id IN (SELECT customer_id FROM orders)",
+     "explain": "La subconsulta retorna la llista de `customer_id` que apareixen a `orders`, i `IN` es queda amb els clients que hi són. Un client amb diverses comandes surt només una vegada, perquè la consulta exterior recorre `customers`, no `orders`."
+    },
+    {
+     "text": "Mostra l'identificador (`id`) i el nom de l'empresa (`company`) dels clients que no han fet cap comanda.",
+     "sql": "SELECT id, company FROM customers WHERE id NOT IN (SELECT customer_id FROM orders)",
+     "explain": "`NOT IN` és el complement d'`IN`: es queden els clients que no apareixen a la llista de `customer_id` de `orders`. Aquí funciona perquè `orders.customer_id` no té cap `NULL` (vegeu la pregunta dels moviments d'inventari per al cas contrari)."
+    },
+    {
+     "text": "Mostra el nom (`product_name`) dels productes (`products`) que no s'han venut mai, és a dir, que no apareixen a cap línia de comanda (`order_details`).",
+     "sql": "SELECT product_name FROM products WHERE id NOT IN (SELECT product_id FROM order_details WHERE product_id IS NOT NULL)",
+     "explain": "`order_details.product_id` admet `NULL`; si la llista de `NOT IN` en contingués algun, la comparació passaria a ser desconeguda per a totes les files i la consulta no retornaria res. Per això la subconsulta filtra amb `WHERE product_id IS NOT NULL`."
+    },
+    {
+     "text": "Mostra el nom (`product_name`) dels productes de la categoria (`category`) 'Beverages' que s'han venut alguna vegada (que apareixen a `order_details`).",
+     "sql": "SELECT product_name FROM products WHERE category = 'Beverages' AND id IN (SELECT product_id FROM order_details)",
+     "explain": "Es combina un filtre normal (`category = 'Beverages'`) amb un `IN` sobre la subconsulta amb els productes que apareixen a `order_details`. Com que `IN` ignora els `NULL` de la llista, aquí no cal cap precaució especial."
+    },
+    {
+     "text": "Mostra el cognom (`last_name`) dels empleats (`employees`) que han gestionat alguna comanda amb l'estat 'Shipped' (la taula `orders_status` té el nom de cada estat a `status_name`).",
+     "sql": "SELECT last_name FROM employees WHERE id IN (SELECT employee_id FROM orders WHERE status_id IN (SELECT id FROM orders_status WHERE status_name = 'Shipped'))",
+     "explain": "Hi ha dos `IN` niuats: el més intern tradueix el nom de l'estat al seu identificador, el del mig troba els `employee_id` de les comandes amb aquest estat, i la consulta exterior es queda amb aquests empleats. Així no cal conèixer el codi numèric de l'estat."
+    },
+    {
+     "text": "Mostra el cognom (`last_name`) i el càrrec (`job_title`) dels empleats que no han gestionat cap comanda.",
+     "sql": "SELECT last_name, job_title FROM employees WHERE id NOT IN (SELECT employee_id FROM orders WHERE employee_id IS NOT NULL)",
+     "explain": "`orders.employee_id` pot ser `NULL` per esquema; amb un sol `NULL` a la llista, `NOT IN` no retornaria cap fila. Afegir `WHERE employee_id IS NOT NULL` dins la subconsulta fa que la llista només tingui valors reals i la resposta sigui correcta."
+    },
+    {
+     "text": "Mostra l'identificador (`id`) de les comandes que contenen almenys un producte de la categoria 'Beverages' (la categoria és a `products`; les línies de comanda són a `order_details`).",
+     "sql": "SELECT id FROM orders WHERE id IN (SELECT order_id FROM order_details WHERE product_id IN (SELECT id FROM products WHERE category = 'Beverages'))",
+     "explain": "La subconsulta interna obté els productes 'Beverages', la del mig les comandes que tenen alguna línia amb algun d'ells, i la consulta exterior retorna aquestes comandes. Com que és una consulta sobre `orders`, cada comanda surt una sola vegada encara que tingui diverses begudes."
+    },
+    {
+     "text": "Mostra l'identificador (`id`) de les comandes (`orders`) que no tenen cap moviment d'inventari associat, és a dir, que no apareixen a la columna `customer_order_id` de `inventory_transactions`.",
+     "sql": "SELECT id FROM orders WHERE id NOT IN (SELECT customer_order_id FROM inventory_transactions WHERE customer_order_id IS NOT NULL)",
+     "explain": "Aquí és on `NOT IN` és perillós: `customer_order_id` és `NULL` en els moviments que no vénen d'una comanda de client (per exemple, les compres a proveïdors). Sense el filtre `IS NOT NULL` el resultat seria buit; amb ell, es comparen només els identificadors reals."
+    },
+    {
+     "text": "Mostra l'identificador (`id`), l'empresa (`company`) i la ciutat (`city`) dels clients (`customers`) que viuen en una ciutat on viu més d'un client (comptant tots els clients de la taula).",
+     "sql": "SELECT id, company, city FROM customers WHERE city IN (SELECT city FROM customers GROUP BY city HAVING COUNT(*) > 1)",
+     "explain": "La subconsulta retorna la llista de ciutats repetides (amb `GROUP BY` i `HAVING`), i la consulta exterior es queda amb els clients d'aquestes ciutats. És una subconsulta sobre la mateixa taula, que dóna una llista de text i no d'identificadors."
+    },
+    {
+     "text": "Mostra l'identificador (`id`) i l'empresa (`company`) dels clients que han fet alguna comanda, però cap de les seves comandes ha estat gestionada per l'empleat de cognom 'Jurek'.",
+     "sql": "SELECT id, company FROM customers WHERE id IN (SELECT customer_id FROM orders) AND id NOT IN (SELECT customer_id FROM orders WHERE employee_id IN (SELECT id FROM employees WHERE last_name = 'Jurek'))",
+     "explain": "Combina `IN` i `NOT IN`: primer cal que el client tingui comandes (`IN`), i després que no estigui entre els clients de comandes de Jurek (`NOT IN`, amb una subconsulta més que tradueix el cognom a identificador). Sense la primera condició també sortirien els clients que no han comprat mai."
+    }
+   ]
+  },
+  {
+   "code": "sqlsub03",
+   "database": "hotel",
+   "type": "sqlsubq",
+   "name": "SQL Subconsultes 3: EXISTS i NOT EXISTS",
+   "intro": "Subconsultes correlacionades que comproven l'existència de files amb `EXISTS` i `NOT EXISTS`.",
+   "questions": [
+    {
+     "text": "Mostra l'identificador (`Id`), el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) amb identificador menor o igual que 300 que tenen alguna reserva (`Bookings`) amb l'estat (`State`) 'Cancelled'.",
+     "sql": "SELECT c.Id, c.FirstName, c.LastName FROM Customers c WHERE c.Id <= 300 AND EXISTS (SELECT 1 FROM Bookings b WHERE b.CustomerId = c.Id AND b.State = 'Cancelled')",
+     "explain": "`EXISTS` és cert si la subconsulta retorna almenys una fila; la correlació `b.CustomerId = c.Id` fa que es comprovi client a client. Només importa que existeixi la fila, per això es pot escriure `SELECT 1`. També es podria fer amb `IN`, però `EXISTS` expressa millor la idea de 'té alguna'."
+    },
+    {
+     "text": "Mostra el nom (`Name`) dels tipus d'habitació (`RoomTypes`) per als quals no hi ha cap reserva (`Bookings`).",
+     "sql": "SELECT t.Name FROM RoomTypes t WHERE NOT EXISTS (SELECT 1 FROM Bookings b WHERE b.RoomTypeId = t.Id)",
+     "explain": "`NOT EXISTS` és cert quan la subconsulta correlacionada no troba cap fila: aquí, cap reserva d'aquell tipus. A diferència de `NOT IN`, no té problemes amb els `NULL`."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el cognom (`LastName`) dels clients (`Customers`) amb identificador menor o igual que 3000 que no han fet cap reserva.",
+     "sql": "SELECT c.Id, c.LastName FROM Customers c WHERE c.Id <= 3000 AND NOT EXISTS (SELECT 1 FROM Bookings b WHERE b.CustomerId = c.Id)",
+     "explain": "Per a cada client, la subconsulta busca reserves seves; si no n'hi ha cap, `NOT EXISTS` deixa passar el client. Equival a un `LEFT JOIN` amb `WHERE ... IS NULL`, però és més directe de llegir."
+    },
+    {
+     "text": "Mostra el número (`RoomNumber`) de les habitacions (`Rooms`) que han tingut alguna estada (`Stays`) amb un preu total (`TotalPrice`) superior a 1000.",
+     "sql": "SELECT r.RoomNumber FROM Rooms r WHERE EXISTS (SELECT 1 FROM Stays s WHERE s.RoomNumber = r.RoomNumber AND s.TotalPrice > 1000)",
+     "explain": "La subconsulta mira, per a cada habitació, si existeix alguna estada seva amb preu alt. Gràcies a `EXISTS` cada habitació surt una sola vegada, encara que hagi tingut moltes estades cares (un `JOIN` les repetiria)."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i la data d'entrada (`CheckIn`) de les reserves (`Bookings`) amb l'estat 'Reserved' i data d'entrada entre '2024-01-01' i '2024-02-18' (totes dues incloses) que no tenen cap estada (`Stays`) associada (`Stays.BookingId`).",
+     "sql": "SELECT b.Id, b.CheckIn FROM Bookings b WHERE b.State = 'Reserved' AND b.CheckIn BETWEEN '2024-01-01' AND '2024-02-18' AND NOT EXISTS (SELECT 1 FROM Stays s WHERE s.BookingId = b.Id)",
+     "explain": "Els filtres senzills redueixen primer les reserves candidates i el `NOT EXISTS` queda només amb les que no han arribat a convertir-se en estada (reserves futures). Triar bé els filtres evita fer la subconsulta sobre milers de files."
+    },
+    {
+     "text": "Mostra el nom (`Name`) dels tipus d'habitació (`RoomTypes`) que tenen la facilitat (`Facilities`) anomenada 'Air conditioner' (la relació és a `RoomTypeFacilities`).",
+     "sql": "SELECT t.Name FROM RoomTypes t WHERE EXISTS (SELECT 1 FROM RoomTypeFacilities rf JOIN Facilities f ON f.Id = rf.FacilityId WHERE rf.RoomTypeId = t.Id AND f.Name = 'Air conditioner')",
+     "explain": "La subconsulta correlacionada pot contenir un `JOIN`: s'enllaça la taula intermèdia amb `Facilities` per poder filtrar pel nom de la facilitat. `EXISTS` només comprova que hi hagi aquesta relació per a aquell tipus d'habitació."
+    },
+    {
+     "text": "Mostra el nom (`Name`) dels tipus d'habitació (`RoomTypes`) que no tenen la facilitat anomenada 'Sofa'.",
+     "sql": "SELECT t.Name FROM RoomTypes t WHERE NOT EXISTS (SELECT 1 FROM RoomTypeFacilities rf JOIN Facilities f ON f.Id = rf.FacilityId WHERE rf.RoomTypeId = t.Id AND f.Name = 'Sofa')",
+     "explain": "És la mateixa subconsulta de la pregunta anterior però negada: es queden els tipus per als quals no existeix cap relació amb aquesta facilitat. Canviar `EXISTS` per `NOT EXISTS` dóna exactament el complement."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`) i el número d'habitació (`RoomNumber`) de les estades (`Stays`) amb data d'entrada a partir de '2023-11-01' que han tingut algun hoste (`Hosts`, relacionats per `StayHosts`) amb el tipus de document (`DocType`) 'Passport'.",
+     "sql": "SELECT s.Id, s.CheckIn, s.RoomNumber FROM Stays s WHERE s.CheckIn >= '2023-11-01' AND EXISTS (SELECT 1 FROM StayHosts sh JOIN Hosts h ON h.Id = sh.HostId WHERE sh.StayId = s.Id AND h.DocType = 'Passport')",
+     "explain": "Una estada pot tenir diversos hostes; amb `EXISTS` n'hi ha prou que n'hi hagi un amb passaport perquè l'estada surti, i apareix només una vegada. Un `JOIN` directe repetiria l'estada tantes vegades com hostes amb passaport tingui."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) dels clients (`Customers`) amb identificador menor o igual que 1500 que tenen alguna reserva 'Cancelled' i cap reserva amb l'estat 'Reserved'.",
+     "sql": "SELECT c.Id FROM Customers c WHERE c.Id <= 1500 AND EXISTS (SELECT 1 FROM Bookings b WHERE b.CustomerId = c.Id AND b.State = 'Cancelled') AND NOT EXISTS (SELECT 1 FROM Bookings b WHERE b.CustomerId = c.Id AND b.State = 'Reserved')",
+     "explain": "Es combinen `EXISTS` i `NOT EXISTS` sobre la mateixa taula amb condicions oposades: té reserves cancel·lades i no n'hi ha cap de vigent. És el patró 'té X però no Y', difícil de fer amb un sol `JOIN`."
+    },
+    {
+     "text": "Mostra l'identificador (`Id`) i el client (`CustomerId`) de les reserves (`Bookings`) cancel·lades ('Cancelled') per a les quals el mateix client té una altra reserva (amb un `Id` diferent) del mateix tipus d'habitació (`RoomTypeId`) i amb una data d'entrada (`CheckIn`) posterior a la de la cancel·lada.",
+     "sql": "SELECT b1.Id, b1.CustomerId FROM Bookings b1 WHERE b1.State = 'Cancelled' AND EXISTS (SELECT 1 FROM Bookings b2 WHERE b2.CustomerId = b1.CustomerId AND b2.Id <> b1.Id AND b2.RoomTypeId = b1.RoomTypeId AND b2.CheckIn > b1.CheckIn)",
+     "explain": "La subconsulta fa una autocorrelació: la mateixa taula amb dos àlies, comparant cada reserva cancel·lada (`b1`) amb altres reserves del mateix client (`b2`). `EXISTS` retorna cada cancel·lada una sola vegada, tant si el client en té una o diverses de posteriors."
+    }
+   ]
+  },
+  {
+   "code": "sqlsub04",
+   "database": "chinook",
+   "type": "sqlsubq",
+   "name": "SQL Subconsultes 4: Subconsultes correlacionades",
+   "intro": "Subconsultes que depenen de la fila de la consulta exterior: comparacions amb la mitjana del grup, primer i últim de cada grup.",
+   "questions": [
+    {
+     "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i el preu (`UnitPrice`) de les pistes (`Track`) dels àlbums amb `AlbumId` menor o igual que 30 que són més cares que la mitjana de preu de les pistes del seu mateix àlbum.",
+     "sql": "SELECT t.TrackId, t.Name, t.UnitPrice FROM Track t WHERE t.AlbumId <= 30 AND t.UnitPrice > (SELECT AVG(t2.UnitPrice) FROM Track t2 WHERE t2.AlbumId = t.AlbumId)",
+     "explain": "La subconsulta fa referència a `t.AlbumId` de la consulta exterior: per a cada pista es recalcula la mitjana del seu propi àlbum. Per això es diu correlacionada; no es pot executar sola. El filtre per `AlbumId` manté el resultat curt."
+    },
+    {
+     "text": "Mostra l'identificador (`InvoiceId`), el client (`CustomerId`) i el total (`Total`) de les factures (`Invoice`) amb un total superior a la mitjana dels totals de les factures del seu client.",
+     "sql": "SELECT i.InvoiceId, i.CustomerId, i.Total FROM Invoice i WHERE i.Total > (SELECT AVG(i2.Total) FROM Invoice i2 WHERE i2.CustomerId = i.CustomerId)",
+     "explain": "Cada factura es compara amb la mitjana de les factures del mateix client, no amb la mitjana global: la subconsulta s'executa (conceptualment) una vegada per factura gràcies a la correlació `i2.CustomerId = i.CustomerId`."
+    },
+    {
+     "text": "Mostra el cognom (`LastName`) de cada client (`Customer`) amb país (`Country`) 'USA' i, com a segona columna, la data de la seva primera factura (el mínim d'`InvoiceDate` a `Invoice`).",
+     "sql": "SELECT c.LastName, (SELECT MIN(i.InvoiceDate) FROM Invoice i WHERE i.CustomerId = c.CustomerId) AS PrimeraFactura FROM Customer c WHERE c.Country = 'USA'",
+     "explain": "Una subconsulta correlacionada al `SELECT` ha de retornar un sol valor per fila: aquí el `MIN` de les dates de les factures del client actual. És una alternativa a un `JOIN` amb `GROUP BY`."
+    },
+    {
+     "text": "Mostra el títol (`Title`) de cada àlbum (`Album`) amb `AlbumId` menor o igual que 10 i, com a segona columna, el nombre de pistes (`Track`) que té.",
+     "sql": "SELECT a.Title, (SELECT COUNT(*) FROM Track t WHERE t.AlbumId = a.AlbumId) AS NumPistes FROM Album a WHERE a.AlbumId <= 10",
+     "explain": "Subconsulta correlacionada al `SELECT`: per a cada àlbum de la consulta exterior es compten les pistes que tenen aquell `AlbumId`. Cada àlbum genera exactament una fila, sense necessitat d'un `GROUP BY`."
+    },
+    {
+     "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el nombre de clients assignats (columna `SupportRepId` de `Customer`) de cada empleat (`Employee`), incloent-hi els que no en tenen cap (amb valor 0).",
+     "sql": "SELECT e.FirstName, e.LastName, (SELECT COUNT(*) FROM Customer c WHERE c.SupportRepId = e.EmployeeId) AS NumClients FROM Employee e",
+     "explain": "La subconsulta del `SELECT` compta els clients de cada empleat. Com que un `COUNT(*)` sense files retorna 0 (no `NULL`), els empleats sense clients apareixen amb 0, cosa que un `JOIN` intern perdria."
+    },
+    {
+     "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i la durada en mil·lisegons (`Milliseconds`) de les pistes del gènere 'Jazz' (taula `Genre`, columna `GenreId`) que duren més que la mitjana de durada de les pistes del seu gènere.",
+     "sql": "SELECT t.TrackId, t.Name, t.Milliseconds FROM Track t WHERE t.GenreId = (SELECT GenreId FROM Genre WHERE Name = 'Jazz') AND t.Milliseconds > (SELECT AVG(t2.Milliseconds) FROM Track t2 WHERE t2.GenreId = t.GenreId)",
+     "explain": "Hi ha dues subconsultes: una escalar simple que tradueix 'Jazz' a l'identificador de gènere, i una correlacionada que calcula la durada mitjana del gènere de cada pista. Com que ja s'ha filtrat per Jazz, la mitjana és la d'aquest gènere."
+    },
+    {
+     "text": "Mostra l'identificador (`InvoiceId`), el client (`CustomerId`) i la data (`InvoiceDate`) de l'última factura (la de data més recent) de cada client.",
+     "sql": "SELECT i.InvoiceId, i.CustomerId, i.InvoiceDate FROM Invoice i WHERE i.InvoiceDate = (SELECT MAX(i2.InvoiceDate) FROM Invoice i2 WHERE i2.CustomerId = i.CustomerId)",
+     "explain": "Per a cada factura la subconsulta calcula la data màxima del seu client; només passa la factura que coincideix amb aquesta data. És el patró 'l'últim de cada grup'. Aquí cap client té dues factures el mateix dia, així que surt una per client."
+    },
+    {
+     "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i la durada (`Milliseconds`) de les pistes dels àlbums amb `AlbumId` menor o igual que 60 que tenen la durada màxima del seu àlbum (si hi ha empat, mostra totes les pistes empatades).",
+     "sql": "SELECT t.TrackId, t.Name, t.Milliseconds FROM Track t WHERE t.AlbumId <= 60 AND t.Milliseconds = (SELECT MAX(t2.Milliseconds) FROM Track t2 WHERE t2.AlbumId = t.AlbumId)",
+     "explain": "La subconsulta correlacionada troba la durada màxima de l'àlbum de cada pista, i la igualtat deixa només les pistes més llargues. El filtre per `AlbumId` redueix el volum perquè la correlació no s'hagi de calcular per a tot el catàleg."
+    },
+    {
+     "text": "Mostra l'identificador (`InvoiceId`), el país de facturació (`BillingCountry`) i el total (`Total`) de les factures amb país de facturació 'USA' o 'Canada' que superen la mitjana dels totals de les factures del seu mateix país de facturació.",
+     "sql": "SELECT i.InvoiceId, i.BillingCountry, i.Total FROM Invoice i WHERE i.BillingCountry IN ('USA', 'Canada') AND i.Total > (SELECT AVG(i2.Total) FROM Invoice i2 WHERE i2.BillingCountry = i.BillingCountry)",
+     "explain": "La correlació es fa per país: cada factura es compara amb la mitjana del seu propi país, no amb la dels altres. El filtre `IN ('USA','Canada')` és un simple filtre de la consulta exterior; la subconsulta es calcula amb totes les factures del país."
+    },
+    {
+     "text": "Mostra, per a cada gènere (`Genre`), el seu nom (`Name`) i el nom de la seva pista (`Track`) més llarga (la de més `Milliseconds`).",
+     "sql": "SELECT g.Name, (SELECT t.Name FROM Track t WHERE t.GenreId = g.GenreId ORDER BY t.Milliseconds DESC LIMIT 1) AS PistaMesLlarga FROM Genre g",
+     "explain": "La subconsulta correlacionada al `SELECT` ordena les pistes del gènere actual per durada descendent i es queda amb la primera (`LIMIT 1` sempre amb `ORDER BY`). Retorna una sola fila i una sola columna per gènere, requisit de les subconsultes escalars."
+    }
+   ]
+  },
+  {
+   "code": "sqlsub05",
+   "database": "traders",
+   "type": "sqlsubq",
+   "name": "SQL Subconsultes 5: Taules derivades i combinacions",
+   "intro": "Subconsultes a `FROM` (taules derivades), `JOIN` amb taules derivades, subconsultes a `HAVING` i al `SELECT`, i combinacions de totes elles.",
+   "questions": [
+    {
+     "text": "Calcula la mitjana de les sumes de l'import (`Total`) dels intercanvis (`Trades`) de cada estada (`StayId`). Retorna una sola columna amb la mitjana.",
+     "sql": "SELECT AVG(t) FROM (SELECT SUM(Total) AS t FROM Trades GROUP BY StayId)",
+     "explain": "No es pot fer `AVG(SUM(...))` directament. La subconsulta a `FROM` (taula derivada) agrupa i dóna una suma per estada, i la consulta exterior calcula la mitjana d'aquestes sumes. Una taula derivada es comporta com una taula normal."
+    },
+    {
+     "text": "Calcula el nombre màxim de canvis de preu (`PriceChanges`) que ha tingut un mateix producte (`ProductId`). Retorna una sola columna amb aquest valor.",
+     "sql": "SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM PriceChanges GROUP BY ProductId)",
+     "explain": "La subconsulta agrupa per producte i compta les seves files; el `MAX` de fora tria el valor més gran d'aquests recomptes. De nou, dues agregacions encadenades necessiten dos nivells de consulta."
+    },
+    {
+     "text": "Mostra el nom (`Name`) de cada producte (`Products`) i el nombre de canvis de preu (`PriceChanges`) que ha tingut, fent un `JOIN` amb una taula derivada que compti els canvis per producte.",
+     "sql": "SELECT p.Name, x.n FROM Products p JOIN (SELECT ProductId, COUNT(*) AS n FROM PriceChanges GROUP BY ProductId) x ON x.ProductId = p.Id",
+     "explain": "La taula derivada `x` agrega primer (una fila per producte) i després es fa el `JOIN` amb `Products` per obtenir el nom. Agregar abans d'unir evita multiplicar files i és més eficient amb una taula gran com `PriceChanges`."
+    },
+    {
+     "text": "Mostra, per a cada trader (`Traders`), el seu àlies (`Nickname`) i el nombre d'estades (`Stays`) que ha fet, usant una subconsulta correlacionada al `SELECT`.",
+     "sql": "SELECT t.Nickname, (SELECT COUNT(*) FROM Stays s WHERE s.TraderId = t.Id) AS NumEstades FROM Traders t",
+     "explain": "La subconsulta del `SELECT` s'executa per a cada trader i retorna un únic valor, el recompte de les seves estades. Un trader sense estades obtindria 0, a diferència d'un `JOIN` intern."
+    },
+    {
+     "text": "Mostra els tipus de vaixell (`Type` de `Ships`) amb el nombre de vaixells de cada tipus, només dels tipus que tenen més vaixells que la mitjana de vaixells per tipus.",
+     "sql": "SELECT Type, COUNT(*) AS n FROM Ships GROUP BY Type HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Ships GROUP BY Type))",
+     "explain": "El `HAVING` filtra grups, i aquí es compara el recompte de cada tipus amb una subconsulta escalar que, al seu torn, usa una taula derivada per obtenir la mitjana de vaixells per tipus (16,67). Cal la derivada perquè la mitjana és d'un recompte ja agrupat."
+    },
+    {
+     "text": "Mostra el nom (`Name`) dels planetes (`Planets`) i el seu preu mitjà (`NewPrice` de `PriceChanges`) per als planetes amb un preu mitjà superior al preu mitjà de tots els canvis de preu. Usa un `JOIN` amb una taula derivada que calculi la mitjana per planeta.",
+     "sql": "SELECT p.Name, x.preu_mitja FROM Planets p JOIN (SELECT PlanetId, AVG(NewPrice) AS preu_mitja FROM PriceChanges GROUP BY PlanetId) x ON x.PlanetId = p.Id WHERE x.preu_mitja > (SELECT AVG(NewPrice) FROM PriceChanges)",
+     "explain": "Combina dos usos: una taula derivada al `FROM` (mitjana per planeta) i una subconsulta escalar al `WHERE` (mitjana global). Així es comparen dues mitjanes de nivells diferents, la de cada grup i la del total."
+    },
+    {
+     "text": "Mostra l'àlies (`Nickname`) i el nombre d'estades (`Stays`) dels traders que en tenen més que la mitjana d'estades per trader (la mitjana es calcula entre els traders que tenen alguna estada). Fes servir un `JOIN` amb una taula derivada.",
+     "sql": "SELECT t.Nickname, x.n FROM Traders t JOIN (SELECT TraderId, COUNT(*) AS n FROM Stays GROUP BY TraderId) x ON x.TraderId = t.Id WHERE x.n > (SELECT AVG(n) FROM (SELECT COUNT(*) AS n FROM Stays GROUP BY TraderId))",
+     "explain": "La mateixa taula derivada (recompte per trader) es fa servir dues vegades: una per unir-la amb `Traders` i una altra, dins d'una subconsulta, per calcular la mitjana de recomptes. Cada subconsulta s'ha de repetir perquè aquí no es pot usar una CTE."
+    },
+    {
+     "text": "Mostra l'identificador de l'estada (`StayId`) i l'import total de compres (la suma de `Total` dels `Trades` amb `Type` 'Buy') de les estades on aquest total supera la mitjana de totals de compra per estada (entre les estades que tenen alguna compra).",
+     "sql": "SELECT StayId, SUM(Total) AS total_compres FROM Trades WHERE Type = 'Buy' GROUP BY StayId HAVING SUM(Total) > (SELECT AVG(s) FROM (SELECT SUM(Total) AS s FROM Trades WHERE Type = 'Buy' GROUP BY StayId))",
+     "explain": "El `HAVING` compara la suma de cada estada amb la mitjana de totes les sumes, que es calcula amb una taula derivada. Tant la consulta exterior com la derivada filtren per `Type = 'Buy'`, perquè totes dues han de parlar del mateix conjunt de dades."
+    },
+    {
+     "text": "Mostra cada sistema solar (`SolarSystems`): el seu nom (`Name`), el nombre de planetes (`Planets`) que té i la diferència entre aquest nombre i la mitjana de planetes per sistema (nombre menys mitjana; la mitjana es calcula entre els sistemes que tenen algun planeta).",
+     "sql": "SELECT s.Name, COUNT(p.Id) AS n, COUNT(p.Id) - (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Planets GROUP BY SystemId)) AS diferencia FROM SolarSystems s LEFT JOIN Planets p ON p.SystemId = s.Id GROUP BY s.Id, s.Name",
+     "explain": "Una subconsulta escalar al `SELECT` (que internament usa una taula derivada) aporta la mitjana de planetes per sistema, que es resta del recompte de cada grup. El `LEFT JOIN` assegura que apareguin tots els sistemes, també els que no tinguessin planetes."
+    },
+    {
+     "text": "Mostra l'àlies (`Nickname`) i el benefici (suma dels `Total` dels `Trades` 'Sell' menys la suma dels de tipus 'Buy', de totes les seves estades) dels traders amb un benefici superior a la mitjana dels beneficis de tots els traders que han fet algun intercanvi. Relació: `Trades.StayId` apunta a `Stays.Id`, que té el `TraderId`.",
+     "sql": "SELECT t.Nickname, x.benefici FROM Traders t JOIN (SELECT s.TraderId, SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS benefici FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId) x ON x.TraderId = t.Id WHERE x.benefici > (SELECT AVG(b) FROM (SELECT SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS b FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId))",
+     "explain": "La taula derivada calcula el benefici per trader unint `Trades` amb `Stays` i sumant els 'Sell' en positiu i els 'Buy' en negatiu amb un `CASE`. La subconsulta escalar del `WHERE` repeteix el càlcul i en fa la mitjana, i el `JOIN` amb `Traders` posa el nom a cada resultat."
+    }
+   ]
+  }
+ ]
+}

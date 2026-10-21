@@ -1,0 +1,129 @@
+{
+  "database": "hotel",
+  "code_prefix": "sqlhotel",
+  "label": "Hotel (reserves, estades, clients, hostes, habitacions, tipus d'habitació, serveis i temporades de preus)",
+  "problems": [
+    {
+      "name": "Hotel 1: Primeres consultes",
+      "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {"text": "Mostra tots els camps de la taula `Facilities`.",
+         "sql": "SELECT * FROM Facilities"},
+        {"text": "Mostra el nom (`Name`) i la capacitat (`Capacity`) de tots els tipus d'habitació (`RoomTypes`), ordenats de menor a major capacitat.",
+         "sql": "SELECT Name, Capacity FROM RoomTypes ORDER BY Capacity"},
+        {"text": "Mostra el número d'habitació (`RoomNumber`) i l'identificador del seu tipus (`RoomTypeId`) de les habitacions que tenen `Empty` igual a 1, ordenades pel número d'habitació.",
+         "sql": "SELECT RoomNumber, RoomTypeId FROM Rooms WHERE Empty = 1 ORDER BY RoomNumber"}
+      ]
+    },
+    {
+      "name": "Hotel 2: Filtrant files",
+      "intro": "Practica les condicions del `WHERE`: comparacions i combinacions amb `AND`.",
+      "questions": [
+        {"text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`) i el preu (`Price`), en aquest ordre, de les reserves (`Bookings`) amb un preu superior a 1400.",
+         "sql": "SELECT Id, CheckIn, CheckOut, Price FROM Bookings WHERE Price > 1400"},
+        {"text": "Mostra l'identificador i el preu de les reserves amb estat (`State`) 'Cancelled' i exactament 6 hostes (`NHosts`).",
+         "sql": "SELECT Id, Price FROM Bookings WHERE State = 'Cancelled' AND NHosts = 6"},
+        {"text": "Mostra el nom (`Name`) i el dia d'inici (`StartingDay`) de les temporades (`Seasons`) que comencen a partir de l'1 de gener de 2023 (inclòs). Les dates són text amb format 'AAAA-MM-DD'.",
+         "sql": "SELECT Name, StartingDay FROM Seasons WHERE StartingDay >= '2023-01-01'"}
+      ]
+    },
+    {
+      "name": "Hotel 3: Cerques, rangs i NULL",
+      "intro": "Usa `LIKE`, `BETWEEN` i `IS NULL` per fer filtres més expressius.",
+      "questions": [
+        {"text": "Mostra el nom (`FirstName`) i el cognom (`LastName`), en aquest ordre, dels clients (`Customers`) de nacionalitat 'Spanish' el cognom dels quals comença per 'Garc'.",
+         "sql": "SELECT FirstName, LastName FROM Customers WHERE Nationality = 'Spanish' AND LastName LIKE 'Garc%'"},
+        {"text": "Mostra l'identificador i la data d'entrada (`CheckIn`) de les estades (`Stays`) pagades amb 'Cash' (`PaymentType`) amb data d'entrada entre l'1 i el 31 d'octubre de 2023, tots dos inclosos.",
+         "sql": "SELECT Id, CheckIn FROM Stays WHERE PaymentType = 'Cash' AND CheckIn BETWEEN '2023-10-01' AND '2023-10-31'"},
+        {"text": "Mostra l'identificador i el preu total (`TotalPrice`) de les estades que encara no tenen tipus de pagament (`PaymentType` no té valor).",
+         "sql": "SELECT Id, TotalPrice FROM Stays WHERE PaymentType IS NULL"}
+      ]
+    },
+    {
+      "name": "Hotel 4: Funcions d'agregació",
+      "intro": "`COUNT`, `SUM`, `MIN`, `MAX` i `COUNT(DISTINCT ...)` sobre tota una taula o un subconjunt.",
+      "questions": [
+        {"text": "Mostra quantes reserves amb estat 'Reserved' hi ha a la taula `Bookings`.",
+         "sql": "SELECT COUNT(*) FROM Bookings WHERE State = 'Reserved'"},
+        {"text": "Mostra el preu (`Price`) mínim i el màxim, en aquest ordre, de totes les reserves de la taula `Bookings`.",
+         "sql": "SELECT MIN(Price), MAX(Price) FROM Bookings"},
+        {"text": "Mostra quants clients diferents (`CustomerId`) han fet almenys una reserva.",
+         "sql": "SELECT COUNT(DISTINCT CustomerId) FROM Bookings"}
+      ]
+    },
+    {
+      "name": "Hotel 5: Agrupant dades",
+      "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
+      "questions": [
+        {"text": "Per cada estat de reserva (`State`), mostra l'estat i el nombre de reserves que hi ha.",
+         "sql": "SELECT State, COUNT(*) FROM Bookings GROUP BY State"},
+        {"text": "Per cada tipus de pagament (`PaymentType`) de les estades, mostra el tipus i la suma del preu total (`TotalPrice`). Ignora les estades sense tipus de pagament.",
+         "sql": "SELECT PaymentType, SUM(TotalPrice) FROM Stays WHERE PaymentType IS NOT NULL GROUP BY PaymentType"},
+        {"text": "Per cada nacionalitat (`Nationality`) de la taula `Hosts`, mostra la nacionalitat i el nombre d'hostes.",
+         "sql": "SELECT Nationality, COUNT(*) FROM Hosts GROUP BY Nationality"}
+      ]
+    },
+    {
+      "name": "Hotel 6: Filtrant grups",
+      "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
+      "questions": [
+        {"text": "Mostra l'identificador del tipus d'habitació (`RoomTypeId`) i el nombre de reserves de cada tipus, només dels tipus amb més de 1000 reserves a la taula `Bookings`.",
+         "sql": "SELECT RoomTypeId, COUNT(*) FROM Bookings GROUP BY RoomTypeId HAVING COUNT(*) > 1000"},
+        {"text": "Mostra l'identificador del client (`CustomerId`) i el nombre de reserves dels clients que n'han fet 3 o més.",
+         "sql": "SELECT CustomerId, COUNT(*) FROM Bookings GROUP BY CustomerId HAVING COUNT(*) >= 3"},
+        {"text": "Mostra el número d'habitació (`RoomNumber`) i el nombre d'estades de les habitacions que han tingut més de 250 estades a la taula `Stays`.",
+         "sql": "SELECT RoomNumber, COUNT(*) FROM Stays GROUP BY RoomNumber HAVING COUNT(*) > 250"}
+      ]
+    },
+    {
+      "name": "Hotel 7: Primers JOINs",
+      "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
+      "questions": [
+        {"text": "Mostra l'identificador de la reserva (`Bookings.Id`) i el correu electrònic (`Customers.Email`) del client, en aquest ordre, de les reserves amb estat 'Reserved' i preu superior a 1400.",
+         "sql": "SELECT b.Id, c.Email FROM Bookings b INNER JOIN Customers c ON c.Id = b.CustomerId WHERE b.State = 'Reserved' AND b.Price > 1400"},
+        {"text": "Per cada habitació (`Rooms`), mostra el seu número (`RoomNumber`) i el nom del seu tipus d'habitació (`RoomTypes.Name`).",
+         "sql": "SELECT r.RoomNumber, t.Name FROM Rooms r INNER JOIN RoomTypes t ON t.Id = r.RoomTypeId"},
+        {"text": "Mostra el nom de la temporada (`Seasons.Name`) i el preu (`PriceSeasons.Price`), en aquest ordre, per a totes les temporades del tipus d'habitació amb `RoomTypeId` igual a 8.",
+         "sql": "SELECT s.Name, p.Price FROM PriceSeasons p INNER JOIN Seasons s ON s.Id = p.SeasonId WHERE p.RoomTypeId = 8"}
+      ]
+    },
+    {
+      "name": "Hotel 8: JOINs de tres taules",
+      "intro": "Combina tres taules amb `JOIN`, i afegeix `WHERE` i `GROUP BY` quan cal.",
+      "questions": [
+        {"text": "Mostra el nom de cada servei (`Facilities.Name`) i el nombre de tipus d'habitació que l'ofereixen, a partir de `Facilities`, `RoomTypeFacilities` i `RoomTypes`.",
+         "sql": "SELECT f.Name, COUNT(*) FROM Facilities f INNER JOIN RoomTypeFacilities rf ON rf.FacilityId = f.Id INNER JOIN RoomTypes t ON t.Id = rf.RoomTypeId GROUP BY f.Id, f.Name"},
+        {"text": "Mostra l'identificador de l'estada (`Stays.Id`), el nom (`FirstName`) i el cognom (`LastName`) de cada hoste, en aquest ordre, de les estades que encara no tenen data de sortida (`CheckOut` no té valor). Uneix `Stays`, `StayHosts` i `Hosts`.",
+         "sql": "SELECT st.Id, h.FirstName, h.LastName FROM Stays st INNER JOIN StayHosts sh ON sh.StayId = st.Id INNER JOIN Hosts h ON h.Id = sh.HostId WHERE st.CheckOut IS NULL"},
+        {"text": "Considerant només les reserves amb estat 'Reserved', mostra la nacionalitat del client, el nom del tipus d'habitació i el nombre de reserves de cada combinació, en aquest ordre. Uneix `Bookings`, `Customers` i `RoomTypes`.",
+         "sql": "SELECT c.Nationality, t.Name, COUNT(*) FROM Bookings b INNER JOIN Customers c ON c.Id = b.CustomerId INNER JOIN RoomTypes t ON t.Id = b.RoomTypeId WHERE b.State = 'Reserved' GROUP BY c.Nationality, t.Id, t.Name"}
+      ]
+    },
+    {
+      "name": "Hotel 9: LEFT JOIN, CASE i dates",
+      "intro": "Inclou files sense coincidència amb `LEFT JOIN`, classifica amb `CASE` i treballa amb dates amb `strftime`.",
+      "questions": [
+        {"text": "Mostra el nom de tots els tipus d'habitació i el nombre de reserves 'Cancelled' que té cadascun, incloent-hi els que no en tenen cap (amb un 0).",
+         "sql": "SELECT t.Name, COUNT(b.Id) FROM RoomTypes t LEFT JOIN Bookings b ON b.RoomTypeId = t.Id AND b.State = 'Cancelled' GROUP BY t.Id, t.Name"},
+        {"text": "Considerant només les reserves amb estat 'Reserved', classifica-les segons el preu: 'Low' si és inferior a 150, 'Medium' si és entre 150 i 500 (tots dos inclosos) i 'High' si és superior a 500. Mostra la categoria i el nombre de reserves de cada categoria.",
+         "sql": "SELECT CASE WHEN Price < 150 THEN 'Low' WHEN Price <= 500 THEN 'Medium' ELSE 'High' END AS categoria, COUNT(*) FROM Bookings WHERE State = 'Reserved' GROUP BY categoria"},
+        {"text": "Per cada mes de l'any 2023, mostra el número de mes en format de dos dígits ('01' a '12', obtingut amb `strftime` sobre `CheckIn`) i el nombre de reserves 'Reserved' amb data d'entrada en aquest mes.",
+         "sql": "SELECT strftime('%m', CheckIn) AS mes, COUNT(*) FROM Bookings WHERE State = 'Reserved' AND strftime('%Y', CheckIn) = '2023' GROUP BY mes"}
+      ]
+    },
+    {
+      "name": "Hotel 10: Repte final",
+      "intro": "Consultes de més d'un pas: agregats, subconsultes i `JOIN` de tres taules.",
+      "questions": [
+        {"text": "Mostra el número d'habitació, el nombre d'estades i la suma del preu total (`TotalPrice`) de les estades, en aquest ordre, només de les habitacions els ingressos totals dels quals superen 100000.",
+         "sql": "SELECT RoomNumber, COUNT(*), SUM(TotalPrice) FROM Stays GROUP BY RoomNumber HAVING SUM(TotalPrice) > 100000"},
+        {"text": "Mostra l'identificador i el preu de les reserves amb estat 'Reserved' i preu superior a 600 que no tenen cap estada associada (el seu `Id` no apareix com a `BookingId` a `Stays`).",
+         "sql": "SELECT Id, Price FROM Bookings WHERE State = 'Reserved' AND Price > 600 AND Id NOT IN (SELECT BookingId FROM Stays)"},
+        {"text": "Mostra el nom del tipus d'habitació i el nombre total de reserves (de qualsevol estat) dels tipus que tenen més reserves que la mitjana de reserves per tipus. La mitjana es calcula només sobre els tipus d'habitació que tenen almenys una reserva.",
+         "sql": "SELECT t.Name, COUNT(*) FROM Bookings b INNER JOIN RoomTypes t ON t.Id = b.RoomTypeId GROUP BY t.Id, t.Name HAVING COUNT(*) > (SELECT AVG(n) FROM (SELECT COUNT(*) AS n FROM Bookings GROUP BY RoomTypeId))"},
+        {"text": "Mostra l'identificador de l'estada i el nombre d'hostes amb document de tipus 'Passport' (`DocType`) que hi han participat, només de les estades amb 4 o més hostes d'aquest tipus. Uneix `Stays`, `StayHosts` i `Hosts`.",
+         "sql": "SELECT st.Id, COUNT(*) FROM Stays st INNER JOIN StayHosts sh ON sh.StayId = st.Id INNER JOIN Hosts h ON h.Id = sh.HostId WHERE h.DocType = 'Passport' GROUP BY st.Id HAVING COUNT(*) >= 4"}
+      ]
+    }
+  ]
+}

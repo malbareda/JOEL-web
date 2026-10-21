@@ -1,0 +1,299 @@
+{
+ "problems": [
+  {
+   "code": "sqlins01",
+   "database": "employees",
+   "type": "sqlinsert",
+   "name": "SQL Inserts 1: la sentència INSERT",
+   "intro": "Practiques la forma bàsica de `INSERT INTO taula (columnes) VALUES (valors)` sobre la taula `Employees`: text entre cometes simples, números sense cometes i dates en format 'AAAA-MM-DD'.",
+   "questions": [
+    {
+     "text": "Afegeix a la taula `Employees` un empleat amb aquests valors: `Id` = 11, `FirstName` = 'Marta', `LastName` = 'Vidal', `EMail` = 'mvidal@exemple.cat', `Phone` = '931-555-0101', `JobTitle` = 'Developer', `BirthDate` = '1992-04-18' i `Salary` = 2300. Indica explícitament la llista de columnes.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (11, 'Marta', 'Vidal', 'mvidal@exemple.cat', '931-555-0101', 'Developer', '1992-04-18', 2300)",
+     "explain": "Amb la llista de columnes explícita, els valors s'assignen per posició a cada columna. Els textos i les dates van entre cometes simples; el sou, com a número, no."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 12, `FirstName` = 'Jordi', `LastName` = 'Puig', `EMail` = 'jpuig@exemple.cat', `Phone` = '932-555-0102', `JobTitle` = 'Accountant', `BirthDate` = '1985-11-03' i `Salary` = 2100.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (12, 'Jordi', 'Puig', 'jpuig@exemple.cat', '932-555-0102', 'Accountant', '1985-11-03', 2100)",
+     "explain": "És un INSERT complet d'una fila: cal donar un valor a cada columna, en l'ordre en què s'ha escrit la llista de columnes."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 13, `FirstName` = 'Núria', `LastName` = 'Soler', `EMail` = 'nsoler@exemple.cat', `Phone` = '933-555-0103', `JobTitle` = 'Graphic Designer', `BirthDate` = '1990-01-30' i `Salary` = 1950.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (13, 'Núria', 'Soler', 'nsoler@exemple.cat', '933-555-0103', 'Graphic Designer', '1990-01-30', 1950)",
+     "explain": "Els textos amb accents també van entre cometes simples. La data s'escriu en text amb el format 'AAAA-MM-DD'."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 14, `FirstName` = 'Pau', `LastName` = 'Ferrer', `EMail` = 'pferrer@exemple.cat', `Phone` = '934-555-0104', `JobTitle` = 'Data Analyst', `BirthDate` = '1988-07-22' i `Salary` = 2450. Escriu les columnes en aquest ordre: `Id`, `LastName`, `FirstName`, `EMail`, `Phone`, `JobTitle`, `BirthDate`, `Salary`.",
+     "sql": "INSERT INTO Employees (Id, LastName, FirstName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (14, 'Ferrer', 'Pau', 'pferrer@exemple.cat', '934-555-0104', 'Data Analyst', '1988-07-22', 2450)",
+     "explain": "L'ordre de la llista de columnes no cal que coincideixi amb el de la taula, però els valors s'han de posar en el mateix ordre que les columnes. Aquí `LastName` va abans de `FirstName`."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 15, `FirstName` = 'Laia', `LastName` = 'Roca', `EMail` = NULL, `Phone` = '935-555-0105', `JobTitle` = 'Receptionist', `BirthDate` = '1996-09-09' i `Salary` = 1500. L'`EMail` ha de quedar com a valor NULL (no el text 'NULL').",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (15, 'Laia', 'Roca', NULL, '935-555-0105', 'Receptionist', '1996-09-09', 1500)",
+     "explain": "`NULL` s'escriu sense cometes: és l'absència de valor i no el text 'NULL'. La columna `EMail` admet NULL perquè no té `NOT NULL`."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 16, `FirstName` = 'Joan', `LastName` = 'D''Alba' (el cognom porta un apòstrof: `D'Alba`), `EMail` = 'jdalba@exemple.cat', `Phone` = '936-555-0106', `JobTitle` = 'Sales Manager', `BirthDate` = '1979-12-25' i `Salary` = 2800.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (16, 'Joan', 'D''Alba', 'jdalba@exemple.cat', '936-555-0106', 'Sales Manager', '1979-12-25', 2800)",
+     "explain": "Dins d'un text entre cometes simples, un apòstrof s'escapa duplicant-lo (`''`). El valor que es guarda és `D'Alba`."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 17, `FirstName` = 'Èlia', `LastName` = 'Camps', `EMail` = 'ecamps@exemple.cat', `Phone` = NULL, `JobTitle` = 'Intern', `BirthDate` = '2001-02-14' i `Salary` = NULL. Posa NULL a `Phone` i a `Salary`.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (17, 'Èlia', 'Camps', 'ecamps@exemple.cat', NULL, 'Intern', '2001-02-14', NULL)",
+     "explain": "Es poden posar NULL a les columnes que ho permeten (`Phone`, `Salary`). En canvi `FirstName`, `LastName`, `JobTitle` i `BirthDate` són `NOT NULL` i sempre necessiten valor."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 18, `FirstName` = 'Oriol', `LastName` = 'Mas', `EMail` = 'omas@exemple.cat', `Phone` = '937-555-0108', `JobTitle` = 'Systems Administrator', `BirthDate` = '1983-06-01' i `Salary` = 2650. Omple les vuit columnes.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (18, 'Oriol', 'Mas', 'omas@exemple.cat', '937-555-0108', 'Systems Administrator', '1983-06-01', 2650)",
+     "explain": "Les vuit columnes tenen valor, així que és un INSERT complet. La llista explícita fa la sentència més robusta davant canvis d'estructura de la taula."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 19, `FirstName` = 'Sílvia', `LastName` = 'Bosch', `EMail` = 'sbosch@exemple.cat', `Phone` = '938-555-0109', `JobTitle` = 'Project Manager', `BirthDate` = '1975-03-08' i `Salary` = 3100. Fixa't que el sou és un número (3100) i no un text.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (19, 'Sílvia', 'Bosch', 'sbosch@exemple.cat', '938-555-0109', 'Project Manager', '1975-03-08', 3100)",
+     "explain": "`Salary` és una columna numèrica; si s'escrivís entre cometes (`'3100'`) s'enviaria com a text. Els números van sempre sense cometes."
+    },
+    {
+     "text": "Afegeix un empleat amb `Id` = 20, `FirstName` = 'Ferran', `LastName` = 'O''Neill' (el cognom és `O'Neill`), `EMail` = NULL, `Phone` = '939-555-0110', `JobTitle` = 'Database Administrator', `BirthDate` = '1981-10-17' i `Salary` = 2900.",
+     "sql": "INSERT INTO Employees (Id, FirstName, LastName, EMail, Phone, JobTitle, BirthDate, Salary) VALUES (20, 'Ferran', 'O''Neill', NULL, '939-555-0110', 'Database Administrator', '1981-10-17', 2900)",
+     "explain": "Combina els dos detalls ja vistos: l'apòstrof escapat amb `''` dins del cognom i el NULL sense cometes a `EMail`."
+    }
+   ]
+  },
+  {
+   "code": "sqlins02",
+   "database": "knights",
+   "type": "sqlinsert",
+   "name": "SQL Inserts 2: columnes, valors per defecte i taules relacionades",
+   "intro": "Practiques `INSERT` amb llista de columnes parcial (la resta pren el valor per defecte o NULL), sense llista de columnes i sobre dues taules relacionades per una clau forana (`Knights` i `Dragons`).",
+   "questions": [
+    {
+     "text": "Afegeix a `Knights` un cavaller amb `Nickname` = 'Alaric the Bold', `Gender` = 'M', `Firstname` = 'Alaric', `Lastname` = 'Stone', `Title` = 'Sir', `BirthDate` = '1150-05-12' i `DeathDate` = '1210-09-30'. Indica la llista de columnes.",
+     "sql": "INSERT INTO Knights (Nickname, Gender, Firstname, Lastname, Title, BirthDate, DeathDate) VALUES ('Alaric the Bold', 'M', 'Alaric', 'Stone', 'Sir', '1150-05-12', '1210-09-30')",
+     "explain": "Totes les columnes de `Knights` són `NOT NULL` i sense valor per defecte, així que cal donar-ne un valor a cadascuna."
+    },
+    {
+     "text": "Afegeix a `Knights` una cavallera sense indicar la llista de columnes (els valors han d'anar en l'ordre de la taula: `Nickname`, `Gender`, `Firstname`, `Lastname`, `Title`, `BirthDate`, `DeathDate`): 'Brianna the Swift', 'F', 'Brianna', 'Hale', 'Dame', '1162-03-21', '1219-11-02'.",
+     "sql": "INSERT INTO Knights VALUES ('Brianna the Swift', 'F', 'Brianna', 'Hale', 'Dame', '1162-03-21', '1219-11-02')",
+     "explain": "Sense llista de columnes, `VALUES` ha de donar un valor per a cada columna de la taula i en el mateix ordre en què es va crear."
+    },
+    {
+     "text": "Afegeix a `Knights` un cavaller amb `Nickname` = 'Cedric the O''Wise' (el sobrenom porta un apòstrof: `Cedric the O'Wise`), `Gender` = 'M', `Firstname` = 'Cedric', `Lastname` = 'Moore', `Title` = 'Baron', `BirthDate` = '1175-08-08' i `DeathDate` = '1241-01-15'.",
+     "sql": "INSERT INTO Knights (Nickname, Gender, Firstname, Lastname, Title, BirthDate, DeathDate) VALUES ('Cedric the O''Wise', 'M', 'Cedric', 'Moore', 'Baron', '1175-08-08', '1241-01-15')",
+     "explain": "L'apòstrof dins d'un text s'escapa duplicant-lo: `O''Wise` es guarda com `O'Wise`."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac amb `Name` = 'Aranthor, the Ember', `Description` = 'Small dragon with ember scales', `Color` = 'Red', `KnownVictims` = 12, `KilledBy` = 'Teodbald the Brave' (cavaller que ja existeix), `DeathDate` = '1200-06-14' i `BattleOutcome` = 'Unharmed'. Indica la llista de columnes.",
+     "sql": "INSERT INTO Dragons (Name, Description, Color, KnownVictims, KilledBy, DeathDate, BattleOutcome) VALUES ('Aranthor, the Ember', 'Small dragon with ember scales', 'Red', 12, 'Teodbald the Brave', '1200-06-14', 'Unharmed')",
+     "explain": "`KilledBy` és una clau forana cap a `Knights.Nickname`, així que ha de ser un sobrenom de cavaller existent. Els altres valors s'escriuen un per columna."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac indicant només les columnes obligatòries `Name`, `KnownVictims`, `KilledBy` i `DeathDate`: `Name` = 'Belkar, the Quiet', `KnownVictims` = 3, `KilledBy` = 'Isard the Patroller' i `DeathDate` = '1188-02-27'. La resta de columnes han de prendre el seu valor per defecte (`Description` buida, `Color` i `BattleOutcome` NULL).",
+     "sql": "INSERT INTO Dragons (Name, KnownVictims, KilledBy, DeathDate) VALUES ('Belkar, the Quiet', 3, 'Isard the Patroller', '1188-02-27')",
+     "explain": "Les columnes no mencionades agafen el seu `DEFAULT`: `Description` val `''` i `Color` i `BattleOutcome` valen NULL."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac amb `Name` = 'Caldrith, the Pale', `Color` = 'White', `KnownVictims` = 27, `KilledBy` = 'Hewelin the Champion', `DeathDate` = '1233-10-05' i `BattleOutcome` = 'Dead'. No donis valor a `Description` (ha de quedar amb el valor per defecte).",
+     "sql": "INSERT INTO Dragons (Name, Color, KnownVictims, KilledBy, DeathDate, BattleOutcome) VALUES ('Caldrith, the Pale', 'White', 27, 'Hewelin the Champion', '1233-10-05', 'Dead')",
+     "explain": "Només s'ometen les columnes que tenen valor per defecte. Aquí `Description` queda amb `''` perquè la columna és `NOT NULL DEFAULT ''`."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac sense llista de columnes, amb els valors en l'ordre de la taula (`Name`, `Description`, `Color`, `KnownVictims`, `KilledBy`, `DeathDate`, `BattleOutcome`): 'Dorvalux, the Swift', 'Slender dragon of the mountains', 'Green', 8, 'Bruiant the Whisper', '1195-04-04', 'Heavily wounded'.",
+     "sql": "INSERT INTO Dragons VALUES ('Dorvalux, the Swift', 'Slender dragon of the mountains', 'Green', 8, 'Bruiant the Whisper', '1195-04-04', 'Heavily wounded')",
+     "explain": "Sense llista de columnes cal donar els set valors, en l'ordre de definició de la taula, també els que tindrien valor per defecte."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac sense llista de columnes amb `Name` = 'Eskarion, the Silent', `Description` = una cadena buida (`''`), `Color` = NULL, `KnownVictims` = 0, `KilledBy` = 'Launcelot the Tenacious', `DeathDate` = '1260-12-01' i `BattleOutcome` = NULL.",
+     "sql": "INSERT INTO Dragons VALUES ('Eskarion, the Silent', '', NULL, 0, 'Launcelot the Tenacious', '1260-12-01', NULL)",
+     "explain": "Una cadena buida (`''`) i NULL no són el mateix valor: `Description` rep `''` i `Color` i `BattleOutcome` reben NULL."
+    },
+    {
+     "text": "Afegeix a `Knights` un nou cavaller amb `Nickname` = 'Fiona the Fearless', `Gender` = 'F', `Firstname` = 'Fiona', `Lastname` = 'Gray', `Title` = 'Countess', `BirthDate` = '1180-09-19' i `DeathDate` = '1251-04-23'. (El drac que mataria es registraria en una altra sentència.)",
+     "sql": "INSERT INTO Knights (Nickname, Gender, Firstname, Lastname, Title, BirthDate, DeathDate) VALUES ('Fiona the Fearless', 'F', 'Fiona', 'Gray', 'Countess', '1180-09-19', '1251-04-23')",
+     "explain": "Per registrar un drac mort per un cavaller nou, primer cal que el cavaller existeixi a `Knights` perquè la clau forana de `Dragons` tingui sentit."
+    },
+    {
+     "text": "Afegeix a `Dragons` un drac amb `Name` = 'Gorthak, Lord of Ash', `Description` = 'Huge black dragon' , `Color` = 'Black', `KnownVictims` = 45, `KilledBy` = 'Cristoffle the Broken', `DeathDate` = '1140-07-30' i `BattleOutcome` = 'Lightly wounded'. Usa la llista de columnes.",
+     "sql": "INSERT INTO Dragons (Name, Description, Color, KnownVictims, KilledBy, DeathDate, BattleOutcome) VALUES ('Gorthak, Lord of Ash', 'Huge black dragon', 'Black', 45, 'Cristoffle the Broken', '1140-07-30', 'Lightly wounded')",
+     "explain": "Un INSERT complet amb llista de columnes sobre `Dragons`. El cavaller 'Cristoffle the Broken' ja existeix, de manera que la clau forana és vàlida."
+    }
+   ]
+  },
+  {
+   "code": "sqlins03",
+   "database": "miniwind",
+   "type": "sqlinsert",
+   "name": "SQL Inserts 3: diverses files en una sola sentència",
+   "intro": "Practiques inserir diverses files amb un únic `INSERT INTO ... VALUES (...), (...), (...)` a taules diferents de la base de dades miniwind.",
+   "questions": [
+    {
+     "text": "Afegeix en una sola sentència tres clients a `customers` (columnes `id`, `company`, `last_name`, `first_name`, `city`): (30, 'Tecnologies Vallès', 'Serra', 'Anna', 'Sabadell'), (31, 'Fustes Garraf', 'Pons', 'Marc', 'Vilanova'), (32, 'Cafès Bonanova', 'Roig', 'Elena', 'Barcelona').",
+     "sql": "INSERT INTO customers (id, company, last_name, first_name, city) VALUES (30, 'Tecnologies Vallès', 'Serra', 'Anna', 'Sabadell'), (31, 'Fustes Garraf', 'Pons', 'Marc', 'Vilanova'), (32, 'Cafès Bonanova', 'Roig', 'Elena', 'Barcelona')",
+     "explain": "Cada fila va entre parèntesis i les files se separen amb comes dins del mateix `VALUES`. Les columnes no indicades queden a NULL."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres productes a `products` (columnes `id`, `product_code`, `product_name`, `list_price`, `category`): (100, 'NWT-30', 'Te Verd', 12.5, 'Beverages'), (101, 'NWT-31', 'Cafè Molt', 8, 'Beverages'), (102, 'NWT-32', 'Sal Marina', 2.75, 'Condiments').",
+     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) VALUES (100, 'NWT-30', 'Te Verd', 12.5, 'Beverages'), (101, 'NWT-31', 'Cafè Molt', 8, 'Beverages'), (102, 'NWT-32', 'Sal Marina', 2.75, 'Condiments')",
+     "explain": "Un sol `INSERT` pot afegir tantes files com calgui. Els decimals s'escriuen amb punt i sense cometes."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres estats a `orders_status` (columnes `id`, `status_name`): (4, 'Cancelled'), (5, 'On Hold'), (6, 'Returned').",
+     "sql": "INSERT INTO orders_status (id, status_name) VALUES (4, 'Cancelled'), (5, 'On Hold'), (6, 'Returned')",
+     "explain": "És la forma més compacta d'omplir una taula petita de catàleg: una única sentència i tres files."
+    },
+    {
+     "text": "Afegeix en una sola sentència dos proveïdors a `suppliers` (columnes `id`, `company`, `last_name`, `first_name`, `country_region`): (11, 'Oli Penedès', 'Mas', 'Jaume', 'Spain'), (12, 'Formatges Alps', 'Keller', 'Hans', 'Switzerland').",
+     "sql": "INSERT INTO suppliers (id, company, last_name, first_name, country_region) VALUES (11, 'Oli Penedès', 'Mas', 'Jaume', 'Spain'), (12, 'Formatges Alps', 'Keller', 'Hans', 'Switzerland')",
+     "explain": "Mateix patró que amb els clients, ara sobre `suppliers`. Cal que totes les files tinguin el mateix nombre de valors que la llista de columnes."
+    },
+    {
+     "text": "Afegeix en una sola sentència dos estats a `order_details_status` (columnes `id`, `status_name`): (6, 'Backordered') i (7, 'Cancelled').",
+     "sql": "INSERT INTO order_details_status (id, status_name) VALUES (6, 'Backordered'), (7, 'Cancelled')",
+     "explain": "Inserció múltiple sobre una taula auxiliar: dues files, un únic `INSERT`."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres comandes a `orders` (columnes `id`, `employee_id`, `customer_id`, `order_date`, `status_id`): (82, 1, 1, '2006-05-01 00:00:00', 0), (83, 2, 3, '2006-05-02 00:00:00', 0), (84, 3, 5, '2006-05-03 00:00:00', 1).",
+     "sql": "INSERT INTO orders (id, employee_id, customer_id, order_date, status_id) VALUES (82, 1, 1, '2006-05-01 00:00:00', 0), (83, 2, 3, '2006-05-02 00:00:00', 0), (84, 3, 5, '2006-05-03 00:00:00', 1)",
+     "explain": "Les columnes `employee_id`, `customer_id` i `status_id` són claus foranes que apunten a files existents. Les columnes que no s'indiquen prenen el seu valor per defecte o NULL."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres línies a `order_details` (columnes `id`, `order_id`, `product_id`, `quantity`, `unit_price`, `discount`): (92, 31, 1, 5, 18, 0), (93, 31, 3, 2, 10, 0.05), (94, 31, 4, 10, 22, 0).",
+     "sql": "INSERT INTO order_details (id, order_id, product_id, quantity, unit_price, discount) VALUES (92, 31, 1, 5, 18, 0), (93, 31, 3, 2, 10, 0.05), (94, 31, 4, 10, 22, 0)",
+     "explain": "Les tres línies pertanyen a la comanda 31 i cadascuna té un producte diferent. Fixa't que cada fila porta el seu propi `id`."
+    },
+    {
+     "text": "Afegeix en una sola sentència dos clients a `customers` amb NULL explícit (columnes `id`, `company`, `last_name`, `first_name`, `email_address`, `city`): (33, 'Llibreria Ponent', 'Vila', 'Carla', NULL, 'Lleida') i (34, 'Ferreteria Sud', 'Puig', 'Toni', 'toni@ferreteriasud.cat', NULL).",
+     "sql": "INSERT INTO customers (id, company, last_name, first_name, email_address, city) VALUES (33, 'Llibreria Ponent', 'Vila', 'Carla', NULL, 'Lleida'), (34, 'Ferreteria Sud', 'Puig', 'Toni', 'toni@ferreteriasud.cat', NULL)",
+     "explain": "Dins d'un `VALUES` múltiple es poden barrejar valors i NULL fila a fila. NULL va sense cometes."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres productes a `products` (columnes `id`, `product_code`, `product_name`, `standard_cost`, `list_price`, `category`, `reorder_level`): (103, 'NWT-33', 'Pasta Fresca', 1.5, 3, 'Pasta', 10), (104, 'NWT-34', 'Salsa Tomàquet', 0.9, 2.2, 'Sauces', 20), (105, 'NWT-35', 'Sopa de Peix', 2, 4.5, 'Soups', 15).",
+     "sql": "INSERT INTO products (id, product_code, product_name, standard_cost, list_price, category, reorder_level) VALUES (103, 'NWT-33', 'Pasta Fresca', 1.5, 3, 'Pasta', 10), (104, 'NWT-34', 'Salsa Tomàquet', 0.9, 2.2, 'Sauces', 20), (105, 'NWT-35', 'Sopa de Peix', 2, 4.5, 'Soups', 15)",
+     "explain": "Amb més columnes la sentència és més llarga però igual d'estructurada: una llista de columnes i una fila per producte."
+    },
+    {
+     "text": "Afegeix en una sola sentència tres factures a `invoices` (columnes `id`, `order_id`, `invoice_date`, `tax`, `shipping`, `amount_due`): (40, 31, '2006-02-01 00:00:00', 2, 5, 100), (41, 32, '2006-02-02 00:00:00', 1.5, 5, 80), (42, 30, '2006-02-03 00:00:00', 0, 0, 50).",
+     "sql": "INSERT INTO invoices (id, order_id, invoice_date, tax, shipping, amount_due) VALUES (40, 31, '2006-02-01 00:00:00', 2, 5, 100), (41, 32, '2006-02-02 00:00:00', 1.5, 5, 80), (42, 30, '2006-02-03 00:00:00', 0, 0, 50)",
+     "explain": "Cada factura apunta a una comanda existent mitjançant `order_id`. La columna `due_date` no s'indica i queda a NULL."
+    }
+   ]
+  },
+  {
+   "code": "sqlins04",
+   "database": "northwind",
+   "type": "sqlinsert",
+   "name": "SQL Inserts 4: INSERT ... SELECT",
+   "intro": "Practiques `INSERT INTO ... SELECT ...`: copiar i transformar files d'una taula a una altra, inserir resultats calculats i combinar `VALUES` amb subconsultes.",
+   "questions": [
+    {
+     "text": "Copia els productes de la categoria 'Beverages' dins de la mateixa taula `products`, amb aquestes regles: `id` = id original + 200, `product_code` = 'COPY-' seguit del codi original, `product_name` = nom original, `list_price` = preu original i `category` = 'Beverages'. Indica les columnes `id`, `product_code`, `product_name`, `list_price` i `category`.",
+     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 200, 'COPY-' || product_code, product_name, list_price, category FROM products WHERE category = 'Beverages'",
+     "explain": "El `SELECT` calcula les files que s'insereixen: es pot sumar a l'`id` i concatenar amb `||`. Com que el `SELECT` llegeix de l'estat original, no hi ha ambigüitat."
+    },
+    {
+     "text": "Duplica a `customers` els clients amb `id` entre 1 i 5, amb `id` = id original + 100 i les mateixes `company`, `city` i `country_region`. Indica les columnes `id`, `company`, `city` i `country_region`.",
+     "sql": "INSERT INTO customers (id, company, city, country_region) SELECT id + 100, company, city, country_region FROM customers WHERE id BETWEEN 1 AND 5",
+     "explain": "`INSERT ... SELECT` permet duplicar files canviant-ne la clau primària per evitar el conflicte amb les originals."
+    },
+    {
+     "text": "Insereix a `shippers` els tres primers proveïdors de la taula `suppliers` (els de `id` 1, 2 i 3): `id` = id del proveïdor + 10 i `company` = nom de l'empresa del proveïdor. Indica les columnes `id` i `company`.",
+     "sql": "INSERT INTO shippers (id, company) SELECT id + 10, company FROM suppliers WHERE id <= 3",
+     "explain": "Es poden copiar dades entre taules diferents mentre les columnes del `SELECT` coincideixin en nombre i ordre amb la llista de columnes de l'`INSERT`."
+    },
+    {
+     "text": "Crea una factura a `invoices` per a cada comanda de `orders` amb `status_id` = 3 (tancada): `id` = id de la comanda + 1000, `order_id` = id de la comanda, `invoice_date` = `order_date` de la comanda i `shipping` = `shipping_fee` de la comanda. Indica les columnes `id`, `order_id`, `invoice_date` i `shipping`.",
+     "sql": "INSERT INTO invoices (id, order_id, invoice_date, shipping) SELECT id + 1000, id, order_date, shipping_fee FROM orders WHERE status_id = 3",
+     "explain": "Aquí es generen factures a partir de comandes: el `SELECT` agafa les dades de `orders` i l'`INSERT` les desa a `invoices`. La resta de columnes de la factura queden amb el valor per defecte."
+    },
+    {
+     "text": "Dóna el privilegi 2 a tots els empleats la feina dels quals (`job_title`) és exactament 'Sales Representative', inserint a `employee_privileges` una fila (`employee_id`, `privilege_id`) per empleat, amb `privilege_id` = 2.",
+     "sql": "INSERT INTO employee_privileges (employee_id, privilege_id) SELECT id, 2 FROM employees WHERE job_title = 'Sales Representative'",
+     "explain": "Un valor constant (`2`) es pot posar directament al `SELECT` per omplir una columna. Hi ha una fila nova per cada empleat que compleix el filtre."
+    },
+    {
+     "text": "Insereix una comanda a `orders` amb `id` = 200, `employee_id` = l'`id` de l'empleat amb `last_name` = 'Jabez' (obtingut amb una subconsulta), `customer_id` = l'`id` del client amb `company` = 'Toy-Rutherford' (també amb subconsulta), `order_date` = '2006-06-01 00:00:00' i `status_id` = 0. Usa `INSERT ... VALUES` amb subconsultes.",
+     "sql": "INSERT INTO orders (id, employee_id, customer_id, order_date, status_id) VALUES (200, (SELECT id FROM employees WHERE last_name = 'Jabez'), (SELECT id FROM customers WHERE company = 'Toy-Rutherford'), '2006-06-01 00:00:00', 0)",
+     "explain": "Dins d'un `VALUES` es poden usar subconsultes escalars per obtenir claus foranes sense haver de saber-ne el número. Cada subconsulta ha de retornar una sola fila."
+    },
+    {
+     "text": "Copia les línies de la comanda 31 (taula `order_details`) a la comanda 32: `id` = id original + 1000, `order_id` = 32, i `product_id`, `quantity`, `unit_price` i `discount` iguals als de l'original. Indica les columnes `id`, `order_id`, `product_id`, `quantity`, `unit_price` i `discount`.",
+     "sql": "INSERT INTO order_details (id, order_id, product_id, quantity, unit_price, discount) SELECT id + 1000, 32, product_id, quantity, unit_price, discount FROM order_details WHERE order_id = 31",
+     "explain": "Es canvia la comanda de destinació amb un valor constant (`32`) i es desplacen els `id` per no xocar amb els existents."
+    },
+    {
+     "text": "Copia a `strings` les files amb `string_id` entre 2 i 5, amb `string_id` = id original + 1000 i `string_data` = el text original convertit a majúscules amb `UPPER`. Indica les columnes `string_id` i `string_data`.",
+     "sql": "INSERT INTO strings (string_id, string_data) SELECT string_id + 1000, UPPER(string_data) FROM strings WHERE string_id BETWEEN 2 AND 5",
+     "explain": "El `SELECT` pot aplicar funcions com `UPPER` abans d'inserir, de manera que es desa el valor transformat."
+    },
+    {
+     "text": "Duplica els productes de la categoria 'Condiments' amb un 10% més de preu: `id` = id original + 300, `product_code` = codi original seguit de '-PLUS', `product_name` = nom original, `list_price` = `ROUND(list_price * 1.1, 2)` i `category` = 'Condiments'. Indica les columnes `id`, `product_code`, `product_name`, `list_price` i `category`.",
+     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 300, product_code || '-PLUS', product_name, ROUND(list_price * 1.1, 2), category FROM products WHERE category = 'Condiments'",
+     "explain": "El valor calculat `ROUND(list_price * 1.1, 2)` es desa ja com a dada. La condició `WHERE` limita les files copiades."
+    },
+    {
+     "text": "Genera a `inventory_transactions` una fila per cada producte que apareix a `order_details`: `id` = 1000 + `product_id`, `transaction_type` = 2, `product_id`, `quantity` = suma de `quantity` d'aquell producte a `order_details` i `comments` = 'Resum de vendes'. Indica les columnes `id`, `transaction_type`, `product_id`, `quantity` i `comments`.",
+     "sql": "INSERT INTO inventory_transactions (id, transaction_type, product_id, quantity, comments) SELECT 1000 + product_id, 2, product_id, SUM(quantity), 'Resum de vendes' FROM order_details GROUP BY product_id",
+     "explain": "Un `SELECT` amb `GROUP BY` i una funció d'agregació dóna una fila per producte; l'`INSERT` guarda aquests resums a la taula de destinació."
+    }
+   ]
+  },
+  {
+   "code": "sqlins05",
+   "database": "traders",
+   "type": "sqlinsert",
+   "name": "SQL Inserts 5: valors calculats, subconsultes i INSERT ... SELECT",
+   "intro": "Problema final mesclat: inserts amb expressions i funcions de SQLite (`date`, `UPPER`, `COALESCE`), claus foranes obtingudes amb subconsultes i `INSERT ... SELECT` amb filtres i agrupacions.",
+   "questions": [
+    {
+     "text": "Afegeix a `Products` un producte amb `Id` = 31 i `Name` = el text 'plasma lance' convertit a majúscules amb `UPPER` (ha de quedar 'PLASMA LANCE').",
+     "sql": "INSERT INTO Products (Id, Name) VALUES (31, UPPER('plasma lance'))",
+     "explain": "Dins de `VALUES` es poden cridar funcions. `UPPER` es calcula abans de desar la fila, així que s'hi guarda 'PLASMA LANCE'."
+    },
+    {
+     "text": "Afegeix a `Traders` un comerciant amb `Id` = 21, `Nickname` = 'Comet', `Firstname` = 'Lia', `Lastname` = el resultat de `COALESCE((SELECT Lastname FROM Traders WHERE Id = 999), 'Desconegut')` i `DeceaseDate` = NULL.",
+     "sql": "INSERT INTO Traders (Id, Nickname, Firstname, Lastname, DeceaseDate) VALUES (21, 'Comet', 'Lia', COALESCE((SELECT Lastname FROM Traders WHERE Id = 999), 'Desconegut'), NULL)",
+     "explain": "La subconsulta no troba cap fila i retorna NULL, de manera que `COALESCE` tria el segon valor, 'Desconegut'."
+    },
+    {
+     "text": "Afegeix a `Stays` una estada amb `Id` = 130, `StartDate` = `date('2352-01-01', '+30 days')` (30 dies després de l'1 de gener de 2352), `TraderId` = 1, `EndDate` = NULL i `PlanetId` = 2.",
+     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) VALUES (130, date('2352-01-01', '+30 days'), 1, NULL, 2)",
+     "explain": "`date()` suma un interval a una data i retorna el text 'AAAA-MM-DD'. Aquí dóna '2352-01-31'."
+    },
+    {
+     "text": "Registra a `ShipOwners` la propietat d'una nau: `Id` = 104, `ShipId` = l'`Id` de la nau de nom 'Phoenix' (subconsulta a `Ships`), `TraderId` = l'`Id` del comerciant amb `Nickname` = 'Nix' (subconsulta a `Traders`), `AcquisitionDate` = '2350-05-05' i `AcquisitionPrice` = 1500.50. Les altres columnes han de prendre el valor per defecte. Indica només les columnes `Id`, `ShipId`, `TraderId`, `AcquisitionDate` i `AcquisitionPrice`.",
+     "sql": "INSERT INTO ShipOwners (Id, ShipId, TraderId, AcquisitionDate, AcquisitionPrice) VALUES (104, (SELECT Id FROM Ships WHERE Name = 'Phoenix'), (SELECT Id FROM Traders WHERE Nickname = 'Nix'), '2350-05-05', 1500.50)",
+     "explain": "Les subconsultes escalars substitueixen els identificadors que no cal memoritzar. `AcquisitionCause`, `LostDate`, `LostBenefit` i `LostCause` agafen el seu `DEFAULT`."
+    },
+    {
+     "text": "Afegeix a `Planets` un planeta amb `Id` = 15, `Code` = el `Code` del sistema solar de nom 'Grif' seguit de 'NE10' (concatenació amb `||`, subconsulta a `SolarSystems`), `Name` = 'Neo Grif', `Position` = 10, `SystemId` = l'`Id` del sistema solar 'Grif' (subconsulta) i `AverageDistance` = 1.5.",
+     "sql": "INSERT INTO Planets (Id, Code, Name, Position, SystemId, AverageDistance) VALUES (15, (SELECT Code FROM SolarSystems WHERE Name = 'Grif') || 'NE10', 'Neo Grif', 10, (SELECT Id FROM SolarSystems WHERE Name = 'Grif'), 1.5)",
+     "explain": "Una mateixa subconsulta es pot fer servir per obtenir tant una clau forana com un valor per construir un codi. El codi resultant és 'GR15OXNE10'."
+    },
+    {
+     "text": "Insereix a `PriceChanges` una còpia dels canvis de preu de la data '2200-03-29': `Id` = id original + 20000, `Date` = '2400-01-01', `ProductId` i `PlanetId` iguals als de l'original, i `NewPrice` = `ROUND(NewPrice * 1.05, 2)` (un 5% més). Indica les columnes `Id`, `Date`, `ProductId`, `PlanetId` i `NewPrice`.",
+     "sql": "INSERT INTO PriceChanges (Id, Date, ProductId, PlanetId, NewPrice) SELECT Id + 20000, '2400-01-01', ProductId, PlanetId, ROUND(NewPrice * 1.05, 2) FROM PriceChanges WHERE Date = '2200-03-29'",
+     "explain": "Un `INSERT ... SELECT` amb filtre per data copia només aquelles files i en recalcula el preu. La data nova evita violar la restricció `UNIQUE (Date, ProductId, PlanetId)`."
+    },
+    {
+     "text": "Insereix a `Ships` una nau prototip per cada tipus de nau: `Id` = 1000 + el mínim `Id` d'aquell tipus, `Name` = el tipus seguit de ' prototype', `Type` = el tipus i `Capacity` = la capacitat màxima d'aquell tipus. Indica les columnes `Id`, `Name`, `Type` i `Capacity`.",
+     "sql": "INSERT INTO Ships (Id, Name, Type, Capacity) SELECT 1000 + MIN(Id), Type || ' prototype', Type, MAX(Capacity) FROM Ships GROUP BY Type",
+     "explain": "El `GROUP BY Type` dóna una fila per tipus, i `MIN` i `MAX` calculen valors agregats per a cada grup. Fer servir `MIN(Id)` assegura identificadors diferents."
+    },
+    {
+     "text": "Copia les estades del comerciant 20 amb `StartDate` posterior o igual a '2300-01-01' un any més tard: `Id` = id original + 1000, `StartDate` = `date(StartDate, '+1 year')`, `TraderId` = 20, `EndDate` = `date(EndDate, '+1 year')` i `PlanetId` igual a l'original. Indica les columnes `Id`, `StartDate`, `TraderId`, `EndDate` i `PlanetId`.",
+     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) SELECT Id + 1000, date(StartDate, '+1 year'), TraderId, date(EndDate, '+1 year'), PlanetId FROM Stays WHERE TraderId = 20 AND StartDate >= '2300-01-01'",
+     "explain": "`date()` també es pot aplicar sobre una columna dins d'un `SELECT`. El filtre `WHERE` limita les estades que es dupliquen."
+    },
+    {
+     "text": "Insereix a `PriceChanges` un preu mitjà per als productes amb més de 900 canvis de preu: `Id` = 30000 + `ProductId`, `Date` = '2400-06-01', `ProductId`, `PlanetId` = 1 i `NewPrice` = `ROUND(AVG(NewPrice), 2)` calculat sobre tots els canvis d'aquell producte. Usa `GROUP BY` i `HAVING COUNT(*) > 900`. Indica les columnes `Id`, `Date`, `ProductId`, `PlanetId` i `NewPrice`.",
+     "sql": "INSERT INTO PriceChanges (Id, Date, ProductId, PlanetId, NewPrice) SELECT 30000 + ProductId, '2400-06-01', ProductId, 1, ROUND(AVG(NewPrice), 2) FROM PriceChanges GROUP BY ProductId HAVING COUNT(*) > 900",
+     "explain": "`HAVING` filtra els grups després d'agrupar, així que només els productes amb més de 900 canvis generen una fila. La resta de valors són constants o agregats."
+    },
+    {
+     "text": "Afegeix a `Trades` una operació amb `Id` = 220, `StayId` = l'`Id` de l'estada més recent (la de `StartDate` més gran) del comerciant amb `Nickname` = 'Nix' (subconsulta amb `ORDER BY ... LIMIT 1`), `DateTime` = '2352-06-01 12:00:00', `Type` = 'Sell' i `Total` = `10 * 125.50`. Indica les columnes `Id`, `StayId`, `DateTime`, `Type` i `Total`.",
+     "sql": "INSERT INTO Trades (Id, StayId, DateTime, Type, Total) VALUES (220, (SELECT Id FROM Stays WHERE TraderId = (SELECT Id FROM Traders WHERE Nickname = 'Nix') ORDER BY StartDate DESC LIMIT 1), '2352-06-01 12:00:00', 'Sell', 10 * 125.50)",
+     "explain": "Les subconsultes es poden niar: la interior troba el comerciant i l'exterior l'estada més recent. `Total` es calcula amb una expressió aritmètica directament al `VALUES`."
+    }
+   ]
+  }
+ ]
+}

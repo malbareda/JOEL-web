@@ -18,6 +18,7 @@ from judge import event_poster as event
 from judge.bridge.base_handler import ZlibPacketHandler, proxy_list
 from judge.caching import finished_submission
 from judge.models import Judge, Language, LanguageLimit, Problem, RuntimeVersion, Submission, SubmissionTestCase
+from judge.utils.sandbox import is_sandbox_violation
 from judge.utils.submission_feedback import submission_feedback_file, submission_feedback_storage
 
 logger = logging.getLogger('judge.bridge')
@@ -33,6 +34,7 @@ UPDATE_RATE_TIME = 0.5
 # instead of 'WA', notify the admins by email, and let the submission page show a dedicated
 # warning instead of blending in with regular wrong answers.
 SECURITY_VIOLATION_MARKER = '@@SECVIOL@@'
+# The judge's own sandbox stopping a program is marked SEC too: see judge/utils/sandbox.py.
 SubmissionData = namedtuple('SubmissionData', 'time memory short_circuit pretests_only contest_no attempt_no user_id')
 
 
@@ -566,6 +568,9 @@ class JudgeHandler(ZlibPacketHandler):
                 test_case.status = 'SEC'
                 raw_feedback = raw_feedback[len(SECURITY_VIOLATION_MARKER):]
                 security_violations.append((test_case.case, raw_feedback))
+            elif is_sandbox_violation(test_case.status, raw_feedback):
+                security_violations.append((test_case.case, 'sandbox (%s): %s' % (test_case.status, raw_feedback.strip())))
+                test_case.status = 'SEC'
 
             test_case.time = result['time']
             test_case.memory = result['memory']
@@ -644,9 +649,17 @@ class JudgeHandler(ZlibPacketHandler):
         lines.append('Full submitted source:')
         lines.append(source_text)
 
+        sandbox = any(feedback.startswith('sandbox ') for _case, feedback in violations)
+        if sandbox:
+            lines.insert(0, 'Language: %s' % submission.language.key)
+            lines.insert(1, 'The judge sandbox stopped this program. It may also be a legitimate program using something '
+                            'the sandbox does not allow yet: check the source before acting on it.')
+            lines.insert(2, '')
+        subject = ('[JOEL] Programa aturat pel sandbox (%s)' if sandbox
+                   else '[JOEL] Intent de consulta destructiva bloquejat (%s)') % submission.problem.code
         try:
             mail_admins(
-                subject='[JOEL] Intent de consulta destructiva bloquejat (%s)' % submission.problem.code,
+                subject=subject,
                 message='\n'.join(lines),
                 fail_silently=True,
             )

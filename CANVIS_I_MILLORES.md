@@ -1266,6 +1266,674 @@ stdlib.jar Self_testKt`); (2) els dos surten `online=True` i amb Kotlin disponib
 
 ---
 
+### 73. Creació massiva de problemes SQL: comanda `create_db_problems` i 90 problemes de `SELECT`
+
+**Abans:** cada problema de Bases de Dades s'havia de crear a mà (fitxa a l'admin, després pujar BD, `.zip`
+amb les consultes de referència i una fila de cas per pregunta a `/problem/<codi>/test_data`). La comanda
+`create_problem.py` existent només feia una bastida buida i, a més, està trencada (`problem.types = [...]`
+no es pot assignar a un camp M2M en aquest Django).
+
+**Decisió:** nova comanda `judge/management/commands/create_db_problems.py` que fa el mateix que
+`ProblemDataView.post` (crear `Problem`, `ProblemData`, copiar la BD d'exemple, generar el `.zip`, crear els
+`ProblemTestCase` i cridar `ProblemDataCompiler.generate`) a partir de fitxers JSON de
+`problem_batches/sql/<bd>.json`. Opcions: `--dry-run` (només valida), `--replace` (sobreescriu codis ja
+existents; per defecte els salta), `--limit N`.
+- **Validació prèvia, tot o res:** cada consulta de referència es comprova contra la BD real amb les mateixes
+  funcions del checker del motor (`_security_check`, `_execute_sql`); s'exigeix que comenci per `SELECT`, no
+  doni error, retorni entre 1 i 200 files, i que tot `LIMIT` tingui `ORDER BY`. Si hi ha cap error, no es crea res.
+- El checker del motor es carrega **per ruta de fitxer** (amb stubs temporals de `dmoj.judgeenv` i
+  `dmoj.result`) perquè el paquet `dmoj` d'aquest repositori (la configuració del web) amaga el del motor.
+- Codi `sql<bd>NN`, grup `sql`, tipus `bdselects`, llenguatge `TEXT`, `partial=True`, 2 s / 64 MB, **privats**
+  (`is_public=False`). Autors alternats: senars `edgar`, parells `marc`.
+- Els 9 lots (10 problemes per BD, 281 preguntes, dificultat creixent) els han escrit 8 subagents en paral·lel
+  (més miniwind fet a mà), cadascun explorant la seva BD i validant amb `--dry-run`.
+
+**Per què:** petició de l'usuari: crear problemes massivament sense fer-los a mà. De moment només `SELECT`, 10 per
+BD d'exemple, només SQL (Mongo i `INSERT`/`UPDATE` queden per a més endavant).
+
+**Error corregit pel camí:** la descripció generada deia que "l'ordre de les files importa si l'enunciat ho demana",
+cosa falsa (el checker no compara l'ordre si no té `order_matters`, que aquí no es configura). Ara diu que ni
+els noms de columna ni l'ordre de files es tenen en compte.
+
+**Resultat:** 90 problemes (`sqlchinook01..10`, `sqlemployees`, `sqlgroupbytest`, `sqlhotel`, `sqlknights`,
+`sqllastnames`, `sqlminiwind`, `sqlnorthwind`, `sqltraders`), 45 per autor, 281 casos, 0 errors de compilació,
+~290 MB a `/judge` en total. Verificat amb enviaments reals al jutge en viu: `sqlminiwind01` (2 `AC` + 1 `WA`
+amb el feedback esperat, 2/3 punts) i el problema 10 de cada una de les 9 BD enviant les respostes de
+referència (4/4 `AC` a totes). Tots els enviaments de prova s'han esborrat.
+
+---
+
+### 74. Problemes SQL temàtics de 10 preguntes, tipus "SQL - ..." i solucions visibles d'edgar
+
+**Abans:** els problemes de BD tenien només dos tipus gruixuts (`BD - Selects`, amb 96 problemes, i
+`BD - Inserts i Updates`, amb 6), les consultes de referència només vivien al `.zip` de cada problema (cap
+alumne les veia) i els lots de l'entrada #73 eren de 3-4 preguntes per problema i una sola BD per lot.
+
+**Decisió i canvis:**
+1. **20 problemes temàtics nous de 10 preguntes** (200 preguntes), cadascun sobre una BD diferent d'exemple, en
+   lots `problem_batches/sql/tematics_*.json`: 3 de selects bàsics (`sqlsel01-03`), 5 de joins (`sqljoin01-05`:
+   `LEFT JOIN`, "l'altra banda" del `LEFT JOIN`, triar el join correcte, joins encadenats, joins mesclats), 5
+   d'agregacions (`sqlagg01-05`: només `COUNT`, només `GROUP BY`, `HAVING`, `SUM/AVG/MIN/MAX`, mesclades), 5 de
+   subconsultes (`sqlsub01-05`: escalars, `IN/NOT IN`, `EXISTS`, correlacionades, taules derivades) i 2 de
+   mesclats (`sqlmix01-02`). Escrits per 4 subagents en paral·lel i validats amb `--dry-run`. Autors alternats:
+   10 `edgar`, 10 `marc`.
+2. **`RIGHT JOIN` no es pot practicar tal qual:** el SQLite de Python d'aquest servidor és el 3.31.1 i
+   `RIGHT JOIN`/`FULL OUTER JOIN` no existeixen fins al 3.39. El problema `sqljoin02` treballa el mateix concepte
+   com a "taula protagonista a l'esquerra d'un `LEFT JOIN`", i ho explica a la introducció.
+3. **`create_db_problems` ampliada:** ara cada problema pot portar el seu `code`, `database`, `type` i `label`
+   (els valors del lot són per defecte, així que els JSON antics funcionen igual), accepta un camp `explain` per
+   pregunta, i els autors s'alternen amb un comptador global (abans era per fitxer: amb fitxers de 5 problemes
+   donava 12/8 en lloc de 10/10; ja corregit també als 20 creats).
+4. **Tipus nous** (substitueixen `bdselects` i `bdinsertupdate`; el nom curt té un màxim de 20 caràcters):
+   `SQL - Selects: bàsics / joins bàsics / joins complexos / agregacions bàsiques / agrupacions / subconsultes /
+   mesclats`, `SQL - Inserts` i `SQL - Updates`. **Mongo no s'ha tocat** (`BD - Mongo`, 7 problemes), a petició
+   de l'usuari, fins a fer-ne la separació.
+5. **Reclassificació** dels 102 problemes existents amb la nova comanda `reclassify_sql_problems`
+   (`--dry-run` mostra el pla). Els 90 dels lots de #73 es classifiquen per la posició del problema dins del
+   lot (totes les BD van seguir la mateixa corba de dificultat), amb 9 excepcions llegides de les consultes reals
+   (p. ex. a `employees` i `lastnames` el 7 és de subconsultes; a `groupbytest` el 7 és d'operacions de conjunts);
+   els 12 fets a mà (`sqlselects`, `sqljoins`, `sqlagregacions`, `sqldificil`, `provasql*`, els 6 d'insert/update)
+   es van assignar un per un. Resultat: 33 bàsics, 8 joins bàsics, 12 joins complexos, 9 agregacions bàsiques, 19
+   agrupacions, 4 subconsultes, 11 mesclats, 3 inserts, 3 updates (+ els 20 nous). Els dos tipus antics ja
+   estaven buits i s'han esborrat.
+6. **Editorials: retirades (vegeu #75).** En aquesta entrada vaig crear una editorial pública (model `Solution`) per
+   a cada problema, per un malentès: l'usuari volia un **enviament** correcte d'`edgar`, no una editorial. Les 122
+   editorials s'han esborrat (n'hi havia 0 abans) i s'han eliminat `judge/utils/sql_solution.py` i la comanda
+   `create_sql_solutions`. El camp `explain` dels JSON dels 20 problemes nous ja no s'usa enlloc (queda com a
+   documentació de cada consulta).
+
+**Per què:** petició de l'usuari: problemes de 10 preguntes, temàtics, amb BD canviants; categories més fines
+per als selects i per als inserts/updates amb prefix "SQL - " en lloc de "BD - "; una resolució correcta feta per
+edgar i visible a cada problema.
+
+**Resultat:** 20 problemes nous (200 casos, 0 errors de compilació). Verificat amb enviaments reals al jutge en
+viu: les respostes de referència dels 20 problemes nous donen `AC` complet (200/200 punts). Tots els enviaments de
+prova d'aquella comprovació s'han esborrat.
+
+---
+
+### 75. Respostes de referència com a enviaments `AC` d'edgar (en lloc d'editorials)
+
+**Abans:** després de l'entrada #74 (que va crear editorials públiques per un malentès), calia que cada problema SQL
+tingués la seva resposta correcta com a **enviament real d'`edgar`, corregit pel jutge amb `AC`**, perquè els professors
+la puguin consultar.
+
+**Decisió:** nova comanda `judge/management/commands/submit_reference_answers.py`. Per cada problema de tipus
+`SQL - ...`: reconstrueix el text de la resposta des del `.zip` del problema (una consulta de referència per cas,
+amb els marcadors `-- @@Q<n>@@` que fa servir el formulari web), crea un `Submission` d'`edgar` en llenguatge `TEXT`,
+el fa corregir pel jutge en viu i espera el veredicte, en blocs de 20 (opcions `--chunk`, `--timeout`, `--dry-run`).
+Salta els problemes on `edgar` ja té un `AC` amb tots els punts, així que es pot tornar a executar sense duplicar res;
+i si algun enviament no treu `AC` complet, el deixa guardat i ho comunica. A més, s'han esborrat les 122 editorials de #74.
+
+**Visibilitat (no s'ha canviat cap regla):** la decideix `Submission.can_see_detail`: la veuen l'autor/editor del problema,
+qui té el permís `view_all_submission` (grup "Profe", entre d'altres), el propi usuari, i, als problemes **públics**, els
+alumnes que ja han resolt el problema amb tots els punts. L'usuari ja ho sabia i ho va acceptar explícitament. Un alumne
+que no ha resolt el problema no veu la resposta.
+
+**Resultat:** 117 enviaments nous, tots `AC` complets (més 3 de la prova prèvia i 2 que `edgar` ja tenia d'abans, fets a
+mà): els 122 problemes SQL tenen un `AC` complet d'`edgar` i 0 editorials. Comprovat amb `can_see_detail` sobre un problema
+privat i un de públic: veuen la resposta `edgar` i un professor; un alumne que no ha resolt no la veu; un que ha resolt el
+públic sí. Efectes secundaris: els enviaments compten a les estadístiques dels problemes (nombre d'AC, usuaris) i a
+la puntuació/rànquing d'`edgar` quan els problemes siguin públics.
+
+---
+
+### 76. Problemes SQL d'`INSERT` i `UPDATE` temàtics (10 problemes de 10 preguntes) i validació d'escriptures
+
+**Abans:** `create_db_problems` només sabia validar consultes `SELECT`, i els únics problemes d'`INSERT`/`UPDATE` eren
+els 6 fets a mà (3 + 3), d'una o dues preguntes cadascun.
+
+**Decisió i canvis:**
+1. **Validació d'escriptures a `create_db_problems`** (`validate_write_question`): una resposta de referència
+   d'`INSERT`/`UPDATE` ha de passar el mateix filtre de seguretat que el checker del motor, executar-se sense error
+   sobre una còpia temporal de la BD i **canviar-la de debò**. Aquest últim punt és el que més importa: el checker
+   puntua comparant l'estat final de totes les taules, de manera que una referència que no canviés res faria donar
+   `AC` a qualsevol sentència que tampoc no canviés res. Es rebutgen també `DELETE`, columnes inexistents, etc.
+   Comprovat amb casos positius i negatius. Les descripcions generades ara depenen del tipus de pregunta (per a
+   escriptures expliquen que cada pregunta s'executa sobre una còpia de la BD original i que es compara tot el
+   contingut final).
+2. **10 problemes nous, 100 preguntes**, escrits per 2 subagents en paral·lel: 5 d'inserts (`sqlins01-05`, tipus
+   `SQL - Inserts`: una fila, llista de columnes parcial i sense llista, diverses files amb un sol `VALUES`,
+   `INSERT ... SELECT`, mesclat) i 5 d'updates (`sqlupd01-05`, tipus `SQL - Updates`: bàsic, expressions al `SET`,
+   condicions riques i `CASE`, subconsultes, mesclat), cadascun sobre una BD diferent d'exemple. Autors alternats:
+   5 `edgar`, 5 `marc`. Tots privats.
+3. **Cada pregunta és independent:** s'avalua sempre sobre la BD original, no sobre l'estat que deixaria la
+   pregunta anterior; els enunciats donen tots els valors i identificadors explícits (no depenen de cap autoincrement).
+4. Limitacions de les BD que van condicionar el contingut: `knights.Knights` té totes les columnes `NOT NULL` sense
+   `DEFAULT` (la llista parcial només es practica a `Dragons`); a `chinook` els preus són decimals, així que
+   els enunciats demanen `ROUND(..., 2)` explícit o fan servir sumes sobre enters; a `hotel` la validació de cada
+   pregunta triga ~0,9 s perquè el checker bolca totes les taules dues vegades; SQLite 3.31.1 no té `UPDATE ... FROM`
+   (arriba a la 3.33), així que es fan servir subconsultes.
+
+**Per què:** petició de l'usuari: fer ara els d'inserts i updates, amb els mateixos criteris que els selects.
+
+**Resultat:** 10 problemes nous (100 casos, 0 errors de compilació), tots amb un enviament `AC` complet d'`edgar` fet
+amb `submit_reference_answers` (inclòs `sqlupd03`, el de l'hotel). Prova negativa amb enviaments equivocats a `sqlins01`
+i `sqlupd01`: `WA` amb el missatge "The database's final content does not match..." (enviaments de prova esborrats).
+
+---
+
+### 77. SQLite 3.51 per al checker SQL (via `pysqlite3-binary`) i `WITH` als `SELECT`
+
+**Abans:** el checker SQL feia servir el SQLite del sistema (Ubuntu 20.04: 3.31.1), sense `RIGHT`/`FULL OUTER JOIN`
+(3.39), `UPDATE ... FROM` (3.33), `RETURNING` (3.35) ni funcions matemàtiques; i rebutjava qualsevol resposta que
+comencés per `WITH` (CTE), perquè només acceptava la primera paraula `SELECT`/`INSERT`/`UPDATE`.
+
+**Decisió (amb l'usuari, després de valorar-ho amb una segona opinió):** no tocar el SQLite del sistema (apt no en
+dona cap de més nou, i substituir-lo podia afectar altres programes), sinó instal·lar un SQLite modern només al
+venv del jutge. Tots els jutges del JOEL corren en aquest servidor i amb aquest venv, així que no hi pot haver
+jutges amb versions diferents.
+
+**Fet fins ara:**
+1. **Còpia de la BD del JOEL** abans de res: `/home/ubuntu/backups/joel-db-dmoj-20261020-231043.sql.gz`
+   (`mysqldump --single-transaction`, 133 MB, 95/95 taules, `gzip -t` correcte; credencials passades per un
+   fitxer temporal 600, esborrat).
+2. **Còpia del checker:** `/home/ubuntu/backups/dmoj-checkers-sql.py.20261020-231150.bak`.
+3. **`pysqlite3-binary` 0.5.4.post2** instal·lat al venv `/home/ubuntu/dmojsite` (roda cp38, sha256
+   `6163744e1939f459803c6aed25ea5a9ff653063c1c1ea05fabb33a8b5bcad4f2`), que porta **SQLite 3.51.1**. El del sistema
+   no s'ha tocat (continua 3.31.1). Comprovat: `RIGHT JOIN`, `FULL JOIN`, connexions `mode=ro` i
+   `set_progress_handler` funcionen. Opcions de compilació: no porta cap accés a fitxers (`readfile`, `fsdir`,
+   `sqlite_dbpage` no existeixen); `load_extension` hi és compilat però Python el deixa desactivat ("not authorized");
+   porta `ENABLE_MATH_FUNCTIONS` (`CEIL`, `FLOOR`, `POWER`...).
+4. **Checker** (`/home/ubuntu/dmojsite/lib/python3.8/site-packages/dmoj/checkers/sql.py`, **fora de git**):
+   - Fa `import pysqlite3.dbapi2 as sqlite3` i, si no hi és, el `sqlite3` del sistema. (L'`import sqlite3` original
+     no s'ha pogut treure perquè el classificador de permisos va denegar aquella edició concreta; com que el `try`
+     ve després i reassigna el nom, l'efecte és el mateix: queda només una línia redundant.)
+   - `WITH` acceptat **només als casos de `SELECT`** i només si la sentència a la qual pertanyen els CTE és un
+     `SELECT` (`_main_keyword` recorre l'estructura `nom [(cols)] AS [[NOT] MATERIALIZED] (cos), ...`, perquè un CTE
+     pot dir-se com una paraula clau). `WITH ... DELETE` (que SQLite accepta) es marca com a violació de seguretat
+     (`@@SECVIOL@@`), igual que un `DELETE`; als casos d'`INSERT`/`UPDATE`, `WITH` continua rebutjat (aquells corren
+     sobre una còpia en lectura-escriptura). Les referències `WITH ... SELECT` es detecten com a `SELECT`.
+   - Provat fora dels jutges amb 14 casos (CTE simple, `RECURSIVE`, `MATERIALIZED`, CTE anomenat `"update"`,
+     `WITH ... DELETE` als dos tipus de cas, `WITH ... UPDATE`, diverses sentències, `RIGHT JOIN`...): tots donen el
+     resultat esperat. Confirmat també que un `WITH ... DELETE` contra la connexió de només lectura falla igualment.
+   - Limitació que ja existia i no s'ha tocat: el control de "una sola sentència" parteix per `;` sense mirar
+     cometes, i per això rebutja un `;` dins d'un text.
+
+5. **Reinici dels jutges:** el classificador de permisos va denegar que Claude els reiniciés; **l'usuari els va
+   reiniciar a mà** (NouJutge a les 23:19, EdgTest a les 23:20 del 2026-10-20). Comprovat que els dos han carregat el
+   checker nou: un enviament real a `sqljoin02` amb una resposta en `RIGHT JOIN` (Q1) i una altra amb `WITH` (Q3)
+   dona `AC` a totes dues, una vegada corregit per EdgTest i una altra forçant NouJutge (`judge_id`). Enviaments de
+   prova esborrats. El cas `WITH ... DELETE` no es va enviar al jutge, perquè una violació de seguretat envia un
+   correu als administradors; es va provar fora (punt 4).
+6. **Regressió:** **recorreguts** (`rejudge=True`, sense crear-ne de nous) els 132 enviaments de referència d'`edgar`:
+   **132/132 continuen donant `AC` complet** (65 per NouJutge, 67 per EdgTest).
+7. **`sqljoin02` ara és un problema de `RIGHT JOIN` de debò** ("SQL Joins 2: RIGHT JOIN"): la introducció explica
+   `RIGHT JOIN` com a mirall del `LEFT JOIN`, i les 10 consultes de referència fan servir `RIGHT JOIN` (els
+   enunciats ja deien "Combinant A i B" amb la taula protagonista en segon lloc). Abans de substituir-lo es va
+   comprovar que les 10 consultes noves donen exactament les mateixes files que les antigues amb `LEFT JOIN`. L'enviament
+   de referència d'`edgar` s'ha substituït per un amb `RIGHT JOIN` (`AC`, 10/10).
+8. **`create_db_problems`:** nova opció `--only CODI ...`, i `--replace` ja **no** reassigna els autors d'un
+   problema existent (abans els hauria tornat a repartir per posició dins del lot).
+
+**Pendent (opcional):** treure la línia `import sqlite3` redundant del checker (vegeu el punt 4), i actualitzar la
+documentació `docs/05-sistemes-mecanics/5.5-checker-sql.md`, que encara no parla de `pysqlite3` ni de `WITH`.
+
+**Com desfer-ho:** `/home/ubuntu/dmojsite/bin/pip uninstall pysqlite3-binary` (el checker torna sol al sqlite del
+sistema) i/o restaurar el `.bak` del checker; després, reiniciar els jutges.
+
+---
+
+### 78. Publicats els 120 problemes SQL nous, i prova real de l'alarma amb `WITH ... DELETE`
+
+**Prova de l'alarma (petició de l'usuari):** dos enviaments d'`edgar` amb `WITH t AS (SELECT 1) DELETE FROM ...`, un a
+una pregunta d'`UPDATE` (`sqlupd01`, #368374, EdgTest; és el cas que importava, perquè corre sobre una còpia en
+lectura-escriptura) i un a una de `SELECT` (`sqlsel01`, #368375, NouJutge): tots dos `SEC`, amb el correu als
+administradors (`settings.ADMINS`, una adreça). L'enviament del correu no s'ha pogut confirmar des d'aquí: el backend
+de Gmail s'usa amb `fail_silently`, així que un error no deixaria cap rastre. Els dos enviaments s'han deixat perquè
+l'enllaç del correu funcioni. Detall cosmètic trobat: el missatge "This statement type is not allowed: WITH ...
+DELETE" fa 51 caràcters i el camp `SubmissionTestCase.feedback` en té un màxim de 50, així que l'alumne el veu
+tallat ("... DELET"); no s'ha corregit (caldria tocar el checker i tornar a reiniciar els jutges).
+
+**Publicació:** els 120 problemes nous (`sql<bd>01-10` x 9, `sqlsel/join/agg/sub/mix 01-05`, `sqlins/upd 01-05`)
+passen a `is_public=True` amb `date` = ara (no en tenien). Es va fer des del codi, no des de l'admin; l'admin
+hauria encuat `rescore_problem`, que recalcula els punts dels enviaments (aquí no canvien) i `calculate_points`, que
+**exclou** el grup `sql`. La puntuació SQL només es recalcula en rebre un veredicte (`calculate_sql_points` al
+bridge), així que s'ha recalculat a mà per a l'únic usuari amb enviaments en aquests problemes, `edgar`: de 29 a
+610 punts SQL (i s'han esborrat les seves claus `user_complete`/`user_attempted` de la cache).
+
+**Comprovat com a visitant anònim:** les pàgines dels problemes responen 200; a la llista, els problemes de BD només
+surten en triar la categoria (`/problems/?category=<id del grup sql>`), com ja passava, i el filtre per tipus nou
+funciona (p. ex. "joins bàsics" mostra els de joins i no els altres); el codi de les respostes d'`edgar` no és
+accessible (redirigeix al login). Recordatori: un alumne que resolgui un problema públic amb tots els punts **sí** que
+pot veure la resposta d'`edgar` (regla estàndard de `can_see_detail`, acceptada per l'usuari). En total, ara hi ha 138
+problemes públics al grup `sql`.
+
+---
+
+### 79. Guies (birret "Introducció") per als 27 problemes SQL més fàcils
+
+**Abans:** només hi havia guies (`Guide`, secció 2.2 de la documentació) en 41 problemes de programació (40 del grup
+"Introduccio" i 1 d'"Aprenentatge"); cap problema de BD en tenia.
+
+**Decisió:** seguint el mateix criteri que es va fer servir a programació (els problemes que un alumne toca primer de
+cada tècnica), **3 problemes per cada una de les 9 categories SQL**, prioritzant els de 2-3 preguntes, els de posició
+més baixa dins del seu lot (segueixen una corba de dificultat) i les BD petites. S'han deixat fora `provasql2` (una
+prova) i `sqldificil` (explícitament difícil):
+- Selects bàsics: `sqlselects`, `sqlemployees01`, `sqlknights01` · Agregacions bàsiques: `sqlemployees04`,
+  `sqlknights04`, `sqlminiwind04` · Agrupacions: `sqlemployees05`, `sqlknights05`, `sqlgroupbytest05`
+- Joins bàsics: `sqljoins`, `sqlknights07`, `sqlminiwind07` · Joins complexos: `sqlemployees08`, `sqlknights08`,
+  `sqlminiwind08` · Subconsultes: `sqlemployees07`, `sqllastnames07`, `sqlgroupbytest09`
+- Mesclats: `sqlgroupbytest07`, `sqlemployees10`, `sqlknights10` · Inserts: `sqlinsertemployees`, `sqlinsertknights`,
+  `sqlinsertchinook` · Updates: `sqlupdategroupby`, `sqlupdatehotel`, `sqlupdatetraders`
+
+**Contingut:** a programació, a més del text general (`Guide.content`), cada guia té una pista de codi per llenguatge
+(`GuideTranslation` amb `runtime` Python 3 / Java 11) que és pràcticament la solució. En SQL el codi **és** la resposta,
+així que les guies SQL tenen **només el text general** (sense `GuideTranslation`; la vista amaga el selector de
+llenguatge quan no n'hi ha), amb aquesta estructura: com abordar-lo, l'esquelet genèric de la sintaxi, què cal a cada
+pregunta (sense la consulta), un o dos exemples resolts **anàlegs** (sobre una altra taula/columna/condició) i paranys
+habituals. Les han escrites 3 subagents, i són al repositori: `problem_batches/sql/guides_*.json`
+(`{codi: markdown}`).
+
+**Control de fuites:** un script (fora del repo, a la carpeta temporal de la sessió) comprova cada guia: (1) que cap
+resposta de referència hi aparegui (sense tenir en compte majúscules, espais i `;`), i (2) que cap bloc ```` ```sql ````
+de la guia, **executat contra la BD del problema**, doni les mateixes files que una resposta (o, en el cas
+d'`INSERT`/`UPDATE`, sobre una còpia temporal, el mateix estat final de la BD). Provat amb una fuita deliberada
+(detectada) i passat a les 27: 0 fuites. Cinc exemples (`sqlknights05`, `sqlgroupbytest05`, `sqljoins`,
+`sqlemployees08`, `sqllastnames07`) són molt propers a la pregunta (mateixa tècnica, una altra columna o condició);
+s'han mantingut com a exemples anàlegs, menys explícits que les pistes de codi de programació.
+
+**Resultat:** 27 `Guide` públiques (68 guies en total al lloc). Comprovat com a visitant anònim, per a les 27:
+`/problem/<codi>/guide` respon 200 amb el contingut i el codi renderitzats, i la pàgina del problema mostra l'etiqueta
+"Introducció" i l'enllaç a la guia; a la llista (categoria BD), el birret surt als problemes amb guia i no als altres.
+Les guies s'amaguen durant els concursos, com les de programació.
+
+---
+
+### 80. Tasques de Bases de Dades (16 tasques de Marc) en una pestanya pròpia
+
+**Abans:** hi havia 181 tasques (`ProblemTask`), totes de programació (37 de `marc`, amb la convenció de nom
+"NN MM Títol": unitat i subtema, p. ex. "03 02 Bucles amb comptador"), en una sola pestanya "Tasks" de la barra de
+pestanyes de problemes (`templates/problem/problem-list-tabs.html`). Cap tasca tenia problemes de BD.
+
+**Decisió:**
+1. **Pestanya pròpia, com al rànquing** (`/users/bd`): "Tasks" passa a ser dues pestanyes, **"Tasques de Programació"**
+   (`/tasks/`, `problem_tasks`) i **"Tasques de Bases de Dades"** (`/tasks/bd/`, `problem_tasks_database`, vista nova
+   `DatabaseTaskList`, subclasse de `TaskList` amb `database = True`). La URL nova va **abans** de
+   `^tasks/(?P<task>...)` i no hi havia cap tasca amb codi `bd`.
+2. **Què és una tasca de BD no és cap camp nou** (mateix criteri que les guies, #79): una tasca és de BD si té problemes
+   i **tots** són del grup `sql` (`TaskList.database_task_ids`); qualsevol altra, incloses les mixtes, és de programació.
+   El recompte es fa en una consulta a part perquè els filtres d'autor/equip/institut de la llista fan joins que
+   inflarien un `Count` sobre el mateix queryset. Els problemes Mongo també són del grup `sql`, així que una futura
+   tasca de Mongo sortiria sola a la pestanya de BD.
+3. **16 tasques creades amb autor `marc`**, amb la seva convenció de nom i el prefix "BD" (perquè a l'admin no es
+   confonguin amb les de programació, que també comencen per "01 00"...). Cobreixen els **130 problemes SQL**, un sol cop
+   cadascun (tots menys `provasql` i `provasql2`, que són proves), seguint la corba de dificultat dels lots: BD 01
+   Consultes bàsiques (Introducció a SELECT, WHERE, LIKE/IN/BETWEEN/NULL, Funcions i CASE, Repàs), BD 02 Agregacions
+   (Introducció, GROUP BY, HAVING), BD 03 Joins (Introducció, LEFT i RIGHT JOIN, encadenats i autojoins), BD 04
+   Subconsultes (Introducció, avançades), BD 05 Reptes finals, BD 06 Modificar dades (INSERT, UPDATE). Els problemes
+   amb guia (birret, #79) s'han afegit primer a cada tasca, i la descripció de la tasca ho diu. La definició és a
+   `problem_batches/sql/tasques_bd.json`. Cap problema Mongo, a l'espera de la seva separació.
+4. Plantilla `tasklist.html`: la pestanya activa ve de la vista (`task_tab`) i el títol de la llista canvia a "Tasques de
+   Bases de Dades". El canvi pendent anterior d'aquest fitxer (`|escapejs` als placeholders) s'ha respectat.
+
+**Per què:** petició de l'usuari: sèries de tasques de BD, de Marc, que no es barregin amb les de programació.
+
+**Resultat:** comprovat amb el client de proves (`/tasks/`: 181 tasques, cap de BD; `/tasks/bd/`: les 16 i cap de
+programació; pestanya activa correcta a cada pàgina; filtre per usuari `marc` → 16, `jrodriguez` → 0; detall de les 16
+tasques correcte, amb les files dels problemes guiats ressaltades). Entre la creació de les tasques i la recàrrega,
+el lloc en viu les mostrava barrejades a `/tasks/` (uns minuts). Recàrrega suau d'uWSGI (`kill -HUP` al màster, sense
+aturar el lloc) i verificat en viu: `/tasks/` sense tasques de BD, `/tasks/bd/` amb les 16, la pestanya nova també a
+`/problems/`, i la portada responent amb normalitat.
+
+---
+
+### 81. Ordre dels problemes dins de les tasques de BD
+
+**Abans:** l'usuari creia que el detall d'una tasca ordena els problemes per punts i va proposar ajustar-los fins a
+0,1 per forçar l'ordre didàctic. Comprovat que **no és així**: `TaskDetail` no fa cap `order_by`, i els problemes surten
+per **identificador del problema** (ordre de creació). Per exemple, `comptadors` (de Marc) surt 2, 2, 3.5, 3.5, 3, 3, 2,
+3 punts. A les tasques de BD semblava per punts per casualitat (els problemes temàtics de 10 punts es van crear més
+tard). Canviar puntuacions, doncs, no hauria canviat l'ordre.
+
+**Decisió (de l'usuari, entre les opcions plantejades):** ordre d'**inserció** (l'ordre en què s'afegeixen els
+problemes a la tasca), però amb la condició que dins d'una tasca **un problema anterior mai valgui més punts que un de
+posterior**.
+1. `TaskDetail`: si la tasca és de BD (tots els problemes del grup `sql`, mateix criteri que la pestanya de #80),
+   ordena pels `id` de la taula intermèdia `judge_problemtask_problems` (ordre d'inserció). Les tasques de
+   programació **no canvien**: es va comprovar que fer-ho per a totes hauria canviat l'ordre de 146 de les 181.
+2. Les tasques de BD s'han reordenat de manera estable per punts (amb els mateixos punts es manté l'ordre
+   didàctic), **sense tocar cap puntuació**. Només 3 tasques canvien: "BD 02 01 GROUP BY" (`sqlagregacions`, de 3 punts,
+   passa davant de `sqlagg02`, de 10), "BD 03 01 LEFT JOIN i RIGHT JOIN" (els "09" de 3 punts passen davant de
+   `sqljoin01-03`, de 10) i "BD 05 00 Reptes finals" (`sqldificil`, de 3 punts, passa a la segona posició, davant dels
+   de 4 i 10). En totes tres, els problemes curts (3 preguntes) queden davant dels llargs (10). Els problemes guiats
+   continuen primer. La definició (`problem_batches/sql/tasques_bd.json`) està actualitzada amb l'ordre nou, i els
+   problemes de les 3 tasques s'han tornat a inserir en aquest ordre.
+
+**Resultat:** recàrrega suau d'uWSGI (`kill -HUP` al màster). Verificat en viu: les 16 tasques de BD mostren els
+problemes exactament en l'ordre del JSON, cap té punts que baixin al llarg de la tasca, i `comptadors` (programació)
+surt igual que abans.
+
+---
+
+### 82. `sqldificil` passa de 3 a 10 punts, perquè quedi al final de "Reptes finals"
+
+**Abans:** amb la regla de #81 (dins d'una tasca, un problema anterior mai val més punts que un de posterior),
+`sqldificil` ("Bases de Dades: Problemes més difícils", 3 preguntes, 3 punts) quedava a la segona posició de "BD 05 00
+Reptes finals", davant dels de 4 i 10 punts.
+
+**Decisió (de l'usuari):** pujar-li els punts perquè quedi al final. **10 punts**, el mínim que compleix la regla (empata
+amb `sqlmix02`, i amb l'empat l'ordre d'inserció el deixa l'últim).
+
+**Efectes:** és un problema públic antic amb 4 enviaments de 3 usuaris, un d'ells un alumne real. Com que la puntuació
+es va canviar des del codi i no des de l'admin, es va fer a mà el mateix que `rescore_problem` (punts de cada enviament =
+`case_points / case_total × punts del problema`, `update_contest()`), i a més `calculate_sql_points()`, que aquella tasca no
+fa. Enviaments: `admin` AC 3 → 10, `Elvin_Po_Ma` WA 2 → 6,7 i AC 3 → 10, `edgar` AC 3 → 10. Punts SQL: `admin` 25 → 29,
+`Elvin_Po_Ma` 14 → 21, `edgar` 610 → 617 (la puntuació de programació no canvia, perquè exclou el grup `sql`). No és en cap
+concurs.
+
+**Resultat:** `sqldificil` s'ha mogut al final de la tasca (JSON i insercions). Verificat en viu: és l'últim dels 13
+problemes de "Reptes finals", els punts no baixen al llarg de la tasca, i la pàgina del problema mostra "Punts: 10 (parcial)".
+
+---
+
+### 83. Seguretat de les BD dels problemes: prova d'atacs SQL, còpia de seguretat, i forat greu a Java/Kotlin
+
+**Pregunta de l'usuari:** si un `INSERT`/`UPDATE` d'un alumne, sense voler o a propòsit, pot modificar la plantilla
+SQLite (o la BD real del problema).
+
+**Via SQL: tancada (comprovat).** El checker no obre mai les plantilles de `/judge/_sql_templates/`, que només es llegeixen
+en crear el problema. Obre la còpia del problema (`/judge/<codi>/<fitxer>.db`): en mode `ro` + `query_only` per als
+`SELECT`, i mitjançant una còpia temporal (`shutil.copyfile`) que s'esborra després per a `INSERT`/`UPDATE`. Es van
+llançar 15 atacs contra el checker real (`check()`), usant una còpia com a "original": `ATTACH` (també darrere d'un
+comentari), `VACUUM INTO`, `WITH ... DELETE`, diverses sentències amb `;`, `writefile()`, `load_extension()`, pragmes,
+un `UPDATE` sense `WHERE`... Tots rebutjats o sense efecte; l'original i un fitxer víctima, **idèntics byte a byte**
+(sha256), i cap fitxer nou.
+
+**Però els fitxers no tenen protecció del sistema operatiu:** plantilles i còpies són de `ubuntu`, el mateix usuari amb què
+corren els jutges i el web. A més, `/judge` és `777` (sense *sticky bit*), i `rclone` només puja els volcats de MySQL, no
+`/judge`.
+
+**Fet (a petició de l'usuari, punts 2 i 3 de la proposta; el punt 1, fer les plantilles de `root`, **no** es va fer):**
+1. **Còpia de seguretat** de les 15 plantilles (SQL i Mongo) i de les BD dels 138 problemes que en tenen (`sql_db` /
+   `mongo_db`): `/home/ubuntu/backups/joel-bd-fitxers-20261021-000425.tar.gz` (62 MB, 153 fitxers, rutes relatives a
+   `/judge`) i `.sha256` amb l'empremta de cadascun. Restauració de prova en una carpeta temporal: les 153 empremtes
+   coincideixen. Per comprovar en el futur que res no ha canviat: `cd /judge && sha256sum -c <fitxer>.sha256`.
+2. **Prova pendent del `TODO.md` (punt 9), feta:** 5 enviaments d'`edgar` al problema privat `aplusb`, cadascun intentant
+   crear un fitxer en un directori testimoni de `/tmp`:
+   - **Java 11** (NouJutge): `ProcessBuilder("touch", ...)`, `Runtime.exec("sh -c ...")` i `FileWriter` → **els tres fitxers
+     creats**.
+   - **Kotlin** (EdgTest): `ProcessBuilder` i `File.writeText` → **els dos fitxers creats**.
+   - **Python 3** (NouJutge, un enviament per via perquè el sandbox pot matar el procés al primer intent): `subprocess` →
+     IR `BlockingIOError`; `os.system` → no crea res; `open(...,'w')` → IR `FileNotFoundError`. **Cap fitxer.**
+   La JVM s'engega amb `-javaagent:java_sandbox.jar=policy:<fitxer>` i la política (`java-security.policy`) només permet
+   escriure a `out/` i `/outputfiles/` i no dona permís d'execució, però **no s'aplica**. El motiu no s'ha investigat.
+   Testimoni i enviaments de prova esborrats.
+
+**Conseqüència (GREU, no resolta):** qualsevol usuari registrat pot executar codi arbitrari al servidor com a `ubuntu`
+(propietari de `/judge`, del codi del lloc i de les còpies, i **amb `sudo` sense contrasenya**) enviant un programa en Java o
+Kotlin. Això va molt més enllà de les plantilles SQL. Apuntat a `TODO.md` (punt 9), pendent de decisió de l'usuari.
+
+---
+
+### 84. Causa del forat de Java/Kotlin (#83) trobada; treure el `sudo` sense contrasenya, **no fet** (denegat)
+
+**Investigació (només lectura, cap canvi):** el directori del jutge
+(`/home/ubuntu/dmojsite/lib/python3.8/site-packages/dmoj`) és un repositori git (`malbareda/JOEL-jutge`). El commit
+`3fb52a5` (2026-08-18, "... i Java 25") va **substituir `executors/java_sandbox.jar`** (7.518 → 9.546 bytes) per l'agent
+nou del DMOJ (compilat el desembre de 2023). Desmuntant les dues versions amb `javap`:
+- **Agent antic (2019, commit `9e45a91`):** reconeix l'opció `policy:<fitxer>`, carrega el fitxer com a
+  `java.security.policy` i crida `System.setSecurityManager(new SecurityManager())`. És el que aplicava la política
+  `java-security.policy`.
+- **Agent nou:** només reconeix `unsafe`, `unicode`, `nobigmath` i `nobuf`. **L'opció `policy:` s'ignora sense cap avís i
+  no hi ha cap `SecurityManager`.** El DMOJ actual va treure el `SecurityManager` (eliminat del tot a partir del JDK 24) i
+  aïlla Java amb el sandbox de sistema `cptbox`, però en aquest jutge `JavaExecutor.get_security()` continua retornant
+  `None` (el disseny antic, en què era l'agent qui protegia). Resultat: des del 18-08-2026, Java i Kotlin corren
+  **sense cap aïllament**.
+- Afecta JAVA8 (962 problemes, 55.873 enviaments), JAVA11 (1.043 / 128.089), JAVA25 (1.064 / 31.950) i KOTLIN (888 / 51.189;
+  corre sobre `/usr/bin/java`, que és el Java 11.0.17).
+
+**Treure el `NOPASSWD` d'`ubuntu` (petició de l'usuari): NO FET.** Comprovat abans: el permís ve de
+`/etc/sudoers.d/90-cloud-init-users` (`ubuntu ALL=(ALL) NOPASSWD:ALL`); `ubuntu` té contrasenya (des del 2020) i és al grup
+`sudo`, de manera que després `sudo` demanaria aquesta contrasenya; `root` està bloquejat i sense claus SSH, així que si no es
+recorda la contrasenya d'`ubuntu` es perdria l'accés de root (llevat de la consola del proveïdor del VPS); l'única feina
+automàtica amb privilegis (volcat de la BD) és al crontab de root i no en depèn. A més, **`ubuntu` és al grup `lxd`, que
+equival a root**, i treure el `NOPASSWD` no tanca aquest camí. Es va intentar programar, abans del canvi, una restauració
+automàtica (de root, d'aquí a 30 minuts, que l'usuari cancel·laria després de provar la contrasenya) per evitar el
+bloqueig, però el classificador de permisos ho va denegar ("Unauthorized Persistence"), i no es va fer res: el fitxer de
+`sudoers` està intacte, sense còpia ni tasca programada. Queda a mans de l'usuari (procediment al `TODO.md`, punt 9).
+
+---
+
+### 85. Privilegis d'`ubuntu`: estat després dels canvis fets per l'usuari (comprovació)
+
+**Què ha fet l'usuari, a mà** (alternativa proposada a #84: un administrador separat en lloc de deixar `ubuntu` amb
+`sudo` amb contrasenya): l'usuari `marc` (UID 1002) és al grup `sudo`; la línia `NOPASSWD` d'`ubuntu` ja no té efecte
+(`sudo -n true` → "a password is required"), i `ubuntu` ja no és al grup `lxd` segons `/etc/group`.
+
+**Comprovat que queda obert:**
+1. **`ubuntu` continua al grup `sudo`** (`getent group sudo` → `ubuntu,marc`), així que encara pot fer `sudo` amb la seva
+   contrasenya. Un atacant que corri com a `ubuntu` (p. ex. via el forat de Java de #83) podria capturar-la, per exemple
+   amb un àlies trampa al `.bashrc`. Falta `gpasswd -d ubuntu sudo`.
+2. **Els processos que ja corrien conserven el grup `lxd` (118)**: treure algú d'un grup només afecta les sessions noves.
+   `/proc/<pid>/status` dels dos jutges, uWSGI, el bridge i la sessió de Claude encara mostren el 118, i des de la sessió
+   de Claude `lxc list` **funciona** (LXD 6.9 instal·lat com a snap, sòcol `root:lxd 660`, sense cap contenidor ni
+   inicialitzat). Accedir a LXD equival a ser root. Es tanca reiniciant tots aquests processos (el més net: reiniciar el
+   servidor) o, ja que LXD no es fa servir, desinstal·lant-lo (`snap remove lxd`).
+3. `marc` no té claus SSH (`/home/marc/.ssh/authorized_keys` no existeix): entra amb contrasenya (`PasswordAuthentication
+   yes`).
+
+No s'ha canviat res en aquesta comprovació (només lectura, més un `lxc list` per confirmar l'accés).
+
+---
+
+### 86. Sandbox de Java 8/11 i Kotlin restaurat (agent antic amb `SecurityManager`)
+
+**Abans:** vegeu #83 i #84: des del commit `3fb52a5` del jutge (18-08-2026), `java_sandbox.jar` era l'agent nou del DMOJ, que
+ignora `policy:` i no instal·la cap `SecurityManager`, i `JavaExecutor.get_security()` torna `None` (cap `cptbox`). Resultat:
+Java i Kotlin sense cap aïllament.
+
+**Decisió:** tornar a fer servir l'agent antic (el que hi havia del 2020 a l'agost del 2026) per als llenguatges que corren sobre
+una JVM amb `SecurityManager` (Java 8, Java 11 i Kotlin, que corre sobre `/usr/bin/java` = Java 11.0.17), i deixar l'agent nou només
+per a Java 25, on el `SecurityManager` ja no existeix (des del JDK 24, `System.setSecurityManager` llença una excepció i l'agent
+antic faria petar tots els enviaments).
+
+**Prova prèvia fora dels jutges** (mateixa línia d'arrencada que el jutge: `-client -javaagent:<jar>=policy:<fitxer>,unicode
+-Xss128m -Xmx... -XX:+UseSerialGC`, amb la mateixa `java-security.policy`), amb un programa que llegeix dos enters amb `Scanner`
+i n'imprimeix la suma, i després intenta `ProcessBuilder`, escriure un fitxer i llegir-ne un fora de les carpetes permeses:
+- Java 11 + agent antic: la suma correcta, i **les tres vies bloquejades** (`AccessControlException`), cap fitxer testimoni creat.
+- Java 11 + agent actual (per comparar): **les tres vies permeses**, fitxers testimoni creats.
+- Java 8 + agent antic i Kotlin (compilat amb `kotlinc -d`, executat amb `-cp jar:kotlin-stdlib.jar` com el jutge) + agent antic:
+  la suma correcta, totes les vies bloquejades.
+
+**Canvis al jutge** (repositori `malbareda/JOEL-jutge` a `/home/ubuntu/dmojsite/lib/python3.8/site-packages/dmoj`, sense commit;
+còpies prèvies a `/home/ubuntu/backups/dmoj-executors-*.20261021-003447.bak`):
+- `executors/java_sandbox_legacy.jar`: l'agent antic, tret del mateix git (`git show 9e45a91:executors/java_sandbox.jar`).
+- `executors/java_executor.py`: constant `JAVA_SANDBOX_LEGACY` i atribut de classe `agent_file = JAVA_SANDBOX_LEGACY`, que
+  `create_files` fa servir en lloc de la constant `JAVA_SANDBOX`.
+- `executors/JAVA25.py`: `agent_file = JAVA_SANDBOX` (l'agent nou), amb un comentari que avisa que **Java 25 continua sense
+  aïllament** fins que tingui `cptbox`.
+- Comprovat important els executors: JAVA8, JAVA11 i KOTLIN → `java_sandbox_legacy.jar`; JAVA25 → `java_sandbox.jar`.
+
+**Comprovat que no trenca l'encoding (accents), a petició de l'usuari:** el commit `3fb52a5` que va canviar l'agent també
+és el de la feina d'encoding, així que es va provar a part, amb el mateix entorn que el jutge (`JAVA_TOOL_OPTIONS`, `LANG`,
+`LC_ALL` i els `-D...encoding=UTF-8`; Java 11 compilat sense `-encoding` i Java 8 amb `-encoding UTF-8 -profile compact1`,
+com el jutge). Un programa amb accents en literals ("Còdi: àèéíòóú ç l·l ñ € ¿?") que llegeix una línia amb accents
+("Pèrdua d’àngel: Çà i ñaña") i la torna en majúscules: **sortida idèntica byte a byte** entre l'agent antic i el nou a
+Java 8, Java 11 i Kotlin, amb els accents i les llargades correctes. La solució de l'encoding són els paràmetres de la JVM,
+que no s'han tocat. A la regressió s'han afegit 9 enviaments `AC` reals amb accents dins de literals (3 per llenguatge).
+
+**Verificació després del reinici** (l'usuari va reiniciar els dos jutges a mà a les 00:39 del 2026-10-21):
+- Tots dos jutges van tornar en línia oferint JAVA8, JAVA11, JAVA25 i KOTLIN; com que el jutge només ofereix un llenguatge si
+  passa el seu programa de prova en arrencar, l'agent antic no trenca l'arrencada.
+- **Prova del testimoni** (problema privat `aplusb`, directori testimoni a `/tmp`): JAVA8, JAVA11 i KOTLIN a **cada un dels dos
+  jutges** (forçats amb `judge_id`), cadascun intentant `ProcessBuilder` i escriure un fitxer: **cap fitxer creat** (6
+  enviaments). JAVA25 (EdgTest): **els dos fitxers creats**, com s'esperava (continua obert).
+- **Regressió:** reenviat com a `edgar` el codi de 39 enviaments `AC` reals d'alumnes, cadascun al seu problema i llenguatge
+  (inclosos 3 de "Fitxers de text", que llegeixen fitxers, i 9 amb accents dins de literals): **39/39 `AC`** (12 Java 8, 15 Java
+  11, 12 Kotlin).
+
+**Pendent:**
+- **Java 25 continua sense aïllament** (1.064 problemes, 31.950 enviaments): cal `cptbox` o desactivar-lo.
+- Neteja, **no feta** perquè l'usuari ha demanat no esborrar res sense explicar-ho abans: el directori testimoni de `/tmp` amb
+  els 2 fitxers buits que va crear el Java 25, i els 46 enviaments de prova d'`edgar` (7 de testimoni a `aplusb` i 39 de
+  regressió en problemes públics, que sumen a la seva puntuació). Si s'esborren, cal recalcular la puntuació d'`edgar`.
+- Fer commit dels canvis al repositori del jutge (`malbareda/JOEL-jutge`), que ara estan sense commit.
+
+**Com desfer-ho:** restaurar els dos `.bak` (o `git checkout -- executors/java_executor.py executors/JAVA25.py`) i reiniciar
+els jutges.
+
+---
+
+### 87. Estudi: aïllar Java 25 amb `cptbox` (prova fora dels jutges, sense cap canvi al jutge)
+
+**Pregunta de l'usuari:** quina complexitat tindria posar `cptbox` (el sandbox de sistema que ja fa servir Python) a Java 25,
+que des de #86 és l'únic Java sense aïllament.
+
+**Prova feta** fora dels jutges, carregant la configuració real (`/judge/judge.yml`), amb una subclasse de prova de l'executor
+que fa servir `PlatformExecutorMixin.get_security()` (el `cptbox` dels altres llenguatges) en lloc del `return None` de
+`JavaExecutor`. Fitxers de prova a `/tmp/joel-cptbox-G6rFU5/` (no esborrats):
+1. Tal qual, **la JVM no arrenca** ("agent library failed to init: instrument"): `cptbox` no deixa llegir el `.jar` de
+   l'agent, que és fora de les rutes permeses (la JVM, a `/usr/lib/jvm/...`, sí que ho està). Afegint la ruta de l'agent a
+   `fs`, **Java 11 ja passa** el programa de prova del jutge.
+2. Java 25 també necessita **dues crides al sistema** que el `cptbox` d'aquest jutge (DMOJ 2.1.0, del 2020) no deixa passar:
+   `statx` i `clock_nanosleep`. Afegint-les a `syscalls`, **Java 25 passa** el programa de prova. No en calen d'altres.
+3. **Aïllament real (Java 25 + `cptbox`):** `ProcessBuilder` → el procés mor amb una violació de protecció (`sys_execve`), igual que
+   Python; escriure un fitxer fora del directori de l'enviament → `FileNotFoundException`; llegir `/etc/hostname` →
+   `FileNotFoundException`. Cap fitxer testimoni creat. Els accents surten bé.
+4. **Cost:** un programa pesat (300 milions d'iteracions + ordenar 3 milions d'enters) triga 1,10 s sense `cptbox` i 1,14 s amb
+   (un 3% més).
+
+**Què faltaria per posar-ho en producció** (no fet):
+- A `JAVA25.py`: `get_security` amb `cptbox`, la ruta de l'agent a `fs`, i `statx` i `clock_nanosleep` a `syscalls` (unes 10
+  línies). Millor fer passar `statx` pel mateix control de rutes que `stat`, en lloc de permetre'l sense més, perquè si no
+  es pot consultar si existeix qualsevol fitxer.
+- Afegir a `fs` les carpetes dels problemes de fitxers (`/inputfiles` per llegir, `/outputfiles` per escriure), que ara
+  dona la política de Java i amb `cptbox` caldria donar explícitament; si no, aquests problemes fallarien.
+- Regressió amb molts enviaments reals de Java 25 (crides al sistema poc habituals, com les de fils, `SecureRandom` o
+  memòria, només surten en alguns programes, i un alumne veuria un error en lloc del seu resultat), i reiniciar els jutges.
+- Opcional: posar també `cptbox` a Java 8/11/Kotlin, com a segona capa a més del `SecurityManager` (Java 11 ja passa la prova).
+
+---
+
+### 88. Política de Java ampliada (`setIO` i les carpetes `in`/`out`) perquè no es trenquin solucions reals
+
+**Pregunta de l'usuari:** si s'havia provat que, amb el sandbox de #86, Java 8/11 continuessin fent problemes de fitxers i problemes amb
+accents (p. ex. `mesvell`).
+
+**Descobriment:** `java_sandbox.jar` (l'agent sense `SecurityManager`) té data al disc del **7-10-2025**, tot i que el commit és del 18-08-2026.
+El forat de #83 existia, doncs, des de l'**octubre del 2025**, i tot el codi dels alumnes des de llavors s'ha provat sense cap restricció.
+Per això es va buscar què fan les solucions d'aquest període que el `SecurityManager` pugui bloquejar.
+
+**Regressions al jutge real** (enviaments d'`edgar` amb el codi de solucions `AC` d'alumnes; no esborrats, a petició de l'usuari):
+1. `mesvell`: els seus casos de prova **no tenen cap accent** (ni a l'entrada ni a la sortida). La solució Java 11 → `AC`.
+2. Els 20 problemes amb accents als casos de prova que tenen solucions Java/Kotlin, i els 8 de "Fitxers de text": 51 enviaments, **48 `AC`**.
+   Fallades: un Kotlin del 2024 de `rimasmecano`, per un error de compilació (`toLowerCase()` obsoleta en el `kotlinc` actual; no té res a
+   veure amb el sandbox), i 2 de Java 11 (`silencisala`, `tipusdevi`) bloquejats pel `SecurityManager`.
+3. Les 22.367 solucions `AC` en Java 8/11/Kotlin des del 2025-10-07 es van filtrar per APIs que el `SecurityManager` pot bloquejar
+   (`System.setOut/setErr/setIn`, `System.exit`, `System.getProperty`, `Locale.setDefault`, accés a fitxers): 102 enviaments, **92 `AC`**.
+   Les 10 fallades:
+   - 6 (`silencisala` i `tipusdevi`, Java 11 i Kotlin) fan `System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8))`, el truc
+     perquè els accents surtin bé, que necessita `RuntimePermission "setIO"`.
+   - 2 (`copia`, Java 8) fan `new File("out").exists()` i `mkdir()`: la política permetia els fitxers de dins (`out/-`) però no la carpeta.
+   - 2 (`tortasaceitepro`, Kotlin): **no és el sandbox**. Reproduït amb l'executor de Kotlin del jutge: amb l'agent antic i amb el nou falla
+     igual ("Could not find or load main class ...TortasAceitePro.Tortasaceite"). El programa té una declaració `package`, i des del canvi de
+     Kotlin de #69 el jutge en calcula malament la classe principal. Error previ, apuntat al `TODO.md`.
+
+**Canvi a `executors/java-security.policy`** (còpia prèvia a `/home/ubuntu/backups/dmoj-executors-java-security.policy.20261021-005626.bak`):
+- `RuntimePermission "setIO"`: només deixa canviar els fluxos estàndard del mateix procés.
+- `FilePermission` de lectura per a les carpetes `in` i `/inputfiles`, i de lectura i escriptura per a `out` i `/outputfiles`. Abans només
+  hi havia els fitxers de dins. També lectura a `out/-`, a més d'escriptura.
+
+**Comprovat fora dels jutges amb la política nova:** el testimoni (Java 11 + agent antic) continua amb **les tres vies bloquejades**
+(`ProcessBuilder`, escriure fora, llegir fora) i cap fitxer creat; i els 6 programes de `setOut`, executats amb l'executor real del jutge
+(JAVA11 i KOTLIN) sobre el primer cas de prova del seu problema, donen **la sortida correcta** sense bloqueig.
+
+**Verificat després del reinici** (l'usuari va reiniciar els dos jutges a mà a la 01:00 del 2026-10-21): les 8 fallades que eren del
+sandbox (6 de `setOut` a `silencisala`/`tipusdevi`, en Java 11 i Kotlin, i 2 de `copia` en Java 8) tornades a enviar → **8/8 `AC`**,
+repartides entre tots dos jutges. Prova del testimoni amb la política nova, JAVA8/JAVA11/KOTLIN a cadascun dels dos jutges: **cap fitxer
+creat** (6 enviaments). Enviaments de prova no esborrats (a nom d'`edgar`).
+
+---
+
+### 89. Java 25 aïllat amb `cptbox`
+
+**Abans:** Java 25 era l'únic Java sense aïllament (#86): el JDK 25 ja no té `SecurityManager`, i `JavaExecutor.get_security()` torna
+`None`. L'estudi de #87 va mostrar que el `cptbox` del jutge (el de Python) hi funciona amb canvis petits.
+
+**Canvi a `executors/JAVA25.py`** del jutge (sense commit; còpia prèvia a `/home/ubuntu/backups/dmoj-executors-JAVA25.py.20261021-010327.bak`):
+- `get_security()` fa servir el `cptbox` de la resta de llenguatges (`super(JavaExecutor, self).get_security(...)`, saltant el `return None`
+  de `JavaExecutor`), i hi afegeix dues crides al sistema que el JDK 25 necessita i aquest `cptbox` (del 2020) no coneix:
+  `clock_nanosleep` (permesa) i `statx`, que **passa pel mateix control de rutes que `fstatat`** (`check_file_access_at`), en lloc de
+  permetre-la sense més. Si no, es podria consultar si existeix qualsevol fitxer del servidor.
+- `fs`: la ruta de l'agent (`java_sandbox.jar`) i `/inputfiles/` (la JVM és a `/usr/`, que ja es pot llegir). `get_write_fs()`:
+  `<directori de l'enviament>/out/` i `/outputfiles/`, com `PY3`. `fsize = 60485`, com `PY3`, perquè els problemes de fitxers puguin
+  escriure.
+- ~~`create_files()` crea la carpeta `out/` buida~~ (tret després; vegeu més avall).
+
+**Comprovat fora dels jutges, amb l'executor real i la configuració dels jutges:**
+- El programa de prova del jutge passa.
+- **Bloquejat:** escriure fora del directori de l'enviament, llegir `/etc/hostname`, i llançar un procés (el programa mor per
+  `sys_execve`); cap fitxer testimoni creat. `new File("/etc/shadow").exists()` retorna `false` (el control de `statx` funciona).
+- **Funciona:** escriure a `out/`, llegir `/inputfiles/copia1`, accents i el truc `System.setOut(new PrintStream(..., UTF_8))`.
+- **Regressió amb 140 solucions `AC` reals de Java 25** (una per problema; 71 de les que fan servir fitxers, `setOut`, fils, `Random`,
+  `exit`, `getProperty`, dates o streams, i 69 a l'atzar), executades amb el primer cas de prova del seu problema: **cap violació de
+  `cptbox`**. 133 donen la sortida esperada; les altres 7 donen **exactament el mateix amb `cptbox` i sense** (comprovat), així que són
+  artefactes de la prova (correctors especials, com el de fitxers, o format de l'entrada), no del sandbox.
+
+**Primer reinici** (l'usuari, a la 01:09 del 2026-10-21) i verificació dins del jutge real:
+- Tots dos jutges van tornar oferint JAVA25, és a dir, el programa de prova del jutge passa dins de `cptbox`.
+- Testimoni (escriure un fitxer fora i `ProcessBuilder`): JAVA25 → `RTE` (mor en intentar el procés) i JAVA11 → bloquejat pel
+  `SecurityManager`, a **tots dos jutges**; **cap fitxer creat**.
+- Regressió amb 116 solucions `AC` reals de Java 25 (les 6 de problemes de fitxers, 70 amb APIs de risc i 40 a l'atzar), repartides entre
+  tots dos jutges: **115 `AC`** i 1 `IE` a `holafile`.
+
+**L'`IE` era culpa d'aquest canvi:** el problema declara `symlinks: {out: /outputfiles}` a l'`init.yml`, i el jutge crea `out` com un enllaç
+en arrencar el programa (`PlatformExecutorMixin.launch`). La carpeta `out/` que `create_files()` creava per endavant hi xocava
+(`FileExistsError`). 6 problemes fan servir aquests enllaços (`holafile`, `llegirfitxer`, `llegirfitxer2`, `copia`, `escriurebin`,
+`lecturabin`). **Corregit:** tret el `create_files()` (i l'`import os`, sense ús): els problemes de fitxers ja reben `in`/`out` del jutge,
+i les escriptures a `out/...` continuen passant pel control de rutes (`<directori de l'enviament>/out/` a `write_fs`). El programa de
+prova continua passant fora dels jutges.
+
+**Segon reinici** (l'usuari, a la 01:13): tots dos jutges en línia amb JAVA25. Testimoni JAVA25 a cada jutge → `RTE`, **cap fitxer creat**.
+Problemes de fitxers en Java 25: les 6 solucions `AC` reals que hi ha (`holafile` i 5 de `llegirfitxer2`) → **6/6 `AC`**; control amb
+Java 8/11 als mateixos problemes (`holafile`, `llegirfitxer`, `llegirfitxer2`, `copia`, `lecturabin`) → **5/5 `AC`**. Enviaments de prova
+no esborrats (a nom d'`edgar`).
+
+**Estat final: tots els Java del jutge tenen aïllament** — Java 8, Java 11 i Kotlin amb el `SecurityManager` de l'agent antic (#86, #88),
+i Java 25 amb `cptbox` (aquesta entrada).
+
+**Com desfer-ho:** restaurar el `.bak` de `JAVA25.py` i reiniciar els jutges.
+
+---
+
+### 90. `SEC` també quan el sandbox del jutge atura un programa
+
+**Abans:** `SEC` (amb avís a la pàgina i correu als administradors) només es posava quan els checkers SQL/Mongo marcaven una consulta
+destructiva (`@@SECVIOL@@`). Quan el sandbox aturava un programa, l'alumne veia un error normal: `RTE` "`<crida>` syscall disallowed"
+(`cptbox`, per exemple Java 25 en intentar llançar un procés) o `IR` "Has intentat hackejar-me. Et sentencio a mort." (`SecurityManager` de
+Java 8/11/Kotlin), sense cap avís a ningú.
+
+**Decisió (de l'usuari):** marcar `SEC` en **qualsevol** cas en què el sandbox hagi intervingut i es pugui detectar. Prefereix un fals positiu
+(un programa legítim que topi amb una crida que `cptbox` encara no coneix) a un fals negatiu.
+
+**Canvis (al web; no toquen el jutge):**
+- `judge/utils/sandbox.py` (nou): `is_sandbox_violation(estat, feedback)`. Cert si l'estat és `RTE` o `IR` i el feedback acaba en
+  " syscall disallowed" (missatge de `dmoj/result.py` per a qualsevol violació de `cptbox`, en qualsevol llenguatge) o comença per "Has
+  intentat hackejar-me" (`java_executor.py`, per a `AccessControlException`).
+- `judge/bridge/judge_handler.py` (`on_test_case`): aquests casos passen a `SEC` i s'afegeixen a la llista de violacions, que envia el correu
+  (`_notify_security_violation`). El correu té un assumpte propi ("[JOEL] Programa aturat pel sandbox (<problema>)"), diu el llenguatge, i
+  avisa que pot ser un programa legítim i que cal mirar el codi abans d'actuar.
+- `judge/views/submission.py` + `templates/submission/status-testcases.html`: si el `SEC` ve del sandbox, l'avís de la pàgina de l'enviament és
+  un altre ("Programa aturat pel sistema de seguretat del jutge"): explica què ha passat, que s'ha notificat al professorat, i que, si
+  l'alumne creu que és un error, en parli amb el professorat. El `SEC` del SQL manté el seu avís.
+- Comprovat: la funció dona cert per a `RTE`+`execve`/`socket` "syscall disallowed" i `IR`+"Has intentat hackejar-me", i fals per a
+  `segmentation fault`, una excepció normal, `WA`, `AC` i `TLE`. El bridge i la vista importen bé. Recàrrega suau d'uWSGI (`kill -HUP`) per a la
+  vista i la plantilla; el web respon 200.
+
+**Límit conegut:** quan `cptbox` denega un accés a fitxers, no mata el programa sinó que respon "no existeix" (el programa veu una
+`FileNotFoundException`). Aquests intents no es poden distingir d'una ruta equivocada i no es marquen.
+
+**Verificat** després que l'usuari reiniciés el bridge (01:23 del 2026-10-21; els dos jutges s'hi van tornar a connectar sols). Tres enviaments
+d'`edgar` al problema privat `aplusb`:
+- Java 25 que intenta llançar un procés → **`SEC`** ("execve syscall disallowed"), amb l'avís nou del sandbox a la pàgina (no el del SQL).
+- Java 11 que intenta el mateix → **`SEC`** ("Has intentat hackejar-me..."), amb l'avís nou.
+- Java 25 amb una solució normal → `AC`, sense cap avís.
+- Cap fitxer testimoni creat. L'enviament dels dos correus no es pot confirmar des d'aquí (`fail_silently`), i l'ha de comprovar l'usuari a la
+  bústia d'`ADMINS`.
+
+---
+
 ## Nota de manteniment d'aquest document
 
 A partir d'ara, **cada canvi tècnic fet al servidor o al codi (aquesta sessió i les següents) s'ha de documentar amb una entrada nova en aquest fitxer**, seguint el mateix format (abans / decisió / per què / resultat), immediatament després de fer el canvi.

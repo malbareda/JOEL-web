@@ -111,6 +111,7 @@ urlpatterns = [
     url(r'^problems/random/$', problem.RandomProblem.as_view(), name='problem_random'),
 
     url(r'^tasks/$', problem.TaskList.as_view(), name='problem_tasks'),
+    url(r'^tasks/bd/$', problem.DatabaseTaskList.as_view(), name='problem_tasks_database'),
     url(r'^tasks/(?P<task>[^/]+)', include([
         url(r'^$', problem.TaskDetail.as_view(), name='task_detail'),
         url(r'^/solvestatus/', problem.TaskSolveStatus.as_view(), name='task_solve_status'),

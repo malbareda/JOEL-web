@@ -52,7 +52,7 @@
    
 {% endblock %}
 {% block title_row %}
-    {% set tab = 'task' %}
+    {% set tab = task_tab %}
     {% set title = _('Tasks') %}
     {% include "problem/problem-list-tabs.html" %}
 {% endblock %}
@@ -182,7 +182,7 @@
             
 
 
-            <h2>{{_('All Tasks')}}</h2>
+            <h2>{% if task_tab == 'task_database' %}{{ _('Tasques de Bases de Dades') }}{% else %}{{ _('All Tasks') }}{% endif %}</h2>
             <br>
             <table class="solvedtable table">
                 <thead>

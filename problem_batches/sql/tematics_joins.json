@@ -1,0 +1,299 @@
+{
+  "problems": [
+    {
+      "code": "sqljoin01",
+      "database": "miniwind",
+      "type": "sqljoinbasic",
+      "name": "SQL Joins 1: LEFT JOIN",
+      "intro": "Comences amb un `INNER JOIN` per recordar com es combinen dues taules i, després, practiques el `LEFT JOIN`: com conservar les files de l'esquerra que no tenen parella, comptar zeros i detectar les files 'òrfenes' amb `IS NULL`.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador de cada comanda (`orders.id`) i el nom de l'empresa del seu client (`customers.company`). Ordena el resultat per l'identificador de la comanda.",
+          "sql": "SELECT o.id, c.company FROM orders o INNER JOIN customers c ON c.id = o.customer_id ORDER BY o.id",
+          "explain": "Cada comanda guarda el `customer_id` del seu client, així que s'uneix `orders` amb `customers` per aquesta clau. L'`INNER JOIN` és suficient perquè només volem comandes, i totes tenen client."
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i la quantitat (`quantity`) de cada línia de detall de la comanda número 31.",
+          "sql": "SELECT p.product_name, od.quantity FROM order_details od INNER JOIN products p ON p.id = od.product_id WHERE od.order_id = 31",
+          "explain": "`order_details` només té l'identificador del producte; per obtenir-ne el nom cal unir-la amb `products` per `product_id`. El filtre sobre la comanda es pot fer al `WHERE` perquè és un `INNER JOIN`."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de tots els clients juntament amb l'identificador de cadascuna de les seves comandes (`orders.id`). Els clients que no han fet cap comanda també han d'aparèixer, amb el valor buit (`NULL`) a la columna de la comanda.",
+          "sql": "SELECT c.company, o.id FROM customers c LEFT JOIN orders o ON o.customer_id = c.id",
+          "explain": "Amb `customers` a l'esquerra d'un `LEFT JOIN`, cada client es conserva encara que no trobi cap comanda; en aquest cas les columnes d'`orders` surten amb `NULL`. Un `INNER JOIN` els faria desaparèixer."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) dels clients que no han fet mai cap comanda.",
+          "sql": "SELECT c.company FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL",
+          "explain": "Aquest és el patró d'anti-join: el `LEFT JOIN` deixa `NULL` a les columnes d'`orders` quan no hi ha parella, i el `WHERE o.id IS NULL` es queda només amb aquests clients. Cal comprovar una columna que mai sigui `NULL` en una comanda real, com la clau primària."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i el nombre de comandes que ha fet (`COUNT`), amb 0 per als clients sense comandes. Una fila per client.",
+          "sql": "SELECT c.company, COUNT(o.id) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company",
+          "explain": "`COUNT(o.id)` només compta valors no `NULL`, així que els clients sense comandes donen 0. Amb `COUNT(*)` donarien 1, perquè la fila amb `NULL` que genera el `LEFT JOIN` també es comptaria."
+        },
+        {
+          "text": "Mostra el nom (`product_name`) dels productes que no s'han venut mai, és a dir, que no apareixen a cap línia de `order_details`.",
+          "sql": "SELECT p.product_name FROM products p LEFT JOIN order_details od ON od.product_id = p.id WHERE od.id IS NULL",
+          "explain": "S'uneix `products` amb `order_details` per `product_id` conservant tots els productes. Els que no han estat mai venuts no tenen línia de detall i, per tant, `od.id` és `NULL`."
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) de cada empleat i el nombre de comandes que ha gestionat, amb 0 per als empleats sense comandes. Una fila per empleat.",
+          "sql": "SELECT e.last_name, COUNT(o.id) FROM employees e LEFT JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name",
+          "explain": "Amb `employees` a l'esquerra, tots els empleats surten; `COUNT(o.id)` ignora els `NULL` i dona 0 a qui no té comandes. Si féssim `INNER JOIN`, l'empleat sense comandes no apareixeria al resultat."
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) i el nom (`first_name`) dels empleats que no han gestionat cap comanda.",
+          "sql": "SELECT e.last_name, e.first_name FROM employees e LEFT JOIN orders o ON o.employee_id = e.id WHERE o.id IS NULL",
+          "explain": "Mateix anti-join que amb els clients: es conserven tots els empleats amb un `LEFT JOIN` i el `WHERE o.id IS NULL` deixa només els que no han trobat cap comanda."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i el nombre de comandes ja enviades que ha fet (les que tenen `shipped_date` amb valor). Els clients sense comandes enviades han de sortir amb 0. Una fila per client.",
+          "sql": "SELECT c.company, COUNT(o.id) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND o.shipped_date IS NOT NULL GROUP BY c.id, c.company",
+          "explain": "La condició sobre `shipped_date` ha d'anar a l'`ON`: així només decideix quines comandes s'uneixen i el client es conserva igualment. Al `WHERE` eliminaria també les files amb `NULL` i el `LEFT JOIN` es comportaria com un `INNER JOIN`."
+        },
+        {
+          "text": "Mostra cada categoria de producte (`category`) i el nombre de línies de comanda (`order_details`) que té, amb 0 per a les categories que no s'han venut mai. Una fila per categoria.",
+          "sql": "SELECT p.category, COUNT(od.id) FROM products p LEFT JOIN order_details od ON od.product_id = p.id GROUP BY p.category",
+          "explain": "Part de `products` perquè totes les categories hi són representades, i el `LEFT JOIN` amb `order_details` manté els productes sense vendes. Agrupant per categoria i comptant `od.id`, les categories sense vendes donen 0."
+        }
+      ]
+    },
+    {
+      "code": "sqljoin02",
+      "database": "traders",
+      "type": "sqljoinbasic",
+      "name": "SQL Joins 2: RIGHT JOIN",
+      "intro": "`A RIGHT JOIN B` conserva **totes les files de la taula de la dreta** (`B`) i hi enganxa les de l'esquerra (`A`) que hi casen; on no n'hi ha cap, les columnes d'`A` surten amb `NULL`. És el mirall del `LEFT JOIN`: `A RIGHT JOIN B` dona el mateix resultat que `B LEFT JOIN A`. En aquest problema, cada enunciat diu \"Combinant A i B\" i la taula de la qual cal conservar totes les files és la segona: resol-lo amb `RIGHT JOIN` (el jutge compara resultats, així que també t'acceptarà el `LEFT JOIN` girat, però la idea és practicar el `RIGHT JOIN`).",
+      "questions": [
+        {
+          "text": "Combinant `ShipOwners` i `Ships`, mostra el nom de totes les naus (`Ships.Name`) i l'identificador del propietari (`ShipOwners.TraderId`). Les naus que no han tingut mai cap propietari registrat també han de sortir, amb `NULL` com a propietari.",
+          "sql": "SELECT s.Name, so.TraderId FROM ShipOwners so RIGHT JOIN Ships s ON so.ShipId = s.Id",
+          "explain": "`Ships` és la taula de la dreta, i `RIGHT JOIN` en conserva totes les naus: les que no tenen cap propietari surten amb `NULL` a `TraderId`. Una nau amb diversos propietaris surt una vegada per cada propietari."
+        },
+        {
+          "text": "Combinant `ShipOwners` i `Ships`, mostra el nom (`Ships.Name`) de les naus que no han tingut mai cap propietari.",
+          "sql": "SELECT s.Name FROM ShipOwners so RIGHT JOIN Ships s ON so.ShipId = s.Id WHERE so.Id IS NULL",
+          "explain": "Anti-join per la dreta: després del `RIGHT JOIN`, les naus sense cap fila a `ShipOwners` tenen `NULL` a `so.Id`, i el `WHERE` es queda només amb aquestes."
+        },
+        {
+          "text": "Combinant `TradeLines` i `Products`, mostra el nom de tots els productes (`Products.Name`) i el nombre de línies de comerç (`TradeLines`) on apareixen. Els productes que no apareixen enlloc han de sortir amb 0. Una fila per producte.",
+          "sql": "SELECT p.Name, COUNT(tl.Id) FROM TradeLines tl RIGHT JOIN Products p ON tl.ProductId = p.Id GROUP BY p.Id, p.Name",
+          "explain": "`Products` és a la dreta i en volem tots. `COUNT(tl.Id)` només compta les línies reals (ignora els `NULL` que posa el `RIGHT JOIN`), així que dona 0 als productes sense línies; amb `COUNT(*)` donarien 1."
+        },
+        {
+          "text": "Combinant `TradeLines` i `Products`, mostra el nom (`Products.Name`) dels productes que no s'han comercialitzat mai, és a dir, que no apareixen a cap línia de `TradeLines`.",
+          "sql": "SELECT p.Name FROM TradeLines tl RIGHT JOIN Products p ON tl.ProductId = p.Id WHERE tl.Id IS NULL",
+          "explain": "Mateix anti-join: conservem tots els productes (taula de la dreta) i ens quedem amb els que no han trobat cap línia de comerç (`tl.Id IS NULL`)."
+        },
+        {
+          "text": "Combinant `SolarSystemsDistances` i `SolarSystems`, mostra el nom (`SolarSystems.Name`) de tots els sistemes solars i el nombre de files de `SolarSystemsDistances` en què el sistema és l'origen (`SystemId1`). Els sistemes que no són origen de cap distància han de sortir amb 0. Una fila per sistema.",
+          "sql": "SELECT ss.Name, COUNT(d.Id) FROM SolarSystemsDistances d RIGHT JOIN SolarSystems ss ON d.SystemId1 = ss.Id GROUP BY ss.Id, ss.Name",
+          "explain": "Volem tots els sistemes, que són la taula de la dreta; la unió es fa per `SystemId1` perquè només interessa el sistema com a origen. El sistema que no és mai origen queda amb 0."
+        },
+        {
+          "text": "Combinant `Trades` i `Stays`, mostra l'identificador (`Stays.Id`) i la data d'inici (`StartDate`) de les estades en què no s'ha fet cap transacció (`Trades`).",
+          "sql": "SELECT s.Id, s.StartDate FROM Trades t RIGHT JOIN Stays s ON t.StayId = s.Id WHERE t.Id IS NULL",
+          "explain": "`Stays` és a la dreta: el `RIGHT JOIN` les conserva totes, i `t.Id IS NULL` deixa només les estades sense cap transacció."
+        },
+        {
+          "text": "Combinant `PriceChanges` i `Products`, mostra el nom (`Products.Name`) de tots els productes i el preu mitjà (`AVG`) dels seus canvis de preu (`NewPrice`). Els productes sense cap canvi de preu han de sortir amb `NULL` com a mitjana. Una fila per producte.",
+          "sql": "SELECT p.Name, AVG(pc.NewPrice) FROM PriceChanges pc RIGHT JOIN Products p ON pc.ProductId = p.Id GROUP BY p.Id, p.Name",
+          "explain": "Els productes sense cap canvi de preu han de sortir igualment, així que `Products` va a la dreta d'un `RIGHT JOIN`. Quan no hi ha cap valor per mitjanar, `AVG` retorna `NULL`, que és el que es demana."
+        },
+        {
+          "text": "Combinant `Trades` i `Stays`, mostra l'identificador de cada estada (`Stays.Id`) i el nombre de transaccions (`Trades`) que s'hi han fet, amb 0 per a les estades sense cap transacció. Una fila per estada.",
+          "sql": "SELECT s.Id, COUNT(t.Id) FROM Trades t RIGHT JOIN Stays s ON t.StayId = s.Id GROUP BY s.Id",
+          "explain": "Cal conservar totes les estades (taula de la dreta). Agrupem per estada i comptem `t.Id`, que dona 0 quan el `RIGHT JOIN` no troba cap transacció."
+        },
+        {
+          "text": "Combinant `ShipOwners` i `Ships`, mostra el nom (`Ships.Name`) de cada nau de tipus 'Fighter' i el nombre de vegades que ha estat comprada (`AcquisitionCause = 'Bought'`). Les naus 'Fighter' que no s'han comprat mai han de sortir amb 0. Una fila per nau.",
+          "sql": "SELECT s.Name, COUNT(so.Id) FROM ShipOwners so RIGHT JOIN Ships s ON so.ShipId = s.Id AND so.AcquisitionCause = 'Bought' WHERE s.Type = 'Fighter' GROUP BY s.Id, s.Name",
+          "explain": "El filtre del tipus de nau va al `WHERE` perquè és de la taula que conservem (la de la dreta); la causa d'adquisició va a l'`ON` perquè només ha de decidir quines files d'`ShipOwners` s'uneixen. Si anés al `WHERE`, desapareixerien les naus que no s'han comprat mai."
+        },
+        {
+          "text": "Combinant `ShipOwners` i `Traders`, mostra el sobrenom (`Traders.Nickname`) de cada trader i el nombre de naus que ha perdut per robatori (`LostCause = 'Stolen'`). Els traders a qui no han robat cap nau han de sortir amb 0. Una fila per trader.",
+          "sql": "SELECT t.Nickname, COUNT(so.Id) FROM ShipOwners so RIGHT JOIN Traders t ON so.TraderId = t.Id AND so.LostCause = 'Stolen' GROUP BY t.Id, t.Nickname",
+          "explain": "`Traders` és la taula de la dreta i en volem tots. La condició `LostCause = 'Stolen'` va a l'`ON`: al `WHERE` eliminaria els traders sense robatoris en lloc de deixar-los a 0."
+        }
+      ]
+    },
+    {
+      "code": "sqljoin03",
+      "database": "northwind",
+      "type": "sqljoincomplex",
+      "name": "SQL Joins 3: Triar el join correcte",
+      "intro": "Els enunciats van per parelles que només es diferencien en una paraula clau ('només els que...' contra 'tots, també els que no...'). Has de decidir en cada cas si cal mantenir només les files amb parella o totes les files d'una de les taules, perquè el resultat canvia.",
+      "questions": [
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i el nombre de comandes que ha fet. Han d'aparèixer tots els clients, també els que no han fet cap comanda (amb 0). Una fila per client.",
+          "sql": "SELECT c.company, COUNT(o.id) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company",
+          "explain": "Es demanen tots els clients, incloent-hi els que no tenen comandes, així que cal conservar totes les files de `customers`: `LEFT JOIN`. Amb un `INNER JOIN` es perdrien els clients sense comandes. `COUNT(o.id)` dona 0 als que no en tenen."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i el nombre de comandes que ha fet. Només han d'aparèixer els clients que han fet alguna comanda. Una fila per client.",
+          "sql": "SELECT c.company, COUNT(o.id) FROM customers c INNER JOIN orders o ON o.customer_id = c.id GROUP BY c.id, c.company",
+          "explain": "Aquí només interessen els clients amb comandes: un `INNER JOIN` ja descarta els que no tenen parella. Un `LEFT JOIN` ens retornaria clients de més, amb un 0."
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i el total d'unitats que se n'han venut (suma de `quantity` a `order_details`). Només han d'aparèixer els productes que s'han venut alguna vegada. Una fila per producte.",
+          "sql": "SELECT p.product_name, SUM(od.quantity) FROM products p INNER JOIN order_details od ON od.product_id = p.id GROUP BY p.id, p.product_name",
+          "explain": "Només volem productes amb vendes, i això és exactament el que deixa un `INNER JOIN` amb `order_details`. Si féssim `LEFT JOIN`, els productes sense vendes sortirien amb `NULL` com a suma."
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i el total d'unitats que se n'han venut (suma de `quantity` a `order_details`). Han d'aparèixer tots els productes, també els que no s'han venut mai, amb 0 unitats. Una fila per producte.",
+          "sql": "SELECT p.product_name, COALESCE(SUM(od.quantity), 0) FROM products p LEFT JOIN order_details od ON od.product_id = p.id GROUP BY p.id, p.product_name",
+          "explain": "Com que els productes no venuts també han de sortir, cal un `LEFT JOIN` des de `products`. La suma d'un grup sense files és `NULL`, i `COALESCE(..., 0)` la converteix en el 0 que demana l'enunciat."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada proveïdor i el nombre de comandes de compra (`purchase_orders`) que li han fet. Han d'aparèixer tots els proveïdors, també els que no tenen cap comanda de compra (amb 0). Una fila per proveïdor.",
+          "sql": "SELECT s.company, COUNT(po.id) FROM suppliers s LEFT JOIN purchase_orders po ON po.supplier_id = s.id GROUP BY s.id, s.company",
+          "explain": "Hi ha proveïdors sense comandes de compra i han de ser al resultat; per això es conserva tota la taula `suppliers` amb un `LEFT JOIN` i es compta una columna de `purchase_orders`, que dona 0 si no hi ha parella."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada proveïdor i el nombre de comandes de compra (`purchase_orders`) que li han fet. Només han d'aparèixer els proveïdors que tenen alguna comanda de compra. Una fila per proveïdor.",
+          "sql": "SELECT s.company, COUNT(po.id) FROM suppliers s INNER JOIN purchase_orders po ON po.supplier_id = s.id GROUP BY s.id, s.company",
+          "explain": "Només volem els proveïdors amb comandes de compra, per tant l'`INNER JOIN` és el correcte: els proveïdors sense comandes no tenen parella i queden fora, tal com demana l'enunciat."
+        },
+        {
+          "text": "Mostra l'identificador de cada comanda (`orders.id`) i l'empresa del transportista (`shippers.company`). Han d'aparèixer totes les comandes; les que encara no tenen transportista assignat han de sortir amb `NULL` a l'empresa.",
+          "sql": "SELECT o.id, sh.company FROM orders o LEFT JOIN shippers sh ON sh.id = o.shipper_id",
+          "explain": "Algunes comandes tenen `shipper_id` a `NULL`. Un `INNER JOIN` les descartaria sense avisar, i l'enunciat vol totes les comandes; el `LEFT JOIN` des d'`orders` les conserva amb l'empresa a `NULL`."
+        },
+        {
+          "text": "Mostra l'identificador de cada comanda (`orders.id`) i l'empresa del transportista (`shippers.company`). Només han d'aparèixer les comandes que ja tenen un transportista assignat.",
+          "sql": "SELECT o.id, sh.company FROM orders o INNER JOIN shippers sh ON sh.id = o.shipper_id",
+          "explain": "Només es demanen les comandes amb transportista assignat: l'`INNER JOIN` elimina les comandes amb `shipper_id` `NULL`, que no troben cap fila a `shippers`."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i l'import total que ha comprat, calculat com la suma de `quantity * unit_price` de totes les línies de les seves comandes. Han d'aparèixer tots els clients; els que no han comprat res han de tenir 0. Una fila per client.",
+          "sql": "SELECT c.company, COALESCE(SUM(od.quantity * od.unit_price), 0) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id LEFT JOIN order_details od ON od.order_id = o.id GROUP BY c.id, c.company",
+          "explain": "Tots els clients han de sortir, així que s'encadenen dos `LEFT JOIN` (clients, comandes i línies): si en tots dos fos `INNER`, es perdrien els clients sense comandes. `COALESCE` posa el 0 on la suma és `NULL`."
+        },
+        {
+          "text": "Mostra l'empresa (`company`) de cada client i l'import total que ha comprat, calculat com la suma de `quantity * unit_price` de totes les línies de les seves comandes. Només han d'aparèixer els clients que han comprat alguna cosa. Una fila per client.",
+          "sql": "SELECT c.company, SUM(od.quantity * od.unit_price) FROM customers c INNER JOIN orders o ON o.customer_id = c.id INNER JOIN order_details od ON od.order_id = o.id GROUP BY c.id, c.company",
+          "explain": "En aquest cas només es volen els clients amb compres, i un encadenament d'`INNER JOIN` entre clients, comandes i línies ja garanteix que cada client té almenys una línia. No cal `COALESCE`, perquè la suma mai és `NULL`."
+        }
+      ]
+    },
+    {
+      "code": "sqljoin04",
+      "database": "chinook",
+      "type": "sqljoincomplex",
+      "name": "SQL Joins 4: Joins encadenats",
+      "intro": "Practiques els joins encadenats sobre la botiga de música Chinook: de 3 a 6 taules unides pas a pas, seguint les claus foranes (pista, àlbum, artista, gènere, factura, client, empleat...) amb filtres i agrupacions.",
+      "questions": [
+        {
+          "text": "Mostra el nom de la pista (`Track.Name`), el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) de totes les pistes de l'àlbum amb títol 'Let There Be Rock'.",
+          "sql": "SELECT t.Name, al.Title, ar.Name FROM Track t INNER JOIN Album al ON al.AlbumId = t.AlbumId INNER JOIN Artist ar ON ar.ArtistId = al.ArtistId WHERE al.Title = 'Let There Be Rock'",
+          "explain": "La pista només coneix el seu `AlbumId`, i l'àlbum només coneix el seu `ArtistId`. Per arribar al nom de l'artista cal encadenar `Track`, `Album` i `Artist`, i filtrar pel títol de l'àlbum."
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el nombre de pistes (`Track`) que té, només per als artistes amb més de 100 pistes en total.",
+          "sql": "SELECT ar.Name, COUNT(t.TrackId) FROM Artist ar INNER JOIN Album al ON al.ArtistId = ar.ArtistId INNER JOIN Track t ON t.AlbumId = al.AlbumId GROUP BY ar.ArtistId, ar.Name HAVING COUNT(t.TrackId) > 100",
+          "explain": "Un artista arriba a les pistes passant pels àlbums, així que s'encadenen `Artist`, `Album` i `Track`. Cal agrupar per artista i filtrar amb `HAVING`, perquè la condició s'aplica sobre el recompte i no sobre files individuals."
+        },
+        {
+          "text": "Mostra el nom de cada gènere (`Genre.Name`) i el nombre total d'unitats venudes (suma de `InvoiceLine.Quantity`). Només han d'aparèixer els gèneres que s'han venut alguna vegada.",
+          "sql": "SELECT g.Name, SUM(il.Quantity) FROM InvoiceLine il INNER JOIN Track t ON t.TrackId = il.TrackId INNER JOIN Genre g ON g.GenreId = t.GenreId GROUP BY g.GenreId, g.Name",
+          "explain": "La línia de factura apunta a la pista i la pista al gènere, així que cal passar per `Track` per arribar de `InvoiceLine` a `Genre`. L'`INNER JOIN` deixa fora els gèneres sense vendes, que és el que es demana."
+        },
+        {
+          "text": "Mostra el cognom de cada empleat de suport (`Employee.LastName`) i el nombre de factures (`Invoice`) dels clients que atén (`Customer.SupportRepId`). Només han d'aparèixer els empleats que atenen algun client amb factures.",
+          "sql": "SELECT e.LastName, COUNT(i.InvoiceId) FROM Invoice i INNER JOIN Customer c ON c.CustomerId = i.CustomerId INNER JOIN Employee e ON e.EmployeeId = c.SupportRepId GROUP BY e.EmployeeId, e.LastName",
+          "explain": "La factura no coneix l'empleat: cal anar de `Invoice` a `Customer` i d'aquest a `Employee` per `SupportRepId`. Agrupem per empleat i comptem factures; els empleats sense clients no apareixen."
+        },
+        {
+          "text": "Mostra una sola vegada cada client que té alguna factura amb un total (`Invoice.Total`) superior a 15: el seu nom (`FirstName`), el seu cognom (`Customer.LastName`) i el cognom de l'empleat de suport (`Employee.LastName`).",
+          "sql": "SELECT DISTINCT c.FirstName, c.LastName, e.LastName FROM Invoice i INNER JOIN Customer c ON c.CustomerId = i.CustomerId INNER JOIN Employee e ON e.EmployeeId = c.SupportRepId WHERE i.Total > 15",
+          "explain": "S'encadenen factura, client i empleat com abans, i es filtra per total. Un client pot tenir diverses factures cares, i això generaria files repetides; `DISTINCT` fa que cada client surti només una vegada."
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el total d'unitats venudes de les seves pistes (suma de `InvoiceLine.Quantity`), només per als artistes amb més de 40 unitats venudes.",
+          "sql": "SELECT ar.Name, SUM(il.Quantity) FROM InvoiceLine il INNER JOIN Track t ON t.TrackId = il.TrackId INNER JOIN Album al ON al.AlbumId = t.AlbumId INNER JOIN Artist ar ON ar.ArtistId = al.ArtistId GROUP BY ar.ArtistId, ar.Name HAVING SUM(il.Quantity) > 40",
+          "explain": "Per saber quant ha venut un artista cal recórrer tot el camí `InvoiceLine`, `Track`, `Album`, `Artist` (quatre taules). Es suma la quantitat per artista i el `HAVING` filtra per la suma."
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de cada client del Canadà (`Customer.Country = 'Canada'`) i el nombre total de pistes que ha comprat (suma de `InvoiceLine.Quantity`). Només han d'aparèixer els clients amb compres. Una fila per client.",
+          "sql": "SELECT c.FirstName, c.LastName, SUM(il.Quantity) FROM Customer c INNER JOIN Invoice i ON i.CustomerId = c.CustomerId INNER JOIN InvoiceLine il ON il.InvoiceId = i.InvoiceId WHERE c.Country = 'Canada' GROUP BY c.CustomerId, c.FirstName, c.LastName",
+          "explain": "El client arriba a les línies de compra a través de les seves factures: `Customer`, `Invoice`, `InvoiceLine`. El filtre del país va al `WHERE`, abans d'agrupar, i s'agrupa per l'identificador del client perquè dos clients podrien compartir nom."
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el nombre de pistes de gènere 'Jazz' que té, només per als artistes amb almenys 10 pistes de Jazz.",
+          "sql": "SELECT ar.Name, COUNT(t.TrackId) FROM Genre g INNER JOIN Track t ON t.GenreId = g.GenreId INNER JOIN Album al ON al.AlbumId = t.AlbumId INNER JOIN Artist ar ON ar.ArtistId = al.ArtistId WHERE g.Name = 'Jazz' GROUP BY ar.ArtistId, ar.Name HAVING COUNT(t.TrackId) >= 10",
+          "explain": "El gènere es filtra al `WHERE` (condició per fila) i després s'uneixen pista, àlbum i artista per atribuir cada pista de Jazz al seu artista. El nombre mínim de pistes és una condició sobre el grup, per tant va al `HAVING`."
+        },
+        {
+          "text": "Mostra el nom de la pista (`Track.Name`), el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) de totes les pistes de la llista de reproducció (`Playlist`) anomenada 'Grunge'.",
+          "sql": "SELECT t.Name, al.Title, ar.Name FROM Playlist p INNER JOIN PlaylistTrack pt ON pt.PlaylistId = p.PlaylistId INNER JOIN Track t ON t.TrackId = pt.TrackId INNER JOIN Album al ON al.AlbumId = t.AlbumId INNER JOIN Artist ar ON ar.ArtistId = al.ArtistId WHERE p.Name = 'Grunge'",
+          "explain": "`PlaylistTrack` és una taula pont entre llistes i pistes, així que s'ha de passar per ella: `Playlist`, `PlaylistTrack`, `Track`, `Album`, `Artist`. El filtre pel nom de la llista redueix el resultat a unes poques files."
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de cada client que ha comprat pistes de l'artista 'Iron Maiden' i el nombre total de pistes d'aquest artista que ha comprat (suma de `InvoiceLine.Quantity`). Una fila per client.",
+          "sql": "SELECT c.FirstName, c.LastName, SUM(il.Quantity) FROM Customer c INNER JOIN Invoice i ON i.CustomerId = c.CustomerId INNER JOIN InvoiceLine il ON il.InvoiceId = i.InvoiceId INNER JOIN Track t ON t.TrackId = il.TrackId INNER JOIN Album al ON al.AlbumId = t.AlbumId INNER JOIN Artist ar ON ar.ArtistId = al.ArtistId WHERE ar.Name = 'Iron Maiden' GROUP BY c.CustomerId, c.FirstName, c.LastName",
+          "explain": "El camí de client a artista és llarg: `Customer`, `Invoice`, `InvoiceLine`, `Track`, `Album`, `Artist` (sis taules). Filtrant per l'artista només queden les compres de les seves pistes, i s'agrupa per client per sumar les unitats."
+        }
+      ]
+    },
+    {
+      "code": "sqljoin05",
+      "database": "hotel",
+      "type": "sqljoincomplex",
+      "name": "SQL Joins 5: Joins mesclats",
+      "intro": "Sobre la base de dades d'un hotel combines `INNER JOIN` i `LEFT JOIN` en una mateixa consulta, uneixes taules pont, fas autojoins i unions amb més d'una condició, i ho agrupes tot amb `GROUP BY` i `HAVING`.",
+      "questions": [
+        {
+          "text": "Mostra el nom de cada tipus d'habitació (`RoomTypes.Name`) i el nombre d'habitacions (`Rooms`) que hi ha d'aquest tipus. Els tipus sense cap habitació han de sortir amb 0. Una fila per tipus.",
+          "sql": "SELECT rt.Name, COUNT(r.RoomNumber) FROM RoomTypes rt LEFT JOIN Rooms r ON r.RoomTypeId = rt.Id GROUP BY rt.Id, rt.Name",
+          "explain": "Hi ha un tipus d'habitació sense cap habitació física, i ha de sortir amb 0. Cal un `LEFT JOIN` des de `RoomTypes` i comptar una columna de `Rooms`, no `COUNT(*)`."
+        },
+        {
+          "text": "Mostra el nom de cada tipus d'habitació (`RoomTypes.Name`) i el nombre de serveis (`Facilities`) que ofereix, només per als tipus amb més de 5 serveis.",
+          "sql": "SELECT rt.Name, COUNT(f.Id) FROM RoomTypes rt INNER JOIN RoomTypeFacilities rtf ON rtf.RoomTypeId = rt.Id INNER JOIN Facilities f ON f.Id = rtf.FacilityId GROUP BY rt.Id, rt.Name HAVING COUNT(f.Id) > 5",
+          "explain": "`RoomTypeFacilities` és la taula pont d'una relació molts-a-molts entre tipus i serveis, així que s'hi ha de passar per unir `RoomTypes` amb `Facilities`. El mínim de serveis és una condició sobre el grup, per tant va al `HAVING`."
+        },
+        {
+          "text": "Mostra el nom (`RoomTypes.Name`) dels tipus d'habitació que ofereixen alhora el servei 'City view' i el servei 'Flat-screen TV'.",
+          "sql": "SELECT rt.Name FROM RoomTypes rt INNER JOIN RoomTypeFacilities a ON a.RoomTypeId = rt.Id INNER JOIN Facilities fa ON fa.Id = a.FacilityId AND fa.Name = 'City view' INNER JOIN RoomTypeFacilities b ON b.RoomTypeId = rt.Id INNER JOIN Facilities fb ON fb.Id = b.FacilityId AND fb.Name = 'Flat-screen TV'",
+          "explain": "Una sola unió amb la taula pont no pot exigir dos serveis diferents a la mateixa fila. Es fa la unió dues vegades, amb àlies diferents, cadascuna filtrada per un servei: només els tipus que compleixen tots dos sobreviuen als dos `INNER JOIN`."
+        },
+        {
+          "text": "Mostra l'identificador (`Customers.Id`) i el correu (`Email`) dels clients que no han fet mai cap reserva (`Bookings`).",
+          "sql": "SELECT c.Id, c.Email FROM Customers c LEFT JOIN Bookings b ON b.CustomerId = c.Id WHERE b.Id IS NULL",
+          "explain": "Anti-join clàssic: es conserven tots els clients amb un `LEFT JOIN` a `Bookings` i es queden només els que tenen `NULL` a la clau primària de la reserva."
+        },
+        {
+          "text": "Mostra l'identificador de la reserva (`Bookings.Id`), el cognom del client (`Customers.LastName`) i la data d'entrada (`Bookings.CheckIn`) de les reserves en estat 'Reserved' amb data d'entrada entre el 2023-11-13 i el 2023-11-30 (tots dos inclosos) que no tenen cap estada (`Stays`) associada.",
+          "sql": "SELECT b.Id, c.LastName, b.CheckIn FROM Bookings b INNER JOIN Customers c ON c.Id = b.CustomerId LEFT JOIN Stays s ON s.BookingId = b.Id WHERE b.State = 'Reserved' AND b.CheckIn BETWEEN '2023-11-13' AND '2023-11-30' AND s.Id IS NULL",
+          "explain": "Aquí es barregen dos tipus d'unió: `INNER JOIN` amb `Customers`, perquè tota reserva té client, i `LEFT JOIN` amb `Stays` per detectar les reserves sense estada amb `s.Id IS NULL`. Els filtres sobre la reserva van al `WHERE`."
+        },
+        {
+          "text": "Mostra l'identificador de cada estada (`Stays.Id`) amb data d'entrada (`Stays.CheckIn`) entre el 2021-01-01 i el 2021-01-31 (tots dos inclosos) i el nombre de dies de `BookingCalendar` ocupats en la seva habitació (`AssignedRoom = Stays.RoomNumber`) amb una data (`BookedDate`) compresa entre l'entrada i la sortida de l'estada (`Stays.CheckIn` i `Stays.CheckOut`, tots dos inclosos). Una fila per estada.",
+          "sql": "SELECT s.Id, COUNT(bc.BookedDate) FROM Stays s LEFT JOIN BookingCalendar bc ON bc.AssignedRoom = s.RoomNumber AND bc.BookedDate BETWEEN s.CheckIn AND s.CheckOut WHERE s.CheckIn BETWEEN '2021-01-01' AND '2021-01-31' GROUP BY s.Id",
+          "explain": "La unió necessita dues condicions a l'`ON`: la mateixa habitació i una data dins del rang de l'estada. Posant-les totes a l'`ON` d'un `LEFT JOIN`, les estades sense cap dia coincident es conserven amb recompte 0 en lloc de desaparèixer."
+        },
+        {
+          "text": "Mostra la nacionalitat (`Hosts.Nationality`) i el nombre de registres d'hoste (`StayHosts`) de les estades fetes a l'habitació número 12 (`Stays.RoomNumber`). Una fila per nacionalitat.",
+          "sql": "SELECT h.Nationality, COUNT(*) FROM Stays s INNER JOIN StayHosts sh ON sh.StayId = s.Id INNER JOIN Hosts h ON h.Id = sh.HostId WHERE s.RoomNumber = 12 GROUP BY h.Nationality",
+          "explain": "Els hostes no estan lligats directament a l'estada: la taula pont `StayHosts` els relaciona. Es filtra primer l'habitació a `Stays`, i després s'uneixen `StayHosts` i `Hosts` per agrupar per nacionalitat, de manera que no cal recórrer tots els hostes de l'hotel."
+        },
+        {
+          "text": "Mostra l'identificador de cada estada (`Stays.Id`), el nom del tipus de l'habitació on es va fer (`RoomTypes.Name`) i el nombre d'hostes registrats a `StayHosts`, només per a les estades amb 6 o més hostes. Una fila per estada.",
+          "sql": "SELECT s.Id, rt.Name, COUNT(sh.HostId) FROM Stays s INNER JOIN Rooms r ON r.RoomNumber = s.RoomNumber INNER JOIN RoomTypes rt ON rt.Id = r.RoomTypeId INNER JOIN StayHosts sh ON sh.StayId = s.Id GROUP BY s.Id, rt.Name HAVING COUNT(sh.HostId) >= 6",
+          "explain": "Per arribar al tipus d'habitació cal passar per `Rooms`, i per comptar hostes, per la taula pont `StayHosts`. Com que només volem estades amb 6 o més hostes, n'hi ha prou amb `INNER JOIN` i un `HAVING` sobre el recompte."
+        },
+        {
+          "text": "Mostra totes les parelles d'habitacions diferents del mateix tipus: els dos números d'habitació (`Rooms.RoomNumber`, el primer menor que el segon) i el nom del tipus (`RoomTypes.Name`). Cada parella ha de sortir una sola vegada.",
+          "sql": "SELECT r1.RoomNumber, r2.RoomNumber, rt.Name FROM Rooms r1 INNER JOIN Rooms r2 ON r2.RoomTypeId = r1.RoomTypeId AND r1.RoomNumber < r2.RoomNumber INNER JOIN RoomTypes rt ON rt.Id = r1.RoomTypeId",
+          "explain": "És un autojoin: la taula `Rooms` s'uneix amb ella mateixa per tipus d'habitació. La condició `r1.RoomNumber < r2.RoomNumber` evita aparellar una habitació amb ella mateixa i que cada parella surti dues vegades (A-B i B-A)."
+        },
+        {
+          "text": "Mostra el nom de cada tipus d'habitació (`RoomTypes.Name`) i el nombre d'estades pagades amb targeta (`Stays.PaymentType = 'Card'`) fetes en habitacions d'aquest tipus. Els tipus sense cap estada pagada amb targeta han de sortir amb 0. Una fila per tipus.",
+          "sql": "SELECT rt.Name, COUNT(s.Id) FROM RoomTypes rt LEFT JOIN Rooms r ON r.RoomTypeId = rt.Id LEFT JOIN Stays s ON s.RoomNumber = r.RoomNumber AND s.PaymentType = 'Card' GROUP BY rt.Id, rt.Name",
+          "explain": "S'encadenen dos `LEFT JOIN` des de `RoomTypes` per no perdre cap tipus, encara que no tingui habitacions o estades. El filtre del pagament va a l'`ON` de l'últim `LEFT JOIN`, ja que al `WHERE` eliminaria els tipus sense estades amb targeta en lloc de deixar-los a 0."
+        }
+      ]
+    }
+  ]
+}

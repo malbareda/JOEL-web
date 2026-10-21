@@ -1,0 +1,299 @@
+{
+ "problems": [
+  {
+   "code": "sqlagg01",
+   "database": "lastnames",
+   "type": "sqlaggbasic",
+   "name": "SQL Agregacions 1: Comptar amb COUNT",
+   "intro": "Practica la funció `COUNT` en les seves variants (`COUNT(*)`, `COUNT(columna)`, `COUNT(DISTINCT ...)`) combinada amb filtres `WHERE`.",
+   "questions": [
+    {
+     "text": "Quantes files té la taula `LastNames`? Retorna una sola columna amb el recompte.",
+     "sql": "SELECT COUNT(*) FROM LastNames",
+     "explain": "`COUNT(*)` compta totes les files de la taula sense mirar el contingut de cap columna, per això és la forma habitual de preguntar quantes files hi ha."
+    },
+    {
+     "text": "Retorna, en una sola columna, quants valors no nuls hi ha a la columna `Name` de `LastNames`.",
+     "sql": "SELECT COUNT(Name) FROM LastNames",
+     "explain": "`COUNT(columna)` només compta els valors que no són NULL. Com que `Name` és NOT NULL el resultat coincideix amb `COUNT(*)`, però la diferència apareixeria en una columna que admetés NULL."
+    },
+    {
+     "text": "Quants cognoms comencen per la lletra 'G'? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Name LIKE 'G%'",
+     "explain": "El `WHERE` filtra primer les files amb el patró `LIKE 'G%'` (el `%` representa qualsevol seqüència de caràcters) i `COUNT(*)` compta només les que han passat el filtre."
+    },
+    {
+     "text": "Quants cognoms acaben en 'EZ'? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Name LIKE '%EZ'",
+     "explain": "Posant el `%` davant del text, el patró accepta qualsevol inici i exigeix que el cognom acabi en 'EZ'. Després només cal comptar les files que el compleixen."
+    },
+    {
+     "text": "Quants cognoms tenen `Freq1` de 10000 o més? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Freq1 >= 10000",
+     "explain": "És una comparació numèrica simple al `WHERE`: només es compten les files on `Freq1` arriba al llindar, ja que `>=` inclou el 10000."
+    },
+    {
+     "text": "Quants cognoms tenen un valor de `Freq1` entre 1000 i 5000, ambdós inclosos? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Freq1 BETWEEN 1000 AND 5000",
+     "explain": "`BETWEEN a AND b` inclou els dos extrems i equival a `Freq1 >= 1000 AND Freq1 <= 5000`; el `COUNT(*)` comptabilitza les files que queden dins d'aquest interval."
+    },
+    {
+     "text": "Quants cognoms tenen una `Freq2` estrictament més gran que la seva `Freq1`? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Freq2 > Freq1",
+     "explain": "El `WHERE` pot comparar dues columnes de la mateixa fila entre elles; només s'agrupen i es compten les files on aquesta condició és certa."
+    },
+    {
+     "text": "Quants cognoms tenen més de 12 caràcters (`LENGTH(Name) > 12`)? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE LENGTH(Name) > 12",
+     "explain": "Es pot usar una funció com `LENGTH` dins del `WHERE` per filtrar segons una propietat calculada del text; després `COUNT(*)` en compta les files."
+    },
+    {
+     "text": "Quantes longituds de nom diferents existeixen a la taula? És a dir, quants valors diferents pren `LENGTH(Name)`. Retorna una sola columna.",
+     "sql": "SELECT COUNT(DISTINCT LENGTH(Name)) FROM LastNames",
+     "explain": "`COUNT(DISTINCT expressió)` elimina els valors repetits abans de comptar, de manera que no compta cognoms sinó longituds diferents. L'expressió pot ser una funció, no cal que sigui una columna."
+    },
+    {
+     "text": "Quants cognoms tenen un `Freq1PerThousand` d'1 o més i comencen per la lletra 'A'? Retorna una sola columna.",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE Freq1PerThousand >= 1 AND Name LIKE 'A%'",
+     "explain": "Combinem les dues condicions amb `AND`: una fila només compta si compleix alhora el llindar numèric i el patró de text. Les agregacions sempre actuen sobre les files que han sobreviscut al `WHERE`."
+    }
+   ]
+  },
+  {
+   "code": "sqlagg02",
+   "database": "hotel",
+   "type": "sqlagggroup",
+   "name": "SQL Agregacions 2: Agrupar amb GROUP BY",
+   "intro": "Aprèn a agrupar files amb `GROUP BY` per una columna, per diverses columnes o per una expressió, i a calcular `COUNT`, `SUM`, `AVG`, `MIN` i `MAX` per grup.",
+   "questions": [
+    {
+     "text": "Per a cada estat de reserva (`State`) de la taula `Bookings`, retorna l'estat i el nombre de reserves, en aquest ordre.",
+     "sql": "SELECT State, COUNT(*) FROM Bookings GROUP BY State",
+     "explain": "`GROUP BY State` crea un grup per cada valor diferent de l'estat i `COUNT(*)` compta les files de cada grup, de manera que el resultat té una fila per estat."
+    },
+    {
+     "text": "Per a cada nacionalitat de client (`Nationality` de `Customers`), retorna la nacionalitat i el nombre de clients, en aquest ordre.",
+     "sql": "SELECT Nationality, COUNT(*) FROM Customers GROUP BY Nationality",
+     "explain": "Agrupem els clients per nacionalitat i comptem les files de cada grup. Només cal una taula perquè la nacionalitat ja és una columna de `Customers`."
+    },
+    {
+     "text": "Per a cada tipus d'habitació (`RoomTypeId`) de `Bookings`, retorna el `RoomTypeId`, el nombre de reserves i el preu mitjà (`Price`), en aquest ordre.",
+     "sql": "SELECT RoomTypeId, COUNT(*), AVG(Price) FROM Bookings GROUP BY RoomTypeId",
+     "explain": "Es poden calcular diverses agregacions alhora sobre el mateix grup. Cada funció (`COUNT`, `AVG`) s'aplica a les files de cada `RoomTypeId` per separat."
+    },
+    {
+     "text": "Considerant només les reserves amb `State = 'Reserved'`, retorna per a cada `RoomTypeId` el preu mínim i el preu màxim (`Price`), en aquest ordre: `RoomTypeId`, mínim, màxim.",
+     "sql": "SELECT RoomTypeId, MIN(Price), MAX(Price) FROM Bookings WHERE State = 'Reserved' GROUP BY RoomTypeId",
+     "explain": "El `WHERE` s'executa abans d'agrupar, així que descarta les reserves cancel·lades i només les reserves actives entren als grups. Després `MIN` i `MAX` donen els extrems de cada tipus d'habitació."
+    },
+    {
+     "text": "Per a cada combinació d'estat (`State`) i nombre d'hostes (`NHosts`) de `Bookings`, retorna `State`, `NHosts` i el nombre de reserves, en aquest ordre.",
+     "sql": "SELECT State, NHosts, COUNT(*) FROM Bookings GROUP BY State, NHosts",
+     "explain": "Quan agrupem per dues columnes, cada grup és una parella de valors diferent. Només apareixen les combinacions que existeixen a les dades."
+    },
+    {
+     "text": "Considerant només les reserves amb `State = 'Reserved'`, retorna per a cada any de l'entrada (`CheckIn`) l'any com a text de 4 xifres (`strftime('%Y', CheckIn)`), el nombre de reserves i la suma de `Price`, en aquest ordre.",
+     "sql": "SELECT strftime('%Y', CheckIn), COUNT(*), SUM(Price) FROM Bookings WHERE State = 'Reserved' GROUP BY strftime('%Y', CheckIn)",
+     "explain": "Es pot agrupar per una expressió, no només per una columna: `strftime('%Y', ...)` extreu l'any de la data i totes les reserves del mateix any cauen al mateix grup, on `SUM` suma els preus."
+    },
+    {
+     "text": "Per a cada mes de l'any (`strftime('%m', CheckIn)`, de '01' a '12') de `Bookings`, retorna el mes i el nombre de reserves, en aquest ordre, sense distingir l'any.",
+     "sql": "SELECT strftime('%m', CheckIn), COUNT(*) FROM Bookings GROUP BY strftime('%m', CheckIn)",
+     "explain": "Si només extraiem el mes i no l'any, els mateixos mesos de diferents anys s'ajunten en un sol grup. Això permet veure l'estacionalitat de les entrades."
+    },
+    {
+     "text": "Per a cada mes de reserva, és a dir, per a cada valor de `SUBSTR(ReservationDateTime, 1, 7)` (format 'AAAA-MM'), retorna aquest valor i el nombre de reserves fetes aquell mes, en aquest ordre.",
+     "sql": "SELECT SUBSTR(ReservationDateTime, 1, 7), COUNT(*) FROM Bookings GROUP BY SUBSTR(ReservationDateTime, 1, 7)",
+     "explain": "Com que les dates es guarden com a text 'AAAA-MM-DD HH:MM:SS', agafar els 7 primers caràcters amb `SUBSTR` dóna any i mes, i això serveix com a clau d'agrupació."
+    },
+    {
+     "text": "A la taula `Stays`, per a cada tipus de pagament (`PaymentType`) ignorant les estades sense tipus de pagament (`PaymentType IS NOT NULL`), retorna `PaymentType`, el nombre d'estades, la suma i la mitjana de `TotalPrice`, en aquest ordre.",
+     "sql": "SELECT PaymentType, COUNT(*), SUM(TotalPrice), AVG(TotalPrice) FROM Stays WHERE PaymentType IS NOT NULL GROUP BY PaymentType",
+     "explain": "Filtrem amb `IS NOT NULL` perquè les estades sense pagament formarien un grup propi de NULL. Després tres agregats diferents resumeixen cada tipus de pagament."
+    },
+    {
+     "text": "A la taula `Stays`, considerant només les estades amb `PaymentType IS NOT NULL`, retorna per a cada any de `CheckIn` (`strftime('%Y', CheckIn)`) i cada `PaymentType` l'any, el tipus de pagament i la suma de `TotalPrice`, en aquest ordre.",
+     "sql": "SELECT strftime('%Y', CheckIn), PaymentType, SUM(TotalPrice) FROM Stays WHERE PaymentType IS NOT NULL GROUP BY strftime('%Y', CheckIn), PaymentType",
+     "explain": "Combinem una expressió i una columna al `GROUP BY`. Cada grup és una parella any + tipus de pagament, i la suma de `TotalPrice` es calcula dins de cada parella."
+    }
+   ]
+  },
+  {
+   "code": "sqlagg03",
+   "database": "traders",
+   "type": "sqlagggroup",
+   "name": "SQL Agregacions 3: Filtrar grups amb HAVING",
+   "intro": "Practica `HAVING` per filtrar grups segons un agregat i entén la diferència entre filtrar files (`WHERE`) i filtrar grups (`HAVING`).",
+   "questions": [
+    {
+     "text": "A `PriceChanges`, retorna cada planeta (`PlanetId`) amb el seu nombre de canvis de preu, però només els planetes que tenen més de 600 canvis de preu. Columnes: `PlanetId`, recompte.",
+     "sql": "SELECT PlanetId, COUNT(*) FROM PriceChanges GROUP BY PlanetId HAVING COUNT(*) > 600",
+     "explain": "Com que la condició depèn d'un agregat (`COUNT(*)`), no es pot posar al `WHERE`: cal `HAVING`, que s'avalua després d'agrupar i descarta els grups que no la compleixen."
+    },
+    {
+     "text": "A `PriceChanges`, retorna els productes (`ProductId`) amb preu mitjà (`NewPrice`) superior a 100000. Columnes: `ProductId`, preu mitjà.",
+     "sql": "SELECT ProductId, AVG(NewPrice) FROM PriceChanges GROUP BY ProductId HAVING AVG(NewPrice) > 100000",
+     "explain": "`HAVING` pot usar qualsevol funció d'agregació, no només `COUNT`. Es calcula la mitjana de cada producte i només es queden els que superen el llindar."
+    },
+    {
+     "text": "A `PriceChanges`, tenint en compte només els canvis amb data `Date >= '2300-01-01'`, retorna els productes (`ProductId`) que tenen almenys 500 d'aquests canvis. Columnes: `ProductId`, recompte.",
+     "sql": "SELECT ProductId, COUNT(*) FROM PriceChanges WHERE Date >= '2300-01-01' GROUP BY ProductId HAVING COUNT(*) >= 500",
+     "explain": "Aquí calen els dos filtres: el `WHERE` limita les files per data abans d'agrupar (és una condició sobre files) i el `HAVING` filtra els grups pel recompte. Posar la data al `HAVING` no seria possible."
+    },
+    {
+     "text": "A `Stays`, retorna els comerciants (`TraderId`) amb almenys 8 estades registrades. Columnes: `TraderId`, nombre d'estades.",
+     "sql": "SELECT TraderId, COUNT(*) FROM Stays GROUP BY TraderId HAVING COUNT(*) >= 8",
+     "explain": "Agrupem les estades per comerciant i, amb `HAVING COUNT(*) >= 8`, conservem només els grups prou grans; `>=` inclou els comerciants que en tenen exactament 8."
+    },
+    {
+     "text": "A `TradeLines`, retorna les transaccions (`TradeId`) amb almenys 4 línies i amb un import total (`SUM(Quantity * UnitPrice)`) superior a 5000000. Columnes: `TradeId`, nombre de línies, import total.",
+     "sql": "SELECT TradeId, COUNT(*), SUM(Quantity * UnitPrice) FROM TradeLines GROUP BY TradeId HAVING COUNT(*) >= 4 AND SUM(Quantity * UnitPrice) > 5000000",
+     "explain": "El `HAVING` accepta diverses condicions combinades amb `AND`, i cada una pot usar un agregat diferent. L'import de cada línia es calcula abans de sumar-lo."
+    },
+    {
+     "text": "A `Ships`, retorna els tipus de nau (`Type`) que tenen més de 5 naus i una capacitat mitjana (`Capacity`) superior a 20. Columnes: `Type`, nombre de naus, capacitat mitjana.",
+     "sql": "SELECT Type, COUNT(*), AVG(Capacity) FROM Ships GROUP BY Type HAVING COUNT(*) > 5 AND AVG(Capacity) > 20",
+     "explain": "Els caces (`Fighter`) són molts però tenen capacitat petita, així que només els passa el filtre dels dos criteris a la vegada. `HAVING` avalua totes dues condicions sobre cada grup."
+    },
+    {
+     "text": "A `TradeLines`, retorna els productes (`ProductId`) dels quals s'han venut o comprat en total més de 5000 unitats (`SUM(Quantity)`). Columnes: `ProductId`, total d'unitats.",
+     "sql": "SELECT ProductId, SUM(Quantity) FROM TradeLines GROUP BY ProductId HAVING SUM(Quantity) > 5000",
+     "explain": "Sumem la quantitat de totes les línies de cada producte i filtrem els grups amb el total per sobre del llindar, cosa que només es pot fer amb `HAVING`."
+    },
+    {
+     "text": "A `PriceChanges`, retorna els productes (`ProductId`) el preu mitjà dels quals (`AVG(NewPrice)`) és superior al preu mitjà de tota la taula `PriceChanges`. Columnes: `ProductId`, preu mitjà del producte.",
+     "sql": "SELECT ProductId, AVG(NewPrice) FROM PriceChanges GROUP BY ProductId HAVING AVG(NewPrice) > (SELECT AVG(NewPrice) FROM PriceChanges)",
+     "explain": "El `HAVING` pot comparar un agregat de cada grup amb un valor calculat per una subconsulta escalar. Així es comparen les mitjanes per producte amb la mitjana global."
+    },
+    {
+     "text": "A `ShipOwners`, considerant només les adquisicions amb `AcquisitionCause = 'Bought'`, retorna els comerciants (`TraderId`) que han gastat en total més de 100000 (`SUM(AcquisitionPrice)`). Columnes: `TraderId`, total gastat.",
+     "sql": "SELECT TraderId, SUM(AcquisitionPrice) FROM ShipOwners WHERE AcquisitionCause = 'Bought' GROUP BY TraderId HAVING SUM(AcquisitionPrice) > 100000",
+     "explain": "El `WHERE` esborra abans d'agrupar les naus heretades o robades (que no costen res i no són compres), i el `HAVING` filtra després els comerciants pel total gastat."
+    },
+    {
+     "text": "A `Stays`, considerant només les estades amb `StartDate >= '2300-01-01'`, retorna els planetes (`PlanetId`) amb almenys 5 d'aquestes estades. Columnes: `PlanetId`, nombre d'estades.",
+     "sql": "SELECT PlanetId, COUNT(*) FROM Stays WHERE StartDate >= '2300-01-01' GROUP BY PlanetId HAVING COUNT(*) >= 5",
+     "explain": "Primer es retallen les files per data amb `WHERE`; després s'agrupa per planeta i el `HAVING` conserva els planetes amb un recompte suficient dins d'aquest interval de temps."
+    }
+   ]
+  },
+  {
+   "code": "sqlagg04",
+   "database": "chinook",
+   "type": "sqlaggbasic",
+   "name": "SQL Agregacions 4: SUM, AVG, MIN i MAX",
+   "intro": "Calcula totals, mitjanes, mínims i màxims sobre tota una taula o un subconjunt, amb càlculs entre columnes i tractament dels valors NULL.",
+   "questions": [
+    {
+     "text": "Quin és l'import total facturat? Retorna la suma de la columna `Total` de la taula `Invoice` en una sola columna.",
+     "sql": "SELECT SUM(Total) FROM Invoice",
+     "explain": "`SUM` suma tots els valors de la columna a través de les files de la taula i, com que no hi ha `GROUP BY`, tota la taula és un únic grup."
+    },
+    {
+     "text": "Quin és l'import mitjà de les factures? Retorna l'`AVG(Total)` de `Invoice` arrodonit a 2 decimals (amb `ROUND(..., 2)`) en una sola columna.",
+     "sql": "SELECT ROUND(AVG(Total), 2) FROM Invoice",
+     "explain": "`AVG` calcula la mitjana i `ROUND` ens la deixa amb 2 decimals, com es fa habitualment amb imports de diners."
+    },
+    {
+     "text": "Per a les factures amb `BillingCountry = 'Canada'`, retorna el total mínim, el total màxim i la diferència entre tots dos (`MAX(Total) - MIN(Total)`), en aquest ordre.",
+     "sql": "SELECT MIN(Total), MAX(Total), MAX(Total) - MIN(Total) FROM Invoice WHERE BillingCountry = 'Canada'",
+     "explain": "El `WHERE` redueix el conjunt de files abans d'agregar. Com que `MIN` i `MAX` són valors escalars, es poden restar entre ells dins del mateix `SELECT`."
+    },
+    {
+     "text": "Quina és la durada mitjana de les pistes (`Track`) en minuts? Retorna `AVG(Milliseconds) / 60000.0` en una sola columna, sense arrodonir.",
+     "sql": "SELECT AVG(Milliseconds) / 60000.0 FROM Track",
+     "explain": "La durada és en mil·lisegons i un minut són 60000 ms. Dividim per `60000.0` (amb decimal) perquè la divisió sigui real i no entera."
+    },
+    {
+     "text": "Per a les pistes amb `GenreId = 1`, retorna el nombre de pistes i la seva durada mitjana en minuts (`AVG(Milliseconds) / 60000.0`), en aquest ordre.",
+     "sql": "SELECT COUNT(*), AVG(Milliseconds) / 60000.0 FROM Track WHERE GenreId = 1",
+     "explain": "Es poden barrejar agregats diferents (`COUNT` i `AVG`) en la mateixa consulta sobre el mateix subconjunt filtrat pel `WHERE`."
+    },
+    {
+     "text": "Quin és l'import total de les línies de factura amb `UnitPrice > 1`? Retorna `SUM(UnitPrice * Quantity)` de `InvoiceLine` en una sola columna.",
+     "sql": "SELECT SUM(UnitPrice * Quantity) FROM InvoiceLine WHERE UnitPrice > 1",
+     "explain": "Dins de la funció d'agregació es pot posar una expressió: primer es calcula preu per quantitat a cada línia i després se sumen tots els resultats."
+    },
+    {
+     "text": "Per a les pistes amb `MediaTypeId = 1`, retorna la mida mínima i la mida màxima en bytes (`Bytes`), en aquest ordre.",
+     "sql": "SELECT MIN(Bytes), MAX(Bytes) FROM Track WHERE MediaTypeId = 1",
+     "explain": "`MIN` i `MAX` s'apliquen a la mateixa columna en una sola consulta, i ens donen els extrems de mida només per al tipus de mitjà filtrat."
+    },
+    {
+     "text": "Retorna el nombre total de pistes (`COUNT(*)`) i quantes tenen compositor informat (`COUNT(Composer)`) a la taula `Track`, en aquest ordre.",
+     "sql": "SELECT COUNT(*), COUNT(Composer) FROM Track",
+     "explain": "`COUNT(*)` compta files, mentre que `COUNT(Composer)` ignora els NULL. La diferència entre els dos valors és el nombre de pistes sense compositor."
+    },
+    {
+     "text": "Quants clients no tenen empresa informada? Calcula-ho a la taula `Customer` amb `COUNT(*) - COUNT(Company)` i retorna una sola columna.",
+     "sql": "SELECT COUNT(*) - COUNT(Company) FROM Customer",
+     "explain": "Com que `COUNT(Company)` no compta els NULL, restar-lo de `COUNT(*)` dóna exactament el nombre de files on `Company` és NULL, sense necessitat d'un `WHERE`."
+    },
+    {
+     "text": "Per a les factures de l'any 2011 (`strftime('%Y', InvoiceDate) = '2011'`), retorna el nombre de factures, la suma de `Total` i la mitjana de `Total`, en aquest ordre i sense arrodonir.",
+     "sql": "SELECT COUNT(*), SUM(Total), AVG(Total) FROM Invoice WHERE strftime('%Y', InvoiceDate) = '2011'",
+     "explain": "Filtrem per any extraient'l de la data amb `strftime`, i sobre aquest subconjunt calculem tres agregats alhora amb una sola lectura de la taula."
+    }
+   ]
+  },
+  {
+   "code": "sqlagg05",
+   "database": "miniwind",
+   "type": "sqlagggroup",
+   "name": "SQL Agregacions 5: Agregacions combinades",
+   "intro": "Combina `JOIN`, `GROUP BY`, `HAVING` i diversos agregats per respondre preguntes de negoci sobre vendes, clients i empleats.",
+   "questions": [
+    {
+     "text": "Per a cada categoria de producte (`products.category`), retorna la categoria i l'import total venut (`SUM(quantity * unit_price)` de `order_details`), en aquest ordre.",
+     "sql": "SELECT p.category, SUM(d.quantity * d.unit_price) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.category",
+     "explain": "Cal un `JOIN` perquè la categoria és a `products` i les quantitats a `order_details`. L'import de cada línia és quantitat per preu unitari, i després se suma per categoria."
+    },
+    {
+     "text": "Per a cada mes de la comanda (els 7 primers caràcters de `order_date`, `SUBSTR(order_date, 1, 7)`), retorna el mes, el nombre de comandes i la suma de `shipping_fee`, en aquest ordre.",
+     "sql": "SELECT SUBSTR(order_date, 1, 7), COUNT(*), SUM(shipping_fee) FROM orders GROUP BY SUBSTR(order_date, 1, 7)",
+     "explain": "Com que `order_date` és text, `SUBSTR` ens dóna any i mes per agrupar. Dos agregats diferents resumeixen cada mes."
+    },
+    {
+     "text": "Per a cada empleat que té comandes (`orders.employee_id`), retorna l'identificador de l'empleat, el nombre de comandes diferents (`COUNT(DISTINCT o.id)`) i l'import total venut (`SUM(quantity * unit_price)`), en aquest ordre.",
+     "sql": "SELECT o.employee_id, COUNT(DISTINCT o.id), SUM(d.quantity * d.unit_price) FROM orders o JOIN order_details d ON d.order_id = o.id GROUP BY o.employee_id",
+     "explain": "Després del `JOIN` hi ha una fila per línia de comanda, així que `COUNT(*)` comptaria línies. Amb `COUNT(DISTINCT o.id)` comptem cada comanda una sola vegada."
+    },
+    {
+     "text": "Retorna els clients (`customer_id` de `orders`) amb almenys 4 comandes i amb una suma de `shipping_fee` superior a 100. Columnes: `customer_id`, nombre de comandes, suma de `shipping_fee`.",
+     "sql": "SELECT customer_id, COUNT(*), SUM(shipping_fee) FROM orders GROUP BY customer_id HAVING COUNT(*) >= 4 AND SUM(shipping_fee) > 100",
+     "explain": "Dos agregats diferents es filtren amb `HAVING` i `AND`. Només queden els clients que són alhora habituals (comandes) i amb despeses d'enviament elevades."
+    },
+    {
+     "text": "A `orders`, considerant només les comandes amb `payment_type` informat (`payment_type IS NOT NULL`), retorna per a cada combinació de `payment_type` i `status_id` el tipus de pagament, l'estat i el nombre de comandes, en aquest ordre.",
+     "sql": "SELECT payment_type, status_id, COUNT(*) FROM orders WHERE payment_type IS NOT NULL GROUP BY payment_type, status_id",
+     "explain": "Agrupar per dues columnes crea un grup per cada parella existent. El `WHERE` elimina abans les comandes sense pagament, que sinó formarien grups de NULL."
+    },
+    {
+     "text": "Retorna els 5 productes més venuts en unitats: el nom (`product_name`) i la suma de `quantity` de `order_details`, ordenats de més a menys unitats. Columnes: `product_name`, total d'unitats.",
+     "sql": "SELECT p.product_name, SUM(d.quantity) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.id ORDER BY SUM(d.quantity) DESC LIMIT 5",
+     "explain": "Un rànquing es construeix agrupant, ordenant per l'agregat de forma descendent i limitant amb `LIMIT`. Aquí no hi ha empats a la frontera del cinquè lloc."
+    },
+    {
+     "text": "Retorna les categories (`products.category`) amb un import total venut (`SUM(quantity * unit_price)`) superior a 2000. Columnes: `category`, import total.",
+     "sql": "SELECT p.category, SUM(d.quantity * d.unit_price) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.category HAVING SUM(d.quantity * d.unit_price) > 2000",
+     "explain": "Un cop calculat l'import per categoria, el `HAVING` descarta les categories que no arriben al llindar; no es pot fer amb `WHERE` perquè l'import és un agregat."
+    },
+    {
+     "text": "Per a cada categoria de producte amb almenys 3 línies de comanda, retorna `category`, el nombre de línies (`COUNT(*)`), la suma de `quantity`, el preu unitari mitjà (`AVG(unit_price)`) i el preu unitari màxim (`MAX(unit_price)`), en aquest ordre.",
+     "sql": "SELECT p.category, COUNT(*), SUM(d.quantity), AVG(d.unit_price), MAX(d.unit_price) FROM order_details d JOIN products p ON p.id = d.product_id GROUP BY p.category HAVING COUNT(*) >= 3",
+     "explain": "Es poden demanar quatre agregats alhora sobre el mateix grup i filtrar els grups petits amb `HAVING COUNT(*) >= 3`, tot dins d'una única consulta."
+    },
+    {
+     "text": "Retorna els 3 clients amb més import total comprat: l'empresa (`customers.company`) i la suma de `quantity * unit_price`, ordenats de més a menys import. Columnes: `company`, import total.",
+     "sql": "SELECT c.company, SUM(d.quantity * d.unit_price) FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_details d ON d.order_id = o.id GROUP BY c.id ORDER BY SUM(d.quantity * d.unit_price) DESC LIMIT 3",
+     "explain": "Encadenem dos `JOIN` (clients, comandes i línies) per arribar de l'empresa a l'import, agrupem per client i ordenem per l'import. No hi ha empats al tercer lloc."
+    },
+    {
+     "text": "Per a cada empleat (`employee_id` de `orders`) i cada mes de la comanda (`SUBSTR(order_date, 1, 7)`), retorna `employee_id`, el mes i el nombre de comandes, en aquest ordre.",
+     "sql": "SELECT employee_id, SUBSTR(order_date, 1, 7), COUNT(*) FROM orders GROUP BY employee_id, SUBSTR(order_date, 1, 7)",
+     "explain": "El `GROUP BY` combina una columna i una expressió. Cada grup és una parella empleat + mes, de manera que veiem l'activitat mensual de cada venedor."
+    }
+   ]
+  }
+ ]
+}
