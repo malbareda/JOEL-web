@@ -4,7 +4,7 @@
    "code": "sqlagg01",
    "database": "lastnames",
    "type": "sqlaggbasic",
-   "name": "SQL Agregacions 1: Comptar amb COUNT",
+   "name": "SQL Agregacions 1: Comptar amb COUNT", "engine": "mysql", "database": "lastnames",
    "intro": "Practica la funció `COUNT` en les seves variants (`COUNT(*)`, `COUNT(columna)`, `COUNT(DISTINCT ...)`) combinada amb filtres `WHERE`.",
    "questions": [
     {
@@ -44,7 +44,7 @@
     },
     {
      "text": "Quants cognoms tenen més de 12 caràcters (`LENGTH(Name) > 12`)? Retorna una sola columna.",
-     "sql": "SELECT COUNT(*) FROM LastNames WHERE LENGTH(Name) > 12",
+     "sql": "SELECT COUNT(*) FROM LastNames WHERE CHAR_LENGTH(Name) > 12",
      "explain": "Es pot usar una funció com `LENGTH` dins del `WHERE` per filtrar segons una propietat calculada del text; després `COUNT(*)` en compta les files."
     },
     {
@@ -63,7 +63,7 @@
    "code": "sqlagg02",
    "database": "hotel",
    "type": "sqlagggroup",
-   "name": "SQL Agregacions 2: Agrupar amb GROUP BY",
+   "name": "SQL Agregacions 2: Agrupar amb GROUP BY", "engine": "mysql", "database": "hotel",
    "intro": "Aprèn a agrupar files amb `GROUP BY` per una columna, per diverses columnes o per una expressió, i a calcular `COUNT`, `SUM`, `AVG`, `MIN` i `MAX` per grup.",
    "questions": [
     {
@@ -93,12 +93,12 @@
     },
     {
      "text": "Considerant només les reserves amb `State = 'Reserved'`, retorna per a cada any de l'entrada (`CheckIn`) l'any com a text de 4 xifres (`strftime('%Y', CheckIn)`), el nombre de reserves i la suma de `Price`, en aquest ordre.",
-     "sql": "SELECT strftime('%Y', CheckIn), COUNT(*), SUM(Price) FROM Bookings WHERE State = 'Reserved' GROUP BY strftime('%Y', CheckIn)",
+     "sql": "SELECT DATE_FORMAT(CheckIn, '%Y'), COUNT(*), SUM(Price) FROM Bookings WHERE State = 'Reserved' GROUP BY DATE_FORMAT(CheckIn, '%Y')",
      "explain": "Es pot agrupar per una expressió, no només per una columna: `strftime('%Y', ...)` extreu l'any de la data i totes les reserves del mateix any cauen al mateix grup, on `SUM` suma els preus."
     },
     {
      "text": "Per a cada mes de l'any (`strftime('%m', CheckIn)`, de '01' a '12') de `Bookings`, retorna el mes i el nombre de reserves, en aquest ordre, sense distingir l'any.",
-     "sql": "SELECT strftime('%m', CheckIn), COUNT(*) FROM Bookings GROUP BY strftime('%m', CheckIn)",
+     "sql": "SELECT DATE_FORMAT(CheckIn, '%m'), COUNT(*) FROM Bookings GROUP BY DATE_FORMAT(CheckIn, '%m')",
      "explain": "Si només extraiem el mes i no l'any, els mateixos mesos de diferents anys s'ajunten en un sol grup. Això permet veure l'estacionalitat de les entrades."
     },
     {
@@ -113,7 +113,7 @@
     },
     {
      "text": "A la taula `Stays`, considerant només les estades amb `PaymentType IS NOT NULL`, retorna per a cada any de `CheckIn` (`strftime('%Y', CheckIn)`) i cada `PaymentType` l'any, el tipus de pagament i la suma de `TotalPrice`, en aquest ordre.",
-     "sql": "SELECT strftime('%Y', CheckIn), PaymentType, SUM(TotalPrice) FROM Stays WHERE PaymentType IS NOT NULL GROUP BY strftime('%Y', CheckIn), PaymentType",
+     "sql": "SELECT DATE_FORMAT(CheckIn, '%Y'), PaymentType, SUM(TotalPrice) FROM Stays WHERE PaymentType IS NOT NULL GROUP BY DATE_FORMAT(CheckIn, '%Y'), PaymentType",
      "explain": "Combinem una expressió i una columna al `GROUP BY`. Cada grup és una parella any + tipus de pagament, i la suma de `TotalPrice` es calcula dins de cada parella."
     }
    ]
@@ -122,7 +122,7 @@
    "code": "sqlagg03",
    "database": "traders",
    "type": "sqlagggroup",
-   "name": "SQL Agregacions 3: Filtrar grups amb HAVING",
+   "name": "SQL Agregacions 3: Filtrar grups amb HAVING", "engine": "mysql", "database": "traders",
    "intro": "Practica `HAVING` per filtrar grups segons un agregat i entén la diferència entre filtrar files (`WHERE`) i filtrar grups (`HAVING`).",
    "questions": [
     {
@@ -181,7 +181,7 @@
    "code": "sqlagg04",
    "database": "chinook",
    "type": "sqlaggbasic",
-   "name": "SQL Agregacions 4: SUM, AVG, MIN i MAX",
+   "name": "SQL Agregacions 4: SUM, AVG, MIN i MAX", "engine": "mysql", "database": "Chinook",
    "intro": "Calcula totals, mitjanes, mínims i màxims sobre tota una taula o un subconjunt, amb càlculs entre columnes i tractament dels valors NULL.",
    "questions": [
     {
@@ -231,7 +231,7 @@
     },
     {
      "text": "Per a les factures de l'any 2011 (`strftime('%Y', InvoiceDate) = '2011'`), retorna el nombre de factures, la suma de `Total` i la mitjana de `Total`, en aquest ordre i sense arrodonir.",
-     "sql": "SELECT COUNT(*), SUM(Total), AVG(Total) FROM Invoice WHERE strftime('%Y', InvoiceDate) = '2011'",
+     "sql": "SELECT COUNT(*), SUM(Total), AVG(Total) FROM Invoice WHERE YEAR(InvoiceDate) = 2011",
      "explain": "Filtrem per any extraient'l de la data amb `strftime`, i sobre aquest subconjunt calculem tres agregats alhora amb una sola lectura de la taula."
     }
    ]
@@ -240,7 +240,7 @@
    "code": "sqlagg05",
    "database": "miniwind",
    "type": "sqlagggroup",
-   "name": "SQL Agregacions 5: Agregacions combinades",
+   "name": "SQL Agregacions 5: Agregacions combinades", "engine": "mysql", "database": "miniwind",
    "intro": "Combina `JOIN`, `GROUP BY`, `HAVING` i diversos agregats per respondre preguntes de negoci sobre vendes, clients i empleats.",
    "questions": [
     {

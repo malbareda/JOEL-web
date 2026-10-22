@@ -8,6 +8,7 @@ from datetime import timedelta
 from operator import itemgetter
 from random import randrange
 
+import pymysql
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
@@ -35,6 +36,7 @@ from judge.models import ContestSubmission, Guide, GuideTranslation, Institution
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
+from judge.utils import mysql_grader
 from judge.utils.problem_data import DATABASE_CHECKERS
 from judge.utils.problems import contest_attempted_ids, contest_completed_ids, hot_problems, user_attempted_ids, \
     user_completed_ids
@@ -251,6 +253,24 @@ class ProblemDatabaseSchema(ProblemMixin, TitleMixin, TemplateResponseMixin, Sin
             context['er_diagram'] = _build_er_diagram(tables, relationships)
             return self.render_to_response(context)
 
+        if data.checker == 'mysql':
+            try:
+                database = json.loads(data.checker_args or '{}').get('database')
+            except (ValueError, AttributeError):
+                database = None
+            if not database:
+                raise Http404()
+            try:
+                tables, relationships = mysql_grader.get_schema(database)
+            except (mysql_grader.GraderUnavailable, pymysql.MySQLError):
+                raise Http404()
+
+            context = self.get_context_data(object=self.object)
+            context['db_kind'] = 'sql'
+            context['tables'] = tables
+            context['er_diagram'] = _build_er_diagram(tables, relationships)
+            return self.render_to_response(context)
+
         if data.checker == 'mongo' and data.mongo_db:
             try:
                 with open(data.mongo_db.path, 'r') as f:
@@ -426,7 +446,8 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
             data_files = self.object.data_files
             context['is_sql_problem'] = (
                 (data_files.checker == 'sql' and bool(data_files.sql_db)) or
-                (data_files.checker == 'mongo' and bool(data_files.mongo_db))
+                (data_files.checker == 'mongo' and bool(data_files.mongo_db)) or
+                (data_files.checker == 'mysql' and bool(data_files.checker_args))
             )
         except ObjectDoesNotExist:
             context['is_sql_problem'] = False

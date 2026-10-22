@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
 from django.forms import BaseModelFormSet, ChoiceField, HiddenInput, ModelForm, NumberInput, Select, \
     formset_factory
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -21,8 +22,10 @@ from django.views.generic import DetailView
 
 from judge.highlight_code import highlight_code
 from judge.models import Problem, ProblemData, ProblemTestCase, Submission, problem_data_storage
+from judge.utils import mysql_grader
+from judge.utils.mysql_grader import get_mysql_databases
 from judge.utils.problem_data import ProblemDataCompiler, get_mongo_sample_database_path, \
-    get_mongo_sample_databases, get_sql_sample_database_path, get_sql_sample_databases
+    get_mongo_sample_databases
 from judge.utils.unicode import utf8text
 from judge.utils.views import TitleMixin, add_file_response
 from judge.views.problem import ProblemMixin
@@ -46,13 +49,8 @@ def checker_args_cleaner(self):
 class ProblemDataForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['sql_template'] = ChoiceField(
-            required=False, label=_('Or choose an example database'),
-            choices=[('', _('(cap seleccionada -- puja el teu propi fitxer .db)'))] + [
-                (key, '%s -- %s' % (label, description) if description else label)
-                for key, label, description in get_sql_sample_databases()
-            ],
-        )
+        # SQL problems are graded on MySQL (MariaDB) now: the SQLite checker, its .db upload and its example
+        # databases are no longer offered for new problems.
         self.fields['mongo_template'] = ChoiceField(
             required=False, label=_('Or choose an example database'),
             choices=[('', _('(cap seleccionada -- puja el teu propi fitxer .json)'))] + [
@@ -60,17 +58,33 @@ class ProblemDataForm(ModelForm):
                 for key, label, description in get_mongo_sample_databases()
             ],
         )
+        try:
+            current_database = json.loads(self.instance.checker_args or '{}').get('database', '')
+        except (ValueError, AttributeError):
+            current_database = ''
+        mysql_choices = [(name, '%s -- %s' % (label, description) if description else label)
+                         for name, label, description in get_mysql_databases()]
+        if current_database and current_database not in dict(mysql_choices):
+            mysql_choices.append((current_database, _('%s (not available on the grading server)') % current_database))
+        self.fields['mysql_database'] = ChoiceField(
+            required=False, label=_('MySQL database'), initial=current_database,
+            choices=[('', _('(cap seleccionada)'))] + mysql_choices,
+        )
 
     def clean_zipfile(self):
         if hasattr(self, 'zip_valid') and not self.zip_valid:
             raise ValidationError(_('Your zip file is invalid!'))
         return self.cleaned_data['zipfile']
 
-    def clean_sql_db(self):
-        sql_db = self.cleaned_data.get('sql_db')
-        if sql_db and not sql_db.name.endswith('.db'):
-            raise ValidationError(_('SQL database file must be a .db file (SQLite).'))
-        return sql_db
+    def clean_mysql_dump(self):
+        mysql_dump = self.cleaned_data.get('mysql_dump')
+        if mysql_dump:
+            if not mysql_dump.name.lower().endswith('.sql'):
+                raise ValidationError(_('The MySQL dump must be a .sql file.'))
+            if mysql_dump.size > mysql_grader.MAX_DUMP_BYTES:
+                raise ValidationError(_('The MySQL dump can be at most %d MB.') %
+                                      (mysql_grader.MAX_DUMP_BYTES // (1024 * 1024)))
+        return mysql_dump
 
     def clean_mongo_db(self):
         mongo_db = self.cleaned_data.get('mongo_db')
@@ -81,18 +95,28 @@ class ProblemDataForm(ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         checker = cleaned_data.get('checker')
-        sql_db = cleaned_data.get('sql_db')
-        sql_template = cleaned_data.get('sql_template')
         mongo_db = cleaned_data.get('mongo_db')
         mongo_template = cleaned_data.get('mongo_template')
-        # If checker is SQL and no DB file exists (neither new upload, an example database picked,
-        # nor an already-stored one)
-        if checker == 'sql' and not sql_db and not sql_template and not self.instance.sql_db:
-            raise ValidationError(_('SQL checker requires a database file. Please upload a .db file '
-                                    'or choose an example database.'))
         if checker == 'mongo' and not mongo_db and not mongo_template and not self.instance.mongo_db:
             raise ValidationError(_('Mongo checker requires a database file. Please upload a .json '
                                     'file or choose an example database.'))
+        if checker == 'mysql':
+            mysql_dump = cleaned_data.get('mysql_dump')
+            new_dump = isinstance(mysql_dump, UploadedFile)
+            keeps_dump = bool(self.instance.mysql_dump) and mysql_dump is not False
+            if not new_dump and not keeps_dump and not cleaned_data.get('mysql_database'):
+                raise ValidationError(_('MySQL checker requires a database. Please choose one or upload a dump.'))
+            if new_dump:
+                # Load it now, so a dump that MariaDB rejects is reported here and nothing is saved.
+                mysql_dump.seek(0)
+                text = mysql_dump.read().decode('utf-8', errors='replace')
+                mysql_dump.seek(0)
+                try:
+                    mysql_grader.load_problem_dump(self.instance.problem.code, text)
+                except mysql_grader.DumpError as e:
+                    self.add_error('mysql_dump', _('MariaDB could not load this dump: %s') % e)
+                except mysql_grader.GraderUnavailable:
+                    self.add_error('mysql_dump', _('The MySQL grading server is not available right now.'))
         return cleaned_data
 
     clean_checker_args = checker_args_cleaner
@@ -100,7 +124,7 @@ class ProblemDataForm(ModelForm):
     class Meta:
         model = ProblemData
         fields = ['zipfile', 'generator', 'output_limit', 'output_prefix', 'checker', 'caseformat',
-                  'allowed_tips', 'checker_args', 'sql_db', 'mongo_db']
+                  'allowed_tips', 'checker_args', 'mongo_db', 'mysql_dump']
         widgets = {
             'checker_args': HiddenInput,
         }
@@ -237,12 +261,19 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
         cases_formset = self.get_case_formset(valid_files, post=True)
         if data_form.is_valid() and cases_formset.is_valid():
             data = data_form.save()
-            sql_template = data_form.cleaned_data.get('sql_template')
-            if sql_template and not self.request.FILES.get('problem-data-sql_db'):
-                template_path = get_sql_sample_database_path(sql_template)
-                if template_path:
-                    with open(template_path, 'rb') as f:
-                        data.sql_db.save('%s.db' % sql_template, ContentFile(f.read()), save=True)
+            if data.checker == 'mysql':
+                # A problem's own dump wins over the catalog database; clearing the dump drops its database.
+                if data.mysql_dump:
+                    database = mysql_grader.problem_database(problem.code)
+                else:
+                    database = data_form.cleaned_data['mysql_database']
+                    if data_form.cleaned_data.get('mysql_dump') is False:
+                        try:
+                            mysql_grader.drop_problem_databases(problem.code)
+                        except mysql_grader.GraderUnavailable:
+                            pass
+                data.checker_args = json.dumps({'database': database})
+                data.save(update_fields=['checker_args'])
             mongo_template = data_form.cleaned_data.get('mongo_template')
             if mongo_template and not self.request.FILES.get('problem-data-mongo_db'):
                 template_path = get_mongo_sample_database_path(mongo_template)

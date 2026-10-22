@@ -37,6 +37,6 @@
     <form action="{{ url('gacha_go') }}" method="post"
                           class="contest-join-pseudotab unselectable button">
                         {% csrf_token %}
-                        <input type="submit" value="{{ _('Use 5 GachaPoints') }}">
+                        <input type="submit" value="{{ _('Use %(points)s GachaPoints', points=request.profile.gacha_roll_cost) }}">
     </form>
 {% endblock %}

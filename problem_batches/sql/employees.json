@@ -4,7 +4,7 @@
  "label": "Employees (plantilla d'empleats: una sola taula amb càrrec, salari i data de naixement)",
  "problems": [
   {
-   "name": "Empleats 1: Primeres consultes",
+   "name": "Empleats 1: Primeres consultes", "engine": "mysql", "database": "company",
    "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre la taula d'empleats.",
    "questions": [
     {
@@ -22,7 +22,7 @@
    ]
   },
   {
-   "name": "Empleats 2: Filtrant files",
+   "name": "Empleats 2: Filtrant files", "engine": "mysql", "database": "company",
    "intro": "Combina condicions amb `AND`, `OR` i `IN`, i limita el resultat amb `LIMIT`.",
    "questions": [
     {
@@ -40,7 +40,7 @@
    ]
   },
   {
-   "name": "Empleats 3: Text, rangs i NULL",
+   "name": "Empleats 3: Text, rangs i NULL", "engine": "mysql", "database": "company",
    "intro": "Usa `LIKE`, `BETWEEN` i `IS NULL` per filtrar amb criteris més fins.",
    "questions": [
     {
@@ -58,7 +58,7 @@
    ]
   },
   {
-   "name": "Empleats 4: Funcions d'agregat",
+   "name": "Empleats 4: Funcions d'agregat", "engine": "mysql", "database": "company",
    "intro": "Resumeix tota la taula amb `COUNT`, `SUM`, `AVG`, `MIN` i `MAX`.",
    "questions": [
     {
@@ -76,7 +76,7 @@
    ]
   },
   {
-   "name": "Empleats 5: Agrupant dades",
+   "name": "Empleats 5: Agrupant dades", "engine": "mysql", "database": "company",
    "intro": "Agrupa files amb `GROUP BY` i filtra grups amb `HAVING`.",
    "questions": [
     {
@@ -94,16 +94,16 @@
    ]
   },
   {
-   "name": "Empleats 6: Grups i dates",
+   "name": "Empleats 6: Grups i dates", "engine": "mysql", "database": "company",
    "intro": "Agrupa per valors calculats, com ara la dècada de naixement, i per salari.",
    "questions": [
     {
      "text": "Mostra la dècada de naixement de cada empleat com a text (per exemple '1980') i el nombre d'empleats nascuts en aquesta dècada, en aquest ordre de columnes. Calcula la dècada com `SUBSTR(BirthDate, 1, 3) || '0'`.",
-     "sql": "SELECT SUBSTR(BirthDate,1,3) || '0', COUNT(*) FROM Employees GROUP BY SUBSTR(BirthDate,1,3) || '0'"
+     "sql": "SELECT CONCAT(SUBSTR(BirthDate,1,3), '0'), COUNT(*) FROM Employees GROUP BY CONCAT(SUBSTR(BirthDate,1,3), '0')"
     },
     {
      "text": "Mostra la dècada de naixement (calculada com `SUBSTR(BirthDate, 1, 3) || '0'`) i el salari mitjà dels empleats d'aquella dècada, només per a les dècades en què el salari mitjà supera 2000.",
-     "sql": "SELECT SUBSTR(BirthDate,1,3) || '0', AVG(Salary) FROM Employees GROUP BY SUBSTR(BirthDate,1,3) || '0' HAVING AVG(Salary) > 2000"
+     "sql": "SELECT CONCAT(SUBSTR(BirthDate,1,3), '0'), AVG(Salary) FROM Employees GROUP BY CONCAT(SUBSTR(BirthDate,1,3), '0') HAVING AVG(Salary) > 2000"
     },
     {
      "text": "Mostra els salaris que cobren exactament dos o més empleats, juntament amb el nombre d'empleats que cobren cada un d'aquests salaris, en aquest ordre de columnes.",
@@ -112,7 +112,7 @@
    ]
   },
   {
-   "name": "Empleats 7: Subconsultes",
+   "name": "Empleats 7: Subconsultes", "engine": "mysql", "database": "company",
    "intro": "Fes servir subconsultes escalars i amb `IN` per comparar cada fila amb un resultat calculat.",
    "questions": [
     {
@@ -130,7 +130,7 @@
    ]
   },
   {
-   "name": "Empleats 8: Autojoins",
+   "name": "Empleats 8: Autojoins", "engine": "mysql", "database": "company",
    "intro": "Uneix la taula amb ella mateixa per comparar empleats entre ells.",
    "questions": [
     {
@@ -148,7 +148,7 @@
    ]
   },
   {
-   "name": "Empleats 9: CASE i funcions de text",
+   "name": "Empleats 9: CASE i funcions de text", "engine": "mysql", "database": "company",
    "intro": "Transforma valors amb `CASE`, `UPPER`, `LENGTH`, `SUBSTR` i concatenació.",
    "questions": [
     {
@@ -166,12 +166,12 @@
    ]
   },
   {
-   "name": "Empleats 10: Repte final",
+   "name": "Empleats 10: Repte final", "engine": "mysql", "database": "company",
    "intro": "Combina dates, subconsultes, agrupacions i càlculs en consultes de diversos passos.",
    "questions": [
     {
      "text": "Mostra el cognom i l'edat aproximada de cada empleat, calculada com 2026 menys l'any de naixement (usa `CAST(strftime('%Y', BirthDate) AS INTEGER)` per obtenir l'any com a enter), en aquest ordre de columnes.",
-     "sql": "SELECT LastName, 2026 - CAST(strftime('%Y', BirthDate) AS INTEGER) FROM Employees"
+     "sql": "SELECT LastName, 2026 - YEAR(BirthDate) FROM Employees"
     },
     {
      "text": "Mostra el nom, el cognom i el salari dels empleats que cobren més que el salari mitjà dels empleats del seu mateix càrrec (subconsulta correlacionada o autojoin).",
@@ -183,7 +183,7 @@
     },
     {
      "text": "Mostra, en una sola columna, la diferència en anys entre l'any de naixement de l'empleat més jove i el de l'empleat més gran (usa `CAST(strftime('%Y', BirthDate) AS INTEGER)` per obtenir els anys com a enters).",
-     "sql": "SELECT MAX(CAST(strftime('%Y', BirthDate) AS INTEGER)) - MIN(CAST(strftime('%Y', BirthDate) AS INTEGER)) FROM Employees"
+     "sql": "SELECT MAX(YEAR(BirthDate)) - MIN(YEAR(BirthDate)) FROM Employees"
     }
    ]
   }

@@ -31,7 +31,7 @@
         <div class="daily-bonus-icon">&#9733;</div>
         <div>
             <h2>{{ _('Primer problema nou del dia!') }}</h2>
-            <p>{{ _('És el primer problema nou que resols avui — +%(points)s GachaPoints de regal!', points=submission.user.DAILY_SOLVE_BONUS_POINTS) }}</p>
+            <p>{{ _('És el primer problema nou que resols avui — +%(points)s GachaPoints de regal!', points=submission.user.daily_solve_bonus_points) }}</p>
         </div>
     </div>
 {% endif %}
@@ -53,7 +53,7 @@
             <h3>{{ _('Pretest Execution Results') }}</h3>
         {% else %}
             <h3>{{ _('Execution Results') }}</h3>
-            <p>{{_('Hints Used/Allowed:')}} {{usedhints}}/{{submission.problem.data_files.allowed_tips}}</p>
+            <p>{{_('Hints Used/Allowed:')}} {{usedhints}}/{{allowed_hints}}</p>
             
         {% endif %}
         <br>
@@ -136,7 +136,7 @@
                                     <a href="{{ url('submission_status', case.hint_reference) }}">{{ _('submission #%(id)s', id=case.hint_reference) }}</a>.
                                 </p>
                             {% endif %}
-                            {% if not submission.flag and usedhints|int < submission.problem.data_files.allowed_tips %}
+                            {% if not submission.flag and usedhints|int < allowed_hints %}
                                 <button type="button" class="button hint-request-btn"
                                         data-url="{{ url('submission_flag', case.id) }}"
                                         data-target="hint-container-{{ case.id }}"

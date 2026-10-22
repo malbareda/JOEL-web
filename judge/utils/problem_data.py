@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from zipfile import BadZipfile, ZipFile
 
 import yaml
 from django.conf import settings
@@ -18,8 +19,23 @@ else:
 
 
 # Checkers that turn a problem into a "database problem" (categorization, separate ranking,
-# multi-question submission form, schema explorer) -- currently SQL/SQLite and Mongo/mongomock.
-DATABASE_CHECKERS = ('sql', 'mongo')
+# multi-question submission form, schema explorer) -- SQL/SQLite, Mongo/mongomock and MySQL/MariaDB.
+DATABASE_CHECKERS = ('sql', 'mongo', 'mysql')
+
+# A database name on the MariaDB grading server ("mysql" checker), as stored in the problem's checker_args.
+MYSQL_DATABASE_NAME_RE = re.compile(r'^[A-Za-z0-9_]{1,64}$')
+
+# Statements graded by the judge's "mysqlwrite" checker instead of "mysql". Teachers only ever choose "mysql":
+# each question goes to one or the other depending on its reference statement.
+MYSQL_WRITE_STATEMENTS = ('INSERT', 'UPDATE', 'DELETE')
+
+
+def sql_statement_keyword(sql):
+    """The leading keyword of a SQL statement, after any comments (e.g. 'SELECT', 'WITH', 'INSERT')."""
+    sql = re.sub(r'/\*.*?\*/', ' ', sql or '', flags=re.DOTALL)
+    sql = re.sub(r'--[^\n]*', ' ', sql)
+    match = re.match(r'[\s(]*([A-Za-z_]+)', sql)
+    return match.group(1).upper() if match else ''
 
 
 class ProblemDataStorage(FileSystemStorage):
@@ -141,6 +157,21 @@ class ProblemDataCompiler(object):
         self.files = files
 
         self.generator = data.generator
+        self._reference_keywords = None
+
+    def _reference_keyword(self, case):
+        """The leading keyword of a case's reference statement (its output file inside the data zip)."""
+        if self._reference_keywords is None:
+            self._reference_keywords = {}
+            try:
+                with ZipFile(self.data.zipfile.path) as z:
+                    for name in z.namelist():
+                        if name.lower().endswith('.sql') or name.lower().endswith('.out'):
+                            self._reference_keywords[name] = sql_statement_keyword(
+                                z.read(name)[:4096].decode('utf-8', errors='replace'))
+            except (ValueError, OSError, BadZipfile):
+                pass
+        return self._reference_keywords.get(getattr(case, 'output_file', None), '')
 
     def _get_sql_db_filename(self):
         """
@@ -167,6 +198,18 @@ class ProblemDataCompiler(object):
         if len(db_path) != 2:
             raise ProblemDataError(_('How did you corrupt the Mongo database path?'))
         return db_path[1]
+
+    def _get_mysql_database(self):
+        """Returns the MariaDB database name stored in the problem's checker_args ({"database": ...}),
+        or raises ProblemDataError if it is missing or not a plain database name."""
+        try:
+            database = json.loads(self.data.checker_args or '{}').get('database')
+        except (ValueError, AttributeError):
+            database = None
+        if not database or not MYSQL_DATABASE_NAME_RE.match(str(database)):
+            raise ProblemDataError(_('MySQL checker requires a database. '
+                                     'Please choose one in the "MySQL database" field.'))
+        return database
 
     def make_init(self):
         cases = []
@@ -205,6 +248,21 @@ class ProblemDataCompiler(object):
                     args['question_index'] = question_index
                 return {
                     'name': 'mongo',
+                    'args': args,
+                }
+            if checker_name == 'mysql':
+                args = {'database': self._get_mysql_database()}
+                if case.checker_args and case is not self.data:  # the problem's own args only hold the database
+                    try:
+                        args.update(json.loads(case.checker_args))
+                    except ValueError:
+                        pass
+                    args['database'] = self._get_mysql_database()
+                if question_index is not None:
+                    args['question_index'] = question_index
+                write = case is not self.data and self._reference_keyword(case) in MYSQL_WRITE_STATEMENTS
+                return {
+                    'name': 'mysqlwrite' if write else 'mysql',
                     'args': args,
                 }
             if case.checker_args:

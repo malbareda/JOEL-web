@@ -4,7 +4,7 @@
   "label": "Miniwind (botiga d'aliments a l'engròs: clients, empleats, productes, comandes i factures)",
   "problems": [
     {
-      "name": "Miniwind 1: Primeres consultes",
+      "name": "Miniwind 1: Primeres consultes", "engine": "mysql", "database": "miniwind",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
       "questions": [
         {"text": "Mostra tots els camps de la taula `orders_status`.",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "name": "Miniwind 2: Filtrant files",
+      "name": "Miniwind 2: Filtrant files", "engine": "mysql", "database": "miniwind",
       "intro": "Practica les condicions del `WHERE`: comparacions, `AND`/`OR` i `NULL`.",
       "questions": [
         {"text": "Mostra el nom del producte i el preu de venda (`list_price`) dels productes que costen més de 20.",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "name": "Miniwind 3: Cerques de text",
+      "name": "Miniwind 3: Cerques de text", "engine": "mysql", "database": "miniwind",
       "intro": "Usa `LIKE` i els operadors de text per fer cerques parcials.",
       "questions": [
         {"text": "Mostra el nom de l'empresa (`company`) dels clients el nom de l'empresa dels quals comença per la lletra 'L'.",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "Miniwind 4: Funcions d'agregació",
+      "name": "Miniwind 4: Funcions d'agregació", "engine": "mysql", "database": "miniwind",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
       "questions": [
         {"text": "Mostra quants productes hi ha a la taula `products`.",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "name": "Miniwind 5: Agrupant dades",
+      "name": "Miniwind 5: Agrupant dades", "engine": "mysql", "database": "miniwind",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {"text": "Per cada categoria (`category`) de productes, mostra la categoria i el nombre de productes que conté.",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "name": "Miniwind 6: Filtrant grups",
+      "name": "Miniwind 6: Filtrant grups", "engine": "mysql", "database": "miniwind",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {"text": "Mostra les categories que tenen més de 3 productes, juntament amb el nombre de productes de cadascuna.",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "Miniwind 7: Primers JOINs",
+      "name": "Miniwind 7: Primers JOINs", "engine": "mysql", "database": "miniwind",
       "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
       "questions": [
         {"text": "Per cada comanda, mostra el seu identificador (`orders.id`) i el nom de l'empresa del client (`customers.company`) que l'ha feta.",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "Miniwind 8: JOINs amb filtres i agrupacions",
+      "name": "Miniwind 8: JOINs amb filtres i agrupacions", "engine": "mysql", "database": "miniwind",
       "intro": "Combina `JOIN`, `WHERE` i `GROUP BY` en una mateixa consulta.",
       "questions": [
         {"text": "Mostra el cognom de cada empleat i el nombre de comandes que ha gestionat (només els empleats que n'han gestionat alguna).",
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "Miniwind 9: LEFT JOIN i subconsultes",
+      "name": "Miniwind 9: LEFT JOIN i subconsultes", "engine": "mysql", "database": "miniwind",
       "intro": "Quan cal incloure també les files sense coincidència, o calcular un valor intermedi.",
       "questions": [
         {"text": "Mostra el nom de l'empresa de tots els clients i el nombre de comandes que han fet, incloent-hi els que no n'han fet cap (amb un 0).",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "name": "Miniwind 10: Repte final",
+      "name": "Miniwind 10: Repte final", "engine": "mysql", "database": "miniwind",
       "intro": "Consultes de més d'un pas: `JOIN` de tres taules, subconsultes i càlculs.",
       "questions": [
         {"text": "Per cada comanda, mostra el seu identificador i l'import total de les seves línies, calculat com la suma de `quantity * unit_price` de `order_details`. Només cal incloure les comandes que tinguin línies de detall.",
@@ -122,7 +122,7 @@
         {"text": "Mostra el cognom de l'empleat que ha gestionat més comandes, i el nombre de comandes.",
          "sql": "SELECT e.last_name, COUNT(*) FROM employees e INNER JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name ORDER BY COUNT(*) DESC LIMIT 1"},
         {"text": "Mostra l'identificador de les comandes l'import total de les quals (suma de `quantity * unit_price`) és superior a la mitjana dels imports totals de totes les comandes.",
-         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))"}
+         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) AS x)"}
       ]
     }
   ]

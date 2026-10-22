@@ -1,16 +1,20 @@
 import errno
+import json
+import logging
 import os
 
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.cache.utils import make_template_fragment_key
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from .caching import finished_submission
-from .models import BlogPost, Comment, Contest, ContestSubmission, EFFECTIVE_MATH_ENGINES, Judge, Language, License, \
-    MiscConfig, Organization, Problem, Profile, Submission
+from .models import Achievement, AchievementObtained, BlogPost, Comment, Contest, ContestSubmission, \
+    EFFECTIVE_MATH_ENGINES, Judge, Language, License, MiscConfig, Organization, Problem, ProblemData, Profile, \
+    Submission
 
 
 def get_pdf_path(basename):
@@ -98,6 +102,21 @@ def post_update(sender, instance, **kwargs):
                        for engine in EFFECTIVE_MATH_ENGINES])
 
 
+@receiver(post_delete, sender=ProblemData)
+def problem_data_delete(sender, instance, **kwargs):
+    # A problem's own MariaDB database (p_<code>, loaded from its MySQL dump) and its writable copy go with it.
+    try:
+        database = json.loads(instance.checker_args or '{}').get('database') or ''
+    except (ValueError, AttributeError):
+        return
+    if instance.mysql_dump and database.startswith('p_'):
+        from judge.utils import mysql_grader
+        try:
+            mysql_grader.drop_problem_databases(database[len('p_'):])
+        except Exception:
+            logging.getLogger('judge.problem_data').exception('Could not drop MySQL database %s', database)
+
+
 @receiver(post_delete, sender=Submission)
 def submission_delete(sender, instance, **kwargs):
     finished_submission(instance)
@@ -153,3 +172,15 @@ def misc_config_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=ContestSubmission)
 def contest_submission_update(sender, instance, **kwargs):
     Submission.objects.filter(id=instance.submission_id).update(contest_object_id=instance.participation.contest_id)
+
+
+@receiver([post_save, post_delete], sender=Achievement)
+@receiver([post_save, post_delete], sender=AchievementObtained)
+def rainbow_name_update(sender, instance, **kwargs):
+    # Someone got/lost a rainbow_name achievement, or an achievement's rainbow_name flag
+    # changed -- cheap to just drop the whole cached set (see Profile.rainbow_name_ids). Only
+    # once committed: dropping it earlier lets a concurrent request re-cache the old set.
+    def drop():
+        cache.delete(Profile.RAINBOW_NAME_CACHE_KEY)
+        Profile._rainbow_name_local = (0, None)
+    transaction.on_commit(drop)

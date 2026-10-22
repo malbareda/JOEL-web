@@ -4,7 +4,7 @@
   "label": "Chinook (botiga de música digital: artistes, àlbums, pistes, clients, factures i empleats)",
   "problems": [
     {
-      "name": "Chinook 1: Primeres consultes",
+      "name": "Chinook 1: Primeres consultes", "engine": "mysql", "database": "Chinook",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
       "questions": [
         {"text": "Mostra tots els camps de la taula `Genre`.",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "name": "Chinook 2: Filtrant files",
+      "name": "Chinook 2: Filtrant files", "engine": "mysql", "database": "Chinook",
       "intro": "Practica les condicions del `WHERE`: comparacions, `AND` i `NULL`.",
       "questions": [
         {"text": "Mostra el nom (`Name`) i la durada en mil·lisegons (`Milliseconds`) de les pistes (`Track`) que costen 1.99 (`UnitPrice`) i duren més de 2.700.000 mil·lisegons, en aquest ordre.",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "name": "Chinook 3: Cerques i rangs",
+      "name": "Chinook 3: Cerques i rangs", "engine": "mysql", "database": "Chinook",
       "intro": "Usa `LIKE`, `BETWEEN` i `IN` per filtrar amb patrons, intervals i llistes de valors.",
       "questions": [
         {"text": "Mostra el nom (`Name`) dels artistes (`Artist`) el nom dels quals comença per 'The ' (la paraula The seguida d'un espai).",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "Chinook 4: Funcions d'agregació",
+      "name": "Chinook 4: Funcions d'agregació", "engine": "mysql", "database": "Chinook",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
       "questions": [
         {"text": "Mostra quants clients hi ha a la taula `Customer`.",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "name": "Chinook 5: Agrupant dades",
+      "name": "Chinook 5: Agrupant dades", "engine": "mysql", "database": "Chinook",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {"text": "Per cada país (`Country`) de la taula `Customer`, mostra el país i el nombre de clients que hi té, en aquest ordre.",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "name": "Chinook 6: Filtrant grups",
+      "name": "Chinook 6: Filtrant grups", "engine": "mysql", "database": "Chinook",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {"text": "Mostra els països (`Country`) que tenen més de 4 clients a la taula `Customer`, juntament amb el nombre de clients de cadascun, en aquest ordre.",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "Chinook 7: Primers JOINs",
+      "name": "Chinook 7: Primers JOINs", "engine": "mysql", "database": "Chinook",
       "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
       "questions": [
         {"text": "Mostra el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) dels àlbums els artistes dels quals tenen un nom que comença per la lletra 'B', en aquest ordre.",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "Chinook 8: JOINs de diverses taules",
+      "name": "Chinook 8: JOINs de diverses taules", "engine": "mysql", "database": "Chinook",
       "intro": "Combina `JOIN` de tres taules amb `WHERE`, `GROUP BY` i `HAVING`.",
       "questions": [
         {"text": "Mostra el nom de la pista (`Track.Name`), el títol del seu àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) de les pistes que costen 1.99 i duren més de 2.700.000 mil·lisegons, en aquest ordre.",
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "Chinook 9: LEFT JOIN i CASE",
+      "name": "Chinook 9: LEFT JOIN i CASE", "engine": "mysql", "database": "Chinook",
       "intro": "Quan cal incloure també les files sense coincidència, o classificar valors amb `CASE`.",
       "questions": [
         {"text": "Mostra el cognom (`LastName`) de tots els empleats i el nombre de clients als quals donen suport (segons `Customer.SupportRepId`), incloent-hi els que no en tenen cap (amb un 0), en aquest ordre.",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "name": "Chinook 10: Repte final",
+      "name": "Chinook 10: Repte final", "engine": "mysql", "database": "Chinook",
       "intro": "Consultes de més d'un pas: subconsultes, `JOIN` de diverses taules, agrupacions i ordenacions.",
       "questions": [
         {"text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures el total de les quals és superior al total mitjà de totes les factures, en aquest ordre.",

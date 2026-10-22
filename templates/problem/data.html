@@ -82,7 +82,7 @@
                 var $precision = $('<input>', {
                     type: 'number',
                     value: try_parse_json($args.val()).precision || 6,
-                    title: '{{ _('precision (decimal digits)') }}',
+                    title: '{{ _('precision (decimal digits)')|escapejs }}',
                     style: 'width: 4em'
                 }).change(update_args).appendTo($td);
 
@@ -91,8 +91,8 @@
                     $question = $('<input>', {
                         type: 'text',
                         value: try_parse_json($args.val()).question || '',
-                        placeholder: '{{ _('Question shown to the student') }}',
-                        title: '{{ _('Question shown to the student') }}',
+                        placeholder: '{{ _('Question shown to the student')|escapejs }}',
+                        title: '{{ _('Question shown to the student')|escapejs }}',
                         style: 'width: 12em'
                     }).change(update_args).appendTo($td);
                 }
@@ -132,14 +132,12 @@
             // === Database checkers: show/hide DB upload field + example database picker ===
             function toggleSqlDbField() {
                 var checkerVal = $('#id_problem-data-checker').val();
-                var $sqlDbRow = $('#id_problem-data-sql_db').closest('tr');
-                var $sqlTemplateRow = $('#id_problem-data-sql_template').closest('tr');
                 var $mongoDbRow = $('#id_problem-data-mongo_db').closest('tr');
                 var $mongoTemplateRow = $('#id_problem-data-mongo_template').closest('tr');
-                $sqlDbRow.toggle(checkerVal === 'sql');
-                $sqlTemplateRow.toggle(checkerVal === 'sql');
                 $mongoDbRow.toggle(checkerVal === 'mongo');
                 $mongoTemplateRow.toggle(checkerVal === 'mongo');
+                $('#id_problem-data-mysql_database').closest('tr').toggle(checkerVal === 'mysql');
+                $('#id_problem-data-mysql_dump').closest('tr').toggle(checkerVal === 'mysql');
             }
             $('#id_problem-data-checker').change(toggleSqlDbField);
             toggleSqlDbField();  // run on page load

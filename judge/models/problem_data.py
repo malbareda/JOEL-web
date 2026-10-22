@@ -1,5 +1,6 @@
 import errno
 import json
+import logging
 import os
 
 from django.db import models
@@ -10,6 +11,7 @@ from judge.utils.problem_data import ProblemDataStorage
 __all__ = ['problem_data_storage', 'problem_directory_file', 'ProblemData', 'ProblemTestCase', 'CHECKERS']
 
 problem_data_storage = ProblemDataStorage()
+logger = logging.getLogger('judge.problem_data')
 
 
 def _problem_directory_file(code, filename):
@@ -26,8 +28,10 @@ CHECKERS = (
     ('sorted', _('Linea a Linea (només profes)')),
     ('identical', _('Programame-like')),
     ('linecount', _('Line-by-line')),
-    ('sql', _('SQL checker')),
+    # 'sql' (SQLite) is no longer offered: SQL problems use 'mysql' (graded on MariaDB). The judge still has the
+    # checker, and DATABASE_CHECKERS still knows it, in case an old problem's data is restored.
     ('mongo', _('Mongo checker')),
+    ('mysql', _('MySQL checker')),
 )
 
 CASEFORMAT = (
@@ -59,6 +63,9 @@ class ProblemData(models.Model):
     mongo_db = models.FileField(verbose_name=_('Mongo database file'), storage=problem_data_storage, null=True, blank=True,
                                 upload_to=problem_directory_file,
                                 help_text=_('JSON database file for Mongo checker problems (.json)'))
+    mysql_dump = models.FileField(verbose_name=_('MySQL dump'), storage=problem_data_storage, null=True, blank=True,
+                                  upload_to=problem_directory_file,
+                                  help_text=_('SQL dump (.sql) with this problem\'s own database, for the MySQL checker'))
 
 
     __original_zipfile = None
@@ -66,6 +73,14 @@ class ProblemData(models.Model):
     def __init__(self, *args, **kwargs):
         super(ProblemData, self).__init__(*args, **kwargs)
         self.__original_zipfile = self.zipfile
+
+    def allowed_tips_for(self, profile):
+        """Hints `profile` may use on this problem: `allowed_tips`, plus one for owners of an
+        `extra_hint` achievement -- but only where the problem allows hints at all."""
+        base = self.allowed_tips or 0
+        if base >= 1 and profile.has_extra_hint:
+            return base + 1
+        return base
 
     def save(self, *args, **kwargs):
         if self.zipfile != self.__original_zipfile:
@@ -89,9 +104,30 @@ class ProblemData(models.Model):
             self.sql_db.name = _problem_directory_file(new, self.sql_db.name)
         if self.mongo_db:
             self.mongo_db.name = _problem_directory_file(new, self.mongo_db.name)
+        if self.mysql_dump:
+            self.mysql_dump.name = _problem_directory_file(new, self.mysql_dump.name)
 
         self.save()
+        if self.mysql_dump:
+            self._reload_mysql_dump(original, new)
     _update_code.alters_data = True
+
+    def _reload_mysql_dump(self, original, new):
+        """A problem's own MariaDB database is named after its code (p_<code>): load it again under the new code
+        and drop the old one."""
+        from judge.utils import mysql_grader
+        try:
+            with self.mysql_dump.open('rb') as f:
+                text = f.read().decode('utf-8', errors='replace')
+            database = mysql_grader.load_problem_dump(new, text)
+            args = json.loads(self.checker_args or '{}')
+            if args.get('database') == mysql_grader.problem_database(original):
+                args['database'] = database
+                self.checker_args = json.dumps(args)
+                self.save(update_fields=['checker_args'])
+            mysql_grader.drop_problem_databases(original)
+        except Exception:
+            logger.exception('Could not reload the MySQL dump of problem %s after renaming it from %s', new, original)
 
 
 class ProblemTestCase(models.Model):

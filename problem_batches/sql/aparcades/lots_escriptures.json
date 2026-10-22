@@ -1,0 +1,10 @@
+[
+  {
+    "code": "sqlupd03",
+    "problem": "SQL Updates 3: condicions riques i CASE",
+    "motiu": "a MariaDB la columna Stays.PaymentType és ENUM('Card','Cash') i no admet 'Pending'",
+    "text": "A la taula `Stays`, posa `PaymentType` al valor `Pending` en les estades que no tenen tipus de pagament (`PaymentType IS NULL`).",
+    "sql": "UPDATE Stays SET PaymentType = 'Pending' WHERE PaymentType IS NULL",
+    "explain": "Les files sense pagament tenen `NULL`, que només es detecta amb `IS NULL` (mai amb `= NULL`)."
+  }
+]

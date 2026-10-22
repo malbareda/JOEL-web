@@ -1,0 +1,897 @@
+{
+  "database": "miniwind",
+  "engine": "mysql",
+  "code_prefix": "sqlminiwindqt",
+  "author": "joanq",
+  "label": "Miniwind (botiga d'aliments a l'engròs: clients, empleats, productes, comandes i factures) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqlminiwindqt01",
+      "name": "Miniwind QT — Test 2",
+      "type": "sqlselbasic",
+      "intro": "Filtres amb `LIKE`, `IN`, `BETWEEN` i condicions compostes sobre `employees`, `products` i `orders`.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el cognom (`last_name`) i el càrrec (`job_title`) dels empleats (`employees`) de la ciutat de Washington (`city`). Ordena el resultat pel cognom.",
+          "sql": "SELECT id, last_name, job_title\n FROM employees\n WHERE city LIKE 'Washington'\n ORDER BY last_name;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels empleats el cognom dels quals comença per «J».",
+          "sql": "SELECT id, first_name, last_name\n FROM employees\n WHERE last_name LIKE 'J%';"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) dels empleats que tenen una «e» a la segona posició del cognom.",
+          "sql": "SELECT last_name\n FROM employees\n WHERE last_name LIKE '_e%';"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) dels empleats que comencen per «T» i que contenen alguna «e».",
+          "sql": "SELECT first_name\n FROM employees\n WHERE first_name LIKE 'T%e%';"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) dels empleats el càrrec dels quals (`job_title`) sigui 'Sales Manager', 'Sales Representative' o 'Sales Coordinator'.",
+          "sql": "SELECT last_name\n FROM employees\n WHERE job_title IN ('Sales Manager',\n      'Sales Representative','Sales Coordinator');"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) dels empleats el càrrec dels quals (`job_title`) no sigui cap de 'Sales Manager', 'Sales Representative' ni 'Sales Coordinator'.",
+          "sql": "SELECT last_name\n FROM employees\n WHERE job_title NOT IN ('Sales Manager',\n      'Sales Representative','Sales Coordinator');"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`), el cognom (`last_name`), la ciutat (`city`) i les notes (`notes`) dels empleats de Washington que saben francès (la paraula 'French' apareix a `notes`) o bé d'Atlanta que no en saben (a `notes` no hi apareix 'French' o bé `notes` no té valor).",
+          "sql": "SELECT id, first_name, last_name, city, notes\n FROM employees\n WHERE (\n   city LIKE 'Washington'\n   AND notes LIKE '%French%'\n ) OR (\n   city LIKE 'Atlanta'\n   AND (\n    notes NOT LIKE '%French%'\n    OR notes IS NULL\n   )\n );"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i els proveïdors (`supplier_ids`) dels productes (`products`) que tenen com a únic proveïdor el 4 o bé el 10 (`supplier_ids` val exactament '4' o '10').",
+          "sql": "SELECT product_name, supplier_ids\n FROM products\n WHERE supplier_ids IN ('4','10');"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i els proveïdors (`supplier_ids`) dels productes que no tenen com a únic proveïdor ni el 4 ni el 10.",
+          "sql": "SELECT product_name, supplier_ids\n FROM products\n WHERE supplier_ids NOT IN ('4','10');"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i el preu de venda (`list_price`) dels productes amb un preu de venda entre 10 i 20, tots dos inclosos.",
+          "sql": "SELECT product_name, list_price\n FROM products\n WHERE list_price BETWEEN 10 AND 20;"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i el preu de venda (`list_price`) dels productes amb un preu de venda fora de l'interval de 10 a 20.",
+          "sql": "SELECT product_name, list_price\n FROM products\n WHERE list_price NOT BETWEEN 10 AND 20;"
+        },
+        {
+          "text": "Mostra el nom (`product_name`), el preu de venda (`list_price`) i els proveïdors (`supplier_ids`) dels productes amb un preu superior a 20 i que tenen com a únic proveïdor el 4 o bé el 10.",
+          "sql": "SELECT product_name, list_price, supplier_ids\n FROM products\n WHERE list_price > 20\n  AND supplier_ids IN ('4','10');"
+        },
+        {
+          "text": "Mostra el nom (`product_name`), el preu de cost (`standard_cost`) i el preu de venda (`list_price`) dels productes en què la diferència entre el preu de venda i el de cost és superior a 10.",
+          "sql": "SELECT product_name, standard_cost, list_price\n FROM products\n WHERE list_price - standard_cost > 10;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) dels productes que contenen la paraula 'soup' en el nom, sense distingir majúscules de minúscules.",
+          "sql": "SELECT id, product_name\n FROM products\n WHERE product_name LIKE '%soup%';"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la data (`order_date`) i les despeses d'enviament (`shipping_fee`) de les comandes (`orders`) del client (`customer_id`) 4 amb unes despeses d'enviament superiors a 4.",
+          "sql": "SELECT id, order_date, shipping_fee\n FROM orders\n WHERE customer_id = 4\n AND shipping_fee > 4;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt02",
+      "name": "Miniwind QT — Test 4 (consultes addicionals)",
+      "type": "sqlselbasic",
+      "intro": "Consultes de filtratge amb dates, `NULL` i condicions compostes sobre comandes, clients i detalls de comanda.",
+      "questions": [
+        {
+          "text": "Mostra la data de comanda (`order_date`), la data d'enviament (`shipped_date`) i l'adreça d'enviament (`ship_address`) de les comandes (`orders`) ja enviades (amb `shipped_date`) amb destí la ciutat de New Orleans (`ship_city`). Ordena per data de comanda de més recent a més antiga.",
+          "sql": "SELECT order_date, shipped_date, ship_address\n FROM orders\n WHERE ship_city LIKE 'New Orleans'\nAND shipped_date IS NOT NULL\n ORDER BY order_date DESC;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom del destinatari (`ship_name`) i l'identificador del client (`customer_id`) de les comandes que encara no s'han enviat (`shipped_date` sense valor). Ordena per identificador del client.",
+          "sql": "SELECT id, ship_name, customer_id\n FROM orders\n WHERE shipped_date IS NULL\n ORDER BY customer_id;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la data (`order_date`) i l'identificador del client (`customer_id`) de les comandes fetes entre el febrer i el maig de 2006, tots dos mesos inclosos. Ordena per data de comanda.",
+          "sql": "SELECT id, order_date, customer_id\n FROM orders\n WHERE order_date BETWEEN '2006-02-01 00:00:00' AND '2006-05-31 23:59:59'\n ORDER BY order_date;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la data (`order_date`) i la ciutat de destí (`ship_city`) de les comandes amb unes despeses d'enviament (`shipping_fee`) superiors a 100 que, a més, s'hagin pagat amb xec (`payment_type` igual a 'Check') o bé siguin posteriors al febrer de 2006 (a partir de l'1 de març de 2006).",
+          "sql": "SELECT id, order_date, ship_city\n FROM orders\n WHERE shipping_fee>100 AND (payment_type='Check' OR order_date>='2006-03-01');"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), l'adreça (`ship_address`) i la ciutat de destí (`ship_city`) de les comandes posteriors al 15 de maig de 2006 amb enviament gratuït (`shipping_fee` igual a 0).",
+          "sql": "SELECT id, ship_address, ship_city\n FROM orders\n WHERE order_date>='2006-05-16'\n  AND shipping_fee=0;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels clients (`customers`) el nom dels quals comença per «A» i que viuen en una ciutat (`city`) que conté almenys una «a».",
+          "sql": "SELECT id, first_name, last_name\n FROM customers\n WHERE first_name LIKE 'A%'\n  AND city LIKE '%a%';"
+        },
+        {
+          "text": "Mostra l'identificador de producte (`product_id`), la quantitat (`quantity`) i el preu unitari (`unit_price`) de les línies de la comanda (`order_details`) número 51. Ordena per quantitat de més gran a més petita i, en cas d'empat, per preu unitari de més gran a més petit.",
+          "sql": "SELECT product_id, quantity, unit_price\n FROM order_details\n WHERE order_id=51\n ORDER BY quantity DESC, unit_price DESC;"
+        },
+        {
+          "text": "Mostra, sense repeticions, l'identificador de comanda (`order_id`) de les comandes que tenen alguna línia de detall (`order_details`) no facturada (`status_id` diferent de 2). Ordena de menor a major.",
+          "sql": "SELECT DISTINCT order_id\n FROM order_details\n WHERE status_id!=2\n ORDER BY order_id;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), l'identificador de comanda (`order_id`) i l'identificador de producte (`product_id`) de les línies de `order_details` que no estan associades a cap ítem d'inventari (`inventory_id` sense valor) o bé ho estan a un ítem d'`inventory_id` superior a 130.",
+          "sql": "SELECT id, order_id, product_id\n FROM order_details\n WHERE inventory_id IS NULL\n  OR inventory_id>130;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), l'identificador de comanda (`order_id`), l'identificador de producte (`product_id`), la quantitat (`quantity`), el preu unitari (`unit_price`) i l'import total (`quantity * unit_price`) de les línies de `order_details` l'import de les quals és superior a 1000 i inferior a 10000.",
+          "sql": "SELECT id, order_id, product_id, quantity, unit_price, quantity*unit_price\n FROM order_details\n WHERE quantity*unit_price > 1000\n  AND quantity*unit_price < 10000;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el nom (`product_name`) dels productes que no són de la categoria 'Beverages' i que tenen un preu de venda (`list_price`) inferior a 10. Ordena pel nom del producte.",
+          "sql": "SELECT id, product_code, product_name\n FROM products\n WHERE category NOT LIKE 'Beverages'\n  AND list_price < 10\n ORDER BY product_name;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), l'identificador del client (`customer_id`) i la data (`order_date`) de les comandes pagades amb targeta de crèdit (`payment_type` igual a 'Credit Card') i enviades als estats (`ship_state_province`) de California ('CA') o Florida ('FL').",
+          "sql": "SELECT id, customer_id, order_date\n FROM orders\n WHERE payment_type LIKE 'Credit Card'\n  AND (ship_state_province LIKE 'CA'\n   OR ship_state_province LIKE 'FL');"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`), l'adreça (`address`) i la ciutat (`city`) de tots els clients. Ordena pel cognom (A-Z), després pel nom (A-Z) i finalment per la ciutat (Z-A).",
+          "sql": "SELECT first_name, last_name, address, city\n FROM customers\n ORDER BY last_name, first_name, city DESC;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), l'identificador del client (`customer_id`) i de l'empleat (`employee_id`), la data (`order_date`) i el destinatari (`ship_name`) de les comandes que encara no s'han completat (`status_id` diferent de 3) i que es van fer entre el 15 de maig i el 15 de juny de 2006. Ordena per identificador de client i, en empat, per identificador d'empleat.",
+          "sql": "SELECT id, customer_id, employee_id, order_date, ship_name\n FROM orders\n WHERE status_id != 3\n  AND order_date BETWEEN '2006-05-15' AND '2006-06-15 23:59:59'\n ORDER BY customer_id, employee_id;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el nom (`product_name`) dels productes que contenen 'ea' en el nom però que no tenen més de tres «r».",
+          "sql": "SELECT id, product_code, product_name\n FROM products\n WHERE product_name LIKE '%ea%'\n  AND product_name NOT LIKE '%r%r%r%r%';"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt03",
+      "name": "Miniwind QT — Test 5",
+      "type": "sqlselbasic",
+      "intro": "Filtres amb càlculs i tractament de `NULL` sobre productes i clients.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el nom (`product_name`) dels productes el preu de venda (`list_price`) dels quals és menys d'un 30% superior al preu de cost (`standard_cost`).",
+          "sql": "SELECT id, product_code, product_name\n FROM products\n WHERE list_price < 1.3 * standard_cost;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels clients que tenen el nom o el cognom acabat en «e», però no tots dos alhora. Ordena pel cognom.",
+          "sql": "SELECT id, first_name, last_name\n FROM customers\n WHERE (first_name LIKE '%e'\n   OR last_name LIKE '%e')\n  AND (first_name NOT LIKE '%e'\n   OR last_name NOT LIKE '%e')\n ORDER BY last_name;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) dels productes que tenen més d'un proveïdor (el camp `supplier_ids` conté un punt i coma).",
+          "sql": "SELECT id, product_name\n FROM products\n WHERE supplier_ids LIKE '%;%';"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) dels productes subministrats pel proveïdor 3 (el número 3 apareix dins de `supplier_ids`, tenint en compte que només hi ha 10 proveïdors).",
+          "sql": "SELECT id, product_name\n FROM products\n WHERE supplier_ids LIKE '%3%';"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) dels productes en què la quantitat de reposició (`reorder_level`) no coincideix amb la quantitat mínima a demanar (`minimum_reorder_quantity`). Si només un dels dos camps no té valor, es consideren diferents.",
+          "sql": "SELECT id, product_name\n FROM products\n WHERE reorder_level != minimum_reorder_quantity\n  OR (reorder_level IS NULL AND minimum_reorder_quantity IS NOT NULL)\n  OR (reorder_level IS NOT NULL AND minimum_reorder_quantity IS NULL);"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt04",
+      "name": "Miniwind QT — Agregació 01 (sense join)",
+      "type": "sqlagggroup",
+      "intro": "Funcions d'agregació (`COUNT`, `SUM`, `AVG`) amb `GROUP BY` i `HAVING`, sense cap `JOIN`.",
+      "questions": [
+        {
+          "text": "Mostra, per cada categoria (`category`) de productes, el nom de la categoria i el nombre de productes que en té.",
+          "sql": "Select category, count(*)\nfrom products\ngroup by category"
+        },
+        {
+          "text": "Mostra, per cada categoria (`category`) de productes, el nom de la categoria i el nombre de productes, només de les categories amb més de 4 productes.",
+          "sql": "Select category, count(*)\nfrom products\ngroup by category\nhaving count(*)>4"
+        },
+        {
+          "text": "Mostra quants empleats (`employees`) hi ha en total.",
+          "sql": "Select count(*)\nfrom employees"
+        },
+        {
+          "text": "Mostra quants empleats tenen el nom (`first_name`) començat per «T».",
+          "sql": "Select count(*)\nfrom employees\nwhere first_name like 'T%'"
+        },
+        {
+          "text": "Mostra, per cada categoria (`category`) de productes, el nom de la categoria i el preu de venda mitjà (mitjana de `list_price`).",
+          "sql": "select category, avg(list_price)\nfrom products\ngroup by category"
+        },
+        {
+          "text": "Mostra la suma total de les despeses d'enviament (`shipping_fee`) de les comandes pagades amb targeta de crèdit (`payment_type` igual a 'Credit Card').",
+          "sql": "Select sum(shipping_fee)\nfrom orders\nwhere payment_type like 'Credit Card'"
+        },
+        {
+          "text": "Mostra quantes comandes encara no s'han pagat (`paid_date` sense valor).",
+          "sql": "Select count(*)\nfrom orders\nwhere paid_date is null"
+        },
+        {
+          "text": "Mostra quants clients (`customers`) són de l'estat (`state_province`) de Nova York ('NY').",
+          "sql": "select count(*)\nfrom customers\nwhere state_province like 'NY'"
+        },
+        {
+          "text": "Mostra els diferents càrrecs (`job_title`) dels clients, ordenats descendentment.",
+          "sql": "select job_title\nfrom customers\ngroup by job_title\norder by job_title desc"
+        },
+        {
+          "text": "Mostra, per cada producte, l'identificador (`product_id`) i la quantitat total d'unitats venudes (suma de `quantity` a `order_details`).",
+          "sql": "Select product_id, sum(quantity)\nfrom order_details\ngroup by product_id"
+        },
+        {
+          "text": "Mostra, per cada comanda, l'identificador (`order_id`) i l'import total pagat (suma de `quantity * unit_price` a `order_details`).",
+          "sql": "Select order_id, sum(quantity*unit_price)\nfrom order_details\ngroup by order_id"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt05",
+      "name": "Miniwind QT — Agregació 02",
+      "type": "sqljoincomplex",
+      "intro": "Agregació combinada amb `JOIN` i `LEFT JOIN` sobre clients, comandes, productes i empleats.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients (`customers`) que han fet alguna comanda (`orders`).",
+          "sql": "select distinct first_name, last_name\nfrom customers join orders\non customers.id=orders.customer_id"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de comandes dels 6 clients que n'han fet més. Ordena pel nombre de comandes de més a menys i, en empat, pel cognom.",
+          "sql": "select first_name, last_name, count(*)\nfrom customers join orders\non customers.id=orders.customer_id\ngroup by customers.id, first_name, last_name\norder by count(*) desc, last_name\nlimit 6"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de comandes de tots els clients, incloent-hi els que no n'han fet cap (amb un 0).",
+          "sql": "select first_name, last_name, count(customer_id)\nfrom customers left join orders on customers.id=orders.customer_id\ngroup by first_name, last_name"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`), el cognom (`last_name`) i el nombre de productes comprats dels clients que han comprat més de 5 vegades algun producte (comptant les línies de `order_details`). Ordena pel nom del client.",
+          "sql": "select customers.id, first_name, last_name, count(order_details.product_id)\nfrom customers\n join orders on customers.id=orders.customer_id\njoin order_details on orders.id=order_details.order_id\ngroup by customers.id, first_name, last_name\nhaving  count(order_details.product_id)>5\norder by 2"
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i el nombre de vegades que s'ha demanat en alguna comanda (línies de `order_details`). Ordena pel nombre de vegades de més a menys i, en empat, pel nom del producte.",
+          "sql": "select p.product_name, count(od.product_id) as orders \nfrom products p join order_details od on p.id = od.product_id \ngroup by p.product_name \norder by orders desc, p.product_name"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el cognom (`last_name`) i el nom (`first_name`) de tots els empleats i l'import total de les seves vendes (suma de `quantity * unit_price` a `order_details`), incloent-hi els empleats sense vendes.",
+          "sql": "select employees.id, employees.last_name, employees.first_name, sum(order_details.quantity*unit_price) as quantitat\nfrom employees left join orders on employees.id=orders.employee_id left join order_details on orders.id=order_details.order_id\ngroup by id, last_name, first_name"
+        },
+        {
+          "text": "Mostra el nom (`product_name`), sense repeticions, dels productes que estan facturats en alguna de les seves línies de comanda (estat 'Invoiced' a `order_details_status`).",
+          "sql": "select distinct products.product_name\nfrom products join order_details on products.id=order_details.product_id join miniwind.order_details_status on order_details.status_id=miniwind.order_details_status.id\nwhere order_details_status.status_name like 'Invoiced'"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt06",
+      "name": "Miniwind QT — Join 04",
+      "type": "sqljoinbasic",
+      "intro": "`JOIN` de diverses taules per relacionar clients, comandes, empleats i productes.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients que han fet alguna comanda.",
+          "sql": "select distinct first_name, last_name\nfrom customers join orders\non customers.id=orders.customer_id"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) i el nom (`first_name`) del client, la data de la comanda (`order_date`) i l'identificador del producte (`product_id`) de cada producte de les comandes dels clients. Ordena pel cognom del client, l'identificador del producte i la data de la comanda.",
+          "sql": "select customers.last_name, customers.first_name, orders.order_date, order_details.product_id\nfrom customers join orders on customers.id=orders.customer_id join order_details on orders.id=order_details.order_id\norder by last_name, product_id, order_date"
+        },
+        {
+          "text": "Mostra l'identificador de la comanda (`orders.id`), el correu de l'empleat (`email_address`) que l'ha gestionada i el nom de l'empresa (`company`) del client. Ordena per identificador de comanda.",
+          "sql": "select o.id, e.email_address, c.company \nfrom customers c join orders o on c.id = o.customer_id join employees e on o.employee_id = e.id\norder by o.id"
+        },
+        {
+          "text": "Mostra l'identificador de la comanda (`orders.id`), el nom i el cognom de l'empleat que l'ha gestionada i el nom i el cognom del client (distingint clarament els de l'empleat dels del client, perquè no es poden repetir noms de columna). Ordena per identificador de comanda.",
+          "sql": "select o.id, e.first_name as nomEmpleat, e.last_name as cognomEmpleat, c.first_name as nomClient , c.last_name as cognomClient\nfrom customers c join orders o on c.id = o.customer_id join employees e on o.employee_id = e.id\norder by o.id"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom i el cognom de l'empleat i el nom i el cognom del client que s'han relacionat alguna vegada a través d'una comanda (distingint clarament les columnes de l'empleat de les del client). Ordena pel cognom i el nom de l'empleat.",
+          "sql": "select distinctrow e.first_name as nomEmpleat, e.last_name as cognomEmpleat, c.first_name as nomClient , c.last_name as cognomClient\nfrom customers c join orders o on c.id = o.customer_id join employees e on o.employee_id = e.id\norder by e.last_name, e.first_name"
+        },
+        {
+          "text": "Mostra, sense repeticions i ordenades alfabèticament, les ciutats (`city`) on tenim clients i empleats alhora.",
+          "sql": "select distinct e.city \nfrom employees e join customers c on e.city = c.city \norder by 1"
+        },
+        {
+          "text": "Mostra totes les dades de les factures (`invoices`) dels clients de les ciutats de 'Fresno' o 'Indianapolis' emeses a partir del 23 de març de 2006.",
+          "sql": "select i.*\nfrom customers c join orders o on c.id = o.customer_id join invoices i on o.id = i.order_id \nwhere (c.city = 'Fresno' or c.city = 'Indianapolis') and i.invoice_date >= '2006-03-23';"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients que han comprat alguna vegada productes de la categoria 'Beverages'.",
+          "sql": "select distinct c.first_name, c.last_name\nfrom customers c join orders o on c.id = o.customer_id join order_details od on o.id = od.order_id join products p on od.product_id = p.id \nwhere p.category ='Beverages'"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt07",
+      "name": "Miniwind QT — Test 3 (26/27)",
+      "type": "sqlselbasic",
+      "intro": "Filtres amb `LIKE`, `IN`, `BETWEEN` i `NULL` sobre empleats i productes.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el cognom (`last_name`) i el càrrec (`job_title`) dels empleats de la ciutat de Washington (`city`). Ordena pel cognom.",
+          "sql": "SELECT id, last_name, job_title\n FROM employees\n WHERE city LIKE 'Washington'\n ORDER BY last_name;"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) dels empleats el càrrec dels quals (`job_title`) no sigui cap de les tres posicions anteriors.",
+          "sql": "SELECT last_name\n FROM employees\n WHERE job_title NOT IN ('Sales Manager',\n      'Sales Representative','Sales Coordinator');"
+        },
+        {
+          "text": "Mostra el codi (`product_code`), el nom (`product_name`) i la categoria (`category`) dels productes de les categories 'Oil', 'Condiments', 'Pasta' o 'Soups'. Ordena alfabèticament pel nom.",
+          "sql": "SELECT product_code, product_name, category\n FROM products\n WHERE category IN ('Oil','CONDIMENTS', 'Soups','Pasta')\n ORDER BY product_name;"
+        },
+        {
+          "text": "Mostra el codi (`product_code`), el nom (`product_name`) i la categoria (`category`) dels productes que no són de cap de les categories 'Oil', 'Condiments', 'Pasta' ni 'Soups'. Ordena alfabèticament per la categoria.",
+          "sql": "SELECT product_code, product_name, category\n FROM products\n WHERE category NOT IN ('Oil','Condiments', 'Soups','Pasta')\n ORDER BY category;"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i el preu de venda (`list_price`) dels productes amb un preu entre 10 i 20, tots dos inclosos.",
+          "sql": "SELECT product_name, list_price\n FROM products\n WHERE list_price BETWEEN 10 AND 20;"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) i el preu de venda (`list_price`) dels productes amb un preu fora de l'interval de 10 a 20.",
+          "sql": "SELECT product_name, list_price\n FROM products\n WHERE list_price NOT BETWEEN 10 AND 20;"
+        },
+        {
+          "text": "Mostra totes les dades dels productes (`products`) amb un nivell de reposició (`reorder_level`) menor o igual a 50.",
+          "sql": "SELECT * \nFROM products\nWHERE reorder_level <= 50;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt08",
+      "name": "Miniwind QT — Test 6",
+      "type": "sqlselbasic",
+      "intro": "Filtres amb càlculs, `NULL` i dates sobre productes i comandes.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions i de menor a major, els identificadors de producte (`product_id`) que apareixen en línies de comanda (`order_details`) amb estat facturat (`status_id` igual a 2).",
+          "sql": "SELECT DISTINCT product_id\n FROM order_details \n WHERE status_id = 2\n ORDER BY product_id;"
+        },
+        {
+          "text": "Mostra l'identificador del client (`customer_id`) i de la comanda (`id`) de les comandes que ja s'han enviat (`shipped_date`) però que encara no s'han pagat (`paid_date` sense valor).",
+          "sql": "SELECT customer_id, id\nFROM orders \nWHERE shipped_date IS NOT NULL \nAND paid_date IS NULL;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el codi de l'empleat (`employee_id`) responsable de les comandes que s'han trigat més de 2 dies a enviar (diferència entre `shipped_date` i `order_date`). Ordena de major a menor codi d'empleat.",
+          "sql": "SELECT DISTINCT employee_id\nFROM orders\nWHERE DATEDIFF(shipped_date, order_date) > 2\nORDER BY employee_id DESC;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i la data (`order_date`) de les comandes que encara no s'han enviat o bé que s'han enviat però encara no s'han cobrat (`paid_date` sense valor). Ordena de més antiga a més nova i, en empat, per identificador de comanda.",
+          "sql": "SELECT id , order_date\nFROM orders\nWHERE shipped_date IS NULL \nOR (shipped_date IS NOT NULL AND paid_date IS NULL)\nORDER BY order_date, id;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt09",
+      "name": "Miniwind QT — Funcions 01",
+      "type": "sqlselbasic",
+      "intro": "Funcions de MySQL de text, numèriques i condicionals (`CONCAT`, `ROUND`, `IF`, `CASE`...).",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`product_name`), el preu de venda (`list_price`) arrodonit a l'alça i el preu de cost (`standard_cost`) arrodonit a la baixa dels productes de la categoria 'Soups'.",
+          "sql": "select p.id, p.product_name, ceil(list_price), floor(standard_cost)\nfrom products p \nwhere p.category = 'Soups';"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`product_name`), el preu de venda (`list_price`), el preu de cost (`standard_cost`) i la diferència entre tots dos preus arrodonida a dos decimals, dels productes amb més de 2 de diferència entre el preu de venda i el de cost. Ordena per identificador de producte.",
+          "sql": "select p.id, p.product_name, list_price, standard_cost, round(p.list_price - p.standard_cost,2)\nfrom products p \nwhere abs(round(p.list_price - p.standard_cost,2))>2\norder by p.id"
+        },
+        {
+          "text": "Mostra en una única columna el cognom i el nom dels empleats separats per una coma i un espai (per exemple, «Polet, Seila»). Ordena pel cognom.",
+          "sql": "select concat(e.last_name, ', ', e.first_name)\nfrom employees e \norder by e.last_name"
+        },
+        {
+          "text": "Mostra en una única columna les dues primeres lletres del nom i les dues primeres lletres del cognom de cada client, ordenades alfabèticament.",
+          "sql": "select concat(left(c.first_name,2), left(c.last_name,2))\nfrom customers c \norder by concat(left(c.first_name,2), left(c.last_name,2));"
+        },
+        {
+          "text": "Mostra el cognom (`last_name`) en majúscules, el nom (`first_name`) en minúscules i el correu (`email_address`) de cada client substituint la terminació '.edu' per '.cat'. Ordena pel cognom i el nom.",
+          "sql": "select upper(c.last_name), lower(c.first_name), replace(c.email_address,'.edu', '.cat') \nfrom customers c \norder by c.last_name, c.first_name;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients el nom dels quals té una longitud superior a 5, o bé la combinació de nom i cognom té una longitud superior a 11, sempre que, a més, el cognom tingui una longitud superior a 5. Ordena pel nom i el cognom.",
+          "sql": "select c.first_name, c.last_name \nfrom customers c \nwhere (length(c.first_name)+length(c.last_name)>11 or length(c.first_name) > 5) \n      and length(c.last_name)>5;"
+        },
+        {
+          "text": "Mostra el nom dels productes sense el prefix comú 'Northwind Traders ' (les 18 primeres posicions del nom). Ordena el resultat alfabèticament.",
+          "sql": "select substr(p.product_name, 19)\nfrom products p \norder by substr(p.product_name, 19);"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la data (`order_date`) i la data d'enviament (`shipped_date`) de les comandes; si una comanda encara no s'ha enviat, mostra 'PENDENT' com a data d'enviament. Ordena per identificador de comanda.",
+          "sql": "select o.id, o.order_date, ifnull(o.shipped_date,'PENDENT') \nfrom orders o \norder by o.id;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`), el preu de cost (`standard_cost`) i el preu de venda (`list_price`) dels productes, i una columna addicional amb el valor 'MARGE ALT' si la diferència entre el preu de venda i el de cost supera 3, o 'MARGE NORMAL' en cas contrari.",
+          "sql": "select p.id, p.product_code, p.standard_cost, p.list_price, \nif(p.list_price-p.standard_cost >3,'MARGE ALT', 'MARGE NORMAL')\nfrom products p"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`), el preu de cost (`standard_cost`) i el preu de venda (`list_price`) dels productes, i una columna addicional amb el marge: 'MARGE MOLT ALT' si la diferència entre el preu de venda i el de cost supera 5, 'MARGE ALT' si està entre 3 (exclòs) i 5, 'MARGE NORMAL' si està entre 2 (exclòs) i 3, i 'MARGE BAIX' en cas contrari. Ordena per identificador.",
+          "sql": "select p.id, p.product_code, p.standard_cost, p.list_price, \n\tcase \n\t\twhen(p.list_price-p.standard_cost >5) then 'MARGE MOLT ALT'\n\t\twhen(p.list_price-p.standard_cost >3) then 'MARGE ALT'\n\t\twhen(p.list_price-p.standard_cost >2) then 'MARGE NORMAL'\n\t\telse 'MARGE BAIX'\n\tend\nfrom products p;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt10",
+      "name": "Miniwind QT — Funcions 02",
+      "type": "sqljoincomplex",
+      "intro": "Funcions de data (`DATE`, `YEAR`, `MONTH`) combinades amb `JOIN` i agregació.",
+      "questions": [
+        {
+          "text": "Mostra, per cada producte, l'identificador (`id`), el codi (`product_code`), el nom (`product_name`) i quantes vegades s'ha demanat en alguna comanda (línies de `order_details`), incloent-hi amb un 0 els productes que no s'han demanat mai. Ordena per identificador.",
+          "sql": "select products.id,product_code, product_name, count(order_details.product_id) \n\tfrom products left join order_details on products.id=order_details.product_id\n\tgroup by product_code, product_name, products.id\n\torder by products.id;"
+        },
+        {
+          "text": "Mostra els 2 dies de l'any 2006 en què s'han venut més unitats de producte en total. De cada dia, mostra la data (sense hora) i la suma de quantitats (`quantity`). Ordena de més a menys unitats venudes.",
+          "sql": "SELECT DATE(orders.order_date), SUM(quantity) as \"total\"\n\tFROM orders\n\tJOIN order_details ON order_details.order_id = orders.id\n\tWHERE YEAR(orders.order_date) = 2006\n\tGROUP BY DATE(orders.order_date)\n\tORDER BY total DESC\n\tLIMIT 2;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) del client, el nom del producte (`product_name`) i l'import total a pagar de cada producte (suma de `quantity * unit_price`), dels clients que han fet alguna comanda durant l'abril de 2006. Ordena pel cognom i, en empat, pel nom del producte.",
+          "sql": "SELECT customers.first_name, customers.last_name, product_name, SUM(order_details.quantity*unit_price) AS \"preu\"\n\tFROM customers JOIN orders ON customers.id=orders.customer_id\n\tJOIN order_details ON orders.id=order_details.order_id\n\tJOIN products ON products.id=order_details.product_id\n\tWHERE MONTH(orders.order_date) = 4 AND YEAR(orders.order_date) = 2006\n\tGROUP BY customers.id, customers.first_name, customers.last_name, products.product_name\n\tORDER BY last_name, product_name;"
+        },
+        {
+          "text": "Mostra, per cada mes de l'any 2006 en què s'hagin emès factures, el número de mes i l'import total de les despeses d'enviament (`shipping_fee`) facturades aquell mes.",
+          "sql": "SELECT MONTH(invoices.invoice_date) AS \"mes\", SUM(orders.shipping_fee) as \"despeses\"\n\tFROM invoices JOIN orders ON invoices.order_id=orders.id\n\tWHERE YEAR(invoices.invoice_date) = 2006\n\tGROUP BY MONTH(invoices.invoice_date);"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de comandes dels 3 clients que n'han fet més. Ordena pel nombre de comandes i, en empat, pel cognom.",
+          "sql": "select customers.first_name, customers.last_name, count(orders.id)\n\tfrom customers join orders on customers.id=orders.customer_id\n\tgroup by customers.id , customers.first_name, customers.last_name\n\torder by 3 DESC, customers.last_name\n\tlimit 3;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients que han fet comandes de dos o més productes de la mateixa categoria (`category`).",
+          "sql": "SELECT customers.first_name, customers.last_name\n\tFROM customers JOIN orders ON customers.id=orders.customer_id\n\tJOIN order_details ON orders.id=order_details.order_id\n\tJOIN products ON order_details.product_id=products.id\n\tGROUP BY customers.id, customers.first_name, customers.last_name, products.category\n\tHAVING COUNT(products.id) >= 2;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients que han comprat alguna vegada el producte 'Northwind Traders Ravioli'. Ordena pel cognom.",
+          "sql": "SELECT customers.first_name, customers.last_name\n\tFROM customers \n\tJOIN orders ON customers.id = orders.customer_id\n\tJOIN order_details ON order_details.order_id = orders.id\n\tJOIN products ON products.id = order_details.product_id\n\tWHERE products.product_name = 'Northwind Traders Ravioli'\n\tORDER BY customers.last_name;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt11",
+      "name": "Miniwind QT — Test 1",
+      "type": "sqlselbasic",
+      "intro": "Primeres consultes `SELECT` amb `ORDER BY` sobre una sola taula.",
+      "questions": [
+        {
+          "text": "Mostra totes les dades de la taula `customers`.",
+          "sql": "SELECT * FROM customers;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de tots els clients.",
+          "sql": "SELECT first_name , last_name FROM customers;"
+        },
+        {
+          "text": "Mostra totes les dades de la taula `employees`.",
+          "sql": "SELECT * FROM employees;"
+        },
+        {
+          "text": "Mostra el nom del destinatari (`ship_name`) i l'adreça completa d'enviament de totes les comandes: adreça (`ship_address`), ciutat (`ship_city`), estat o província (`ship_state_province`), codi postal (`ship_zip_postal_code`) i país o regió (`ship_country_region`).",
+          "sql": "SELECT ship_name, ship_address, ship_city, ship_state_province, ship_zip_postal_code, ship_country_region \nFROM orders;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el càrrec (`job_title`) de tots els empleats, ordenats pel cognom.",
+          "sql": "SELECT first_name , last_name , job_title \nFROM employees e \nORDER BY last_name;"
+        },
+        {
+          "text": "Mostra el codi (`product_code`), el nom (`product_name`) i la categoria (`category`) de tots els productes, ordenats alfabèticament per la categoria.",
+          "sql": "SELECT product_code , product_name , category \nFROM products\nORDER BY category;"
+        },
+        {
+          "text": "Mostra el nom dels estats (`status_name`) en què es pot trobar una comanda (taula `orders_status`).",
+          "sql": "SELECT status_name FROM orders_status;"
+        },
+        {
+          "text": "Mostra, sense repeticions i ordenades alfabèticament, les ciutats de destí (`ship_city`) de totes les comandes.",
+          "sql": "SELECT DISTINCT ship_city \nFROM orders ORDER BY ship_city;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i la data (`invoice_date`) de totes les factures (`invoices`), ordenades de més recent a més antiga.",
+          "sql": "SELECT id , invoice_date \nFROM invoices ORDER BY invoice_date DESC;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`), la ciutat (`city`) i l'empresa (`company`) de tots els clients. Ordena alfabèticament per la ciutat i, dins la mateixa ciutat, pel cognom.",
+          "sql": "SELECT first_name , last_name , city , company\nFROM customers \nORDER BY city , last_name ;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt12",
+      "name": "Miniwind QT — Test 7 (filtres comparatius)",
+      "type": "sqlselbasic",
+      "intro": "Filtres comparatius bàsics amb `WHERE` sobre diverses taules.",
+      "questions": [
+        {
+          "text": "Mostra totes les dades dels clients (`customers`) que viuen a la ciutat de 'Santa Ana'.",
+          "sql": "SELECT * \nFROM miniwind.customers\nWHERE city = 'Santa Ana';"
+        },
+        {
+          "text": "Mostra totes les dades dels productes (`products`) amb un preu de venda (`list_price`) superior a 20.",
+          "sql": "SELECT * \nFROM miniwind.products\nWHERE list_price > 20;"
+        },
+        {
+          "text": "Mostra totes les dades dels proveïdors (`suppliers`) que tenen el cognom (`last_name`) 'Dunton'.",
+          "sql": "SELECT * \nFROM miniwind.suppliers\nWHERE last_name = 'Dunton';"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats (`employees`) que treballen com a 'Sales Coordinator' (`job_title`).",
+          "sql": "SELECT * \nFROM miniwind.employees\nWHERE job_title = 'Sales Coordinator';"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt13",
+      "name": "Miniwind QT — Test 8 (filtres amb condicions complexes)",
+      "type": "sqlselbasic",
+      "intro": "Filtres amb condicions complexes (`OR`, `BETWEEN`, `AND`).",
+      "questions": [
+        {
+          "text": "Mostra totes les dades dels clients (`customers`) que viuen a 'Houston' o a 'Sacramento'.",
+          "sql": "SELECT * \nFROM miniwind.customers\nWHERE city = 'Houston' OR city = 'Sacramento';"
+        },
+        {
+          "text": "Mostra totes les dades dels productes (`products`) amb un preu de venda (`list_price`) entre 50 i 200, tots dos inclosos.",
+          "sql": "SELECT * \nFROM miniwind.products\nWHERE list_price BETWEEN 50 AND 200;"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats (`employees`) que tenen el càrrec 'Sales Representative' (`job_title`) i treballen a la ciutat de 'Washington' (`city`).",
+          "sql": "SELECT * \nFROM miniwind.employees\nWHERE job_title = 'Sales Representative' AND city = 'Washington';"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt14",
+      "name": "Miniwind QT — Join 05",
+      "type": "sqljoinbasic",
+      "intro": "`INNER JOIN` i `LEFT JOIN` amb funcions de data sobre comandes, factures, clients i empleats.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador de la factura (com a `invoice_id`), el nom (`first_name`) i el cognom (`last_name`) del client i l'import a pagar (`amount_due`) de les factures (`invoices`) emeses durant el mes de març (taules `orders`, `invoices` i `customers`).",
+          "sql": "SELECT i.id AS invoice_id, c.first_name, c.last_name, i.amount_due\nFROM miniwind.orders o\nINNER JOIN miniwind.invoices i ON i.order_id = o.id\nINNER JOIN miniwind.customers c ON o.customer_id = c.id\nWHERE MONTH(i.invoice_date) = 3;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de l'empleat, l'identificador de la comanda (com a `order_id`) i la data de la comanda sense hora (com a `order_date`) de les comandes que ha gestionat cada empleat (taules `employees` i `orders`).",
+          "sql": "SELECT e.first_name, e.last_name, o.id AS order_id, DATE(o.order_date) AS order_date\nFROM miniwind.employees e\nINNER JOIN miniwind.orders o ON e.id = o.employee_id;"
+        },
+        {
+          "text": "Mostra l'identificador de la comanda (com a `order_id`), el nom de l'estat (`status_name`) i la data de la comanda sense hora (com a `order_date`) de totes les comandes (taules `orders` i `orders_status`).",
+          "sql": "SELECT o.id AS order_id, os.status_name, DATE(o.order_date) AS order_date\nFROM miniwind.orders o\nLEFT JOIN miniwind.orders_status os ON o.status_id = os.id;"
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`), la categoria (`category`), la quantitat (`quantity`) i el preu unitari (`unit_price`) de les línies de comanda dels productes de la categoria 'Condiments' (taules `products` i `order_details`).",
+          "sql": "SELECT p.product_name, p.category, od.quantity, od.unit_price\nFROM miniwind.products p\nINNER JOIN miniwind.order_details od ON p.id = od.product_id\nWHERE p.category = 'Condiments';"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i l'identificador de la comanda (com a `order_id`) de tots els empleats, tant si han gestionat comandes com si no (taules `employees` i `orders`).",
+          "sql": "SELECT e.first_name, e.last_name, o.id AS order_id\nFROM miniwind.employees e \nLEFT JOIN miniwind.orders o ON o.employee_id = e.id;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`), l'identificador de la comanda (com a `order_id`) i la data (`order_date`) de tots els clients, tant si han fet comandes com si no (taules `customers` i `orders`).",
+          "sql": "SELECT c.first_name, c.last_name, o.id AS order_id, o.order_date\nFROM miniwind.customers c\nLEFT JOIN miniwind.orders o ON c.id = o.customer_id;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt15",
+      "name": "Miniwind QT — Join 03",
+      "type": "sqljoinbasic",
+      "intro": "`INNER JOIN` i `LEFT JOIN` per relacionar productes, comandes, factures, clients i empleats.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`product_name`) i l'identificador (`id`), sense repeticions, dels productes que s'han demanat alguna vegada (`order_details`). Ordena pel nom.",
+          "sql": "select distinct products.product_name, products.id \nfrom products join order_details on products.id=order_details.product_id\norder by 1"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) de tots els productes i la quantitat demanada (`quantity`); dels que s'han demanat també ha de sortir l'identificador de la comanda (`order_id`), i dels que no, aquest identificador ha de sortir com a NULL. Ordena per identificador de producte i, en empat, per identificador de comanda.",
+          "sql": "select products.id, products.product_name,order_details.quantity , order_details.order_id\nfrom products left join order_details on products.id=order_details.product_id\norder by 1,4"
+        },
+        {
+          "text": "Mostra l'identificador (`id`) i el nom (`product_name`) de tots els productes i la quantitat demanada (`quantity`); dels que s'han demanat també ha de sortir l'identificador de la comanda (`order_id`), i dels que no, aquest identificador ha de sortir com a 0. Ordena per identificador de producte i, en empat, per identificador de comanda.",
+          "sql": "select products.id, products.product_name,order_details.quantity , NVL(order_details.order_id,0)\nfrom products left join order_details on products.id=order_details.product_id\norder by 1,4"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels empleats que no han servit cap comanda.",
+          "sql": "select employees.first_name, employees.last_name\nfrom employees left join orders on employees.id=orders.employee_id\nwhere orders.employee_id is null"
+        },
+        {
+          "text": "Mostra l'identificador de la comanda (`orders.id`) i l'identificador de la factura (`invoices.id`) de totes les comandes; les comandes sense factura han de mostrar NULL com a identificador de factura. Ordena per identificador de comanda.",
+          "sql": "select orders.id as qOrder, invoices.id as qInvoice\nfrom orders left join invoices on orders.id=invoices.order_id\norder by 1"
+        },
+        {
+          "text": "Mostra l'identificador de la comanda, l'identificador de la factura i el cognom (`last_name`) i el nom (`first_name`) del client de totes les comandes; les comandes sense factura han de mostrar NULL com a identificador de factura. Ordena per identificador de comanda.",
+          "sql": "select orders.id as qOrdre, invoices.id, customers.last_name, customers.first_name \nfrom orders left join invoices on orders.id=invoices.order_id left join customers on orders.customer_id = customers.id \norder by 1"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats (`employees`) que han tramitat alguna comanda, sense repeticions.",
+          "sql": "select distinct e.*\nfrom employees e join orders o on e.id =o.employee_id"
+        },
+        {
+          "text": "Mostra totes les dades de tots els empleats i l'identificador de la comanda que han tramitat; si un empleat no ha tramitat cap comanda, l'identificador surt com a NULL.",
+          "sql": "select e.*, o.id as kk\nfrom employees e left join orders o on e.id =o.employee_id"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats que no han tramitat cap comanda.",
+          "sql": "select e.*\nfrom employees e left join orders o on e.id =o.employee_id \nwhere o.id is null"
+        },
+        {
+          "text": "Mostra totes les dades dels clients (`customers`) que han fet alguna comanda, sense repeticions.",
+          "sql": "select distinct c.*\nfrom customers c join orders o ON c.id =o.customer_id"
+        },
+        {
+          "text": "Mostra totes les dades dels clients que encara no han fet cap comanda.",
+          "sql": "select c.*\nfrom customers c left join orders o ON c.id =o.customer_id \nwhere o.id is null"
+        },
+        {
+          "text": "Mostra totes les dades de tots els clients i, dels que han fet alguna comanda, l'identificador de la comanda i el nom i l'identificador de l'empleat que els ha atès. Ordena per identificador de client.",
+          "sql": "select c.*, o.id as comanda_id, e.first_name as empleat_nom, e.id as empleat_id from customers c left join orders o on c.id = o.customer_id left join employees e on o.employee_id = e.id order by c.id;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt16",
+      "name": "Miniwind QT — Barrejades 01",
+      "type": "sqljoincomplex",
+      "intro": "Exercicis variats de `JOIN`, agregació i funcions sobre tota la base de dades.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients que han comprat algun producte que conté 'Chai' en el nom.",
+          "sql": "SELECT  distinctrow c.first_name, c.last_name\nFROM customers c\n\tJOIN orders o ON c.id = o.customer_id\n\tJOIN order_details od ON o.id = od.order_id\n\tJOIN products p ON p.id = od.product_id\nWHERE p.product_name LIKE '%Chai%';"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels empleats que han venut algun producte que conté 'Coffee' en el nom.",
+          "sql": "SELECT DISTINCTROW e.first_name, e.last_name \nFROM products p join order_details od on p.id = od.product_id \n\t\t\t\tjoin orders o on od.order_id = o.id \n\t\t\t\tjoin employees e on o.employee_id = e.id \nWHERE p.product_name LIKE '%Coffee%';"
+        },
+        {
+          "text": "Mostra totes les dades de les factures (`invoices`) emeses el març o l'abril de 2006 que incloguin algun producte amb 'beer' en el nom. Ordena per identificador de factura.",
+          "sql": "SELECT i.* \nFROM invoices i \n\tJOIN orders o on i.order_id = o.id \n\tJOIN order_details od on od.order_id = o.id \n\tJOIN products p on od.product_id = p.id \nWHERE  YEAR(i.invoice_date) = 2006 and month(i.invoice_date) in (3,4) AND p.product_name LIKE '%beer%'\norder by i.id;"
+        },
+        {
+          "text": "Mostra, sense repeticions, les ciutats (`city`) on tenim clients i empleats alhora.",
+          "sql": "select DISTINCT e.city\nFROM employees e join customers c on c.city = e.city"
+        },
+        {
+          "text": "Mostra, per cada client, el seu identificador (`id`), el nom (`first_name`), el cognom (`last_name`) i l'identificador de cada comanda que ha fet (amb un `LEFT JOIN`, de manera que els clients sense comandes també hi surtin).",
+          "sql": "SELECT c.id as idusuari , c.first_name, c.last_name ,o.id \nFROM customers c LEFT JOIN orders o on o.customer_id = c.id"
+        },
+        {
+          "text": "Mostra, per cada client, el seu identificador (`id`), el nom (`first_name`), el cognom (`last_name`) i els identificadors de totes les seves comandes agrupats en una sola línia per client.",
+          "sql": "SELECT DISTINCT c.id , c.first_name , c.last_name, group_concat(o.id) as comandes\nFROM customers c\nleft join orders o on c.id = o.customer_id\ngroup by c.id, c.first_name , c.last_name"
+        },
+        {
+          "text": "Mostra, sense repeticions, les ciutats (`city`) on tenim clients però no empleats.",
+          "sql": "select distinct c.city\nfrom employees e right join customers c on c.city = e.city\nwhere e.city is NULL"
+        },
+        {
+          "text": "Mostra totes les dades dels productes que no s'han venut mai.",
+          "sql": "select p.*\nfrom products p left join order_details od on p.id = od.product_id \nwhere od.product_id is null;"
+        },
+        {
+          "text": "Mostra, dels clients que han fet comandes, el seu identificador (`customer_id`) i el nombre de comandes que han fet.",
+          "sql": "SELECT o.customer_id , COUNT(o.customer_id) as Pedidos\nFROM orders o\nGROUP BY o.customer_id;"
+        },
+        {
+          "text": "Mostra, per cada client, el seu identificador (`id`) i quantes comandes ha fet (incloent-hi els que no n'han fet cap).",
+          "sql": "SELECT c.id, COUNT(o.id)\nFROM customers c left join orders o on c.id =o.customer_id\ngroup by c.id;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels empleats que han venut més de 5 productes diferents.",
+          "sql": "SELECT e.first_name, e.last_name \n FROM employees e \tJOIN orders o on o.employee_id = e.id \n \t\t\t\t\tJOIN order_details od on od.order_id = o.id \n \t\t\t\t\tJOIN products p on od.product_id = p.id \n GROUP BY e.first_name, e.last_name \n HAVING COUNT(DISTINCT(p.id)) > 5"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels 3 clients que més han gastat, juntament amb l'import total gastat (suma de `quantity * unit_price`). Ordena de més a menys import.",
+          "sql": "SELECT c.first_name, c.last_name,SUM(od.quantity * od.unit_price)\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nJOIN order_details od ON o.id = od.order_id\nGROUP BY c.first_name, c.last_name\nORDER BY SUM(od.quantity * od.unit_price) DESC\nlimit 3"
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i el nombre total d'unitats venudes dels productes dels quals se n'han venut més de 70 unitats. Ordena pel nom del producte.",
+          "sql": "SELECT p.product_name, SUM(od.quantity)\nFROM products p JOIN order_details od on od.product_id = p.id \nGROUP BY p.product_name \nHAVING SUM(od.quantity) > 70\norder by p.product_name"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt17",
+      "name": "Miniwind QT — Barrejades 02",
+      "type": "sqlsubq",
+      "intro": "Agregació amb subconsultes, `UNION` i càlculs sobre empleats i clients.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients que han fet el màxim nombre de comandes.",
+          "sql": "SELECT c.first_name, c.last_name\nFROM customers c JOIN orders o on c.id = o.customer_id \nGROUP BY c.first_name, c.last_name \nHAVING COUNT(o.id) = \n\t\t(SELECT COUNT(o.id) \n\t\tFROM customers c JOIN orders o on o.customer_id = c.id \n\t\tGROUP BY c.id \n\t\tORDER BY COUNT(o.id) DESC LIMIT 1);"
+        },
+        {
+          "text": "Mostra, per cada empleat, el seu identificador (`id`) i els diners que ha generat en vendes (suma de `quantity * unit_price`); si no ha venut res, ha de sortir 0.",
+          "sql": "select e.id, ifnull(sum(od.quantity*od.unit_price),0) as diners\nfrom employees e \n\t\tleft join orders o on e.id = o.employee_id \n\t\tleft join order_details od on o.id = od.order_id\ngroup by e.id"
+        },
+        {
+          "text": "Mostra la mitjana dels diners venuts pels empleats (mitjana, sobre el conjunt d'empleats, de la suma de `quantity * unit_price` de cadascun, comptant 0 els que no han venut res).",
+          "sql": "select avg(t.diners) from (\nselect e.id, ifnull(sum(od.quantity*od.unit_price),0) as diners\nfrom employees e \n\t\tleft join orders o on e.id = o.employee_id \n\t\tleft join order_details od on o.id = od.order_id\ngroup by e.id) as t"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i l'import venut dels empleats que han venut (en diners) més que la mitjana de tots els empleats. Ordena alfabèticament pel cognom i el nom.",
+          "sql": "select e.first_name, e.last_name, ifnull(sum(od.quantity*od.unit_price),0) as diners\nfrom employees e \n\t\tleft join orders o on e.id = o.employee_id \n\t\tleft join order_details od on o.id = od.order_id\ngroup by e.first_name, e.last_name\nhaving diners > (\n\t\t\tselect avg(t.diners) from (\n\t\t\tselect e.id, ifnull(sum(od.quantity*od.unit_price),0) as diners\n\t\t\tfrom employees e \n\t\tleft join orders o on e.id = o.employee_id \n\t\tleft join order_details od on o.id = od.order_id\n\t\tgroup by e.id) as t)\norder by e.last_name, e.first_name"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de tots els empleats i de tots els clients en una sola llista, ordenada pel cognom i el nom.",
+          "sql": "SELECT e.first_name, e.last_name \nFROM employees e \nUNION \nSELECT c.first_name, c.last_name \nFROM customers c \nORDER BY last_name, first_name;"
+        },
+        {
+          "text": "Mostra l'identificador (`order_id`) de les comandes que tenen el màxim nombre de línies de detall.",
+          "sql": "select od.order_id \nfrom order_details od\ngroup by od.order_id\nhaving count(od.order_id) = ( \n\t\tselect count(od.product_id)\n\t\tfrom order_details od \n\t\tgroup by od.order_id \n\t\torder by count(od.product_id) DESC \n\t\tlimit 1)"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt18",
+      "name": "Miniwind QT — Subconsultes 01",
+      "type": "sqlsubq",
+      "intro": "Subconsultes escalars, de llista i amb `ALL` per comparar amb valors calculats.",
+      "questions": [
+        {
+          "text": "Mostra totes les dades dels productes amb un preu de cost (`standard_cost`) superior a la mitjana del preu de cost de tots els productes.",
+          "sql": "select *\nfrom products p \nwhere p.standard_cost > (select avg(p2.standard_cost)\nfrom products p2)"
+        },
+        {
+          "text": "Mostra totes les dades dels productes amb un preu de cost (`standard_cost`) superior a la mitjana del preu de cost dels productes de la categoria 'Sauces'.",
+          "sql": "select *\nfrom products p \nwhere p.standard_cost > (select avg(p2.standard_cost)\nfrom products p2\nwhere p2.category like 'Sauces')"
+        },
+        {
+          "text": "Mostra totes les dades dels clients de l'estat (`state_province`) que té més clients.",
+          "sql": "select *\nfrom customers c \nwhere c.state_province = (select c.state_province\nfrom customers c \ngroup by c.state_province \norder by count(*) DESC \nlimit 1)"
+        },
+        {
+          "text": "Mostra l'import més alt pagat en una sola comanda d'entre les comandes pagades amb targeta de crèdit (`payment_type` igual a 'Credit Card'), calculant l'import com la suma de `quantity * unit_price` de cada comanda.",
+          "sql": "select sum(od.quantity*od.unit_price)\nfrom orders o join order_details od on o.id =od.order_id \nwhere o.payment_type like 'Credit Card'\ngroup by order_id \norder by 1 desc\nlimit 1"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels clients que, d'entre els que han fet comandes, n'han fet menys.",
+          "sql": "select c.id, c.first_name ,c.last_name\nfrom customers c join orders o on c.id =o.customer_id \ngroup by c.id, c.first_name ,c.last_name\nhaving count(c.id)=(\nselect count(o.customer_id)\nfrom orders o  \ngroup by o.customer_id \norder by 1 ASC\nlimit 1)"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels clients que han fet més comandes.",
+          "sql": "select c.id, c.first_name ,c.last_name\nfrom customers c join orders o on c.id =o.customer_id \ngroup by c.id, c.first_name ,c.last_name\nhaving count(c.id)=(\nselect count(o.customer_id)\nfrom orders o  \ngroup by o.customer_id \norder by 1 DESC\nlimit 1)"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`first_name`) i el cognom (`last_name`) dels clients de la ciutat de 'Fresno' que han fet menys comandes.",
+          "sql": "select c.id, c.first_name ,c.last_name\nfrom customers c join orders o on c.id =o.customer_id\nwhere c.city like 'Fresno'\ngroup by c.id, c.first_name ,c.last_name\nhaving count(c.id)=(\nselect count(o.customer_id)\nfrom orders o  \ngroup by o.customer_id \norder by 1 ASC\nlimit 1)"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients que han fet alguna comanda el 24 de març de 2006.",
+          "sql": "SELECT first_name, last_name\n FROM customers c\n WHERE id IN (\n   SELECT customer_id\n    FROM orders\n    WHERE order_date='2006-03-24'\n )"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) dels dos productes més demanats en comandes. Ordena'ls alfabèticament pel nom.",
+          "sql": "select p.product_name \nfrom products p \nwhere p.id in (select * from \n(\nSELECT od.product_id\nfrom order_details od \ngroup by od.product_id \norder by count(*) Desc\nlimit 2\n) as t\n) order by p.product_name"
+        },
+        {
+          "text": "Mostra el nom (`product_name`) dels productes el preu de venda (`list_price`) dels quals és inferior al preu de cost (`standard_cost`) de tots els productes de la categoria 'Pasta'. Ordena per identificador.",
+          "sql": "SELECT product_name\n FROM products\n WHERE list_price < ALL (\n   SELECT standard_cost\n    FROM products\n    WHERE category LIKE 'Pasta'\n )\n ORDER BY id;"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt19",
+      "name": "Miniwind QT — Funcions 01 (actualitzat 25/26)",
+      "type": "sqlaggbasic",
+      "intro": "Funcions de MySQL de text, numèriques, de data i condicionals (versió 25/26).",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`product_name`), el preu de venda (`list_price`), el preu de cost (`standard_cost`) i la diferència entre tots dos preus arrodonida a dos decimals, dels productes amb més de 2 de diferència. Ordena per identificador de producte.",
+          "sql": "select p.id, p.product_name, list_price, standard_cost, round(p.list_price - p.standard_cost,2)\nfrom products p \nwhere abs(round(p.list_price - p.standard_cost,2))>2\norder by  p.id"
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i el preu de venda (`list_price`) amb un descompte del 10% aplicat, arrodonit a dos decimals.",
+          "sql": "SELECT product_name,\n       ROUND(list_price * 0.9, 2) AS PreuAmbDescompte\nFROM products;"
+        },
+        {
+          "text": "Mostra els anys en què s'ha fet alguna comanda.",
+          "sql": "SELECT distinct year(order_date)\nFROM orders;"
+        },
+        {
+          "text": "Mostra els mesos en què s'han fet comandes durant l'any 2006.",
+          "sql": "SELECT distinct MONTH(order_date)\nFROM orders\nwhere order_date >='2006-01-01' and order_date <='2007-01-01';"
+        },
+        {
+          "text": "Mostra quantes comandes s'han fet durant l'any 2006.",
+          "sql": "SELECT count(*)\nFROM orders\nwhere order_date >='2006-01-01' and order_date <='2007-01-01';"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt20",
+      "name": "Miniwind QT — Funcions 0 (actualitzat 26/27)",
+      "type": "sqlselbasic",
+      "intro": "Funcions de MySQL de text, numèriques i de data (versió 26/27).",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), el nom (`product_name`), el preu de venda (`list_price`), el preu de cost (`standard_cost`) i la diferència entre tots dos preus arrodonida a dos decimals, dels productes en què la diferència entre el preu de venda i el de cost és superior a 2. Ordena per identificador de producte.",
+          "sql": "select p.id, p.product_name, list_price, standard_cost, round(p.list_price - p.standard_cost,2)\nfrom products p\nwhere p.list_price - p.standard_cost>2\norder by  p.id"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt21",
+      "name": "Miniwind QT — Examen fusionat 1",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen reals de QueryTest, migrades tal qual i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`id`), la data d'enviament (`shipped_date`), la data de pagament (`paid_date`) i la ciutat de destí (`ship_city`) de les comandes que no s'han pagat (`paid_date` sense valor) i que, o bé no s'han enviat, o bé tenen com a ciutat de destí 'Jacksonville'. Ordena per identificador de comanda.",
+          "sql": "SELECT o.id, o.shipped_date, o.paid_date, ship_city \nfrom orders o \nwhere paid_date is null and (shipped_date is null or ship_city = 'Jacksonville')\norder by o.id"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el correu (`email_address`) dels clients amb un correu de Rússia (acabat en '.ru'). Ordena pel correu.",
+          "sql": "select c.first_name, c.last_name, c.email_address \nfrom customers c \nwhere c.email_address like '%.ru'\norder by c.email_address"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la categoria (`category`) i el preu de venda (`list_price`) dels productes que no són de les categories 'Beverages', 'Pasta' ni 'Cereal', o bé que tenen un preu entre 14 i 18. Ordena per categoria, preu i identificador.",
+          "sql": "select p.id, p.category, list_price\nFrom products p \nwhere category not in ('Beverages', 'Pasta', 'Cereal') or (list_price >=14 and list_price <= 18)\norder by category, list_price, id"
+        },
+        {
+          "text": "Mostra el nom de l'empresa (`company`) dels clients el nom de l'empresa dels quals està format per exactament dues paraules. Ordena pel nom de l'empresa.",
+          "sql": "select c.company \nfrom customers c \nwhere c.company like '% %' and c.company not like '% % %'\norder by c.company"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el correu (`email_address`) dels clients amb un correu d'una institució educativa (acabat en '.edu'). Ordena pel correu.",
+          "sql": "select c.first_name, c.last_name, c.email_address \nfrom customers c \nwhere c.email_address like '%.edu'\norder by c.email_address"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), la categoria (`category`) i el preu de venda (`list_price`) dels productes que no són de les categories 'Condiments', 'Pasta' ni 'Sauces', o bé que tenen un preu entre 17 i 20. Ordena per categoria, preu i identificador.",
+          "sql": "select p.id, p.category, list_price\nFrom products p \nwhere category not in ('Condiments', 'Sauces', 'Pasta') or (list_price >=17 and list_price <= 20)\norder by category, list_price, id"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom de les categories (`category`) de producte formades per exactament dues paraules. Ordena per categoria.",
+          "sql": "select distinct p.category  \nfrom products p \nwhere p.category  like '% %' and p.category  not like '% % %'\norder by p.category"
+        },
+        {
+          "text": "Mostra l'identificador del producte (`id`), la quantitat (`quantity`), el preu de venda (`unit_price`) i l'import (`quantity * unit_price`) de les línies de comanda amb import superior a 100 de productes de la categoria 'Soups'. Ordena per import de més a menys i, en empat, per identificador de producte.",
+          "sql": "SELECT p.id, od.quantity, od.unit_price, od.quantity * od.unit_price\nfrom order_details od join products p on od.product_id = p.id \nwhere od.quantity * od.unit_price > 100 and p.category = 'Soups'\norder by od.quantity * od.unit_price desc, p.id"
+        },
+        {
+          "text": "Mostra l'identificador del producte (`id`), la quantitat (`quantity`), el preu de venda (`unit_price`) i l'import (`quantity * unit_price`) de les línies de comanda amb import inferior a 200 de productes de la categoria 'Beverages'. Ordena per import de més a menys i, en empat, per identificador de producte.",
+          "sql": "SELECT p.id, od.quantity, od.unit_price, od.quantity * od.unit_price\nfrom order_details od join products p on od.product_id = p.id \nwhere od.quantity * od.unit_price < 200 and p.category = 'Beverages'\norder by od.quantity * od.unit_price desc, p.id"
+        }
+      ]
+    },
+    {
+      "code": "sqlminiwindqt22",
+      "name": "Miniwind QT — Examen fusionat 2",
+      "type": "sqljoinbasic",
+      "intro": "Continuació de les preguntes d'examen reals de QueryTest, de dificultat creixent.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador de comanda (`orders.id`), la data (`order_date`), l'identificador del client (`customers.id`) i el seu codi postal (`zip_postal_code`) de les comandes fetes durant el primer trimestre de 2006 a clients amb un codi postal començat per '3'. Ordena per codi postal i per identificador de comanda.",
+          "sql": "select o.id, o.order_date, c.id as client, c.zip_postal_code \nfrom orders o join customers c on o.customer_id = c.id \nwhere order_date BETWEEN '2006-01-01' and '2006-03-31 23:59:59' and c.zip_postal_code like '3%'\norder by c.zip_postal_code, o.id"
+        },
+        {
+          "text": "Mostra, sense repeticions, els càrrecs (`job_title`) que coincideixen entre els empleats (`employees`) i els proveïdors (`suppliers`).",
+          "sql": "select distinct e.job_title \nfrom employees e join suppliers s on e.job_title = s.job_title"
+        },
+        {
+          "text": "Mostra l'identificador de comanda (`orders.id`), la data (`order_date`) i el codi postal del client (`zip_postal_code`) de les comandes fetes durant el segon trimestre de 2006 a clients amb un codi postal començat per '5'. Ordena per codi postal i per identificador de comanda.",
+          "sql": "select o.id, o.order_date, o.id, c.zip_postal_code \nfrom orders o join customers c on o.customer_id = c.id \nwhere order_date BETWEEN '2006-04-01' and '2006-06-30 23:59:59' and c.zip_postal_code like '5%'\norder by c.zip_postal_code, o.id"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el preu de venda (`list_price`) dels productes que no s'han venut mai i que tenen un preu de venda superior a 10. Ordena per identificador.",
+          "sql": "select p.id, p.product_code, list_price  from products p left join order_details od on p.id = od.product_id \nwhere od.id is null and list_price > 10\norder by p.id"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el preu de cost (`standard_cost`) dels productes que no s'han venut mai i que tenen un preu de cost inferior a 5. Ordena per identificador.",
+          "sql": "select p.id, p.product_code, p.standard_cost  from products p left join order_details od on p.id = od.product_id \nwhere od.id is null and standard_cost  < 5\norder by p.id"
+        },
+        {
+          "text": "Mostra, sense repeticions, els càrrecs (`job_title`) dels clients que no apareixen com a càrrec de cap empleat. Ordena per càrrec.",
+          "sql": "select distinct c.job_title \nfrom employees e right join customers c on e.job_title = c.job_title \nwhere e.job_title is null\norder by c.job_title"
+        },
+        {
+          "text": "Mostra, sense repeticions, les ciutats (`city`) on tenim empleats però no clients.",
+          "sql": "select distinct e.city \nfrom employees e left join customers c on e.city  = c.city\nwhere c.city is NULL"
+        },
+        {
+          "text": "Mostra, sense repeticions, els càrrecs (`job_title`) dels proveïdors que no apareixen com a càrrec de cap empleat. Ordena per càrrec.",
+          "sql": "select distinct s.job_title \nfrom employees e right join suppliers s on e.job_title = s.job_title \nwhere e.job_title is null\norder by s.job_title"
+        },
+        {
+          "text": "Mostra el correu del client (`email_address`), el mòbil de l'empleat (`mobile_phone`), el codi del producte (`product_code`) i la quantitat (`quantity`) de les línies de comanda amb quantitat superior a 100. Ordena per quantitat de més a menys i, en empat, per codi de producte.",
+          "sql": "SELECT c.email_address, e.mobile_phone, p.product_code, od.quantity \nfrom customers c join orders o ON  c.id = o.customer_id \n\t\t\t     join employees e on e.id = o.employee_id \n\t\t\t     join order_details od on o.id = od.order_id \n\t\t\t     join products p on od.product_id = p.id \nwhere od.quantity > 100\norder by od.quantity desc, p.product_code"
+        },
+        {
+          "text": "Mostra el correu del client (`email_address`), el mòbil de l'empleat (`mobile_phone`), el codi del producte (`product_code`) i la quantitat (`quantity`) de les línies de comanda amb quantitat inferior a 100. Ordena per quantitat de menys a més i, en empat, per codi de producte de més a menys.",
+          "sql": "SELECT c.email_address, o.id, e.mobile_phone, p.product_code, od.quantity \nfrom customers c join orders o ON  c.id = o.customer_id \n\t\t\t     join employees e on e.id = o.employee_id \n\t\t\t     join order_details od on o.id = od.order_id \n\t\t\t     join products p on od.product_id = p.id \nwhere od.quantity < 100\norder by od.quantity, p.product_code desc"
+        }
+      ]
+    }
+  ]
+}

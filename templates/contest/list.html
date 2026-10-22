@@ -28,8 +28,8 @@
             $('.contest-tag').find('a[data-featherlight]').featherlight();
 
             $('.join-warning').click(function () {
-                return confirm('{{ _('Are you sure you want to join?') }}\n' +
-                    '{{ _('Joining a contest for the first time starts your timer, after which it becomes unstoppable.') }}');
+                return confirm('{{ _('Are you sure you want to join?')|escapejs }}\n' +
+                    '{{ _('Joining a contest for the first time starts your timer, after which it becomes unstoppable.')|escapejs }}');
             });
 
             // var tooltip_classes = 'tooltipped tooltipped-e';

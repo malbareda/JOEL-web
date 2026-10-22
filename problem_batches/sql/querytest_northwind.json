@@ -1,0 +1,133 @@
+{
+  "database": "northwind",
+  "engine": "mysql",
+  "code_prefix": "sqlnorthwindqt",
+  "author": "joanq",
+  "label": "Northwind (empresa d'aliments: clients, empleats, productes, comandes, factures i compres a proveïdors) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqlnorthwindqt01",
+      "name": "Northwind QT — Consultes intermèdies",
+      "type": "sqlsubq",
+      "intro": "JOINs de diverses taules, agregació i subconsultes sobre Northwind. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients (`customers`) que han fet alguna comanda (`orders`) gestionada per un empleat (`employees`) que viu a la mateixa ciutat (`city`) que el client.",
+          "sql": "SELECT DISTINCT c.first_name, c.last_name \nFROM customers c\nJOIN orders o ON c.id = o.customer_id\nJOIN employees e ON o.employee_id = e.id\nWHERE c.city = e.city;"
+        },
+        {
+          "text": "Mostra el nom del producte (`product_name`) i els diners que ha generat (suma de `quantity * unit_price` a la taula `order_details`) com a `total_benefit`, del producte que n'ha generat més. Mostra només la primera fila.",
+          "sql": "SELECT p.product_name, SUM(od.quantity * od.unit_price) AS total_benefit\nFROM order_details od\nJOIN products p ON od.product_id = p.id\nGROUP BY p.product_name\nORDER BY total_benefit DESC\nLIMIT 1;"
+        },
+        {
+          "text": "Mostra la mitjana de la quantitat (`quantity`) comprada, com a `average_qt`, a les comandes (`orders`) del client amb `id` igual a 10.",
+          "sql": "SELECT AVG(od.quantity) AS average_qt\nFROM order_details od\nJOIN orders o ON od.order_id = o.id\nWHERE o.customer_id = 10;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels empleats (`employees`) que tenen assignat almenys un privilegi (taules `employee_privileges` i `privileges`).",
+          "sql": "SELECT e.first_name, e.last_name\nFROM employees e\nJOIN employee_privileges ep ON e.id = ep.employee_id\nJOIN privileges p ON ep.privilege_id = p.id;"
+        },
+        {
+          "text": "Mostra l'identificador del proveïdor (`supplier_id`) i el nombre de comandes (`total_orders`) dels proveïdors que han subministrat productes venuts en més de 8 comandes. Nota: a `products` el camp `supplier_ids` guarda els identificadors de proveïdor separats per `;`.",
+          "sql": "WITH temp_table AS (\nSELECT p.id, SUBSTRING_INDEX(p.supplier_ids, \";\",1) AS supplier_id, od.order_id \nFROM products p INNER JOIN order_details od ON p.id = od.product_id \nWHERE LOCATE(\";\",p.supplier_ids)> 0\nUNION ALL \nSELECT p.id, SUBSTRING_INDEX(p.supplier_ids, \";\",-1) AS supplier_id, od.order_id \nFROM products p INNER JOIN order_details od ON p.id = od.product_id \nWHERE LOCATE(\";\",p.supplier_ids) > 0\nUNION ALL \nSELECT p.id, p.supplier_ids AS supplier_id, od.order_id \nFROM products p INNER JOIN order_details od ON p.id = od.product_id \nWHERE LOCATE(\";\",p.supplier_ids) = 0\n)\nSELECT supplier_id, COUNT(order_id) AS total_orders\nFROM temp_table\nGROUP BY supplier_id\nHAVING COUNT(order_id) > 8"
+        }
+      ]
+    },
+    {
+      "code": "sqlnorthwindqt02",
+      "name": "Northwind QT — Examen fusionat 1",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra l'`id`, la data de comanda (`order_date`) i la data d'enviament (`shipped_date`) de les comandes (`orders`) que han trigat més de 2 dies a enviar-se. Si una comanda encara no s'ha enviat, compta els dies des de la data de comanda fins avui. Ordena per data de comanda de més recent a més antiga i, en cas d'empat, per `id`.",
+          "sql": "SELECT id, order_date, shipped_date\nFROM orders o\nWHERE DATEDIFF(IFNULL(shipped_date, NOW()), order_date)>2\nORDER BY order_date DESC, id"
+        },
+        {
+          "text": "Mostra els casos en què un client i un empleat viuen a la mateixa ciutat (`city`) i estat (`state_province`). De cada cas, mostra el nom i cognom del client i el nom i cognom de l'empleat (distingint-los clarament), la ciutat i l'estat.",
+          "sql": "SELECT c.first_name AS cust_first_name, c.last_name AS cust_last_name, e.first_name AS emp_first_name, e.last_name AS emp_last_name, c.city, c.state_province\nFROM customers c\nJOIN employees e ON c.city=e.city AND c.state_province=e.state_province"
+        },
+        {
+          "text": "Mostra l'`id` i la data (`order_date`) de les comandes fetes durant l'abril de 2006 per a les quals no s'ha emès cap factura (taula `invoices`).",
+          "sql": "SELECT o.id, order_date\nFROM orders o\nLEFT JOIN invoices i ON i.order_id=o.id\nWHERE i.id IS NULL AND order_date>='2006-04-01' AND order_date<'2006-05-01'"
+        },
+        {
+          "text": "El client que va fer la comanda amb `id` 39 ens interessa: mostra el seu nom (`first_name`), cognom (`last_name`) i, de totes les seves comandes, l'`id` i la data (`order_date`), ordenades de més recent a més antiga.",
+          "sql": "SELECT c.first_name, c.last_name, o2.id, o2.order_date\nFROM orders o\nJOIN customers c ON o.customer_id = c.id\nJOIN orders o2 ON o2.customer_id = c.id\nWHERE o.id = 39\nORDER BY o2.order_date DESC"
+        },
+        {
+          "text": "Mostra totes les transaccions d'inventari creades el 24 de març de 2006 entre les 10 i les 11 del matí que siguin per venda de productes. De cadascuna, mostra l'identificador (`id`), l'hora de creació (només l'hora, sense data), el nom del producte (`product_name`) i la quantitat (`quantity`). Ordena pel seu `id`. Nota: a `inventory_transaction_types`, un `type_name` igual a 'Sold' indica una venda.",
+          "sql": "SELECT it.id, TIME(transaction_created_date), product_name, quantity\n FROM inventory_transactions it\n JOIN inventory_transaction_types itt ON it.transaction_type=itt.id\n JOIN products p ON it.product_id=p.id\n WHERE transaction_created_date BETWEEN '2006-03-24 10:00:00' AND '2006-03-24 11:00:00'\n  AND type_name LIKE 'Sold'\n ORDER BY it.id;"
+        },
+        {
+          "text": "Mostra els 2 dies de l'any 2006 en què s'han venut més productes en total. De cada dia, mostra la data (sense hora) i la suma de quantitats (`quantity`). Ordena de més a menys productes venuts.",
+          "sql": "SELECT DATE(o.order_date) ord_date, SUM(quantity) total_products\nFROM orders o\nJOIN order_details od ON od.order_id = o.id\nWHERE YEAR(o.order_date) = 2006\nGROUP BY DATE(o.order_date)\nORDER BY total_products DESC\nLIMIT 2"
+        },
+        {
+          "text": "Mostra una llista de tots els proveïdors (`suppliers`) amb el seu nom (`first_name`), cognom (`last_name`), l'empresa (`company`) per a la qual treballen i quantes comandes de compra (`purchase_orders`) els hem fet. Ordena pel nom de l'empresa.",
+          "sql": "SELECT first_name, last_name, company, COUNT(po.id)\n FROM suppliers s\n LEFT JOIN purchase_orders po ON po.supplier_id=s.id\n GROUP BY s.id, first_name, last_name, company\n ORDER BY company;"
+        },
+        {
+          "text": "Per a cada comanda de client (`orders`), mostra el seu `id`, la data (`order_date`) i quantes comandes a proveïdors (`purchase_orders`) s'han creat el mateix dia (compara només la data, no l'hora; a `purchase_orders` la data és `creation_date`). Ordena per l'`id` de la comanda.",
+          "sql": "SELECT o.id, DATE(o.order_date), COUNT(po.id)\n FROM orders o\n LEFT JOIN purchase_orders po ON DATE(po.creation_date) = DATE(o.order_date)\n GROUP BY o.id, o.order_date\n ORDER BY o.id;"
+        },
+        {
+          "text": "Mostra les comandes amb unes despeses d'enviament (`shipping_fee`) almenys un 20% més altes que la despesa d'enviament més alta registrada mai amb destí Oklahoma City (estat 'OK'). De cada comanda, mostra l'`id`, les despeses d'enviament, el nom de l'empresa transportista (`company`), la ciutat i l'estat de destí (`ship_city`, `ship_state_province`) i la data d'enviament. Considera només comandes ja enviades i ordena per despeses d'enviament de més a menys i, en empat, per data d'enviament de més recent a més antiga.",
+          "sql": "SELECT o.id, shipping_fee, company, ship_city, ship_state_province, shipped_date\n FROM orders o\n JOIN shippers s ON o.shipper_id=s.id\n WHERE shipping_fee >= 1.2 * (\n   SELECT MAX(shipping_fee)\n   FROM orders\n   WHERE ship_city LIKE 'Oklahoma City' AND ship_state_province LIKE 'OK'\n ) AND shipped_date IS NOT NULL\n ORDER BY shipping_fee DESC, shipped_date DESC;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`), sense repeticions, dels clients que han comprat alguna vegada el producte anomenat 'Northwind Traders Gnocchi'. Ordena per cognom i, en empat, per nom.",
+          "sql": "SELECT DISTINCT c.first_name, c.last_name\nFROM customers c\nJOIN orders o ON c.id = o.customer_id\nJOIN order_details od ON od.order_id = o.id\nJOIN products p ON p.id = od.product_id\nWHERE p.product_name = 'Northwind Traders Gnocchi'\nORDER BY c.last_name, c.first_name"
+        }
+      ]
+    },
+    {
+      "code": "sqlnorthwindqt03",
+      "name": "Northwind QT — Examen fusionat 2",
+      "type": "sqlsubq",
+      "intro": "Continuació de les preguntes d'examen deduplicades, de dificultat creixent (agregació amb HAVING i subconsultes).",
+      "questions": [
+        {
+          "text": "Mostra el codi (`product_code`), el nom (`product_name`) i les unitats venudes (`sold_units`, suma de `quantity`) de tots els productes. Si un producte no s'ha venut mai, ha de sortir amb 0 unitats. Ordena per codi de producte.",
+          "sql": "SELECT p.product_code, p.product_name, IFNULL(SUM(od.quantity), 0) AS sold_units\nFROM products p\nLEFT JOIN order_details od ON p.id = od.product_id\nGROUP BY p.id, p.product_code, p.product_name\nORDER BY p.product_code"
+        },
+        {
+          "text": "Mostra el nom de l'empresa transportista (`company`) i el nombre d'enviaments (`n_shipments`) de les transportistes que han fet més d'un enviament amb data d'enviament entre el 20 d'abril i el 20 de maig de 2006. Ordena pel nom de l'empresa.",
+          "sql": "SELECT s.company, COUNT(o.id) AS n_shipments\nFROM shippers s\nJOIN orders o ON o.shipper_id = s.id\nWHERE shipped_date>='2006-04-20' AND shipped_date<'2006-05-21'\nGROUP BY s.id, s.company\nHAVING n_shipments>1\nORDER BY s.company"
+        },
+        {
+          "text": "Mostra la ciutat o ciutats de destí on s'han enviat més comandes. Mostra la ciutat (`ship_city`), el seu estat (`ship_state_province`) i la quantitat de comandes. Ordena alfabèticament pel nom de la ciutat.",
+          "sql": "SELECT ship_city, ship_state_province, COUNT(*) AS n_orders\n FROM orders\n GROUP BY ship_city, ship_state_province\n HAVING n_orders = (\n   SELECT MAX(ord)\n    FROM (\n      SELECT COUNT(*) AS ord\n       FROM orders\n       GROUP BY ship_city, ship_state_province\n    ) AS t\n )\n ORDER BY ship_city;"
+        },
+        {
+          "text": "Mostra l'identificador (`id`), el codi (`product_code`), el nom (`product_name`) i les unitats venudes dels productes dels quals se n'han venut menys de 50 unitats en total. Ordena per unitats venudes de menys a més i, en empat, alfabèticament pel codi del producte.",
+          "sql": "SELECT p.id, product_code, product_name, SUM(quantity) AS n_sells\n FROM products p\n LEFT JOIN order_details od ON od.product_id=p.id\n GROUP BY p.id, product_code, product_name\n HAVING n_sells < 50\n ORDER BY n_sells, product_code;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de l'empleat que ha facturat més durant el juny de 2006 (la suma de `quantity * unit_price` de les seves comandes és la més alta), juntament amb aquest valor total. Mostra només aquest empleat.",
+          "sql": "SELECT first_name, last_name, SUM(quantity*unit_price) AS value\n FROM employees e\n JOIN orders o ON o.employee_id=e.id\n JOIN order_details od ON od.order_id=o.id\n WHERE MONTH(o.order_date)=6 AND YEAR(o.order_date)=2006\n GROUP BY e.id, first_name, last_name\n ORDER BY value DESC\n LIMIT 1;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de comandes (`n_orders`) dels clients que han fet 3 comandes o menys. Inclou també els clients que no n'han fet cap.",
+          "sql": "SELECT c.first_name, c.last_name, COUNT(o.id) AS n_orders\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY c.id, c.first_name, c.last_name\nHAVING n_orders <= 3"
+        },
+        {
+          "text": "Mostra totes les comandes fetes entre el 20 d'abril i el 20 de maig de 2006. De cadascuna, mostra el seu `id`, la data (`order_date`), el nom i cognom del client, el nom i cognom de l'empleat que l'ha servida (distingint-los clarament dels del client) i el codi dels productes comprats. Ordena pel cognom i nom del client i, dins del mateix client, per la data de la comanda i el codi del producte.",
+          "sql": "SELECT o.id, o.order_date, c.first_name as customer_first_name, c.last_name as customer_last_name, e.first_name as employee_first_name, e.last_name as employee_last_name, p.product_code\n FROM customers c\n JOIN orders o ON c.id=o.customer_id\n JOIN order_details od ON od.order_id=o.id\n JOIN products p ON p.id=od.product_id\n JOIN employees e ON e.id=o.employee_id\n WHERE order_date BETWEEN '2006-04-20 00:00:00' AND '2006-05-21 00:00:00'\n ORDER BY c.last_name, c.first_name, o.order_date, p.product_code;"
+        },
+        {
+          "text": "Per a cada producte, mostra el seu `id`, el nom (`product_name`), el cost total de compra (`cost`, suma de `quantity * unit_cost` a `purchase_order_details`), el benefici brut de venda (`benefit`, suma de `quantity * unit_price - discount` a `order_details`) i el benefici net (`net_benefit`, benefici menys cost). Mostra només els productes amb benefici net positiu i ordena'ls de més a menys benefici net.",
+          "sql": "SELECT p.id, p.product_name, SUM(pod.quantity*pod.unit_cost) AS cost, SUM(od.quantity*od.unit_price-od.discount) AS benefit, SUM(od.quantity*od.unit_price-od.discount)-SUM(pod.quantity*pod.unit_cost) AS net_benefit\nFROM products p\nJOIN purchase_order_details pod ON pod.product_id=p.id\nJOIN order_details od ON od.product_id = p.id\nGROUP BY p.id, p.product_name\nHAVING net_benefit>0\nORDER BY net_benefit DESC"
+        },
+        {
+          "text": "Mostra totes les comandes per a les quals no s'ha emès cap factura (`invoices`). De cadascuna, mostra el seu `id`, la data (`order_date`), el nom i cognom del client i l'estat en què es troba en text (`status_name`, de la taula `orders_status`). Ordena per la data de la comanda i, en empat, per l'`id`.",
+          "sql": "SELECT o.id, order_date, first_name, last_name, status_name\n FROM orders o\n JOIN customers c ON o.customer_id=c.id\n JOIN orders_status os ON os.id=o.status_id\n LEFT JOIN invoices i ON i.order_id=o.id\n GROUP BY o.id, order_date, first_name, last_name, status_name\n HAVING COUNT(i.id)=0\n ORDER BY o.order_date, o.id;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de comandes (`n_orders`) dels clients que han fet més comandes que la clienta anomenada Marnie Teece. Ordena pel cognom i, en empat, pel nom.",
+          "sql": "SELECT first_name, last_name, COUNT(o.id) AS n_orders\n FROM customers c\n LEFT JOIN orders o ON o.customer_id=c.id\n GROUP BY c.id, first_name, last_name\n HAVING n_orders > (\n   SELECT COUNT(o.id)\n    FROM orders o\n    JOIN customers c ON c.id=o.customer_id\n    WHERE first_name LIKE 'Marnie'\n     AND last_name LIKE 'Teece'\n )\n ORDER BY last_name, first_name;"
+        }
+      ]
+    }
+  ]
+}

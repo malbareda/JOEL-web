@@ -11,7 +11,7 @@
             }));
             var in_user_redirect = false;
             $('#search-handle').select2({
-                placeholder: '{{ _('Search by handle...') }}',
+                placeholder: '{{ _('Search by handle...')|escapejs }}',
                 ajax: {
                     url: '{{ url('user_search_select2_ajax') }}'
                 },

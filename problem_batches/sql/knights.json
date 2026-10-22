@@ -4,7 +4,7 @@
   "label": "Cavallers i Dracs (cavallers medievals i els dracs que van matar)",
   "problems": [
     {
-      "name": "Cavallers i Dracs 1: Primeres consultes",
+      "name": "Cavallers i Dracs 1: Primeres consultes", "engine": "mysql", "database": "knightsdb",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
       "questions": [
         {"text": "Mostra tots els camps de la taula `Knights`.",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 2: Filtrant files",
+      "name": "Cavallers i Dracs 2: Filtrant files", "engine": "mysql", "database": "knightsdb",
       "intro": "Practica les condicions del `WHERE`: comparacions i `AND`/`OR`.",
       "questions": [
         {"text": "Mostra el nom i el nombre de víctimes conegudes (`KnownVictims`) dels dracs amb més de 900 víctimes.",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 3: LIKE, IN i BETWEEN",
+      "name": "Cavallers i Dracs 3: LIKE, IN i BETWEEN", "engine": "mysql", "database": "knightsdb",
       "intro": "Cerques de text, llistes de valors i rangs.",
       "questions": [
         {"text": "Mostra el nom dels dracs que contenen la paraula 'Champion' en el seu nom.",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 4: Funcions d'agregació",
+      "name": "Cavallers i Dracs 4: Funcions d'agregació", "engine": "mysql", "database": "knightsdb",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
       "questions": [
         {"text": "Mostra quants dracs hi ha a la taula `Dragons`.",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 5: Agrupant dades",
+      "name": "Cavallers i Dracs 5: Agrupant dades", "engine": "mysql", "database": "knightsdb",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {"text": "Per cada color de drac, mostra el color i el nombre de dracs d'aquest color.",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 6: Filtrant grups",
+      "name": "Cavallers i Dracs 6: Filtrant grups", "engine": "mysql", "database": "knightsdb",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {"text": "Mostra els colors que tenen 5 o més dracs, juntament amb el nombre de dracs de cadascun.",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 7: Primers JOINs",
+      "name": "Cavallers i Dracs 7: Primers JOINs", "engine": "mysql", "database": "knightsdb",
       "intro": "`INNER JOIN` per relacionar cada drac amb el cavaller que el va matar (`KilledBy` = `Nickname`).",
       "questions": [
         {"text": "Per cada drac, mostra el seu nom (`Dragons.Name`) i el nom (`Firstname`) del cavaller que el va matar.",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 8: JOINs i subconsultes",
+      "name": "Cavallers i Dracs 8: JOINs i subconsultes", "engine": "mysql", "database": "knightsdb",
       "intro": "Combina `JOIN` amb agrupacions, i usa subconsultes per comparar amb un valor calculat.",
       "questions": [
         {"text": "Mostra el sobrenom de cada cavaller i la suma de les víctimes conegudes dels dracs que ha matat, només dels cavallers amb una suma superior a 2000.",
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "Cavallers i Dracs 9: CASE, text i dates",
+      "name": "Cavallers i Dracs 9: CASE, text i dates", "engine": "mysql", "database": "knightsdb",
       "intro": "Expressions `CASE`, funcions de text i funcions de data sobre columnes de tipus text.",
       "questions": [
         {"text": "Per cada drac, mostra el seu nom i una classificació segons les víctimes conegudes: 'Gran' si en té 800 o més, 'Mitja' si en té 300 o més però menys de 800, i 'Petit' si en té menys de 300.",
@@ -108,11 +108,11 @@
         {"text": "Per cada cavaller, mostra el cognom en majúscules (`UPPER` de `Lastname`) i la llargada del sobrenom (`LENGTH` de `Nickname`), en aquest ordre.",
          "sql": "SELECT UPPER(Lastname), LENGTH(Nickname) FROM Knights"},
         {"text": "Per cada cavaller, mostra el sobrenom i l'edat a la qual va morir, calculada com la diferència entre l'any de `DeathDate` i l'any de `BirthDate` (extreu els anys amb `strftime('%Y', ...)`).",
-         "sql": "SELECT Nickname, CAST(strftime('%Y', DeathDate) AS INTEGER) - CAST(strftime('%Y', BirthDate) AS INTEGER) FROM Knights"}
+         "sql": "SELECT Nickname, YEAR(DeathDate) - YEAR(BirthDate) FROM Knights"}
       ]
     },
     {
-      "name": "Cavallers i Dracs 10: Repte final",
+      "name": "Cavallers i Dracs 10: Repte final", "engine": "mysql", "database": "knightsdb",
       "intro": "Consultes de més d'un pas: comparacions de dates entre taules, autojoin, agrupacions i el cavaller amb més víctimes.",
       "questions": [
         {"text": "Mostra el nom dels dracs que van morir el mateix dia que el cavaller que els va matar (la `DeathDate` del drac coincideix amb la `DeathDate` del cavaller), juntament amb el sobrenom d'aquest cavaller.",

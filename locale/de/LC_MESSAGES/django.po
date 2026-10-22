@@ -3964,8 +3964,8 @@ msgid "You don't have enough points"
 msgstr "Du hast nicht genug Punkte"
 
 #: judge/views/user.py:145
-msgid "You need 5 GachaPoints in order to make a gacha roll"
-msgstr "Du benötigst 5 GachaPoints, um eine Gacha-Ziehung zu machen"
+msgid "You need %(points)s GachaPoints in order to make a gacha roll"
+msgstr "Du benötigst %(points)s GachaPoints, um eine Gacha-Ziehung zu machen"
 
 #: judge/views/user.py:246 judge/views/user.py:357
 msgid "My account"
@@ -4757,8 +4757,8 @@ msgstr "Verfügbare Punkte"
 
 #: templates/gacha/gachago.html:40 templates/gacha/gachamain.html:40
 #: templates/gacha/gacharesult.html:960
-msgid "Use 5 GachaPoints"
-msgstr "Verwende 5 GachaPoints"
+msgid "Use %(points)s GachaPoints"
+msgstr "Verwende %(points)s GachaPoints"
 
 #: templates/gacha/gacharesult.html:864
 msgid "Bé... un més per la col·lecció."
@@ -5024,10 +5024,10 @@ msgstr "ein Theme!"
 #, python-format
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-" 50%% dels teus GachaPoints"
+" %(percent)s%% dels teus GachaPoints"
 msgstr ""
 "Aber es war ein Duplikat... Wie schade! Da ich mich großzügig fühle, gebe "
-"ich dir 50%% deiner GachaPoints zurück"
+"ich dir %(percent)s%% deiner GachaPoints zurück"
 
 #: templates/institution/home.html:17
 #, python-format
@@ -6770,3 +6770,73 @@ msgstr ""
 #: templates/widgets/select_all.html:8
 msgid "Check all"
 msgstr ""
+
+#: judge/models/profile.py
+msgid "gacha discount"
+msgstr "Gacha-Rabatt"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement pays 4 GachaPoints per gacha roll instead of 5, "
+"permanently. Owning more than one copy (or more than one such achievement) "
+"does not stack."
+msgstr ""
+"Wer dieses Achievement besitzt, zahlt dauerhaft 4 statt 5 GachaPoints pro "
+"Gacha-Ziehung. Mehrere Kopien (oder mehrere solche Achievements) addieren "
+"sich nicht."
+
+#: judge/models/profile.py
+msgid "extra hint"
+msgstr "Zusätzlicher Hinweis"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets one extra hint, permanently, on every "
+"problem that already allows at least one. Problems with no hints stay at "
+"zero. Owning more than one copy (or more than one such achievement) does "
+"not stack."
+msgstr ""
+"Wer dieses Achievement besitzt, erhält dauerhaft einen zusätzlichen Hinweis "
+"bei jeder Aufgabe, die bereits mindestens einen erlaubt. Aufgaben ohne "
+"Hinweise bleiben bei null. Mehrere Kopien (oder mehrere solche Achievements) "
+"addieren sich nicht."
+
+#: templates/user/user-about.html
+msgid "Super achievements"
+msgstr "Super-Achievements"
+
+#: judge/models/profile.py
+msgid "double daily bonus"
+msgstr "Doppelter Tagesbonus"
+
+#: judge/models/profile.py
+msgid "duplicate insurance"
+msgstr "Duplikat-Versicherung"
+
+#: judge/models/profile.py
+msgid "rainbow name"
+msgstr "Regenbogen-Name"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets twice the 'first new problem of the day' "
+"GachaPoints bonus, permanently. Does not stack."
+msgstr ""
+"Wer dieses Achievement besitzt, erhält dauerhaft den doppelten GachaPoints-"
+"Bonus für die erste neue Aufgabe des Tages. Addiert sich nicht."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets back 80% of the roll cost on a duplicate "
+"gacha result instead of 50%, permanently. Does not stack."
+msgstr ""
+"Wer dieses Achievement besitzt, erhält bei einem Duplikat im Gacha dauerhaft "
+"80% statt 50% der Ziehungskosten zurück. Addiert sich nicht."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement has their username shown with an animated "
+"rainbow everywhere on the site. Does not stack."
+msgstr ""
+"Wer dieses Achievement besitzt, hat seinen Benutzernamen überall auf der "
+"Website mit einem animierten Regenbogen. Addiert sich nicht."

@@ -66,6 +66,24 @@
             }
         </style>
     {% endif %}
+    <style>
+        /* Usernames of owners of a `rainbow_name` super achievement (see link_user in
+           judge/jinja2/reference.py). !important beats the rating colours (.rate-* a). Always
+           animated, no prefers-reduced-motion opt-out, like the rest of the gacha perks. */
+        .rainbow-name a {
+            color: transparent !important;
+            font-weight: bold;
+            background: linear-gradient(90deg, #ff0040, #ff8c00, #e6c300, #22c55e, #0ea5e9, #8b5cf6, #ff0040);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: rainbow-name-shift 3s linear infinite;
+        }
+
+        @keyframes rainbow-name-shift {
+            to { background-position: 200% center; }
+        }
+    </style>
     {% block media %}{% endblock %}
     {% if not INLINE_JQUERY %}
         <script src="{{ JQUERY_JS }}"></script>

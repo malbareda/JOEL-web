@@ -7,8 +7,137 @@
     {% include "user/user-tabs.html" %}
 {% endblock %}
 
+{% block user_media %}
+    <style>
+        /* Super achievements: an always-on rotating rainbow ring and a slow light sweep, so they
+           stand out from the plain sticker grid. Deliberately no prefers-reduced-motion opt-out,
+           same as the gacha (see templates/gacha/gacharesult.html). */
+        @property --super-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        .super-achievements {
+            margin: 0 0 1.5em;
+        }
+
+        .super-achievements h4 {
+            margin-top: 0;
+        }
+
+        .super-achievement-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .super-achievement {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 14px;
+            border-radius: 14px;
+            border: 3px solid transparent;
+            /* Tint over the theme's own page background (opaque), so the rainbow only shows
+               through the border instead of the whole card. */
+            background:
+                linear-gradient(rgba(255, 215, 0, 0.10), rgba(255, 105, 180, 0.08)) padding-box,
+                linear-gradient(var(--background-white, #fff), var(--background-white, #fff)) padding-box,
+                conic-gradient(from var(--super-angle), #ff0040, #ff8c00, #ffee00, #22c55e,
+                               #0ea5e9, #8b5cf6, #ff0040) border-box;
+            animation: super-spin 4s linear infinite, super-glow 2.4s ease-in-out infinite;
+        }
+
+        .super-achievement-image {
+            position: relative;
+            flex: 0 0 140px;
+            width: 140px;
+            height: 140px;
+            border-radius: 10px;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            animation: super-float 3s ease-in-out infinite;
+        }
+
+        .super-achievement-image::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.65) 50%, transparent 65%);
+            transform: translateX(-120%);
+            animation: super-shine 3.5s ease-in-out infinite;
+        }
+
+        .super-achievement-text {
+            min-width: 0;
+        }
+
+        .super-achievement-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 0.3em;
+        }
+
+        .super-achievement-name::before {
+            content: '✨ ';
+        }
+
+        .super-achievement-desc p:first-child {
+            margin-top: 0;
+        }
+
+        .super-achievement-desc p:last-child {
+            margin-bottom: 0;
+        }
+
+        @keyframes super-spin {
+            to { --super-angle: 360deg; }
+        }
+
+        @keyframes super-glow {
+            0%, 100% { box-shadow: 0 0 8px rgba(255, 200, 0, 0.45); }
+            50%      { box-shadow: 0 0 22px rgba(255, 120, 200, 0.85); }
+        }
+
+        @keyframes super-float {
+            0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+            50%      { transform: translateY(-5px) rotate(1.5deg); }
+        }
+
+        @keyframes super-shine {
+            0%, 55% { transform: translateX(-120%); }
+            100%    { transform: translateX(120%); }
+        }
+
+        @media (max-width: 600px) {
+            .super-achievement {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+{% endblock %}
+
 {% block user_content %}
     <div class="content-description">
+        {% if super_achievements %}
+            <div class="super-achievements">
+                <h4>{{ _('Super achievements') }}</h4>
+                <div class="super-achievement-list">
+                    {% for ach in super_achievements %}
+                        <div class="super-achievement">
+                            <div class="super-achievement-image" style="background-image: url({{ ach.get_image_url() }});"></div>
+                            <div class="super-achievement-text">
+                                <div class="super-achievement-name">{{ ach.name }}</div>
+                                <div class="super-achievement-desc">{{ ach.desc|markdown('self-description')|str|safe }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
         {% with orgs=user.organizations.all() %}
             {% if orgs %}
                 <p style="margin-top: 0"><b>{{ _('From') }}</b>

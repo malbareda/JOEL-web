@@ -35,7 +35,7 @@
                 var reply_id = 'reply-' + parent;
                 if ($comment_reply.find('#' + reply_id).length == 0) {
                     var $reply_form = $('#new-comment').clone(true).prop('id', reply_id);
-                    $reply_form.find('h3').html('{{ _('Replying to comment') }}');
+                    $reply_form.find('h3').html('{{ _('Replying to comment')|escapejs }}');
                     $reply_form.prepend('<a class="close">x</a>');
                     $reply_form.find('form.comment-submit-form input#id_parent').val(parent);
                     $reply_form.appendTo($comment_reply);
@@ -83,12 +83,12 @@
                     $comment.find('.next-revision').css({visibility: show_revision == max_revision ? 'hidden' : ''});
                     $comment.find('.content').html(body);
 
-                    var edit_text = '{{ _('edit {edits}') }}'.replace("{edits}", show_revision);
+                    var edit_text = '{{ _('edit {edits}')|escapejs }}'.replace("{edits}", show_revision);
 
                     if (show_revision == 0) {
-                        edit_text = '{{ _('original') }}';
+                        edit_text = '{{ _('original')|escapejs }}';
                     } else if (show_revision == max_revision && max_revision == 1) {
-                        edit_text = '{{ _('edited') }}';
+                        edit_text = '{{ _('edited')|escapejs }}';
                     }
 
                     $comment.find('.comment-edit-text').text(' ' + edit_text + ' ');
@@ -110,7 +110,7 @@
                             on_success();
                     },
                     error: function (data, textStatus, jqXHR) {
-                        alert('{{ _('Could not vote: ') }}' + data.responseText);
+                        alert('{{ _('Could not vote: ')|escapejs }}' + data.responseText);
                     }
                 });
             }
@@ -146,7 +146,7 @@
             var $comments = $('.comments');
             $comments.find('a.hide-comment').click(function (e) {
                 e.preventDefault();
-                if (!(e.ctrlKey || e.metaKey || confirm('{{ _('Are you sure you want to hide this comment?') }}')))
+                if (!(e.ctrlKey || e.metaKey || confirm('{{ _('Are you sure you want to hide this comment?')|escapejs }}')))
                     return;
 
                 var id = $(this).attr('data-id');
@@ -154,7 +154,7 @@
                     $('#comment-' + id).remove();
                     $('#comment-' + id + '-children').remove();
                 }).catch(function () {
-                    alert('{{ _('Failed.') }}');
+                    alert('{{ _('Failed.')|escapejs }}');
                 });
             });
 

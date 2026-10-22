@@ -4,7 +4,7 @@
    "code": "sqlins01",
    "database": "employees",
    "type": "sqlinsert",
-   "name": "SQL Inserts 1: la sentència INSERT",
+   "name": "SQL Inserts 1: la sentència INSERT", "engine": "mysql", "database": "company",
    "intro": "Practiques la forma bàsica de `INSERT INTO taula (columnes) VALUES (valors)` sobre la taula `Employees`: text entre cometes simples, números sense cometes i dates en format 'AAAA-MM-DD'.",
    "questions": [
     {
@@ -63,7 +63,7 @@
    "code": "sqlins02",
    "database": "knights",
    "type": "sqlinsert",
-   "name": "SQL Inserts 2: columnes, valors per defecte i taules relacionades",
+   "name": "SQL Inserts 2: columnes, valors per defecte i taules relacionades", "engine": "mysql", "database": "knightsdb",
    "intro": "Practiques `INSERT` amb llista de columnes parcial (la resta pren el valor per defecte o NULL), sense llista de columnes i sobre dues taules relacionades per una clau forana (`Knights` i `Dragons`).",
    "questions": [
     {
@@ -122,7 +122,7 @@
    "code": "sqlins03",
    "database": "miniwind",
    "type": "sqlinsert",
-   "name": "SQL Inserts 3: diverses files en una sola sentència",
+   "name": "SQL Inserts 3: diverses files en una sola sentència", "engine": "mysql", "database": "miniwind",
    "intro": "Practiques inserir diverses files amb un únic `INSERT INTO ... VALUES (...), (...), (...)` a taules diferents de la base de dades miniwind.",
    "questions": [
     {
@@ -181,12 +181,12 @@
    "code": "sqlins04",
    "database": "northwind",
    "type": "sqlinsert",
-   "name": "SQL Inserts 4: INSERT ... SELECT",
+   "name": "SQL Inserts 4: INSERT ... SELECT", "engine": "mysql", "database": "northwind",
    "intro": "Practiques `INSERT INTO ... SELECT ...`: copiar i transformar files d'una taula a una altra, inserir resultats calculats i combinar `VALUES` amb subconsultes.",
    "questions": [
     {
      "text": "Copia els productes de la categoria 'Beverages' dins de la mateixa taula `products`, amb aquestes regles: `id` = id original + 200, `product_code` = 'COPY-' seguit del codi original, `product_name` = nom original, `list_price` = preu original i `category` = 'Beverages'. Indica les columnes `id`, `product_code`, `product_name`, `list_price` i `category`.",
-     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 200, 'COPY-' || product_code, product_name, list_price, category FROM products WHERE category = 'Beverages'",
+     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 200, CONCAT('COPY-', product_code), product_name, list_price, category FROM products WHERE category = 'Beverages'",
      "explain": "El `SELECT` calcula les files que s'insereixen: es pot sumar a l'`id` i concatenar amb `||`. Com que el `SELECT` llegeix de l'estat original, no hi ha ambigüitat."
     },
     {
@@ -226,7 +226,7 @@
     },
     {
      "text": "Duplica els productes de la categoria 'Condiments' amb un 10% més de preu: `id` = id original + 300, `product_code` = codi original seguit de '-PLUS', `product_name` = nom original, `list_price` = `ROUND(list_price * 1.1, 2)` i `category` = 'Condiments'. Indica les columnes `id`, `product_code`, `product_name`, `list_price` i `category`.",
-     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 300, product_code || '-PLUS', product_name, ROUND(list_price * 1.1, 2), category FROM products WHERE category = 'Condiments'",
+     "sql": "INSERT INTO products (id, product_code, product_name, list_price, category) SELECT id + 300, CONCAT(product_code, '-PLUS'), product_name, ROUND(list_price * 1.1, 2), category FROM products WHERE category = 'Condiments'",
      "explain": "El valor calculat `ROUND(list_price * 1.1, 2)` es desa ja com a dada. La condició `WHERE` limita les files copiades."
     },
     {
@@ -240,7 +240,7 @@
    "code": "sqlins05",
    "database": "traders",
    "type": "sqlinsert",
-   "name": "SQL Inserts 5: valors calculats, subconsultes i INSERT ... SELECT",
+   "name": "SQL Inserts 5: valors calculats, subconsultes i INSERT ... SELECT", "engine": "mysql", "database": "traders",
    "intro": "Problema final mesclat: inserts amb expressions i funcions de SQLite (`date`, `UPPER`, `COALESCE`), claus foranes obtingudes amb subconsultes i `INSERT ... SELECT` amb filtres i agrupacions.",
    "questions": [
     {
@@ -250,12 +250,12 @@
     },
     {
      "text": "Afegeix a `Traders` un comerciant amb `Id` = 21, `Nickname` = 'Comet', `Firstname` = 'Lia', `Lastname` = el resultat de `COALESCE((SELECT Lastname FROM Traders WHERE Id = 999), 'Desconegut')` i `DeceaseDate` = NULL.",
-     "sql": "INSERT INTO Traders (Id, Nickname, Firstname, Lastname, DeceaseDate) VALUES (21, 'Comet', 'Lia', COALESCE((SELECT Lastname FROM Traders WHERE Id = 999), 'Desconegut'), NULL)",
+     "sql": "INSERT INTO Traders (Id, Nickname, Firstname, Lastname, DeceaseDate) VALUES (21, 'Comet', 'Lia', COALESCE((SELECT Lastname FROM (SELECT Lastname FROM Traders WHERE Id = 999) AS t), 'Desconegut'), NULL)",
      "explain": "La subconsulta no troba cap fila i retorna NULL, de manera que `COALESCE` tria el segon valor, 'Desconegut'."
     },
     {
      "text": "Afegeix a `Stays` una estada amb `Id` = 130, `StartDate` = `date('2352-01-01', '+30 days')` (30 dies després de l'1 de gener de 2352), `TraderId` = 1, `EndDate` = NULL i `PlanetId` = 2.",
-     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) VALUES (130, date('2352-01-01', '+30 days'), 1, NULL, 2)",
+     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) VALUES (130, DATE_ADD('2352-01-01', INTERVAL 30 DAY), 1, NULL, 2)",
      "explain": "`date()` suma un interval a una data i retorna el text 'AAAA-MM-DD'. Aquí dóna '2352-01-31'."
     },
     {
@@ -265,7 +265,7 @@
     },
     {
      "text": "Afegeix a `Planets` un planeta amb `Id` = 15, `Code` = el `Code` del sistema solar de nom 'Grif' seguit de 'NE10' (concatenació amb `||`, subconsulta a `SolarSystems`), `Name` = 'Neo Grif', `Position` = 10, `SystemId` = l'`Id` del sistema solar 'Grif' (subconsulta) i `AverageDistance` = 1.5.",
-     "sql": "INSERT INTO Planets (Id, Code, Name, Position, SystemId, AverageDistance) VALUES (15, (SELECT Code FROM SolarSystems WHERE Name = 'Grif') || 'NE10', 'Neo Grif', 10, (SELECT Id FROM SolarSystems WHERE Name = 'Grif'), 1.5)",
+     "sql": "INSERT INTO Planets (Id, Code, Name, Position, SystemId, AverageDistance) VALUES (15, CONCAT((SELECT Code FROM SolarSystems WHERE Name = 'Grif'), 'NE10'), 'Neo Grif', 10, (SELECT Id FROM SolarSystems WHERE Name = 'Grif'), 1.5)",
      "explain": "Una mateixa subconsulta es pot fer servir per obtenir tant una clau forana com un valor per construir un codi. El codi resultant és 'GR15OXNE10'."
     },
     {
@@ -275,12 +275,12 @@
     },
     {
      "text": "Insereix a `Ships` una nau prototip per cada tipus de nau: `Id` = 1000 + el mínim `Id` d'aquell tipus, `Name` = el tipus seguit de ' prototype', `Type` = el tipus i `Capacity` = la capacitat màxima d'aquell tipus. Indica les columnes `Id`, `Name`, `Type` i `Capacity`.",
-     "sql": "INSERT INTO Ships (Id, Name, Type, Capacity) SELECT 1000 + MIN(Id), Type || ' prototype', Type, MAX(Capacity) FROM Ships GROUP BY Type",
+     "sql": "INSERT INTO Ships (Id, Name, Type, Capacity) SELECT 1000 + MIN(Id), CONCAT(Type, ' prototype'), Type, MAX(Capacity) FROM Ships GROUP BY Type",
      "explain": "El `GROUP BY Type` dóna una fila per tipus, i `MIN` i `MAX` calculen valors agregats per a cada grup. Fer servir `MIN(Id)` assegura identificadors diferents."
     },
     {
      "text": "Copia les estades del comerciant 20 amb `StartDate` posterior o igual a '2300-01-01' un any més tard: `Id` = id original + 1000, `StartDate` = `date(StartDate, '+1 year')`, `TraderId` = 20, `EndDate` = `date(EndDate, '+1 year')` i `PlanetId` igual a l'original. Indica les columnes `Id`, `StartDate`, `TraderId`, `EndDate` i `PlanetId`.",
-     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) SELECT Id + 1000, date(StartDate, '+1 year'), TraderId, date(EndDate, '+1 year'), PlanetId FROM Stays WHERE TraderId = 20 AND StartDate >= '2300-01-01'",
+     "sql": "INSERT INTO Stays (Id, StartDate, TraderId, EndDate, PlanetId) SELECT Id + 1000, DATE_ADD(StartDate, INTERVAL 1 YEAR), TraderId, DATE_ADD(EndDate, INTERVAL 1 YEAR), PlanetId FROM Stays WHERE TraderId = 20 AND StartDate >= '2300-01-01'",
      "explain": "`date()` també es pot aplicar sobre una columna dins d'un `SELECT`. El filtre `WHERE` limita les estades que es dupliquen."
     },
     {

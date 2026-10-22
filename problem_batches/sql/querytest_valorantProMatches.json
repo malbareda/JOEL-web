@@ -1,0 +1,267 @@
+{
+  "database": "valorantProMatches",
+  "engine": "mysql",
+  "code_prefix": "sqlvalorantqt",
+  "author": "joanq",
+  "label": "Valorant Pro Matches (partides professionals de Valorant: esdeveniments, equips, jugadors, mapes, agents i estadístiques) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "name": "Valorant QT — Consultes intermèdies",
+      "type": "sqlsubq",
+      "intro": "Subconsultes amb agregació i JOINs sobre les partides professionals de Valorant, migrades del test temàtic de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom de l'equip (`Teams`) que ha guanyat més partides, com a `team_name`. Recorda que la columna `winner` de `Games` guarda el nom de l'equip guanyador.",
+          "sql": "SELECT t.name AS team_name\nFROM Teams t\nWHERE t.name = (\n    SELECT winner\n    FROM (\n        SELECT winner, COUNT(*) AS wins\n        FROM Games\n        GROUP BY winner\n        ORDER BY wins DESC\n        LIMIT 1\n    ) sub\n);"
+        },
+        {
+          "text": "Mostra el nom del jugador (`Players`), com a `player_name`, que ha fet més eliminacions (`kills`) en una única partida (taula `Player_Stats`).",
+          "sql": "SELECT p.name AS player_name\nFROM Players p\nWHERE p.player_id = (\n    SELECT ps.player_id\n    FROM Player_Stats ps\n    GROUP BY 1\n    ORDER BY MAX(kills) DESC\n    LIMIT 1\n);"
+        },
+        {
+          "text": "Mostra el nom (`name`) de l'agent (`Agents`) més utilitzat en totes les partides, és a dir, el que apareix més vegades a `Player_Stats`.",
+          "sql": "SELECT a.name\nFROM Agents a\nWHERE a.agent_id = (\n    SELECT agent_id\n    FROM Player_Stats\n    GROUP BY agent_id\n    ORDER BY COUNT(*) DESC\n    LIMIT 1\n);"
+        },
+        {
+          "text": "Mostra el nom (`name`), sense repeticions, dels equips (`Teams`) que han jugat (com a equip 1 o com a equip 2) alguna partida (`Games`) al mapa més jugat.",
+          "sql": "SELECT DISTINCT t.name\nFROM Teams t\nJOIN Games g ON t.team_id = g.team1_id OR t.team_id = g.team2_id\nWHERE g.map_id = (\n    SELECT map_id\n    FROM Games\n    GROUP BY map_id\n    ORDER BY COUNT(*) DESC\n    LIMIT 1\n);"
+        },
+        {
+          "text": "Mostra el nom de l'esdeveniment (`eventName` de `Events`), com a `event_name`, que ha tingut més matches (`Matches`).",
+          "sql": "SELECT DISTINCT e.eventName AS event_name\nFROM Events e\nJOIN Matches m ON e.event_id = m.event_id\nWHERE e.event_id = (\n    SELECT event_id\n    FROM Matches\n    GROUP BY event_id\n    ORDER BY COUNT(*) DESC\n    LIMIT 1\n);"
+        }
+      ]
+    },
+    {
+      "name": "Valorant QT — Examen fusionat 1",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen reals sobre una sola taula: condicions, patrons LIKE, IF i ordenació.",
+      "questions": [
+        {
+          "text": "Mostra, de cada partida (`Games`), el seu `game_id` i una segona columna que digui \"Paliza\" si la diferència (en valor absolut) entre `team1_TotalRounds` i `team2_TotalRounds` és superior a 5, o \"Reñida\" en cas contrari.",
+          "sql": "SELECT g.game_id, IF(ABS(g.team1_TotalRounds-g.team2_TotalRounds)>5,\"Paliza\",\"Reñida\")\nfrom Games g"
+        },
+        {
+          "text": "Mostra, de cada jugador (`Players`), el seu `player_id` i una segona columna que digui \"Nom massa llarg\" si la longitud del seu nom (`name`) és superior a 7 caràcters, o una cadena buida en cas contrari.",
+          "sql": "SELECT p.player_id , IF (LENGTH(p.name)>7, \"Nom massa llarg\", \"\")\nfrom Players p"
+        },
+        {
+          "text": "Mostra les estadístiques (`Player_Stats`) de l'agent amb `agent_id` 1 en què el jugador va fer 30 `kills` o més, o bé va tenir un `HS_percent` de 0.5 o superior. Mostra `playerStats_id`, `game_id`, `player_id`, `kills` i `HS_percent`. Ordena per `player_id` i, després, per `kills` de més a menys.",
+          "sql": "SELECT ps.playerStats_id, ps.game_id, ps.player_id, ps.kills, ps.HS_percent\nFROM Player_Stats ps\nWHERE ps.agent_id = 1 AND (ps.kills >= 30 OR ps.HS_percent >= 0.5)\nORDER BY ps.player_id, ps.kills DESC;"
+        },
+        {
+          "text": "Mostra les partides (`Games`) en què l'equip 1 va començar atacant (`Team1_SideFirstHalf` = 'attack'), va guanyar les 2 rondes de pistola (`Team1_PistolWon`) i, així i tot, va acabar amb menys de 13 rondes (`team1_TotalRounds`); o bé va començar defensant ('defend') i va guanyar alguna ronda a la pròrroga (`Team1_RoundsOT`). Mostra `game_id`, `Team1_SideFirstHalf`, `Team1_PistolWon`, `team1_TotalRounds` i `Team1_RoundsOT`, ordenat per `game_id`.",
+          "sql": "SELECT g.game_id, g.Team1_SideFirstHalf, g.Team1_PistolWon, g.team1_TotalRounds, g.Team1_RoundsOT\nFROM Games g\nWHERE (g.Team1_SideFirstHalf = 'attack' AND g.Team1_PistolWon = 2 AND g.team1_TotalRounds < 13)\n  OR (g.Team1_SideFirstHalf = 'defend' AND g.Team1_RoundsOT > 0)\nORDER BY g.game_id;"
+        },
+        {
+          "text": "Mostra les estadístiques (`Player_Stats`) de l'agent amb `agent_id` 3 en què el jugador va morir 5 vegades o menys (`deaths`), o bé va fer 15 assistències o més (`assists`). Mostra `playerStats_id`, `game_id`, `player_id`, `deaths` i `assists`. Ordena per `player_id` i, després, per `assists` de més a menys.",
+          "sql": "SELECT ps.playerStats_id, ps.game_id, ps.player_id, ps.deaths, ps.assists\nFROM Player_Stats ps\nWHERE ps.agent_id = 3 AND (ps.deaths <= 5 OR ps.assists >= 15)\nORDER BY ps.player_id, ps.assists DESC;"
+        },
+        {
+          "text": "Mostra les partides (`Games`) en què l'equip 2 va començar defensant (`Team2_SideFirstHalf` = 'defend'), va guanyar les 2 rondes de pistola (`Team2_PistolWon`) i, així i tot, va acabar amb menys de 13 rondes (`team2_TotalRounds`); o bé va començar atacant ('attack') i va guanyar alguna ronda a la pròrroga (`Team2_RoundsOT`). Mostra `game_id`, `Team2_SideFirstHalf`, `Team2_PistolWon`, `team2_TotalRounds` i `Team2_RoundsOT`, ordenat per `game_id`.",
+          "sql": "SELECT g.game_id, g.Team2_SideFirstHalf, g.Team2_PistolWon, g.team2_TotalRounds, g.Team2_RoundsOT\nFROM Games g\nWHERE (g.Team2_SideFirstHalf = 'defend' AND g.Team2_PistolWon = 2 AND g.team2_TotalRounds < 13)\n  OR (g.Team2_SideFirstHalf = 'attack' AND g.Team2_RoundsOT > 0)\nORDER BY g.game_id;"
+        },
+        {
+          "text": "Mostra, en una sola columna, el nom (`name`) de cada agent (`Agents`) seguit del seu rol (`role`), separats per un espai. Mostra només els agents en què aquesta cadena contingui alguna 'r'. Ordena per la longitud de les seves habilitats (`abilities`) de més a menys.",
+          "sql": "SELECT CONCAT(a.name,\" \",a.`role`) \nfrom Agents a \nwhere CONCAT(a.name,\" \",a.`role`) LIKE \"%r%\"\norder by LENGTH(a.abilities) DESC"
+        },
+        {
+          "text": "Mostra el nom (`name`), el rol (`role`) i les habilitats (`abilities`) dels agents (`Agents`) que tenen a les habilitats la paraula 'Orb' o la paraula 'Bolt'. Ordena per rol i, després, per nom.",
+          "sql": "SELECT a.name, a.`role`, a.abilities\nFROM Agents a\nWHERE a.abilities LIKE '%Orb%' OR a.abilities LIKE '%Bolt%'\nORDER BY a.`role`, a.name;"
+        },
+        {
+          "text": "Mostra el nom (`name`) i l'abreviatura d'equip (`teamAbbreviation`) dels jugadors (`Players`) que tenen almenys 3 lletres 'A' al nom, però cap 'A' a l'abreviatura d'equip. Ordena per nom.",
+          "sql": "SELECT p.name, p.teamAbbreviation\nFROM Players p\nWHERE p.name LIKE '%A%A%A%' AND p.teamAbbreviation NOT LIKE '%A%'\nORDER BY p.name;"
+        },
+        {
+          "text": "Mostra el nom (`name`), el rol (`role`) i les habilitats (`abilities`) dels agents (`Agents`) que tenen a les habilitats la paraula 'Cloud' o la paraula 'Shock'. Ordena per rol i, després, per nom.",
+          "sql": "SELECT a.name, a.`role`, a.abilities\nFROM Agents a\nWHERE a.abilities LIKE '%Cloud%' OR a.abilities LIKE '%Shock%'\nORDER BY a.`role`, a.name;"
+        }
+      ]
+    },
+    {
+      "name": "Valorant QT — Examen fusionat 2",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals amb JOINs, LEFT JOIN i agregació amb HAVING.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`name`) i l'abreviatura d'equip (`teamAbbreviation`) dels jugadors (`Players`) que tenen almenys 3 lletres 'E' al nom, però cap 'E' a l'abreviatura d'equip. Ordena per nom.",
+          "sql": "SELECT p.name, p.teamAbbreviation\nFROM Players p\nWHERE p.name LIKE '%E%E%E%' AND p.teamAbbreviation NOT LIKE '%E%'\nORDER BY p.name;"
+        },
+        {
+          "text": "Mostra el nom del jugador (`name`), el `game_id`, les `kills` i les `deaths` de les estadístiques (`Player_Stats`) dels jugadors sense equip (`teamAbbreviation` buit o nul) en què van fer 20 `kills` o més. Ordena per `kills` de més a menys i, després, per nom.",
+          "sql": "SELECT p.name, ps.game_id, ps.kills, ps.deaths\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nWHERE (p.teamAbbreviation IS NULL OR p.teamAbbreviation = '') AND ps.kills >= 20\nORDER BY ps.kills DESC, p.name;"
+        },
+        {
+          "text": "Mostra les partides (`Games`) jugades al mapa (`Maps`) 'Fracture' que va guanyar l'equip 1 (`team1_id`). Recorda que la columna `winner` de `Games` guarda el nom de l'equip guanyador. Mostra el `game_id`, el nom de l'equip guanyador, `team1_TotalRounds` i `team2_TotalRounds`, ordenat per `game_id`.",
+          "sql": "SELECT g.game_id, t.name, g.team1_TotalRounds, g.team2_TotalRounds\nFROM Games g\nJOIN Teams t ON g.team1_id = t.team_id\nJOIN Maps mp ON g.map_id = mp.map_id\nWHERE g.winner = t.name AND mp.name = 'Fracture'\nORDER BY g.game_id;"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels equips (`Teams`) que comencen per 'T' i que no han guanyat mai cap partida (no apareixen mai com a `winner` a `Games`). Ordena per nom.",
+          "sql": "SELECT t.name\nFROM Teams t\nLEFT JOIN Games g ON t.name = g.winner\nWHERE g.game_id IS NULL AND t.name LIKE 'T%'\nORDER BY t.name;"
+        },
+        {
+          "text": "Mostra les partides (`Games`) jugades al mapa (`Maps`) 'Split' que va guanyar l'equip 2 (`team2_id`). Recorda que la columna `winner` de `Games` guarda el nom de l'equip guanyador. Mostra el `game_id`, el nom de l'equip guanyador, `team1_TotalRounds` i `team2_TotalRounds`, ordenat per `game_id`.",
+          "sql": "SELECT g.game_id, t.name, g.team1_TotalRounds, g.team2_TotalRounds\nFROM Games g\nJOIN Teams t ON g.team2_id = t.team_id\nJOIN Maps mp ON g.map_id = mp.map_id\nWHERE g.winner = t.name AND mp.name = 'Split'\nORDER BY g.game_id;"
+        },
+        {
+          "text": "Mostra el nom del jugador (`name`), el nom de l'agent (com a `agent`), el `game_id` i les `kills` de les estadístiques (`Player_Stats`) dels jugadors sense equip (`teamAbbreviation` buit o nul) que van jugar amb un agent de rol (`role`) 'Duelist'. Ordena per nom del jugador i, després, per `kills` de més a menys.",
+          "sql": "SELECT p.name, a.name AS agent, ps.game_id, ps.kills\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nJOIN Agents a ON ps.agent_id = a.agent_id\nWHERE (p.teamAbbreviation IS NULL OR p.teamAbbreviation = '') AND a.`role` = 'Duelist'\nORDER BY p.name, ps.kills DESC;"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels equips (`Teams`) que comencen per 'F' i que no han guanyat mai cap partida (no apareixen mai com a `winner` a `Games`). Ordena per nom.",
+          "sql": "SELECT t.name\nFROM Teams t\nLEFT JOIN Games g ON t.name = g.winner\nWHERE g.game_id IS NULL AND t.name LIKE 'F%'\nORDER BY t.name;"
+        },
+        {
+          "text": "Mostra el nom de cada equip guanyador (`winner` de `Games`) i quantes partides ha guanyat (com a `wins`), només dels equips que n'han guanyat almenys 3. Ordena alfabèticament per `winner`.",
+          "sql": "SELECT g.winner, COUNT(g.winner) as wins\nfrom Games g \ngroup by g.winner \nhaving wins>=3\nORDER BY g.winner;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`name`) dels jugadors (`Players`) que, en alguna partida jugada amb l'agent 'Jett', han fet almenys 25 `kills` i han mort més de 20 vegades (`deaths`).",
+          "sql": "SELECT DISTINCT p.name\nfrom Players p \njoin Player_Stats ps on p.player_id = ps.player_id \njoin Agents a on a.agent_id = ps.agent_id \nWHERE a.name = \"Jett\" and ps.kills>=25 and ps.deaths>20"
+        },
+        {
+          "text": "Mostra, de cada jugador (`Players`), el nom (`name`) i el total de `kills` que ha fet en totes les seves partides (`Player_Stats`), com a `kills`. Ordena de més a menys `kills`.",
+          "sql": "SELECT p.name , SUM(ps.kills)  as kills\nFROM Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nGROUP BY p.name, p.player_id \norder by kills DESC"
+        }
+      ]
+    },
+    {
+      "name": "Valorant QT — Examen fusionat 3",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals amb JOINs de diverses taules, agregació i alguna subconsulta correlacionada.",
+      "questions": [
+        {
+          "text": "Mostra, de cada jugador (`Players`), el nom (`name`) i la mitjana de `kills` per partida arrodonida sense decimals, com a `kills`.",
+          "sql": "SELECT p.name , ROUND(AVG(ps.kills))  as kills\nFROM Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nGROUP BY p.name, p.player_id"
+        },
+        {
+          "text": "Mostra quantes partides (`Games`) s'han jugat a l'esdeveniment (`Events`) 'Nerd Street Gamers Winter Championship - Open 11' (enllaçant amb `Matches`).",
+          "sql": "SELECT COUNT(g.game_id) \nFROM Games g \njoin Matches m on g.match_id = m.match_id \nJOIN Events e on m.event_id = e.event_id \nWHERE e.eventName LIKE \"Nerd Street Gamers Winter Championship - Open 11\""
+        },
+        {
+          "text": "Mostra el nom (`name`) de l'equip (`Teams`) que ha participat (com a equip 1 o com a equip 2) en més partides (`Games`). Mostra només 1 fila.",
+          "sql": "SELECT t.name\nfrom Teams t \njoin Games g on g.team1_id = t.team_id or g.team2_id = t.team_id \nGROUP by t.team_id, t.name \norder by COUNT(t.name) desc\nlimit 1"
+        },
+        {
+          "text": "Mostra, de les partides (`Games`) que han anat a la pròrroga (més de 24 rondes en total entre els dos equips), el nom de l'equip 1 (com a `team1`), el nom de l'equip 2 (com a `team2`), el total de rondes (com a `total_rounds`) i l'equip guanyador (`winner`).",
+          "sql": "SELECT \n    t1.name as team1,\n    t2.name as team2,\n    g.team1_TotalRounds + g.team2_TotalRounds as total_rounds,\n    g.winner\nFROM Games g\nINNER JOIN Matches m ON g.match_id = m.match_id\nINNER JOIN Teams t1 ON g.team1_id = t1.team_id\nINNER JOIN Teams t2 ON g.team2_id = t2.team_id\nWHERE g.team1_TotalRounds + g.team2_TotalRounds > 24"
+        },
+        {
+          "text": "Mostra els 10 jugadors que han fet més assistències en total. De cada jugador, mostra el nom (`name`), el total d'assistències (com a `total_assists`) i la mitjana d'assistències per partida arrodonida a 2 decimals (com a `mitjana_assists`). Agrupa per nom i abreviatura d'equip i ordena per `total_assists` de més a menys.",
+          "sql": "SELECT p.name, SUM(ps.assists) as total_assists,\n    ROUND(AVG(ps.assists), 2) as mitjana_assists\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nGROUP BY p.name, p.teamAbbreviation\nORDER BY total_assists DESC\nLIMIT 10;"
+        },
+        {
+          "text": "Mostra, de cada jugador, la partida on ha obtingut el valor més alt de `kills` + `assists` - `deaths`. Mostra el nom (`name`), les `kills`, les `deaths`, les `assists` i aquest valor (com a `kda`). Ordena per `kda` de més a menys.",
+          "sql": "SELECT \n    p.name,\n    ps.kills,\n    ps.deaths,\n    ps.assists,\n    ps.kills + ps.assists - ps.deaths as kda\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nWHERE ps.kills + ps.assists - ps.deaths = (\n    SELECT MAX(ps2.kills + ps2.assists - ps2.deaths)\n    FROM Player_Stats ps2\n    WHERE ps2.player_id = p.player_id\n)\nORDER BY kda DESC;"
+        },
+        {
+          "text": "Mostra, de cada jugador (`Players`), el nom (`name`) i el total de morts (`deaths`) en totes les seves partides, com a `deaths`. Mostra només els jugadors que han mort més de 10 vegades.",
+          "sql": "SELECT p.name , SUM(ps.deaths)  as deaths\nFROM Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nGROUP BY p.name, p.player_id \nHAVING SUM(deaths)>10"
+        },
+        {
+          "text": "Mostra, en una sola columna, les dues primeres lletres del nom del jugador i el total de vegades que ha mort (`deaths`), separats per un guió, dels jugadors (agrupats per nom) que tenen més de 10 partides a `Player_Stats`.",
+          "sql": "SELECT CONCAT(LEFT(p.name,2),\"-\",SUM(ps.deaths))  \nFROM Players p \njoin Player_Stats ps on ps.player_id = p.player_id \nGROUP BY p.name\nHAVING COUNT(ps.game_id)>10;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`name`) i el rol (`role`) dels agents (`Agents`) que s'han fet servir alguna vegada al mapa (`Maps`) 'Fracture'. Ordena per rol i, després, per nom.",
+          "sql": "SELECT DISTINCT a.name, a.`role`\nFROM Agents a\nJOIN Player_Stats ps ON a.agent_id = ps.agent_id\nJOIN Games g ON ps.game_id = g.game_id\nJOIN Maps mp ON g.map_id = mp.map_id\nWHERE mp.name = 'Fracture'\nORDER BY a.`role`, a.name;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`name`) i el rol (`role`) dels agents (`Agents`) que s'han fet servir alguna vegada al mapa (`Maps`) 'Split'. Ordena per rol i, després, per nom.",
+          "sql": "SELECT DISTINCT a.name, a.`role`\nFROM Agents a\nJOIN Player_Stats ps ON a.agent_id = ps.agent_id\nJOIN Games g ON ps.game_id = g.game_id\nJOIN Maps mp ON g.map_id = mp.map_id\nWHERE mp.name = 'Split'\nORDER BY a.`role`, a.name;"
+        }
+      ]
+    },
+    {
+      "name": "Valorant QT — Examen fusionat 4",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals amb JOINs encadenats fins a esdeveniments, agregació i subconsultes.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, el nom (`name`) dels mapes (`Maps`) on s'ha jugat alguna partida de l'esdeveniment (`Events`) 'Nerd Street Gamers Winter Championship - Open 11'.",
+          "sql": "SELECT Distinct m.name \nfrom Maps m \njoin Games g on g.map_id = m.map_id \nJOIN Matches m2 on m2.match_id = g.match_id \nJOIN Events e on m2.event_id = e.event_id \nwhere e.eventName LIKE \"Nerd Street Gamers Winter Championship - Open 11\""
+        },
+        {
+          "text": "Mostra, de cada jugador (`Players`), el nom (`name`) i la mitjana d'assistències (`assists`) que ha aconseguit amb l'agent 'Brimstone'. Ordena per nom.",
+          "sql": "SELECT p.name , AVG(ps.assists)  \nFROM Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nJOIN Agents a on ps.agent_id =a.agent_id \nwhere a.name = \"brimstone\"\nGROUP BY p.name, p.player_id \nORDER BY p.name"
+        },
+        {
+          "text": "Mostra, de cada mapa (`Maps`), el nom (`name`) i quantes partides (`Games`) s'hi han jugat. Els mapes on no s'ha jugat mai han de sortir amb 0.",
+          "sql": "SELECT m.name ,COUNT(g.map_id) \nfrom Maps m \nleft join Games g on g.map_id = m.map_id \nleft JOIN Matches m2 on m2.match_id = g.match_id \nGROUP BY m.name"
+        },
+        {
+          "text": "Mostra el `game_id` de la partida, jugada al mapa MENYS jugat, en què s'han plantat més bombes en total (suma de `Plants` de `Player_Stats`). Mostra només 1 fila.",
+          "sql": "SELECT g.game_id  \nfrom Games g \njoin Player_Stats ps on ps.game_id = g.game_id \nWHERE g.map_id =   (SELECT g.map_id \n\t\t\t\t\tFROM Games g \n\t\t\t\t\tgroup by g.map_id \n\t\t\t\t\tORDER BY COUNT(*)\n\t\t\t\t\tLIMIT 1)\nGROUP BY g.game_id \nORDER BY SUM(ps.Plants) desc\nlimit 1;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`eventName`) dels esdeveniments (`Events`) en què ha jugat alguna partida el jugador 'Menace'. Ordena alfabèticament.",
+          "sql": "SELECT DISTINCT e.eventName\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nJOIN Games g ON ps.game_id = g.game_id\nJOIN Matches m ON g.match_id = m.match_id\nJOIN Events e ON m.event_id = e.event_id\nWHERE p.name = 'Menace'\nORDER BY e.eventName;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`eventName`) dels esdeveniments (`Events`) en què ha jugat alguna partida el jugador 'Bobovo'. Ordena alfabèticament.",
+          "sql": "SELECT DISTINCT e.eventName\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nJOIN Games g ON ps.game_id = g.game_id\nJOIN Matches m ON g.match_id = m.match_id\nJOIN Events e ON m.event_id = e.event_id\nWHERE p.name = 'Bobovo'\nORDER BY e.eventName;"
+        },
+        {
+          "text": "Mostra els 5 jugadors amb la mitjana de `kills` per partida més alta en els matches de l'any 2021 (`matchDate`). De cada jugador, mostra el nom (`name`), el nombre de partides jugades (com a `games_played`) i la mitjana de `kills` (com a `total_kills`), ordenat per aquesta mitjana de més a menys. En cas d'empat en la mitjana, ordena alfabèticament pel nom.",
+          "sql": "SELECT \n    p.name,\n    COUNT(*) as games_played,\n    AVG(ps.kills) as total_kills\nFROM Players p\nINNER JOIN Player_Stats ps ON p.player_id = ps.player_id\nINNER JOIN Games g ON ps.game_id = g.game_id\nINNER JOIN Matches m ON g.match_id = m.match_id\nWHERE YEAR(m.matchDate) = 2021\nGROUP BY p.name\nORDER BY total_kills DESC, p.name LIMIT 5;"
+        },
+        {
+          "text": "Per a cada partida de l'esdeveniment (`Events`) 'Open Fire Legacy', mostra la data del match (`matchDate`), el nom del mapa (com a `mapa`), el nom de l'equip 1 (com a `equip1`), el nom de l'equip 2 (com a `equip2`) i el guanyador (`winner`). Ordena per data i, després, per `game_id`.",
+          "sql": "SELECT m.matchDate, mp.name AS mapa, t1.name AS equip1, t2.name AS equip2, g.winner\nFROM Events e\nJOIN Matches m ON e.event_id = m.event_id\nJOIN Games g ON m.match_id = g.match_id\nJOIN Maps mp ON g.map_id = mp.map_id\nJOIN Teams t1 ON g.team1_id = t1.team_id\nJOIN Teams t2 ON g.team2_id = t2.team_id\nWHERE e.eventName = 'Open Fire Legacy'\nORDER BY m.matchDate, g.game_id;"
+        },
+        {
+          "text": "Per a cada partida de l'esdeveniment (`Events`) 'SEA Esports Championship 2021', mostra la data del match (`matchDate`), el nom del mapa (com a `mapa`), el nom de l'equip 1 (com a `equip1`), el nom de l'equip 2 (com a `equip2`) i el guanyador (`winner`). Ordena per data i, després, per `game_id`.",
+          "sql": "SELECT m.matchDate, mp.name AS mapa, t1.name AS equip1, t2.name AS equip2, g.winner\nFROM Events e\nJOIN Matches m ON e.event_id = m.event_id\nJOIN Games g ON m.match_id = g.match_id\nJOIN Maps mp ON g.map_id = mp.map_id\nJOIN Teams t1 ON g.team1_id = t1.team_id\nJOIN Teams t2 ON g.team2_id = t2.team_id\nWHERE e.eventName = 'SEA Esports Championship 2021'\nORDER BY m.matchDate, g.game_id;"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels agents (`Agents`) que tenen un nom més llarg que el de l'agent més jugat en totes les partides (el que apareix més vegades a `Player_Stats`).",
+          "sql": "SELECT a.name \nFROM Agents a \nWHERE LENGTH(a.name) > LENGTH((SELECT a.name\n\t\t\t\t\t  \t\t   from Agents a \n\t\t\t\t\t  \t\t   join Player_Stats ps on ps.agent_id = a.agent_id \n\t\t\t\t\t  \t\t   JOIN Games g on ps.game_id = g.game_id \n\t\t\t\t\t  \t\t   GROUP BY a.name \n\t\t\t\t\t  \t\t   ORDER BY COUNT(*) DESC \n\t\t\t\t\t  \t\t   LIMIT 1));"
+        }
+      ]
+    },
+    {
+      "name": "Valorant QT — Examen fusionat 5",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals amb subconsultes (sovint correlacionades) dins de HAVING, SELECT i WHERE.",
+      "questions": [
+        {
+          "text": "Mostra, per cada mapa i jugador, el nom del mapa (com a `map_name`), el nom del jugador (com a `player_name`), la mitjana de `kills` arrodonida sense decimals (com a `avg_kills`) i el nombre de partides jugades en aquell mapa (com a `games_played`), només quan el jugador hi ha jugat almenys 5 vegades. Ordena per nom del mapa i, després, per `avg_kills` de més a menys.",
+          "sql": "SELECT m.name as map_name, p.name as player_name, ROUND(AVG(ps.kills)) as avg_kills, COUNT(*) as games_played\nFROM Maps m\nJOIN Games g ON m.map_id = g.map_id\nJOIN Player_Stats ps ON g.game_id = ps.game_id\nJOIN Players p ON ps.player_id = p.player_id\nGROUP BY m.name, p.name\nHAVING games_played >= 5\nORDER BY m.name, avg_kills DESC;"
+        },
+        {
+          "text": "Mostra el nom (`name`) i l'abreviatura d'equip (`teamAbbreviation`) dels jugadors que tenen una mitjana de `kills` més gran que la mitjana de `kills` de tots els jugadors amb la mateixa abreviatura d'equip.",
+          "sql": "SELECT p1.name, p1.teamAbbreviation \nFROM Players p1 \ninner join Player_Stats ps on p1.player_id =ps.player_id \nGROUP BY p1.name, p1.teamAbbreviation \nHAVING AVG(ps.kills) > (SELECT AVG(ps2.kills)\n\t\t\t\t\t\tFROM Players p2 \n\t\t\t\t\t\tJOIN Player_Stats ps2 ON p2.player_id = ps2.player_id\n\t\t\t\t\t\twhere p2.teamAbbreviation = p1.teamAbbreviation)"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels jugadors que tenen exactament el mateix total d'assistències (`assists`) que el jugador 'Temperature'. No mostris Temperature.",
+          "sql": "SELECT p.name\nfrom Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nwhere p.name not like \"Temperature\"\nGROUP BY p.name \nHAVING SUM(ps.assists) = (SELECT SUM(ps2.assists) \n\t\t\t\t\t\t from Players p2 \n\t\t\t\t\t\t join Player_Stats ps2 on p2.player_id = ps2.player_id \n\t\t\t\t\t\t WHERE p2.name = \"Temperature\")"
+        },
+        {
+          "text": "Mostra, de cada equip (`teamAbbreviation`), l'abreviatura i el nom (`name`) del jugador que ha fet més `kills` en total.",
+          "sql": "SELECT p.teamAbbreviation, p.name\nFROM Players p\nJOIN Player_Stats ps ON p.player_id = ps.player_id\nGROUP BY p.teamAbbreviation, p.name\nHAVING SUM(ps.kills) = (\n    SELECT SUM(ps2.kills)\n    FROM Players p2\n    JOIN Player_Stats ps2 ON p2.player_id = ps2.player_id\n    WHERE p2.teamAbbreviation = p.teamAbbreviation\n    GROUP BY p2.name\n    ORDER BY SUM(ps2.kills) DESC\n    LIMIT 1\n);"
+        },
+        {
+          "text": "Busca el rol (`role`) de l'agent que més vegades ha jugat el jugador 'bdog' i mostra aquest rol i la mitjana global de `kills` (com a `avg_kills`), `deaths` (com a `avg_deaths`) i `assists` (com a `avg_assists`) de totes les estadístiques amb agents d'aquest rol.",
+          "sql": "SELECT \n    a.role,\n    AVG(ps.kills) as avg_kills,\n    AVG(ps.deaths) as avg_deaths,\n    AVG(ps.assists) as avg_assists\nFROM Agents a\nJOIN Player_Stats ps ON a.agent_id = ps.agent_id\nWHERE a.`role` = (SELECT a2.`role`\n\t\t\t\t\tFrom Agents a2 \n\t\t\t\t\tjoin Player_Stats ps2 on a2.agent_id=ps2.agent_id\n\t\t\t\t\tjoin Players p on ps2.player_id = p.player_id\n\t\t\t\t\tWHERE p.name='bdog'\n\t\t\t\t\tGROUP by ps2.agent_id\n\t\t\t\t\tORDER by COUNT(*) desc\n\t\t\t\t\tlimit 1\n\t\t\t\t\t)\nGROUP BY a.role"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels jugadors que tenen una mitjana de `kills` superior a la mitjana de `kills` de totes les estadístiques de les partides on ha jugat l'equip (`Teams`) 'T69' (com a equip 1 o com a equip 2, comptant els jugadors de tots dos equips).",
+          "sql": "SELECT p.name\nfrom Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nGROUP BY p.name \nHAVING AVG(ps.kills) > (SELECT AVG(ps.kills)\n\t\t\t\t\t\tFROM Teams t\n\t\t\t\t\t\tjoin Games g on g.team1_id = t.team_id or g.team2_id = t.team_id \n\t\t\t\t\t\tJOIN Player_Stats ps on ps.game_id = g.game_id \n\t\t\t\t\t\tJOIN Players p on p.player_id = ps.player_id \n\t\t\t\t\t\twhere t.name = \"T69\");"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels jugadors que tenen una mitjana d'assistències (`assists`) inferior a la mitjana d'assistències de totes les estadístiques de les partides on ha jugat l'equip (`Teams`) 'FEARUS' (com a equip 1 o com a equip 2, comptant els jugadors de tots dos equips).",
+          "sql": "SELECT p.name\nfrom Players p \njoin Player_Stats ps on p.player_id = ps.player_id \nGROUP BY p.name \nHAVING AVG(ps.assists) < (SELECT AVG(ps.assists)\n\t\t\t\t\t\tFROM Teams t\n\t\t\t\t\t\tjoin Games g on g.team1_id = t.team_id or g.team2_id = t.team_id \n\t\t\t\t\t\tJOIN Player_Stats ps on ps.game_id = g.game_id \n\t\t\t\t\t\tJOIN Players p on p.player_id = ps.player_id \n\t\t\t\t\t\twhere t.name = \"FEARUS\");"
+        },
+        {
+          "text": "Mostra, de cada estadística de jugador (`Player_Stats`), el nom del jugador (`name`), les `kills`, la mitjana de `kills` dels jugadors amb la seva mateixa abreviatura d'equip (com a `team_avg`), la diferència entre les seves `kills` i aquesta mitjana (com a `diff_from_avg`) i una última columna que digui \"Bona partida\" si la diferència és més gran que 5, \"Bé\" si està entre 0 i 5 (ambdós inclosos) i \"Baixant les estadistiques\" en cas contrari.",
+          "sql": "SELECT \n    p.name,\n    ps.kills,\n    (SELECT AVG(ps2.kills)\n     FROM Player_Stats ps2\n     INNER JOIN Players p2 ON ps2.player_id = p2.player_id\n     WHERE p2.teamAbbreviation = p.teamAbbreviation) as team_avg,\n    ps.kills - (SELECT AVG(ps2.kills)\n               FROM Player_Stats ps2\n               INNER JOIN Players p2 ON ps2.player_id = p2.player_id\n               WHERE p2.teamAbbreviation = p.teamAbbreviation) as diff_from_avg,\n    CASE \n\t    WHEN (ps.kills -(SELECT AVG(ps2.kills)\n               FROM Player_Stats ps2\n               INNER JOIN Players p2 ON ps2.player_id = p2.player_id\n               WHERE p2.teamAbbreviation = p.teamAbbreviation) > 5) THEN \"Bona partida\"\n    WHEN (ps.kills - (SELECT AVG(ps2.kills)\n                       FROM Player_Stats ps2\n                       INNER JOIN Players p2 ON ps2.player_id = p2.player_id\n                       WHERE p2.teamAbbreviation = p.teamAbbreviation)) BETWEEN 0 AND 5 THEN 'Bé'\n        ELSE 'Baixant les estadistiques'\n    END\nFROM Players p\nINNER JOIN Player_Stats ps ON p.player_id = ps.player_id;"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels jugadors que han jugat més partides al mapa 'Bind' que el jugador 'sSef'.",
+          "sql": "SELECT p.name\nfrom Players p \njoin Player_Stats ps on ps.player_id = p.player_id \njoin Games g on ps.game_id = g.game_id\nJOIN Maps m ON m.map_id = g.map_id \nWHERE m.name = 'Bind'\nGROUP BY p.name \nHAVING COUNT(*) >  (SELECT COUNT(*) \n\t\t\t\t\tfrom Players p \n\t\t\t\t\tjoin Player_Stats ps on ps.player_id = p.player_id \n\t\t\t\t\tjoin Games g on ps.game_id = g.game_id\n\t\t\t\t\tJOIN Maps m ON m.map_id = g.map_id \n\t\t\t\t\tWHERE p.name LIKE 'sSef' and m.name = 'Bind')"
+        }
+      ]
+    }
+  ]
+}

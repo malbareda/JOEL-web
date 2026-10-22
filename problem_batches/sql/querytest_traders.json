@@ -1,0 +1,417 @@
+{
+  "database": "traders",
+  "engine": "mysql",
+  "code_prefix": "sqltradersqt",
+  "author": "joanq",
+  "label": "Traders (comerciants espacials: planetes, naus, productes, preus i transaccions) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqltradersqt01",
+      "name": "Traders QT — Barrejades 02 (estructura)",
+      "type": "sqlsubq",
+      "intro": "Consultes variades sobre l'estructura de Traders (agregació, subconsultes i dates), migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el codi (`Code`) i el nom (`Name`) dels sistemes solars (`SolarSystems`) el nom dels quals té exactament 6 caràcters. Ordena pel codi.",
+          "sql": "SELECT Code, Name \nFROM SolarSystems \nWHERE CHAR_LENGTH(Name)=6 \nORDER BY Code"
+        },
+        {
+          "text": "Mostra el nom dels dos sistemes solars i la distància que els separa de la parella de sistemes més allunyats entre si. Uneix `SolarSystems` amb `SolarSystemsDistances`. Mostra les columnes en aquest ordre: nom del primer sistema, nom del segon sistema i distància (`Distance`), i mostra només la primera fila.",
+          "sql": "SELECT ss1.Name , ss2.Name , distance \nFROM SolarSystems ss1 \nJOIN SolarSystemsDistances ssd ON ss1.Id = ssd.SystemId1 \nJOIN SolarSystems ss2 ON ss2.Id = ssd.SystemId2 \nORDER BY Distance DESC \nLIMIT 1"
+        },
+        {
+          "text": "Mostra el codi (`Code`), el nom (`Name`) i el nombre de planetes (`NumPlanets`) de cada sistema solar, unint `SolarSystems` i `Planets`. Ordena pel nombre de planetes de més a menys i, en cas d'empat, pel codi del sistema.",
+          "sql": "SELECT ss.Code, ss.Name, COUNT(*) AS NumPlanets \nFROM SolarSystems ss \nJOIN Planets p ON ss.Id=p.SystemId \nGROUP BY ss.Id, ss.Code, ss.Name \nORDER BY NumPlanets DESC, ss.Code"
+        },
+        {
+          "text": "Mostra la proporció de comerciants (`Traders`) que han mort respecte al total: divideix el nombre de comerciants amb data de defunció (`DeceaseDate`) pel nombre total de comerciants. El resultat és un nombre entre 0 i 1.",
+          "sql": "SELECT COUNT(DeceaseDate)/COUNT(*) FROM Traders"
+        },
+        {
+          "text": "Mostra el tipus de nau (`Type`) i la capacitat mitjana (`TotalCapacity`, mitjana de `Capacity`) de cada tipus de nau de la taula `Ships`. Mostra només els tipus amb una capacitat mitjana superior a 10 i ordena per aquesta capacitat de més a menys.",
+          "sql": "SELECT Type, AVG(Capacity) AS TotalCapacity \nFROM Ships \nGROUP BY Type \nHAVING TotalCapacity>10 \nORDER BY TotalCapacity DESC"
+        },
+        {
+          "text": "Mostra el sobrenom (`Nickname`) del comerciant (o comerciants) que ha tingut més naus al llarg del temps i el nombre de naus (`NumShips`). Uneix `Traders` i `ShipOwners`. Si hi ha empat en el màxim, mostra'ls tots, ordenats alfabèticament pel sobrenom.",
+          "sql": "SELECT Nickname, COUNT(*) AS NumShips \nFROM Traders t \nJOIN ShipOwners so ON t.Id=so.TraderId \nGROUP BY t.Id, Nickname \nHAVING NumShips = (\n  SELECT COUNT(*)\n  FROM ShipOwners so\n  GROUP BY so.TraderId\n  ORDER BY COUNT(*) DESC\n  LIMIT 1\n)\nORDER BY Nickname"
+        },
+        {
+          "text": "Mostra, de cada producte, el seu nom (`productName`), el preu mínim que ha tingut mai (`NewPrice`), la data (`Date`) en què es va donar aquest preu i el nom del planeta (`planetName`) on es va donar. Uneix `PriceChanges`, `Products` i `Planets`. Ordena alfabèticament pel nom del producte.",
+          "sql": "SELECT pr.Name AS productName, NewPrice, Date, pl.Name AS planetName\nFROM PriceChanges pc\nJOIN Products pr ON pc.ProductId=pr.Id\nJOIN Planets pl ON pc.PlanetId=pl.Id\nWHERE (ProductId, NewPrice) IN\n(SELECT ProductId, MIN(NewPrice) FROM PriceChanges GROUP BY ProductId)\nORDER BY pr.Name"
+        },
+        {
+          "text": "Mostra el sobrenom del comerciant (`Nickname`), el nom del planeta (`Name`) i el nombre de dies de l'estada més llarga que s'ha fet, calculat amb `DATEDIFF(EndDate, StartDate)`. Uneix `Traders`, `Stays` i `Planets`, ordena per aquesta durada de més a menys i mostra només la primera fila. Pots suposar que no hi ha empats.",
+          "sql": "SELECT Nickname, Name, DATEDIFF(EndDate, StartDate) \nFROM Traders t \nJOIN Stays s ON t.Id=s.TraderId \nJOIN Planets p ON p.Id=s.PlanetId \nORDER BY DATEDIFF(EndDate, StartDate) DESC \nLIMIT 1"
+        },
+        {
+          "text": "Mostra, en dues files, el total de diners gastats en compres (`SUM(Total)` de `Trades` amb `Type` = 'Buy') i el total obtingut en vendes (`Type` = 'Sell'), combinant les dues consultes amb `UNION`.",
+          "sql": "SELECT SUM(Total) FROM Trades WHERE Type='Buy'\nUNION\nSELECT SUM(Total) FROM Trades WHERE Type='Sell'"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`Name`) i les unitats venudes (`TotalQuantity`, suma de `Quantity`) de tots els productes (`Products`). Si d'un producte no se n'ha venut cap unitat, ha de sortir amb 0 (fes servir un `LEFT JOIN` amb `TradeLines` i `IFNULL`). Ordena per l'identificador del producte.",
+          "sql": "SELECT p.Id, Name, IFNULL(SUM(Quantity), 0) AS TotalQuantity \nFROM Products p \nLEFT JOIN TradeLines tl ON p.Id=tl.ProductId \nGROUP BY p.Id, p.Name \nORDER BY p.Id"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt02",
+      "name": "Traders QT — Test 1",
+      "type": "sqlaggbasic",
+      "intro": "Consultes bàsiques de `SELECT`, `WHERE` i `ORDER BY` sobre Traders, migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra quantes estades hi ha en total a la taula `Stays`.",
+          "sql": "SELECT COUNT(*) FROM Stays"
+        },
+        {
+          "text": "Mostra el nom (`Name`) dels productes (`Products`) que contenen una 'z' en el nom (en majúscula o minúscula).",
+          "sql": "SELECT Name FROM Products WHERE Name LIKE '%z%'"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`) i el nom (`Name`) de les naus (`Ships`) de tipus 'Cargo ship'. Ordena per l'identificador.",
+          "sql": "SELECT Id, Name FROM Ships WHERE Type LIKE 'Cargo ship' ORDER BY Id"
+        },
+        {
+          "text": "Mostra el nom (`Firstname`) i el cognom (`Lastname`) dels comerciants (`Traders`) el cognom dels quals és alfabèticament més gran que 'L'. Ordena alfabèticament pel cognom.",
+          "sql": "SELECT Firstname, Lastname FROM Traders WHERE Lastname>'L' ORDER BY Lastname"
+        },
+        {
+          "text": "Mostra el sobrenom (`Nickname`), el nom (`Firstname`) i el cognom (`Lastname`) dels comerciants que encara són vius (`DeceaseDate` no té valor) i que tenen el sobrenom, el nom o el cognom començat per 'C'. Ordena alfabèticament pel sobrenom.",
+          "sql": "SELECT Nickname, Firstname, Lastname FROM Traders WHERE DeceaseDate IS NULL AND (Nickname LIKE 'C%' OR Firstname LIKE 'C%' OR Lastname LIKE 'C%') ORDER BY Nickname"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`Name`) i el tipus (`Type`) de les naus amb capacitat (`Capacity`) de 100 o menys i que tenen un espai en el tercer caràcter del nom. Ordena per l'identificador.",
+          "sql": "SELECT Id, Name, Type FROM Ships WHERE Capacity<=100 AND Name LIKE '__ %' ORDER BY Id"
+        },
+        {
+          "text": "Mostra totes les línies de la taula `TradeLines` que corresponen als productes amb identificador (`ProductId`) 1, 5, 9, 14 o 18 i amb 100 unitats (`Quantity`) o més. Ordena pel preu unitari (`UnitPrice`) de més a menys.",
+          "sql": "SELECT * FROM TradeLines WHERE ProductId IN (1, 5, 9, 14, 18) AND Quantity >= 100 ORDER BY UnitPrice DESC"
+        },
+        {
+          "text": "Mostra, sense repeticions, l'identificador de nau (`ShipId`) de la taula `ShipOwners` que ha estat comprada (`AcquisitionCause` = 'Bought') almenys una vegada. Ordena per aquest identificador.",
+          "sql": "SELECT DISTINCT ShipId FROM ShipOwners WHERE AcquisitionCause LIKE 'Bought' ORDER BY ShipId"
+        },
+        {
+          "text": "Mostra totes les línies de `ShipOwners` en què el preu d'adquisició (`AcquisitionPrice`) és més d'un 10% superior al benefici perdut (`LostBenefit`), sense comptar les files amb benefici perdut igual a 0. Ordena per la data d'adquisició (`AcquisitionDate`).",
+          "sql": "SELECT * FROM ShipOwners WHERE AcquisitionPrice > 1.1*LostBenefit AND LostBenefit != 0 ORDER BY AcquisitionDate"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt03",
+      "name": "Traders QT — Agregació 01",
+      "type": "sqljoincomplex",
+      "intro": "Exercicis d'agregació amb `GROUP BY`, `HAVING` i subconsultes sobre Traders, migrats tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el sobrenom (`Nickname`) dels comerciants que han obtingut més de cent milions de crèdits venent els seus productes (suma de `Total` de `Trades` amb `Type` = 'Sell'). Uneix `Traders`, `Stays` i `Trades`. Ordena alfabèticament pel sobrenom.",
+          "sql": "SELECT Nickname\nFROM Traders tr\nJOIN Stays s ON tr.Id=s.TraderId\nJOIN Trades ta ON ta.StayId=s.Id\nWHERE Type='Sell'\nGROUP BY tr.Id, Nickname\nHAVING SUM(Total)>100000000\nORDER BY Nickname"
+        },
+        {
+          "text": "Mostra el codi (`Code`), el nom (`Name`) i el nombre de planetes (`nPlanets`) dels sistemes solars que tenen més d'un planeta, unint `SolarSystems` i `Planets`. Ordena pel nombre de planetes de més a menys i, en cas d'empat, pel codi.",
+          "sql": "SELECT s.Code, s.Name, COUNT(*) AS nPlanets\nFROM SolarSystems s\nJOIN Planets p ON p.SystemId=s.Id\nGROUP BY  s.Code, s.Name\nHAVING nPlanets>1\nORDER BY nPlanets DESC, s.Code"
+        },
+        {
+          "text": "Per a cada sistema solar, mostra el codi (`Code`), el nom (`Name`) i una llista separada per comes i ordenada alfabèticament de tots els planetes el nom dels quals comença per la mateixa lletra que el nom del sistema (fes servir `LEFT` i `GROUP_CONCAT`). Ordena pel codi del sistema.",
+          "sql": "SELECT s.Code, s.Name, GROUP_CONCAT(p.Name ORDER BY p.Name)\nFROM SolarSystems s\nJOIN Planets p ON LEFT(s.Name, 1)=LEFT(p.Name, 1)\nGROUP BY s.Id, s.Code, s.Name\nORDER BY s.Code"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`) i el nom (`Name`) dels productes que no han tingut mai cap canvi de preu, és a dir, que no apareixen a `PriceChanges`. Uneix `Products` amb `PriceChanges` mitjançant un `LEFT JOIN` i queda't amb els que tenen zero canvis.",
+          "sql": "SELECT pr.Id, pr.Name\nFROM Products pr\nLEFT JOIN PriceChanges pc ON pc.ProductId=pr.Id\nGROUP BY pr.Id, pr.Name\nHAVING COUNT(pc.Id)=0"
+        },
+        {
+          "text": "Mostra el preu (`NewPrice`) que tenia el producte 'Divine Gravity Mine' al planeta 'Doiclite' just abans del 15 de juny de 2215. Uneix `Products`, `PriceChanges` i `Planets`, ordena per data (`Date`) de més recent a més antiga i mostra només la primera fila.",
+          "sql": "SELECT pc.NewPrice\nFROM Products pr\nJOIN PriceChanges pc ON pc.ProductId=pr.Id\nJOIN Planets pl ON pl.Id=pc.PlanetId\nWHERE pl.Name='Doiclite' AND pr.Name='Divine Gravity Mine' AND Date<'2215-06-15'\nORDER BY Date DESC\nLIMIT 1"
+        },
+        {
+          "text": "Mostra la distància entre totes les parelles de sistemes solars. De cada parella, mostra el nom (`s1Name`) i el codi (`s1Code`) del primer sistema, el nom (`s2Name`) i el codi (`s2Code`) del segon, i la distància (`Distance`). No mostris la distància d'un sistema amb ell mateix ni parelles repetides: de cada parella, mostra primer el sistema amb el nom alfabèticament més petit. Ordena per distància i, en empat, pels identificadors dels sistemes.",
+          "sql": "SELECT s1.Name AS s1Name, s1.Code AS s1Code, s2.Name AS s2Name, s2.Code AS s2Code, sd.Distance\nFROM SolarSystems s1\nJOIN SolarSystemsDistances sd ON s1.Id=sd.SystemId1 OR s1.Id=sd.SystemId2\nJOIN SolarSystems s2 ON (s2.Id=sd.SystemId1 OR s2.Id=sd.SystemId2) AND s2.Id!=s1.Id AND s1.Name<s2.Name\nORDER BY sd.Distance, s1.Id, s2.Id"
+        },
+        {
+          "text": "Mostra qui era el propietari de cada nau l'1 de gener de 2300: l'identificador (`Id`) i el nom (`Name`) de la nau i el sobrenom (`Nickname`) del comerciant propietari. Uneix `Ships`, `ShipOwners` i `Traders`, i filtra les adquisicions anteriors i les pèrdues posteriors a aquesta data. Ordena per l'identificador de la nau i, dins de cada nau, pel sobrenom.",
+          "sql": "SELECT s.Id, s.Name, t.Nickname\nFROM Ships s\nJOIN ShipOwners so ON so.ShipId=s.Id\nJOIN Traders t ON t.Id=so.TraderId\nWHERE AcquisitionDate<'2300-01-01' AND LostDate>'2300-01-01'\nGROUP BY s.Id, s.Name, t.Nickname\nORDER BY s.Id, t.Nickname"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el sobrenom (`Nickname`) i el benefici (`Benefit`) obtingut amb la compravenda de naus (`SUM(LostBenefit) - SUM(AcquisitionPrice)`) dels comerciants amb benefici positiu. Uneix `Traders` i `ShipOwners`. Ordena de més a menys benefici.",
+          "sql": "SELECT t.Id, t.Nickname, SUM(LostBenefit)-SUM(AcquisitionPrice) AS Benefit\nFROM Traders t\nJOIN ShipOwners so ON so.TraderId=t.Id\nGROUP BY t.Id, t.Nickname\nHAVING Benefit>0\nORDER BY Benefit DESC"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`Name`) i el nombre de visites de comerciants de tots els planetes (`Planets`), incloent-hi els que no n'han rebut cap. Uneix amb `Stays` i `Traders` mitjançant `LEFT JOIN` i ordena per l'identificador del planeta.",
+          "sql": "SELECT p.Id, p.Name, COUNT(t.Id)\nFROM Planets p\nLEFT JOIN Stays s ON p.Id=s.PlanetId\nLEFT JOIN Traders t ON t.Id=s.TraderId\nGROUP BY p.Id, p.Name\nORDER BY p.Id"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el sobrenom (`Nickname`) i el nombre total d'anys (`Years`) que cada comerciant ha passat en algun planeta (suma de `DATEDIFF(EndDate, StartDate)` dividida per 365). Inclou-hi els comerciants sense cap estada. Ordena de menys a més temps.",
+          "sql": "SELECT t.Id, t.Nickname, SUM(DATEDIFF(EndDate, StartDate))/365 AS Years\nFROM Traders t\nLEFT JOIN Stays s ON t.Id=s.TraderId\nLEFT JOIN Planets p ON p.Id=s.PlanetId\nLEFT JOIN SolarSystems ss ON ss.Id=p.SystemId\nGROUP BY t.Id, t.Nickname\nORDER BY Years"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt04",
+      "name": "Traders QT — Consultes diverses",
+      "type": "sqljoinbasic",
+      "intro": "Consultes diverses amb filtres, `JOIN` i `LEFT JOIN` sobre Traders, migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Id`), el sobrenom (`Nickname`), el nom (`Firstname`) i el cognom (`Lastname`) de tots els comerciants (`Traders`) que han mort (tenen `DeceaseDate`). Ordena pel nom i, en empat, pel cognom.",
+          "sql": "SELECT t.Id , t.Nickname , t.Firstname , t.Lastname \nFROM Traders t WHERE t.DeceaseDate IS NOT NULL\nORDER BY t.Firstname , t.Lastname ;"
+        },
+        {
+          "text": "Mostra totes les dades de les transaccions (`Trades`) que siguin de tipus 'Buy' amb un import (`Total`) inferior a 100.000, o bé de tipus 'Sell' amb un import entre 8.000.000 i 10.000.000, i que en tots dos casos s'hagin fet a partir del 31 de desembre de 2299 (`DateTime`).",
+          "sql": "SELECT * FROM Trades t \nWHERE ((t.`Type` = 'Buy' AND  t.Total < 100000)\nOR (t.`Type`= 'Sell' AND t.Total BETWEEN 8000000 AND 10000000))\nAND t.`DateTime` >= '2299-12-31';"
+        },
+        {
+          "text": "Mostra el nom (`Name`) dels productes (`Products`) que comencen per 'D' o que contenen dues 'o'. Ordena alfabèticament pel nom.",
+          "sql": "SELECT p.Name  FROM Products p \nWHERE p.Name LIKE 'D%' OR p.Name LIKE '%o%o%'\nORDER BY p.Name ;"
+        },
+        {
+          "text": "Mostra el nom (`Name`) dels productes que no han canviat mai de preu (no apareixen a `PriceChanges`), unint amb un `LEFT JOIN` i filtrant els que no tenen coincidència. Ordena alfabèticament pel nom.",
+          "sql": "SELECT p.Name\nFROM Products p LEFT JOIN PriceChanges pc ON p.Id = pc.ProductId\nWHERE pc.ProductId IS NULL\nORDER BY p.Name ;"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`Firstname`) i el cognom (`Lastname`) dels comerciants que han fet alguna estada (`Stays`) en què no s'ha fet cap transacció (`Trades`). Uneix `Traders`, `Stays` i `Trades` amb `LEFT JOIN` i queda't amb les estades sense cap transacció.",
+          "sql": "SELECT t.Id , t.Firstname , t.Lastname   \nFROM Traders t  LEFT JOIN Stays s  ON t.Id = s.TraderId \nLEFT JOIN Trades t2 ON s.Id = t2.StayId\nWHERE t2.Id IS NULL;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Name`) dels productes que s'han venut alguna vegada, unint `Products` i `TradeLines`. Ordena pel nom del producte.",
+          "sql": "SELECT DISTINCT p.Name \nFROM Products p JOIN TradeLines tl ON p.Id = tl.ProductId \nORDER BY p.Name ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Firstname`) i el cognom (`Lastname`) dels comerciants que en alguna de les seves estades (`Stays`) han venut el producte 'Fire Avens'. Uneix `Traders`, `Stays`, `Trades`, `TradeLines` i `Products`.",
+          "sql": "SELECT DISTINCT t.Firstname , t.Lastname  \nFROM Traders t JOIN Stays s ON t.Id = s.TraderId \nJOIN Trades t2 ON t2.StayId = s.Id \nJOIN TradeLines tl ON tl.TradeId = t2.Id\nJOIN Products p ON tl.ProductId = p.Id\nWHERE p.Name LIKE 'Fire Avens';"
+        },
+        {
+          "text": "Mostra l'identificador, el codi i el nom dels dos sistemes solars i la distància que els separa, de les parelles de sistemes que estan a menys de 6 anys llum (`Distance` < 6). Uneix `SolarSystems` amb `SolarSystemsDistances`. Posa àlies adequats a les columnes dels dos sistemes (`IdSis1`, `CodSis1`, `NameSis1`, `IdSis2`, `CodeSis2`, `NameSis2`).",
+          "sql": "SELECT ss.Id IdSis1, ss.Code CodSis1 , ss.Name NameSis1 , ss2.Id IdSis2, ss2.Code CodeSis2 , ss2.Name NameSis2 , ssd.Distance \nFROM SolarSystems ss JOIN SolarSystemsDistances ssd ON ss.Id  = ssd.SystemId1  \nJOIN SolarSystems ss2 ON ssd.SystemId2 = ss2.Id  \nWHERE ssd.Distance < 6;"
+        },
+        {
+          "text": "Mostra el nom (`Firstname`), el cognom (`Lastname`) i el nom de la nau (`Name`) dels comerciants per als quals la diferència entre el benefici perdut (`LostBenefit`) i el preu d'adquisició (`AcquisitionPrice`) és superior a 30.000. Uneix `Traders`, `ShipOwners` i `Ships`.",
+          "sql": "SELECT t.Firstname , t.Lastname , s.Name \nFROM Traders t JOIN ShipOwners so ON t.Id = so.TraderId \nJOIN Ships s ON so.ShipId = s.Id\nWHERE so.LostBenefit - so.AcquisitionPrice > 30000;"
+        },
+        {
+          "text": "Mostra el codi (`Code`) i el nom (`Name`) dels sistemes solars 'Grif' i 'Akaers' juntament amb el nom dels seus planetes (`Planets.Name`). Uneix `SolarSystems` i `Planets`.",
+          "sql": "SELECT ss.Code , ss.Name , p.Name \nFROM SolarSystems ss JOIN Planets p ON ss.Id = p.SystemId \nWHERE ss.Name  LIKE 'Grif' OR ss.Name LIKE 'Akaers';"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt05",
+      "name": "Traders QT — Funcions 01",
+      "type": "sqljoincomplex",
+      "intro": "Exercicis amb funcions de data i agregació (`DATEDIFF`, `YEAR`, `MONTH`, `AVG`) sobre Traders, migrats tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra quants dies ha tingut cada comerciant cadascuna de les seves naus: el sobrenom (`Nickname`), el nom de la nau (`Name`) i els dies (`DATEDIFF(LostDate, AcquisitionDate)`). Uneix `Traders`, `ShipOwners` i `Ships`, i ordena de menys a més dies.",
+          "sql": "SELECT t.Nickname , s.Name , DATEDIFF(so.LostDate, so.AcquisitionDate) Days\nFROM Traders t JOIN ShipOwners so ON t.Id = so.TraderId\nJOIN Ships s ON so.ShipId = s.Id\nORDER BY DATEDIFF(so.LostDate, so.AcquisitionDate);"
+        },
+        {
+          "text": "Mostra la durada mitjana en dies de les estades (`Stays`) de cada comerciant, amb una xifra decimal: el sobrenom (`Nickname`), el nom (`Firstname`), el cognom (`Lastname`) i la mitjana (`ROUND(AVG(DATEDIFF(EndDate, StartDate)), 1)`). Inclou-hi els comerciants que no han fet cap estada (amb `LEFT JOIN`).",
+          "sql": "SELECT t.Nickname , t.Firstname , t.Lastname, ROUND(AVG(DATEDIFF(s.EndDate,s.StartDate)),1) DuradaMitjana\nFROM Traders t LEFT JOIN Stays s ON t.Id = s.TraderId \nGROUP BY t.Id , t.Nickname , t.Firstname , t.Lastname;"
+        },
+        {
+          "text": "Mostra totes les dades (`Id`, `Code`, `Name`) dels sistemes solars que tenen més de 2 planetes. Uneix `SolarSystems` i `Planets` i agrupa per sistema.",
+          "sql": "SELECT ss.*\nFROM SolarSystems ss JOIN Planets p ON ss.Id = p.SystemId \nGROUP BY ss.Id, ss.Code , ss.Name  \nHAVING COUNT(p.Id) > 2;"
+        },
+        {
+          "text": "Mostra quants diners es van gastar en total en naus comprades (`AcquisitionCause` = 'bought') l'any 2283 (`YEAR(AcquisitionDate)`), sumant el preu d'adquisició (`AcquisitionPrice`) de la taula `ShipOwners`.",
+          "sql": "SELECT SUM(so.AcquisitionPrice)\nFROM ShipOwners so \nWHERE YEAR(so.AcquisitionDate) = 2283\nAND so.AcquisitionCause LIKE 'bought';"
+        },
+        {
+          "text": "Mostra quantes naus s'han perdut destruïdes (`LostCause` = 'destroyed') cada any: l'any amb 4 dígits (`YEAR(LostDate)`) i el nombre de naus. Agrupa per any.",
+          "sql": "SELECT YEAR(so.LostDate) AS 'Any', COUNT(so.ShipId) AS 'NausDestruides'\nFROM ShipOwners so \nWHERE so.LostCause LIKE 'destroyed'\nGROUP BY so.LostCause,YEAR(so.LostDate);"
+        },
+        {
+          "text": "Mostra el sobrenom (`Nickname`), el nom (`Firstname`), el cognom (`Lastname`) i la data de defunció (`DeceaseDate`) dels comerciants que van morir al desembre (`MONTH(DeceaseDate)` = 12) de qualsevol any.",
+          "sql": "SELECT t.Nickname , t.Firstname , t.Lastname , t.DeceaseDate \nFROM Traders t \nWHERE  MONTH(t.DeceaseDate) = 12;"
+        },
+        {
+          "text": "Mostra el tipus de nau (`Type`) i la seva capacitat mitjana amb una xifra decimal (`ROUND(AVG(Capacity), 1)`), agrupant per tipus a la taula `Ships`.",
+          "sql": "SELECT s.`Type`, ROUND(AVG(s.Capacity),1) \nFROM Ships s GROUP BY s.`Type`;"
+        },
+        {
+          "text": "Mostra quants dies falten perquè es morin els comerciants que ja tenen data de defunció: el sobrenom (`Nickname`) i els dies (`DATEDIFF(DeceaseDate, CURDATE())`). Filtra els que tenen `DeceaseDate`.",
+          "sql": "SELECT t.Nickname , DATEDIFF(t.DeceaseDate , CURDATE())\nFROM Traders t \nWHERE t.DeceaseDate IS NOT NULL;"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt06",
+      "name": "Traders QT — Barrejades 01",
+      "type": "sqlsubq",
+      "intro": "Consultes avançades amb subconsultes, funcions i màxims sobre Traders, migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra totes les dades personals (`Id`, `Nickname`, `Firstname`, `Lastname`) del comerciant (o comerciants) que més dies ha estat de viatge en total (suma de `DATEDIFF(EndDate, StartDate)` de `Stays`). Uneix `Traders` i `Stays`.",
+          "sql": "SELECT t.Id , t.Nickname , t.Firstname , t.Lastname FROM Traders t JOIN Stays s ON t.Id = s.TraderId \nGROUP BY t.Id , t.Nickname , t.Firstname , t.Lastname\nHAVING SUM(DATEDIFF(s.EndDate ,s.StartDate)) = (\n\tSELECT SUM(DATEDIFF(s.EndDate ,s.StartDate)) AS 'DiesEstades'\n\tFROM Stays s \n\tGROUP BY s.TraderId \n\tORDER BY DiesEstades DESC \n\tLIMIT 1)\n;"
+        },
+        {
+          "text": "Mostra, en una única columna, una frase per a cada parella de sistemes solars la distància dels quals és entre les 11 més petites, amb el format «De <sistema1> a <sistema2> hi ha <distància> anys llum» (`CONCAT`). Uneix `SolarSystems` i `SolarSystemsDistances`. Ordena per la distància i, en empat, pel nom del primer sistema.",
+          "sql": "SELECT CONCAT('De ',ss1.Name,' a ',ss2.Name, ' hi ha ',ssd.Distance, ' anys llum') \nFROM SolarSystems ss1 JOIN SolarSystemsDistances ssd ON  ss1.Id = ssd.SystemId1 \nJOIN SolarSystems ss2 ON ssd.SystemId2 = ss2.Id \nWHERE ssd.Distance IN (\n\tSELECT * FROM (SELECT ssd.Distance \n\tFROM SolarSystemsDistances ssd \n\tORDER BY ssd.Distance \n\tLIMIT 11) AS t\n\t)\nORDER BY ssd.Distance, ss1.Name;"
+        },
+        {
+          "text": "Mostra el planeta (o planetes) que més vegades ha visitat el comerciant 'Roys Vedstra': el nom del planeta (`Name`) i el nombre de visites (`NumVisites`). Uneix `Traders`, `Stays` i `Planets`, i queda't amb el màxim de visites.",
+          "sql": "SELECT p.Name , COUNT(s.PlanetId) AS 'NumVisites'\nFROM Traders t JOIN Stays s ON t.Id = s.TraderId\nJOIN Planets p ON s.PlanetId = p.Id \nWHERE t.Firstname LIKE 'Roys' AND t.Lastname LIKE 'Vedstra'\nGROUP BY s.PlanetId, p.Name \nHAVING NumVisites = (\n\t\tSELECT COUNT(s.PlanetId) AS 'MaxVisites'\n\t\tFROM Traders t JOIN Stays s ON t.Id = s.TraderId\n\t\tWHERE t.Firstname LIKE 'Roys' AND t.Lastname LIKE 'Vedstra'\n\t\tGROUP BY s.PlanetId\n\t\tORDER BY MaxVisites DESC \n\t\tLIMIT 1)\n;"
+        },
+        {
+          "text": "Mostra quants diners va gastar cada comerciant comprant naus (`AcquisitionCause` = 'Bought') entre els anys 2260 i 2275, ambdós inclosos: el sobrenom (`Nickname`) i la suma total arrodonida sense decimals (`TotalGastat`). Inclou-hi tots els comerciants (amb 0 si no van comprar cap nau). Ordena alfabèticament pel sobrenom.",
+          "sql": "SELECT t.Nickname, ROUND(NVL(SUM(so.AcquisitionPrice),0)) 'TotalGastat'\nFROM Traders t LEFT JOIN ShipOwners so\nON t.Id = so.TraderId AND so.AcquisitionCause LIKE 'Bought'\nAND YEAR(so.AcquisitionDate) BETWEEN 2260 AND 2275\nGROUP BY t.Id, t.Nickname\nORDER BY t.Nickname;"
+        },
+        {
+          "text": "Mostra a quin preu diari li va sortir cada nau a la comerciant 'Eriska Hordell': l'identificador (`ShipId`) i el nom (`Name`) de la nau i el preu diari amb dues xifres decimals (`AcquisitionPrice / DATEDIFF(LostDate, AcquisitionDate)`). Uneix `Traders`, `ShipOwners` i `Ships`. Ordena de més a menys preu i, en empat, per l'identificador de la nau.",
+          "sql": "SELECT so.ShipId , s.Name, ROUND((so.AcquisitionPrice/DATEDIFF(so.LostDate, so.AcquisitionDate)),2) 'PreuDiari'\nFROM Traders t JOIN ShipOwners so ON t.Id = so.TraderId \nJOIN Ships s ON so.ShipId = s.Id \nWHERE t.Firstname LIKE 'Eriska' AND t.Lastname LIKE 'Hordell'\nORDER BY PreuDiari DESC, so.ShipId;"
+        },
+        {
+          "text": "Mostra el sistema (o sistemes) solars amb més planetes: l'identificador (`Id`), el codi (`Code`) i el nom (`Name`). Uneix `SolarSystems` i `Planets`, i queda't amb el màxim nombre de planetes.",
+          "sql": "SELECT ss.Id , ss.Code , ss.Name  \nFROM SolarSystems ss JOIN Planets p ON ss.Id = p.SystemId \nGROUP BY ss.id, ss.Code , ss.Name \nHAVING COUNT(p.Id) = (\n\t\tSELECT COUNT(p.Id) \n\t\tFROM SolarSystems ss JOIN Planets p ON ss.Id = p.SystemId \n\t\tGROUP BY ss.id\n\t\tORDER BY COUNT(p.Id) DESC \n\t\tLIMIT 1\n\t\t)\n;"
+        },
+        {
+          "text": "Mostra totes les dades de l'última nau (o naus) que ha robat (`AcquisitionCause` = 'stolen') la comerciant 'Sabrya Mapother'. Uneix `Traders`, `ShipOwners` i `Ships`, i queda't amb la data d'adquisició (`AcquisitionDate`) més recent. Podria haver robat més d'una nau el mateix dia.",
+          "sql": "SELECT s.*\nFROM Traders t JOIN ShipOwners so ON t.Id = so.TraderId \nJOIN Ships s ON so.ShipId = s.Id \nWHERE t.Firstname LIKE 'Sabrya' AND t.Lastname LIKE 'Mapother' AND so.AcquisitionCause LIKE 'stolen'\nAND so.AcquisitionDate = (SELECT MAX(so.AcquisitionDate)\n\t\tFROM Traders t JOIN ShipOwners so ON t.Id = so.TraderId \n\t\tWHERE t.Firstname LIKE 'Sabrya' AND t.Lastname LIKE 'Mapother' AND so.AcquisitionCause LIKE 'stolen')\n;"
+        },
+        {
+          "text": "Mostra quantes naus s'han robat (`AcquisitionCause` = 'stolen') cada any: l'any amb 4 xifres (`YEAR(AcquisitionDate)`) i el nombre de naus robades (`NombreRobatoris`). Ordena per l'any.",
+          "sql": "SELECT YEAR(so.AcquisitionDate) 'Any', COUNT(so.ShipId) 'NombreRobatoris'\nFROM ShipOwners so \nWHERE so.AcquisitionCause LIKE 'stolen'\nGROUP BY YEAR(so.AcquisitionDate)\nORDER BY YEAR(so.AcquisitionDate);"
+        },
+        {
+          "text": "Mostra totes les dades dels productes (`Products`) que mai han canviat de preu (no apareixen a `PriceChanges`), amb una subconsulta `NOT IN`. Ordena pel nom del producte.",
+          "sql": "SELECT p.*\nFROM Products p \nWHERE p.Id NOT IN (SELECT DISTINCT(pc.ProductId) \n\tFROM PriceChanges pc)\nORDER BY p.Name;"
+        },
+        {
+          "text": "Mostra la durada mitjana en dies de les estades als planetes de cada comerciant: el sobrenom (`Nickname`) i la mitjana sense decimals (`ROUND(AVG(DATEDIFF(EndDate, StartDate)))`). Uneix `Stays` i `Traders`. Ordena de més a menys permanència.",
+          "sql": "SELECT t.Nickname , ROUND(AVG(DATEDIFF(s.EndDate, s.StartDate))) 'EstadaPromig'\nFROM Stays s JOIN Traders t ON s.TraderId = t.Id \nGROUP BY t.Id, t.Nickname \nORDER BY EstadaPromig DESC;"
+        },
+        {
+          "text": "Mostra totes les dades personals del primer comerciant que va morir (la `DeceaseDate` més petita), amb una subconsulta. Podria haver-ne mort més d'un el mateix dia.",
+          "sql": "SELECT *\nFROM Traders t \nWHERE t.DeceaseDate = (\n\t\tSELECT MIN(t.DeceaseDate)\n\t\tFROM Traders t)\n;"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt07",
+      "name": "Traders QT — Join 01",
+      "type": "sqljoinbasic",
+      "intro": "Primers `JOIN` entre taules de Traders, migrats tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Firstname`) dels comerciants i el nom de les naus (`Name`) que posseeixen, unint `Traders`, `ShipOwners` i `Ships`.",
+          "sql": "SELECT t.firstName, s.Name\nFROM traders.ShipOwners so\nINNER JOIN traders.Traders t ON t.Id = so.TraderId\nINNER JOIN traders.Ships s ON so.ShipId = s.Id;"
+        },
+        {
+          "text": "Mostra el nom de cada planeta (`Planets.Name`), el nom del sistema solar (`SolarSystems.Name`) i el codi del sistema (`Code`) al qual pertany, unint `Planets` i `SolarSystems`.",
+          "sql": "SELECT p.Name, ss.Name as n2, ss.Code\nFROM traders.Planets p\nINNER JOIN traders.SolarSystems ss ON p.SystemId = ss.Id;"
+        },
+        {
+          "text": "Mostra el nom dels dos sistemes solars (`Sistema1`, `Sistema2`) i la distància (`Distancia`) de cada parella, unint `SolarSystemsDistances` i `SolarSystems`.",
+          "sql": "SELECT s1.Name AS Sistema1, s2.Name AS Sistema2, sd.Distance AS Distancia\nFROM traders.SolarSystemsDistances sd\nINNER JOIN traders.SolarSystems s1 ON s1.Id = sd.SystemId1\nINNER JOIN traders.SolarSystems s2 ON s2.Id = sd.SystemId2;"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt08",
+      "name": "Traders QT — Consultes INNER JOIN",
+      "type": "sqljoinbasic",
+      "intro": "Consultes amb `INNER JOIN` i filtres sobre Traders, migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Id`), el sobrenom (`Nickname`), el nom (`Firstname`) i el cognom (`Lastname`) de tots els comerciants morts (tenen `DeceaseDate`). Ordena pel nom i, en empat, pel cognom.",
+          "sql": "SELECT t.Id , t.Nickname , t.Firstname , t.Lastname \nFROM Traders t WHERE t.DeceaseDate IS NOT NULL\nORDER BY t.Firstname , t.Lastname ;"
+        },
+        {
+          "text": "Mostra totes les dades de les transaccions (`Trades`) de tipus 'Buy' amb un import (`Total`) inferior a 100.000, o de tipus 'Sell' amb un import entre 8.000.000 i 10.000.000, i que en tots dos casos s'hagin fet a partir del 31 de desembre de 2299 (`DateTime`).",
+          "sql": "SELECT * FROM Trades t \nWHERE ((t.`Type` = 'Buy' AND  t.Total < 100000)\nOR (t.`Type`= 'Sell' AND t.Total BETWEEN 8000000 AND 10000000))\nAND t.`DateTime` >= '2299-12-31';"
+        },
+        {
+          "text": "Mostra el nom (`Name`) dels productes que comencen per 'D' o que contenen dues 'o'. Ordena alfabèticament pel nom.",
+          "sql": "SELECT p.Name  FROM Products p \nWHERE p.Name LIKE 'D%' OR p.Name LIKE '%o%o%'\nORDER BY p.Name ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Name`) dels productes que s'han venut alguna vegada, unint `Products` i `TradeLines`. Ordena pel nom.",
+          "sql": "SELECT DISTINCT p.Name \nFROM Products p JOIN TradeLines tl ON p.Id = tl.ProductId \nORDER BY p.Name ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Firstname`) i el cognom (`Lastname`) dels comerciants que en alguna estada (`Stays`) han venut el producte 'Fire Avens'. Uneix `Traders`, `Stays`, `Trades`, `TradeLines` i `Products`.",
+          "sql": "SELECT DISTINCT t.Firstname , t.Lastname  \nFROM Traders t JOIN Stays s ON t.Id = s.TraderId \nJOIN Trades t2 ON t2.StayId = s.Id \nJOIN TradeLines tl ON tl.TradeId = t2.Id\nJOIN Products p ON tl.ProductId = p.Id\nWHERE p.Name LIKE 'Fire Avens';"
+        },
+        {
+          "text": "Mostra l'identificador, el codi i el nom dels dos sistemes solars i la distància que els separa, de les parelles a menys de 6 anys llum (`Distance` < 6). Uneix `SolarSystems` i `SolarSystemsDistances`, amb àlies adequats (`IdSis1`, `CodSis1`, `NameSis1`, `IdSis2`, `CodeSis2`, `NameSis2`).",
+          "sql": "SELECT ss.Id IdSis1, ss.Code CodSis1 , ss.Name NameSis1 , ss2.Id IdSis2, ss2.Code CodeSis2 , ss2.Name NameSis2 , ssd.Distance \nFROM SolarSystems ss JOIN SolarSystemsDistances ssd ON ss.Id  = ssd.SystemId1  \nJOIN SolarSystems ss2 ON ssd.SystemId2 = ss2.Id  \nWHERE ssd.Distance < 6;"
+        },
+        {
+          "text": "Mostra el codi (`Code`) i el nom (`Name`) dels sistemes solars 'Grif' i 'Akaers' amb el nom dels seus planetes (`Planets.Name`), unint `SolarSystems` i `Planets`.",
+          "sql": "SELECT ss.Code , ss.Name , p.Name \nFROM SolarSystems ss JOIN Planets p ON ss.Id = p.SystemId \nWHERE ss.Name  LIKE 'Grif' OR ss.Name LIKE 'Akaers';"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt09",
+      "name": "Traders QT — Consultes intermèdies",
+      "type": "sqlsubq",
+      "intro": "Consultes intermèdies amb subconsultes i agregació sobre Traders, migrades tal qual d'un test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el sobrenom (`nickname`), el nom (`Firstname`) i el cognom (`Lastname`) del comerciant que ha obtingut el benefici total de comerç més alt (suma de `Total` de `Trades`). Uneix `Traders`, `Stays` i `Trades`, ordena per la suma de més a menys i mostra només la primera fila.",
+          "sql": "select t.nickname, t.Firstname , t.Lastname \nfrom Traders t \njoin Stays s on s.TraderId = t.Id \njoin Trades t2 on t2.StayId = s.Id \ngroup by t.Nickname, t.Firstname , t.Lastname  \norder by SUM(t2.Total) DESC \nlimit 1;"
+        },
+        {
+          "text": "Mostra el nom del planeta (`name`) i la mitjana del nou preu (`avg_price`, mitjana de `newprice`) comptant només l'última actualització de preu de cada planeta. Uneix `Planets` i `PriceChanges`, i ordena de més a menys preu mitjà.",
+          "sql": "SELECT p.name, AVG(pc.newprice) AS avg_price\nFROM Planets p\nJOIN PriceChanges pc ON p.id = pc.planetId\nWHERE pc.date = (\n    SELECT MAX(pc2.date)\n    FROM PriceChanges pc2\n    WHERE pc2.planetId = p.id\n)\nGROUP BY p.name\nORDER BY avg_price DESC;"
+        },
+        {
+          "text": "Mostra el nom (`name`), el tipus (`type`) i la capacitat (`capacity`) dels vaixells que pertanyen a algun propietari viu (`deceaseDate` no té valor) i que estan en funcionament. Uneix `Ships`, `ShipOwners` i `Traders` (amb una subconsulta `IN`). Ordena per capacitat de més a menys.",
+          "sql": "SELECT s.name, s.type, s.capacity\nFROM Ships s\nWHERE s.id IN (\n    SELECT so.shipId\n    FROM ShipOwners so\n    JOIN Traders t ON so.traderId = t.id\n    WHERE t.deceaseDate IS NULL\n)\nORDER BY s.capacity DESC;"
+        },
+        {
+          "text": "Mostra el sobrenom (`nickname`), el nom (`firstname`) i el cognom (`lastname`) dels comerciants que han visitat més de 3 sistemes solars diferents. Uneix (amb una subconsulta) `Stays` i `Planets`, i compta els sistemes diferents (`COUNT(DISTINCT p.systemId)`).",
+          "sql": "SELECT t.nickname, t.firstname, t.lastname\nFROM Traders t\nWHERE t.id IN (\n    SELECT s.traderId\n    FROM Stays s\n    JOIN Planets p ON s.planetId = p.id\n    GROUP BY s.traderId\n    HAVING COUNT(DISTINCT p.systemId) > 3\n);"
+        },
+        {
+          "text": "Mostra el nom (`name`) del sistema solar més allunyat del sistema amb `id` 1. Uneix `SolarSystems` i `SolarSystemsDistances`, i queda't amb la distància màxima (`MAX(distance)`) des del sistema 1.",
+          "sql": "SELECT ss.name\nFROM SolarSystems ss\nJOIN SolarSystemsDistances ssd ON ss.id = ssd.systemId2\nWHERE ssd.systemId1 = 1\nAND ssd.distance = (\n    SELECT MAX(ssd2.distance)\n    FROM SolarSystemsDistances ssd2\n    WHERE ssd2.systemId1 = 1\n);"
+        }
+      ]
+    },
+    {
+      "code": "sqltradersqt10",
+      "name": "Traders QT — Examen fusionat 1",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals de Traders, reconstruïdes a partir del SQL i ordenades per dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Firstname`), el cognom (`Lastname`), l'any d'inici (`YEAR(StartDate)`) i l'any de fi (`YEAR(EndDate)`) de les estades i el nom del planeta (`Name`) dels comerciants que han estat al planeta 'Creon J1V'. Uneix `Traders`, `Stays` i `Planets`. Ordena pel nom.",
+          "sql": "SELECT Firstname, Lastname, YEAR(s.StartDate), YEAR(s.EndDate), p.Name \nFROM traders.Traders t\nJOIN Stays s ON s.TraderId = t.Id \nJOIN Planets p ON p.id = s.PlanetId \nWHERE p.Name ='Creon J1V'\nORDER BY Firstname;"
+        },
+        {
+          "text": "Mostra el tipus de nau (`Type`) i la capacitat mitjana (`TotalCapacity`, mitjana de `Capacity`) de cada tipus, de la taula `Ships`. Mostra només els tipus amb mitjana superior a 10 i ordena per aquesta capacitat de més a menys.",
+          "sql": "SELECT Type, AVG(Capacity) AS TotalCapacity \nFROM Ships \nGROUP BY Type \nHAVING TotalCapacity>10 \nORDER BY TotalCapacity DESC"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`) i el nom (`Name`) de la nau i el sobrenom (`Nickname`) del comerciant propietari de cada nau l'1 de juny de 2283 que després la va vendre (`LostCause` = 'Sold'). Uneix `Ships`, `ShipOwners` i `Traders`. Ordena per l'identificador de la nau i, dins de cada nau, pel sobrenom.",
+          "sql": "SELECT s.Id, s.Name, t.Nickname\nFROM Ships s\nJOIN ShipOwners so ON so.ShipId=s.Id\nJOIN Traders t ON t.Id=so.TraderId\nWHERE AcquisitionDate<'2283-06-01' AND LostDate>'2283-06-01' and so.LostCause like 'Sold'\nORDER BY s.Id, t.Nickname"
+        },
+        {
+          "text": "Mostra el nom del producte (`name`), l'import de cada línia (`total`, `UnitPrice * Quantity`) i el mes (`mes`, `MONTH` de la data) de les línies de comerç del producte 'Worm Celery' corresponents al mes de maig (mes 5). Uneix `Products`, `TradeLines` i `PriceChanges`.",
+          "sql": "SELECT name, (TradeLines.UnitPrice * TradeLines.Quantity) as total , MONTH(PriceChanges.DATE) as mes\nFROM traders.Products p\nJOIN traders.TradeLines ON TradeLines.ProductId = p.Id\nJOIN traders.PriceChanges ON PriceChanges.Id = TradeLines.Id\nWHERE p.name='Worm Celery'\nHAVING mes='5'"
+        },
+        {
+          "text": "Mostra el codi (`Code`), el nom (`Name`) i el nombre de planetes (`NumPlanets`) de cada sistema solar, unint `SolarSystems` i `Planets`. Ordena pel nombre de planetes de més a menys i, en empat, pel codi.",
+          "sql": "SELECT ss.Code, ss.Name, COUNT(*) AS NumPlanets \nFROM SolarSystems ss \nJOIN Planets p ON ss.Id=p.SystemId \nGROUP BY ss.Id, ss.Code, ss.Name \nORDER BY NumPlanets DESC, ss.Code"
+        },
+        {
+          "text": "Mostra el codi (`Code`), el nom (`Name`) i el nombre de planetes (`nPlanets`) dels sistemes amb més d'un planeta, unint `SolarSystems` i `Planets`. Ordena pel nombre de planetes de més a menys i, en empat, pel codi.",
+          "sql": "SELECT s.Code, s.Name, COUNT(*) AS nPlanets\nFROM SolarSystems s\nJOIN Planets p ON p.SystemId=s.Id\nGROUP BY  s.Code, s.Name\nHAVING nPlanets>1\nORDER BY nPlanets DESC, s.Code"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`) i el nom (`Name`) dels productes que no apareixen a `PriceChanges` (zero canvis de preu), unint `Products` amb `PriceChanges` mitjançant un `LEFT JOIN`.",
+          "sql": "SELECT pr.Id, pr.Name\nFROM Products pr\nLEFT JOIN PriceChanges pc ON pc.ProductId=pr.Id\nGROUP BY pr.Id, pr.Name\nHAVING COUNT(pc.Id)=0"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`) i el nom (`Name`) dels productes que sí que apareixen a `PriceChanges` (tenen almenys un canvi de preu), unint `Products` amb `PriceChanges` mitjançant un `LEFT JOIN`.",
+          "sql": "SELECT pr.Id, pr.Name\nFROM Products pr\nLEFT JOIN PriceChanges pc ON pc.ProductId=pr.Id\nGROUP BY pr.Id, pr.Name\nHAVING COUNT(pc.Id)>0"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`Name`) i el nombre de visites de comerciants de tots els planetes, incloent-hi els que no n'han rebut cap. Uneix `Planets` amb `Stays` i `Traders` mitjançant `LEFT JOIN`. Ordena per l'identificador del planeta.",
+          "sql": "SELECT p.Id, p.Name, COUNT(t.Id)\nFROM Planets p\nLEFT JOIN Stays s ON p.Id=s.PlanetId\nLEFT JOIN Traders t ON t.Id=s.TraderId\nGROUP BY p.Id, p.Name\nORDER BY p.Id"
+        }
+      ]
+    }
+  ]
+}

@@ -150,7 +150,7 @@ def link_user(user):
         user, profile = user.user, user
     else:
         raise ValueError('Expected profile or user, got %s' % (type(user),))
-    return {'user': user, 'profile': profile}
+    return {'user': user, 'profile': profile, 'rainbow': profile.id in Profile.rainbow_name_ids()}
 
 
 @registry.function

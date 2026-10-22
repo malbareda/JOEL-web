@@ -64,7 +64,7 @@
                 $category.select2().css({'visibility': 'visible'}).change(clean_submit);
                 $task.select2().css({'visibility': 'visible'}).change(clean_submit);
 
-                $('#types').select2({multiple: 1, placeholder: '{{ _('Filter by type...') }}'})
+                $('#types').select2({multiple: 1, placeholder: '{{ _('Filter by type...')|escapejs }}'})
                     .css({'visibility': 'visible'});
 
                 // This is incredibly nasty to do but it's needed because otherwise the select2 steals the focus

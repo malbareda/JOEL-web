@@ -1,0 +1,118 @@
+{
+  "database": "ies23g",
+  "engine": "mysql",
+  "code_prefix": "sqlies23qt",
+  "author": "joanq",
+  "label": "IES 2023 (institut: usuaris, grups, cicles, mòduls, unitats formatives, qualificacions, tasques i registre) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "name": "IES23 QT — Subconsultes amb EXISTS, ANY i ALL",
+      "type": "sqlsubq",
+      "intro": "Subconsultes correlacionades amb EXISTS i NOT EXISTS i comparacions amb ANY i ALL sobre usuaris, tasques i unitats formatives.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`nomUsuari`) i els dos cognoms en una sola columna separats per un espai (`cognoms`, a partir de `cognom1Usuari` i `cognom2Usuari`) dels usuaris (`usuaris`) que tenen almenys una tasca assignada a `tasques_alumnes` que correspongui a una tasca existent de `tasques`. Fes-ho amb EXISTS.",
+          "sql": "SELECT nomUsuari, CONCAT(cognom1Usuari, ' ', cognom2Usuari) AS cognoms\nFROM usuaris u\nWHERE EXISTS (\n    SELECT 1\n    FROM tasques_alumnes ta\n    JOIN tasques t ON ta.idtasca = t.id\n    WHERE ta.idalumne = u.idUsuari\n);"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`) i els dos cognoms en una sola columna separats per un espai (`cognoms`, a partir de `cognom1Usuari` i `cognom2Usuari`) dels usuaris (`usuaris`), de qualsevol rol, que no tenen cap tasca a `tasques_alumnes`. Fes-ho amb NOT EXISTS.",
+          "sql": "SELECT nomUsuari, CONCAT(cognom1Usuari, ' ', cognom2Usuari) AS cognoms\nFROM usuaris u\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM tasques_alumnes ta\n    WHERE ta.idalumne = u.idUsuari\n);"
+        },
+        {
+          "text": "Mostra l'`id` i el nom (`nomtasca`) de les tasques (`tasques`) que tenen menys hores (`hores`) que alguna de les tasques obligatòries (`obligatoria` = 1). Fes-ho amb ANY.",
+          "sql": "SELECT id, nomtasca\nFROM tasques\nWHERE hores < ANY (\n    SELECT hores\n    FROM tasques\n    WHERE obligatoria = 1\n);"
+        },
+        {
+          "text": "Mostra l'`id`, la unitat (`unitat`) i les hores (`hores`) de les unitats formatives (`unitats_formatives`) que tenen més hores que totes les unitats formatives del mòdul amb `idmodul` igual a 3. Fes-ho amb ALL.",
+          "sql": "SELECT id, unitat, hores\nFROM unitats_formatives\nWHERE hores > ALL (\n    SELECT hores\n    FROM unitats_formatives\n    WHERE idmodul = 3\n);"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`) i els dos cognoms en una sola columna separats per un espai (`cognoms`) dels usuaris (`usuaris`) que tenen alguna nota (`nota`) superior a 8 en algun mòdul (taula `alumnes_moduls`). Fes-ho amb EXISTS.",
+          "sql": "SELECT nomUsuari, CONCAT(cognom1Usuari, ' ', cognom2Usuari) AS cognoms\nFROM usuaris u\nWHERE EXISTS (\n    SELECT 1\n    FROM alumnes_moduls am\n    WHERE am.idalumne = u.idUsuari\n    AND am.nota > 8\n);"
+        }
+      ]
+    },
+    {
+      "name": "IES23 QT — Examen fusionat 1",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals, deduplicades i ordenades de menys a més dificultat (funcions de cadena, UNION, registre de connexions i subconsultes).",
+      "questions": [
+        {
+          "text": "Mostra, en una única columna anomenada `NC`, el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`) i el segon cognom (`cognom2Usuari`) de cada usuari (`usuaris`) separats per un espai. Si algun d'aquests camps és NULL, posa-hi la cadena buida. Ordena per la longitud de la cadena resultant, de més curta a més llarga.",
+          "sql": "select concat(ifnull(u.nomUsuari,''),' ', ifnull(u.cognom1Usuari,''),' ', ifnull(u.cognom2Usuari,'')) as NC\nfrom usuaris u \norder by LENGTH (NC)"
+        },
+        {
+          "text": "Mostra, en una única columna sense àlies, el correu (`emailUsuari`) i l'identificador de grup (`idGrup`) de cada usuari (`usuaris`) separats per un espai. Si un usuari no té correu, posa-hi 'SENSE EMAIL', i si no té grup, 'SENSE GRUP'. Ordena per la longitud del primer cognom (`cognom1Usuari`), de més curt a més llarg.",
+          "sql": "select concat(ifnull(u.emailUsuari,'SENSE EMAIL'),' ', ifnull(u.idGrup ,'SENSE GRUP')) \nfrom usuaris u \norder by LENGTH (u.cognom1Usuari)"
+        },
+        {
+          "text": "Mostra, en una única columna i sense repeticions, tots els cognoms dels usuaris (`usuaris`), tant si apareixen com a primer cognom (`cognom1Usuari`) com a segon cognom (`cognom2Usuari`). No incloguis els valors NULL. Ordena alfabèticament.",
+          "sql": "select cognom1Usuari\nfrom usuaris u \nwhere cognom1Usuari is not null\nUNION\nselect cognom2Usuari \nfrom usuaris u\nwhere cognom2Usuari is not null\norder by 1"
+        },
+        {
+          "text": "Mostra l'identificador de cada usuari (`idUsuari`) i, en una sola columna sense àlies, tots els moments (`Moment`) en què s'ha connectat el dia 10 de març de 2023 (taula `registre`), separats per comes i ordenats cronològicament. Ordena per `idUsuari`.",
+          "sql": "select r.idUsuari, GROUP_CONCAT(Moment order by Moment) \nfrom registre r \nwhere Moment like '2023-03-10%' \ngroup by r.idUsuari"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`), el segon cognom (`cognom2Usuari`) i la data de naixement (`dataNaixement`) dels usuaris nascuts l'any 2000 o el 2003 que s'han connectat (taula `registre`) el dia 10 de març de 2023. Ordena per data de naixement, primer cognom, segon cognom i nom.",
+          "sql": "SELECT distinct u.nomUsuari,u.cognom1Usuari, u.cognom2Usuari, u.dataNaixement\nFROM registre r  JOIN usuaris u on r.idUsuari = u.idUsuari \nwhere (year(u.dataNaixement) = 2000 or year (u.dataNaixement) = 2003) and r.Moment >= '2023-03-10' and r.Moment < '2023-03-11'  \norder by u.dataNaixement, u.cognom1Usuari, u.cognom2Usuari, u.nomUsuari"
+        },
+        {
+          "text": "Mostra l'identificador de cada usuari (`idUsuari`) i, en una sola columna sense àlies, tots els moments (`Moment`) en què s'ha connectat el dia 9 d'abril de 2023 (taula `registre`), separats per comes i ordenats cronològicament.",
+          "sql": "select r.idUsuari, GROUP_CONCAT(Moment order by Moment) \nfrom registre r \nwhere Moment BETWEEN '2023-04-09' and '2023-04-10'\ngroup by r.idUsuari"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`), el segon cognom (`cognom2Usuari`) i la data de naixement (`dataNaixement`) dels usuaris nascuts el mes d'agost o de desembre que s'han connectat (taula `registre`) el dia 9 d'abril de 2023. Ordena per data de naixement, primer cognom, segon cognom i nom.",
+          "sql": "SELECT distinct u.nomUsuari,u.cognom1Usuari, u.cognom2Usuari, u.dataNaixement\nFROM registre r  JOIN usuaris u on r.idUsuari = u.idUsuari \nwhere (month(u.dataNaixement) = 8 or month (u.dataNaixement) = 12) and r.Moment >= '2023-04-09' and r.Moment < '2023-04-10'  \norder by u.dataNaixement, u.cognom1Usuari, u.cognom2Usuari, u.nomUsuari"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`) i el segon cognom (`cognom2Usuari`) dels usuaris que no s'han connectat (taula `registre`) el dia 10 de març de 2023. Ordena per primer cognom, segon cognom i nom.",
+          "sql": "select u.nomUsuari, u.cognom1Usuari, u.cognom2Usuari \nfrom usuaris u \nwhere u.idUsuari  not in (\tselect r.idUsuari\n\t\t\t\t\tfrom registre r \n\t\t\t\t\twhere Moment BETWEEN '2023-03-10' and '2023-03-11'\n\t\t\t\t  )\norder by u.cognom1Usuari,u.cognom2Usuari, u.nomUsuari"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`) i el segon cognom (`cognom2Usuari`) dels usuaris (`usuaris`) que no han accedit mai al sistema (no tenen cap fila a `registre`). Ordena per primer cognom, segon cognom i nom.",
+          "sql": "select u.nomUsuari, u.cognom1Usuari, u.cognom2Usuari \nfrom usuaris u left join registre l on u.idUsuari = l.idUsuari \nwhere l.idUsuari is null\norder by u.cognom1Usuari, u.cognom2Usuari, u.nomUsuari"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`) i el segon cognom (`cognom2Usuari`) dels usuaris que no s'han connectat (taula `registre`) el dia 9 d'abril de 2023. Ordena per primer cognom, segon cognom i nom.",
+          "sql": "select u.nomUsuari, u.cognom1Usuari, u.cognom2Usuari \nfrom usuaris u \nwhere u.idUsuari  not in (\tselect r.idUsuari\n\t\t\t\t\tfrom registre r \n\t\t\t\t\twhere Moment BETWEEN '2023-04-09' and '2023-04-10'\n\t\t\t\t  )\norder by u.cognom1Usuari,u.cognom2Usuari, u.nomUsuari"
+        }
+      ]
+    },
+    {
+      "name": "IES23 QT — Examen fusionat 2",
+      "type": "sqlsubq",
+      "intro": "Continuació de les preguntes d'examen deduplicades, de dificultat creixent (agrupació amb HAVING, dates, subconsultes i JOINs de diverses taules).",
+      "questions": [
+        {
+          "text": "Mostra els dies i mesos de l'any en què almenys 3 usuaris (`usuaris`) fan anys: el dia (`d`), el mes (`m`) i el nombre d'usuaris que hi fan anys (`num`). Tingues en compte només els usuaris amb data de naixement (`dataNaixement`) definida. Ordena per `num` de més a menys i, en cas d'empat, per mes i dia.",
+          "sql": "select day(dataNaixement) d, month(dataNaixement) m, count(*) num\nfrom usuaris u \nwhere u.dataNaixement is not null\ngroup by m, d\nhaving num >= 3\norder by num desc, m, d"
+        },
+        {
+          "text": "Mostra el nom (`nomUsuari`), el primer cognom (`cognom1Usuari`) i el segon cognom (`cognom2Usuari`) dels 10 últims usuaris diferents que han accedit al sistema segons `registre` (`Moment` més recent). Ordena el resultat per primer cognom, segon cognom i nom.",
+          "sql": "select u.nomUsuari, u.cognom1Usuari, u.cognom2Usuari \nfrom usuaris u \nwhere idUsuari in (\tselect * from (\n\t\t\t\t\t\t\t\t\tselect distinct l.idUsuari \n\t\t\t\t\t\t\t\t\tfrom registre l \n\t\t\t\t\t\t\t\t\torder by l.Moment desc\n\t\t\t\t\t\t\t\t\tlimit 10\n\t\t\t\t\t\t\t\t\t) as t)\norder by u.cognom1Usuari, u.cognom2Usuari, u.nomUsuari"
+        },
+        {
+          "text": "Mostra els dies i mesos de l'any en què almenys 4 usuaris (`usuaris`) fan anys: el dia (`d`), el mes (`m`) i el nombre d'usuaris que hi fan anys (`num`). Tingues en compte només els usuaris amb data de naixement (`dataNaixement`) definida. Ordena per `num` de més a menys i, en cas d'empat, per mes i dia.",
+          "sql": "select day(dataNaixement) d, month(dataNaixement) m, count(*) num\nfrom usuaris u \nwhere u.dataNaixement is not null\ngroup by m, d\nhaving num >= 4\norder by num desc, m, d"
+        },
+        {
+          "text": "Per a cada grup (`grups`), mostra el nom del grup (`nom`), la data de naixement de l'alumne (`rol` = 'A') més jove, la de l'alumne més gran i la diferència en dies entre aquestes dues dates (amb `datediff`), en aquest ordre i sense àlies. Mostra només els grups on aquesta diferència és superior a 10000 dies.",
+          "sql": "select g.nom, max(u.dataNaixement), min(u.dataNaixement), datediff(max(u.dataNaixement), min(u.dataNaixement)) \nfrom usuaris u join grups g on u.idGrup = g.id\nwhere u.rol = 'A'\ngroup by g.nom \nhaving datediff(max(u.dataNaixement), min(u.dataNaixement)) > 10000"
+        },
+        {
+          "text": "Per a cada grup (`grups`), mostra el nom del grup (`nom`), la data de naixement de l'alumne (`rol` = 'A') més jove, la de l'alumne més gran i la diferència en dies entre aquestes dues dates (amb `datediff`), en aquest ordre i sense àlies. Mostra només els grups on aquesta diferència és inferior a 3000 dies.",
+          "sql": "select g.nom, max(u.dataNaixement), min(u.dataNaixement), datediff(max(u.dataNaixement), min(u.dataNaixement)) \nfrom usuaris u join grups g on u.idGrup = g.id\nwhere u.rol = 'A'\ngroup by g.nom \nhaving datediff(max(u.dataNaixement), min(u.dataNaixement)) < 3000"
+        },
+        {
+          "text": "Mostra, sense repeticions, el correu (`emailUsuari`) dels usuaris, les hores de la unitat formativa (`hores`) i les notes de primera i segona convocatòria (`nota1c`, `nota2c` de `qualificacions`), per als usuaris que tenen una qualificació suspesa en primera convocatòria (`nota1c` < 5) d'una unitat formativa de més de 60 hores que el seu grup (`idGrup`) cursa a l'aula 'F3' (`nomaula`). Taules: `usuaris`, `grups_unitats_formatives`, `aules`, `qualificacions` i `unitats_formatives`.",
+          "sql": "SELECT distinct u.emailUsuari, uf.hores, q.nota1c, q.nota2c \nfrom usuaris u join grups_unitats_formatives guf on u.idGrup = guf.idgrup  \n\t\t       join aules a on guf.idaula = a.id\n\t\t       join qualificacions q on u.idUsuari = q.idalumne \n\t\t       join unitats_formatives uf on uf.id = q.idunitatformativa\n\t\t       and  uf.id = guf.idunitatformativa \nwhere a.nomaula = 'F3' and uf.hores > 60 and q.nota1c <5"
+        },
+        {
+          "text": "Mostra, sense repeticions, el correu (`emailUsuari`) dels usuaris, les hores de la unitat formativa (`hores`) i les notes de primera i segona convocatòria (`nota1c`, `nota2c` de `qualificacions`), per als usuaris que tenen una qualificació aprovada en primera convocatòria (`nota1c` >= 5) d'una unitat formativa de menys de 50 hores que el seu grup (`idGrup`) cursa a l'aula 'C4' (`nomaula`). Taules: `usuaris`, `grups_unitats_formatives`, `aules`, `qualificacions` i `unitats_formatives`.",
+          "sql": "SELECT distinct u.emailUsuari, uf.hores, q.nota1c, q.nota2c \nfrom usuaris u join grups_unitats_formatives guf on u.idGrup = guf.idgrup  \n\t\t       join aules a on guf.idaula = a.id\n\t\t       join qualificacions q on u.idUsuari = q.idalumne \n\t\t       join unitats_formatives uf on uf.id = q.idunitatformativa\n\t\t       and  uf.id = guf.idunitatformativa \nwhere a.nomaula = 'C4' and uf.hores < 50 and q.nota1c>=5"
+        }
+      ]
+    }
+  ]
+}

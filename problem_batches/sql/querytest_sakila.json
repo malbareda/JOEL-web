@@ -1,0 +1,675 @@
+{
+  "database": "sakila",
+  "engine": "mysql",
+  "code_prefix": "sqlsakilaqt",
+  "author": "joanq",
+  "label": "Sakila (videoclub: pel·lícules, actors, categories, clients, lloguers i pagaments) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "name": "Sakila QT — Funcions 01",
+      "type": "sqljoincomplex",
+      "intro": "Funcions de data, agregació i JOINs de diverses taules sobre els lloguers i pagaments de Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra, per a cada pel·lícula (per títol, no per exemplar) i per a cada botiga, quants diners s'han ingressat en total amb els seus lloguers. Columnes: el títol (`title`), l'identificador de la botiga (`store_id`) i la suma dels imports (`amount`) de `payment` com a `income`. Cal relacionar `payment`, `rental`, `inventory` i `film`. Ordena alfabèticament pel títol i, per a la mateixa pel·lícula, per `store_id`.",
+          "sql": "SELECT title, i.store_id, SUM(amount) AS income\n  FROM payment p\n  JOIN rental r ON r.rental_id=p.rental_id\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  GROUP BY f.film_id,i.store_id,title\n  ORDER BY title, i.store_id;"
+        },
+        {
+          "text": "Mostra els clients (`customer`) que tenen alguna pel·lícula llogada i encara no retornada (a `rental`, `return_date` és NULL). Columnes: nom (`first_name`), cognom (`last_name`), títol de la pel·lícula (`title`), identificador de l'exemplar (`inventory_id`) i data del lloguer (`rental_date`). Ordena per data de lloguer, després per cognom, per nom i per `inventory_id`.",
+          "sql": "SELECT first_name, last_name, title, i.inventory_id, r.rental_date\n  FROM customer c\n  JOIN rental r ON r.customer_id=c.customer_id\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  WHERE r.return_date IS NULL\n  ORDER BY r.rental_date, last_name, first_name, i.inventory_id;"
+        },
+        {
+          "text": "La clienta Kelly Torres vol saber si alguna vegada ha llogat la pel·lícula 'ALASKA PHANTOM'. Mostra la data de lloguer (`rental_date`) de cada vegada que l'ha llogada (si no l'hagués llogada mai, el resultat seria buit).",
+          "sql": "SELECT r.rental_date\n  FROM rental r\n  JOIN customer c ON r.customer_id=c.customer_id\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  WHERE c.first_name LIKE 'Kelly'\n    AND c.last_name LIKE 'Torres'\n    AND f.title LIKE 'ALASKA PHANTOM';"
+        },
+        {
+          "text": "Mostra quants lloguers (`rental`) s'han fet cada mes des de juliol de 2005 fins a abril de 2006 (inclosos). Columnes: nombre de lloguers (`n_rentals`), número de mes (`month`) i any (`year`). Ordena del més recent al més antic (per any i mes descendents).",
+          "sql": "SELECT COUNT(*) AS n_rentals, MONTH(rental_date) as month, YEAR(rental_date) AS year\n  FROM rental\n  WHERE DATE(rental_date) >= '2005-07-01'\n   AND DATE(rental_date) < '2006-05-01'\n  GROUP BY month, year\n  ORDER BY year DESC, month DESC;"
+        },
+        {
+          "text": "Mostra tots els lloguers fets entre el 15 i el 20 de juny de 2005 (tots dos dies inclosos). Per a cada lloguer: nom (`first_name`) i cognom (`last_name`) del client, títol de la pel·lícula (`title`), data del lloguer (`rental_date`), data de retorn (`return_date`, o un guionet `'-'` si encara no s'ha retornat) i data màxima de retorn, calculada com `rental_date` més els dies de `rental_duration` de la taula `film`. Ordena per data de lloguer i per títol.",
+          "sql": "SELECT first_name, last_name, title, rental_date, IFNULL(return_date, '-'), ADDDATE(rental_date, rental_duration)\n  FROM customer c\n  JOIN rental r ON c.customer_id=r.customer_id\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  WHERE rental_date BETWEEN '2005-06-15' AND '2005-06-20 23:59:59'\n  ORDER BY rental_date, title;"
+        },
+        {
+          "text": "Mostra, per a cada hora del dia (`hour`, l'hora de `rental_date`), quants lloguers s'hi han fet en total (`n_rentals`). Ordena de més a menys lloguers.",
+          "sql": "SELECT HOUR(rental_date) AS hour, COUNT(*) AS n_rentals\n  FROM rental\n  GROUP BY hour\n  ORDER BY n_rentals DESC;"
+        },
+        {
+          "text": "Mostra quants lloguers s'han fet cada dia d'abril i maig de 2005. Columnes: la data sense hora (`day`) i el nombre de lloguers (`n_rentals`). Ordena per data.",
+          "sql": "SELECT DATE(rental_date) as day, COUNT(*) AS n_rentals\n  FROM rental\n  WHERE DATE(rental_date) BETWEEN '2005-04-01' AND '2005-05-31'\n  GROUP BY day\n  ORDER BY day;"
+        },
+        {
+          "text": "Troba l'actor o actriu preferit del client Austin Cintron: el que apareix més vegades a les pel·lícules que ha llogat (comptant cada lloguer). Mostra el nombre d'aparicions (`n_films`), el nom (`first_name`) i el cognom (`last_name`) de l'actor. Ordena de més a menys aparicions i mostra només la primera fila.",
+          "sql": "SELECT COUNT(*) AS n_films, a.first_name, a.last_name\n  FROM customer c\n  JOIN rental r ON c.customer_id=r.customer_id\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  JOIN film_actor fa ON fa.film_id=f.film_id\n  JOIN actor a ON a.actor_id=fa.actor_id\n  WHERE c.first_name LIKE 'Austin'\n    AND c.last_name LIKE 'Cintron'\n  GROUP BY a.actor_id, a.first_name, a.last_name\n  ORDER BY n_films DESC\n  LIMIT 1;"
+        },
+        {
+          "text": "Mostra les ciutats on tenim més d'un client. Columnes: nombre de clients (`n_customers`), ciutat (`city`) i país (`country`). Ordena de més a menys clients i, en cas d'empat, pel nom de la ciutat.",
+          "sql": "SELECT COUNT(*) AS n_customers, city, country\n  FROM customer c\n  JOIN address a ON c.address_id=a.address_id\n  JOIN city ON city.city_id=a.city_id\n  JOIN country ON country.country_id=city.country_id\n  GROUP BY city.city_id, country.country_id, city, country\n  HAVING n_customers>1\n  ORDER BY n_customers DESC, city;"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules que contenen la paraula 'AFFAIR' al títol, juntament amb el nom (`name`) de cadascuna de les seves categories (taules `film_category` i `category`).",
+          "sql": "SELECT f.title, c.name\n  FROM film f\n  JOIN film_category fc ON f.film_id=fc.film_id\n  JOIN category c ON c.category_id=fc.category_id\n  WHERE INSTR(f.title,'AFFAIR') > 0;"
+        },
+        {
+          "text": "Mostra els lloguers que s'han retornat fora de termini (com a mínim un dia sencer de retard; no compten els que només s'han retornat unes hores tard). Columnes: `rental_id`, `rental_date`, `return_date`, la durada permesa del lloguer (`rental_duration` de `film`), la suma de l'import pagat per aquest lloguer (`amount` de `payment`) i els dies de retard com a `late_days` (diferència en dies entre `return_date` i `rental_date` + `rental_duration`). Ordena per `rental_id`.",
+          "sql": "SELECT r.rental_id, r.rental_date, r.return_date, f.rental_duration, SUM(p.amount), \nDATEDIFF(r.return_date, ADDDATE(r.rental_date, f.rental_duration)) AS late_days\n  FROM rental r\n  JOIN inventory i ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  JOIN payment p ON p.rental_id=r.rental_id\n  GROUP BY r.rental_id, r.rental_date, r.return_date, f.rental_duration\n  HAVING late_days >0\n  ORDER BY rental_id;"
+        },
+        {
+          "text": "Mostra els exemplars (`inventory`) de la pel·lícula 'SUSPECTS QUILLS' que estan disponibles ara mateix (que no estan llogats). Columnes: `inventory_id`, `store_id`, i l'adreça de la botiga: `address`, `address2`, ciutat (`city`) i país (`country`). Ordena per `inventory_id`.",
+          "sql": "SELECT i.inventory_id, i.store_id, a.address, a.address2, c.city, co.country\n  FROM inventory i\n  LEFT JOIN rental r ON r.inventory_id=i.inventory_id\n  LEFT JOIN film f ON f.film_id=i.film_id\n  LEFT JOIN store s ON s.store_id=i.store_id\n  LEFT JOIN address a ON a.address_id=s.address_id\n  LEFT JOIN city c ON c.city_id=a.city_id\n  LEFT JOIN country co ON co.country_id=c.country_id\n  WHERE f.title LIKE 'SUSPECTS QUILLS'\n  GROUP BY i.inventory_id, i.store_id, a.address_id, a.address, a.address2, c.city_id, c.city, co.country_id, co.country\n  HAVING MAX(r.rental_date)<MAX(r.return_date) OR COUNT(r.rental_id)=0\n  ORDER BY i.inventory_id;"
+        },
+        {
+          "text": "Mostra l'historial de lloguers de tots els exemplars de la pel·lícula 'JEKYLL FROGMEN'. Columnes: `inventory_id`, nom (`first_name`) i cognom (`last_name`) del client, data de lloguer (`rental_date`) i data de retorn (`return_date`). Ordena per `inventory_id` i després per data de lloguer.",
+          "sql": "SELECT i.inventory_id, c.first_name, c.last_name, r.rental_date, r.return_date\n  FROM inventory i\n  JOIN rental r ON r.inventory_id=i.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  JOIN customer c ON c.customer_id=r.customer_id\n  WHERE f.title LIKE 'JEKYLL FROGMEN'\n  ORDER BY i.inventory_id, r.rental_date;"
+        },
+        {
+          "text": "Comprova que la contrasenya de l'empleat Mike és '12345' xifrada amb l'algorisme SHA. Mostra `staff_id`, `first_name`, `last_name` i `username` dels empleats (`staff`) la contrasenya (`password`) dels quals és igual a `SHA('12345')`.",
+          "sql": "SELECT staff_id, first_name, last_name, username\n  FROM staff\n  WHERE BINARY password=SHA('12345');"
+        },
+        {
+          "text": "Mostra els exemplars (`inventory`) que no s'han llogat mai. Columnes: `inventory_id`, `store_id` i el títol de la pel·lícula (`title`).",
+          "sql": "SELECT i.inventory_id, i.store_id, f.title\n  FROM inventory i\n  LEFT JOIN rental r ON i.inventory_id=r.inventory_id\n  JOIN film f ON f.film_id=i.film_id\n  GROUP BY r.rental_id, i.inventory_id, i.store_id, f.title\n  HAVING COUNT(r.rental_id)=0;"
+        },
+        {
+          "text": "Mostra l'idioma original de cada pel·lícula. Si `original_language_id` és NULL, l'idioma original és el de `language_id`; si no, l'idioma original és el d'`original_language_id`. Columnes: el títol (`title`) i el nom (`name` de la taula `language`) de l'idioma original.",
+          "sql": "SELECT f.title, IFNULL(l2.name, l.name)\n  FROM film f\n  LEFT JOIN language l ON l.language_id=f.language_id\n  LEFT JOIN language l2 ON l2.language_id=f.original_language_id;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Consultes barrejades 01",
+      "type": "sqlsubq",
+      "intro": "Consultes barrejades amb JOINs, agregació i subconsultes sobre Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de pel·lícules de l'actor o actors que han participat en més pel·lícules (si n'hi ha diversos empatats, han de sortir tots).",
+          "sql": "SELECT first_name, last_name, COUNT(fa.film_id)\nFROM actor a JOIN film_actor fa ON a.actor_id = fa.actor_id \nGROUP BY a.actor_id ,a.first_name, a.last_name \nHAVING COUNT(fa.film_id)\n\t = (\n    SELECT COUNT(fa.film_id)\n    FROM film_actor fa\n    GROUP BY actor_id\n    ORDER BY COUNT(fa.film_id) DESC\n    LIMIT 1\n  );"
+        },
+        {
+          "text": "Mostra el títol (`title`) de la pel·lícula o pel·lícules de durada (`length`) màxima.",
+          "sql": "SELECT title\n FROM film\n WHERE length = (\n   SELECT MAX(length)\n    FROM film\n );"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i la data de pagament (`payment_date`) de tots els pagaments fets abans del primer pagament de la clienta Mary Smith. Ordena pel nom del client.",
+          "sql": "select customer.first_name, customer.last_name, payment.payment_date\nfrom customer \njoin payment on payment.Customer_Id=customer.Customer_Id\nwhere payment.payment_date < (\n  SELECT min(payment_date)\n  FROM payment \n  JOIN customer ON payment.Customer_Id=customer.Customer_Id\n  WHERE customer.first_name LIKE 'Mary' AND customer.last_name LIKE 'Smith'\n)\norder by 1"
+        },
+        {
+          "text": "Mostra el nom de la categoria (`name`) i el nombre de pel·lícules de les 3 categories que en tenen més. Ordena de més a menys pel·lícules i mostra només les 3 primeres files.",
+          "sql": "SELECT c.name, COUNT(fc.film_id) FROM film f JOIN film_category fc ON fc.film_id =f.film_id \nJOIN category c ON fc.category_id =c.category_id \nGROUP BY fc.category_id, c.name ORDER BY COUNT(fc.film_id) DESC LIMIT 3"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que duren més que la mitjana de durada de totes les pel·lícules.",
+          "sql": "SELECT title, length\n FROM film\n WHERE length > (\n   SELECT avg(length)\n    FROM film\n )"
+        },
+        {
+          "text": "Mostra el títol (`title`) i el total de diners ingressats (suma d'`amount` de `payment`) de la pel·lícula o pel·lícules que han generat més diners amb els seus lloguers (si n'hi ha d'empatades, han de sortir totes).",
+          "sql": "SELECT f.title , SUM(amount) \nFROM film f\nJOIN inventory i ON f.film_id=i.film_id\nJOIN rental r ON r.inventory_id=i.inventory_id\nJOIN payment p ON p.rental_id=r.rental_id\nGROUP BY f.film_id, f.title\nHAVING SUM(amount) = (\n\tSELECT SUM(amount) AS total_amount\n\tFROM film f\n\tJOIN inventory i ON f.film_id=i.film_id\n\tJOIN rental r ON r.inventory_id=i.inventory_id\n\tJOIN payment p ON p.rental_id=r.rental_id\n\tGROUP BY f.film_id\n\tORDER BY total_amount DESC\n\tLIMIT 1)\n;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`), el cognom (`last_name`) i el nombre de pel·lícules com a `quantitat` dels actors que han fet més pel·lícules que l'actriu Penelope Guiness.",
+          "sql": "select actor.first_name, actor.last_name, count(film_actor.film_id) as \"quantitat\"\nfrom actor \njoin film_actor on actor.actor_id=film_actor.actor_id\ngroup by actor.actor_id, actor.first_name, actor.last_name\nhaving count(film_actor.film_id)> \n(select count(film_id)\nfrom film_actor \njoin actor on film_actor.actor_id=actor.actor_id\nwhere actor.first_name like 'PENELOPE' and actor.last_name like 'GUINESS')"
+        },
+        {
+          "text": "Mostra el nom (`country`) dels països on no viu cap empleat (`staff`).",
+          "sql": "select country.country\nfrom country\nwhere country_id not in (select country.country_id\nfrom staff join address on staff.address_id=address.address_id join city on address.city_id=city.city_id\njoin country on city.country_id=country.country_id)"
+        },
+        {
+          "text": "Mostra el títol (`title`) de cada pel·lícula i el nombre d'actors que hi participen com a `quantitat`. Les pel·lícules sense cap actor a la BD també han de sortir (amb 0).",
+          "sql": "select film.title, count(actor_id) as \"quantitat\"\nfrom film left join film_actor on film.film_id=film_actor.film_id\ngroup by film.title"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`first_name`) i el cognom (`last_name`) dels clients que han llogat alguna pel·lícula i l'han retornat en 2 dies o menys (diferència de dates entre `return_date` i `rental_date`).",
+          "sql": "select distinct customer.first_name, customer.last_name\nfrom customer join rental on customer.customer_id= rental.customer_id\nwhere (DATEDIFF(return_date,rental_date)) <= 2"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Pràctica",
+      "type": "sqlagggroup",
+      "intro": "Pràctica guiada de consultes simples i agregació sobre actors, pel·lícules, inventari i lloguers de Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "La pel·lícula 'ALADDIN CALENDAR' té l'`film_id` 10. Mostra l'`actor_id` de tots els actors que hi han participat (taula `film_actor`), ordenats de major a menor.",
+          "sql": "select actor_id\nfrom film_actor\nwhere film_id = 10\norder by actor_id desc"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors amb `actor_id` 188, 157, 142, 117, 64, 37, 35 i 29 (els que han participat a 'ALADDIN CALENDAR'). Ordena per cognom i, en cas d'empat, per nom.",
+          "sql": "select first_name, last_name\nfrom actor\nwhere actor_id in (188, 157, 142, 117, 64, 37, 35, 29)\norder by last_name, first_name"
+        },
+        {
+          "text": "Per a cada pel·lícula amb `film_id` de l'1 al 100, mostra el seu `film_id` i el nombre d'actors que hi han participat com a `num_actors` (taula `film_actor`). Ordena per `film_id`.",
+          "sql": "select film_id, count(actor_id) as num_actors\nfrom film_actor\nwhere film_id<=100\ngroup by film_id\norder by film_id"
+        },
+        {
+          "text": "Mostra el `film_id` i el nombre d'actors (`num_actors`) de les pel·lícules on han participat més de 8 actors (taula `film_actor`). Ordena de més a menys actors i, en cas d'empat, per `film_id`.",
+          "sql": "select film_id, count(*) as num_actors\nfrom film_actor\ngroup by film_id\nhaving num_actors>8\norder by num_actors desc, film_id"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors que tenen una consonant (no una vocal a, e, i, o, u) en segona posició tant al nom com al cognom. Ordena per cognom i, en cas d'empat, per nom.",
+          "sql": "select first_name, last_name\nfrom actor\nwhere first_name not like '_a%'\n  and first_name not like '_e%'\n  and first_name not like '_i%'\n  and first_name not like '_o%'\n  and first_name not like '_u%'\n  and last_name not like '_a%'\n  and last_name not like '_e%'\n  and last_name not like '_i%'\n  and last_name not like '_o%'\n  and last_name not like '_u%'\norder by last_name, first_name"
+        },
+        {
+          "text": "Per a cada pel·lícula, mostra quants exemplars en tenim a cada botiga: `film_id`, `store_id` i el nombre d'exemplars com a `num_exemplars` (taula `inventory`). Ordena per `film_id` i després per `store_id`.",
+          "sql": "select film_id, store_id, count(*) as num_exemplars\nfrom inventory\ngroup by film_id, store_id\norder by film_id, store_id"
+        },
+        {
+          "text": "Mostra l'`actor_id` dels actors el nom (`first_name`) dels quals és 'Penelope'.",
+          "sql": "select actor_id\nfrom actor\nwhere first_name = 'Penelope'"
+        },
+        {
+          "text": "Mostra l'`actor_id` i el nombre de pel·lícules que ha fet com a `num_films` (taula `film_actor`) de cadascun dels actors amb `actor_id` 1, 54, 104 i 120 (les actrius que es diuen Penelope).",
+          "sql": "select actor_id, count(film_id) as num_films\nfrom film_actor\nwhere actor_id in (1, 54, 104, 120)\ngroup by actor_id"
+        },
+        {
+          "text": "Dels lloguers fets el 21 d'agost de 2005, mostra l'identificador del client (`customer_id`) i la data de retorn (`return_date`) dels 5 que s'han retornat més tard. Els que encara no s'han retornat (`return_date` NULL) han de sortir primer; després, de la data de retorn més tardana a la més primerenca. Mostra només 5 files.",
+          "sql": "select customer_id, return_date\nfrom rental\nwhere rental_date between '2005-08-21' and '2005-08-21 23:59:59'\norder by -return_date asc\nlimit 5"
+        },
+        {
+          "text": "Mostra el `customer_id` i el nombre de lloguers com a `num_rentals` dels clients que han fet més de 40 lloguers (taula `rental`). Ordena per `customer_id`.",
+          "sql": "select customer_id, count(rental_id) as num_rentals\nfrom rental \ngroup by customer_id \nhaving num_rentals>40\norder by customer_id"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Join 01",
+      "type": "sqljoinbasic",
+      "intro": "JOINs externs (LEFT JOIN) per trobar elements sense correspondència a Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules on no ha participat cap actor (sense cap fila a `film_actor`).",
+          "sql": "select f.title\nfrom film f left join film_actor fa on f.film_id = fa.film_id \nwhere  fa.actor_id  is null;"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels idiomes (`language`) que no tenen cap pel·lícula enregistrada en aquell idioma (`language_id` de `film`).",
+          "sql": "select l.name \nfrom `language` l left join film f on l.language_id = f.language_id \nwhere f.language_id is null;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que duren entre 90 i 100 minuts (inclosos) i de les quals no tenim cap exemplar a l'inventari (`inventory`). Ordena per títol.",
+          "sql": "select f.title , f.`length`\nfrom film f left join inventory i on f.film_id = i.film_id \nwhere f.`length` >= 90 and f.`length` <=100 and i.store_id is null\norder by  f.title;"
+        },
+        {
+          "text": "Mostra, per a cada país, el nom del país (`country`) i el nom de cadascuna de les seves ciutats (`city`); els països sense ciutats també han de sortir. Ordena pel nom del país i pel nom de la ciutat.",
+          "sql": "select c.country, c2.city \nfrom country c left join city c2 on c.country_id = c2.country_id \norder by c.country, c2.city ;"
+        },
+        {
+          "text": "Mostra, per a cada país, el nom del país (`country`), el nom de cadascuna de les seves ciutats (`city`) i, per a cada adreça de cada ciutat, els camps `address`, `address2` i `district`. Els països i ciutats sense adreces també han de sortir. Ordena per país, ciutat i `address`.",
+          "sql": "select c.country, c2.city, a2.address , a2.address2, a2.district \nfrom country c left join city c2 on c.country_id = c2.country_id left join address a2 on c2.city_id = a2.city_id\norder by c.country, c2.city, a2.address;"
+        },
+        {
+          "text": "Mostra el nom de la ciutat (`city`) i el del seu país (`country`) de les ciutats que no tenen cap adreça (`address`) enregistrada. Ordena pel nom del país i pel nom de la ciutat.",
+          "sql": "select c2.city, c.country  \nfrom country c left join city c2 on c.country_id = c2.country_id left join address a2 on c2.city_id = a2.city_id\nwhere a2.address_id is null\norder by c.country, c2.city;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de les persones que són alhora actor (`actor`) i client (`customer`), és a dir, amb el mateix nom i cognom a totes dues taules. Ordena per cognom i nom.",
+          "sql": "select a.first_name , a.last_name \nfrom actor a join customer c2 on a.first_name = c2.first_name and a.last_name = c2.last_name \norder by a.last_name, a.first_name;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Consultes diverses (1r parcial)",
+      "type": "sqljoinbasic",
+      "intro": "Consultes diverses de selecció i JOINs (1r parcial) sobre Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra totes les columnes dels pagaments (`payment`) dels dies 26 i 28 de maig de 2005 atesos per l'empleat amb `staff_id` 2. Ordena de major a menor import (`amount`).",
+          "sql": "SELECT *\nFROM payment p\nWHERE (p.payment_date LIKE '2005-05-26%' OR p.payment_date LIKE '2005-05-28%')\nAND p.staff_id = 2\nORDER BY p.amount DESC;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de tots els actors juntament amb el títol (`title`) de cadascuna de les pel·lícules que han fet. Els actors sense cap pel·lícula també han de sortir (amb el títol a NULL).",
+          "sql": "SELECT a.first_name , a.last_name , f.title \nFROM actor a LEFT JOIN film_actor fa ON a.actor_id = fa.actor_id \nLEFT JOIN film f  ON fa.film_id = f.film_id;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors, el títol (`title`) de cada pel·lícula que han fet i el nom de la categoria de la pel·lícula (`name` de `category`). Ordena pel títol de la pel·lícula.",
+          "sql": "SELECT a.first_name , a.last_name , f.title ,c.name \nFROM actor a JOIN film_actor fa ON a.actor_id = fa.actor_id \nJOIN film f  ON fa.film_id = f.film_id \nJOIN film_category fc ON f.film_id = fc.film_id \nJOIN category c ON fc.category_id = c.category_id \nORDER BY f.title;"
+        },
+        {
+          "text": "Mostra el nom (`country`) dels països que comencen per C o per B juntament amb el nom de cadascuna de les seves ciutats (`city`). Ordena pel nom de la ciutat.",
+          "sql": "SELECT c.country , c2.city \nFROM country c JOIN city c2 ON c.country_id = c2.country_id \nWHERE c.country LIKE 'C%' OR c.country LIKE 'B%'\nORDER BY c2.city ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on tenim botigues (`store`).",
+          "sql": "SELECT DISTINCT c.city \nFROM store s JOIN address a ON s.address_id = a.address_id \nJOIN city c ON a.city_id = c.city_id;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que, o bé comencen per 'B' i duren més de 2 hores (120 minuts), o bé contenen almenys dues 'a' al títol i duren més de 2 hores i quart (135 minuts).",
+          "sql": "SELECT f.title , f.`length` FROM film f \nWHERE (f.title LIKE 'B%' AND f.`length` > 120)\nOR (f.title LIKE '%a%a%' AND f.`length` > 135);"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors amb `actor_id` entre 10 i 20 (inclosos) el cognom dels quals conté una 'W'. Ordena per cognom i nom.",
+          "sql": "SELECT a.first_name , a.last_name\nFROM actor a \nWHERE a.actor_id >= 10 AND a.actor_id <= 20 AND a.last_name LIKE '%W%'\nORDER BY a.last_name , a.first_name ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`first_name`) i el cognom (`last_name`) dels clients que han llogat alguna vegada la pel·lícula 'ALI FOREVER'. Ordena per nom i cognom.",
+          "sql": "SELECT DISTINCT c.first_name , c.last_name \nFROM customer c JOIN rental r ON c.customer_id = r.customer_id \nJOIN inventory i ON r.inventory_id = i.inventory_id \nJOIN film f ON i.film_id = f.film_id \nWHERE f.title LIKE 'ALI FOREVER'\nORDER BY c.first_name , c.last_name;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la descripció (`description`) de les pel·lícules que no s'han llogat mai (incloses les que no tenen cap exemplar a l'inventari).",
+          "sql": "SELECT f.title , f.description \nFROM film f LEFT JOIN inventory i ON f.film_id = i.film_id \nLEFT JOIN rental r ON i.inventory_id = r.inventory_id \nWHERE r.rental_id IS NULL;"
+        },
+        {
+          "text": "Mostra, sense repeticions, tots els països (`country`) de la BD; si hi viu algun empleat (`staff`), el país ha de sortir amb cadascun dels empleats que hi viuen. Columnes: `country`, `staff_id`, `first_name` i `last_name` de l'empleat (a NULL si no n'hi viu cap).",
+          "sql": "SELECT DISTINCT co.country , s.staff_id, s.first_name , s.last_name \nFROM country co LEFT JOIN city ci ON co.country_id = ci.country_id \nLEFT JOIN address a ON ci.city_id = a.city_id \nLEFT JOIN staff s ON a.address_id = s.address_id;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — INNER JOIN (1r parcial)",
+      "type": "sqljoinbasic",
+      "intro": "Variant amb INNER JOIN del 1r parcial sobre Sakila (la resta de preguntes del test original ja són al problema «Consultes diverses»).",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors juntament amb el títol (`title`) de cadascuna de les pel·lícules que han fet. Només han de sortir els actors que tenen alguna pel·lícula (usa INNER JOIN).",
+          "sql": "SELECT a.first_name , a.last_name , f.title \nFROM actor a JOIN film_actor fa ON a.actor_id = fa.actor_id \n JOIN film f  ON fa.film_id = f.film_id;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Join 02",
+      "type": "sqljoinbasic",
+      "intro": "LEFT JOINs sobre ciutats, pel·lícules, idiomes i clients de Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on no viu cap empleat (`staff`).",
+          "sql": "select DISTINCT c.city from  city c \nleft join address a on c.city_id = a.city_id \nleft join staff s on s.address_id = a.address_id \nwhere s.staff_id is NULL"
+        },
+        {
+          "text": "Mostra el títol (`title`) de totes les pel·lícules i l'identificador (`store_id`) de cada botiga on en tenim algun exemplar (una fila per exemplar). Si una pel·lícula no és a cap botiga, ha de sortir amb `store_id` a NULL.",
+          "sql": "SELECT f.title, s.store_id from film f \nleft join inventory i on i.film_id = f.film_id \nleft join store s on i.store_id = s.store_id"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules que no s'han llogat mai.",
+          "sql": "select f.title from film f \nleft join inventory i on i.film_id = f.film_id \nleft join rental r on r.inventory_id = i.inventory_id \nwhere r.rental_id is null"
+        },
+        {
+          "text": "Mostra el nom (`name`) dels idiomes que no tenen cap pel·lícula (cap pel·lícula amb aquest `language_id`).",
+          "sql": "SELECT l.name from `language` l \nleft join film f on f.language_id = l.language_id \nwhere f.film_id is null"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients juntament amb el títol (`title`) de cada pel·lícula que han llogat (una fila per lloguer).",
+          "sql": "select c.first_name, c.last_name, f.title from customer c\nleft join rental r on r.customer_id = c.customer_id \njoin inventory i on r.inventory_id = i.inventory_id \nJOIN film f on f.film_id = i.film_id"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Consultes simples",
+      "type": "sqljoincomplex",
+      "intro": "Consultes simples amb JOIN i GROUP BY sobre Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients que han fet lloguers juntament amb la data de cada lloguer (`rental_date`). Ordena del lloguer més recent al més antic.",
+          "sql": "SELECT \n    c.first_name,\n    c.last_name,\n    r.rental_date\nFROM \n    customer c\nJOIN \n    rental r ON c.customer_id = r.customer_id\nORDER BY \n    r.rental_date DESC;"
+        },
+        {
+          "text": "Mostra, per a cada botiga, quantes pel·lícules diferents tenim a l'inventari. Columnes: `store_id` com a `Botiga` i el nombre de pel·lícules diferents com a `Num_Pel`.",
+          "sql": "SELECT \n    s.store_id AS Botiga,\n    COUNT(DISTINCT i.film_id) AS Num_Pel\nFROM \n    store s\nJOIN \n    inventory i ON s.store_id = i.store_id\nGROUP BY \n    s.store_id;"
+        },
+        {
+          "text": "Mostra el `customer_id`, el nom (`first_name`), el cognom (`last_name`) i el total pagat (suma d'`amount`) com a `Total_Pagat` de cada client. Ordena de més a menys total pagat.",
+          "sql": "SELECT \n    c.customer_id,\n    c.first_name,\n    c.last_name,\n    SUM(p.amount) AS Total_Pagat\nFROM \n    customer c\nJOIN \n    payment p ON c.customer_id = p.customer_id\nGROUP BY c.customer_id,\n    c.first_name,\n    c.last_name\nORDER BY \n    Total_Pagat DESC;"
+        },
+        {
+          "text": "Mostra la durada mitjana de les pel·lícules per a cada idioma. Columnes: nom de l'idioma (`name`) i mitjana de `length` com a `durada_mitjana`.",
+          "sql": "SELECT \n    l.name,\n    AVG(f.length) AS durada_mitjana\nFROM \n    film f\nJOIN \n    language l ON f.language_id = l.language_id\nGROUP BY \n    l.name;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de l'empleat (`staff`) que treballa a la botiga situada a la ciutat de 'Lethbridge'.",
+          "sql": "SELECT \n    s.first_name,\n    s.last_name\nFROM \n    staff s\nJOIN \n    store s2 ON s.store_id = s2.store_id\nJOIN \n    address a ON s2.address_id = a.address_id\nJOIN \n    city c ON a.city_id = c.city_id\nWHERE \n    c.city = 'Lethbridge';"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Subconsultes 01",
+      "type": "sqlsubq",
+      "intro": "Subconsultes amb IN, comparacions amb agregats i LIMIT sobre Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels actors que han participat en més de 10 pel·lícules. Usa una subconsulta.",
+          "sql": "SELECT first_name, last_name\nFROM actor\nWHERE actor_id IN (\n    SELECT actor_id\n    FROM film_actor\n    GROUP BY actor_id\n    HAVING COUNT(film_id) > 10\n);"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que duren més que la mitjana. Ordena per durada descendent i, en cas d'empat, alfabèticament pel títol.",
+          "sql": "SELECT title, `length` \n    FROM film  \n    WHERE film.length > (\n        SELECT AVG(length)\n        FROM film ) order by 2 desc, 1 asc"
+        },
+        {
+          "text": "Mostra el títol (`title`) de la pel·lícula o pel·lícules de durada (`length`) mínima.",
+          "sql": "SELECT title\n FROM film\n WHERE length = (\n   SELECT min(length)\n    FROM film\n );"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules amb un preu de lloguer (`rental_rate`) superior a la mitjana del preu de lloguer de totes les pel·lícules.",
+          "sql": "SELECT title\nFROM film\nWHERE rental_rate > (\n    SELECT AVG(rental_rate)\n    FROM film\n);"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels 5 clients que han fet més lloguers. Ordena el resultat pel cognom.",
+          "sql": "SELECT first_name, last_name\nFROM customer\nWHERE customer_id IN ( Select * from (\n    SELECT customer_id\n    FROM rental\n    GROUP BY customer_id\n    ORDER BY COUNT(*) DESC\n    LIMIT 5\n) as t) \norder by 2"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Unions 01",
+      "type": "sqlsubq",
+      "intro": "Combinació de resultats amb UNION i subconsultes sobre Sakila. Problema temàtic migrat del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra en un únic llistat totes les persones de Sakila: clients (`customer`), empleats (`staff`) i actors (`actor`). Columnes: l'identificador com a `id`, el nom complet (nom, un espai i cognom) com a `nom` i el tipus com a `tipus` ('CUSTOMER', 'STAFF' o 'ACTOR'). Ordena per tipus i per nom. Usa UNION.",
+          "sql": "SELECT customer_id AS id,\n      CONCAT(first_name, ' ', last_name) AS nom,\n      'CUSTOMER' AS tipus\nFROM customer\nUNION\n(SELECT staff_id AS id,\n      CONCAT(first_name, ' ', last_name) AS nom,\n      'STAFF' AS tipus\nFROM staff)\nUNION \n(SELECT actor_id AS id,\n      CONCAT(first_name, ' ', last_name) AS nombre,\n      'ACTOR' AS tipus\nFROM actor)\nORDER BY tipus, nom"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`) i un `criteri` de les pel·lícules que compleixen alguna d'aquestes condicions (una fila per condició complerta): durada superior a 60 minuts (criteri '> 60'), `rating` igual a 'R' (criteri 'R') o sense cap exemplar a l'inventari (criteri 'no inventari'). Usa UNION.",
+          "sql": "SELECT film_id, title, '> 60' AS criteri\nFROM film\nWHERE length > 60\nUNION\n(SELECT film_id, title, 'R' AS criteri\nFROM film\nWHERE rating =  'R')\nUNION \n(SELECT f.film_id, title, 'no inventari' AS criteri\nFROM film f\nLEFT JOIN inventory i ON f.film_id = i.film_id\nWHERE i.inventory_id IS NULL)"
+        },
+        {
+          "text": "Mostra l'`actor_id` i el nom (`first_name`) dels actors que han participat en més de 30 pel·lícules.",
+          "sql": "SELECT a.actor_id, a.first_name\nFROM actor a\nJOIN film_actor f_a ON a.actor_id = f_a.actor_id\nGROUP BY a.actor_id, a.first_name\nHAVING COUNT(*) > 30\nUNION\n(SELECT a.actor_id, a.first_name\nFROM actor a\nWHERE NOT EXISTS(SELECT * FROM film_actor))"
+        },
+        {
+          "text": "Mostra un catàleg únic d'adreces amb `address_id`, `address` i una columna `entitat` que indiqui a quin tipus d'entitat pertany l'adreça: 'CUSTOMER ' (atenció: amb un espai al final), 'STORE' o 'STAFF'. Usa UNION.",
+          "sql": "SELECT c.address_id, a.address, 'CUSTOMER ' AS entitat\nFROM customer c\nJOIN address a ON c.address_id = a.address_id\nUNION \n(SELECT s.address_id, a.address, 'STORE' AS entitat\nFROM store s\nJOIN address a ON s.address_id = a.address_id)\nUNION\n(SELECT staff.address_id, a.address, 'STAFF' AS entitat\nFROM staff\nJOIN address a ON staff.address_id = a.address_id)"
+        },
+        {
+          "text": "Mostra un llistat de pagaments especials amb `payment_id`, `amount` i una columna `tipus`: 'QUANTITAT ELEVADA' si l'import és superior a 8, 'DIUMENGE' si el pagament es va fer en diumenge i 'CLIENT INACTIU' si el client està inactiu (`active` = 0). Un pagament pot sortir amb més d'un tipus. Usa UNION.",
+          "sql": "SELECT payment_id, amount, 'QUANTITAT ELEVADA' AS tipus\nFROM payment\nWHERE amount > 8\nUNION\n(SELECT payment_id, amount, 'DIUMENGE' AS tipus\nFROM payment\nWHERE WEEKDAY(payment_date) = 6)\nUNION\n(SELECT p.payment_id, p.amount, 'CLIENT INACTIU' AS tipus\nFROM payment p\nJOIN customer c ON p.customer_id = c.customer_id\nWHERE c.active = 0)"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 1",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el `city_id` de les ciutats (`city`) del país amb `country_id` 87 (Espanya).",
+          "sql": "SELECT city_id\n FROM city\n WHERE country_id=87;"
+        },
+        {
+          "text": "Mostra el `city_id` de les ciutats (`city`) del país amb `country_id` 34 (França).",
+          "sql": "SELECT city_id\n FROM city\n WHERE country_id=34;"
+        },
+        {
+          "text": "Mostra els pagaments (`payment`) gestionats per l'empleat amb `staff_id` 1 amb un import (`amount`) inferior a 2 o superior a 10. Columnes: `payment_id`, `customer_id`, `amount` i `staff_id`. Ordena per `customer_id` i després per import.",
+          "sql": "SELECT payment_id, customer_id, AMOUNT, staff_id\nFROM payment\nWHERE (amount <2 OR AMOUNT > 10) AND  staff_id = 1\nORDER BY customer_id, amount;"
+        },
+        {
+          "text": "Mostra els pagaments (`payment`) gestionats per l'empleat amb `staff_id` 1 amb un import (`amount`) igual a 0 o superior a 15. Columnes: `payment_id`, `customer_id`, `amount` i `staff_id`. Ordena per `customer_id` i després per import.",
+          "sql": "select payment_id, customer_id, AMOUNT, staff_id\n  from payment\n  where (amount = 0 or AMOUNT > 15) and staff_id = 1\n  order by customer_id, amount;"
+        },
+        {
+          "text": "Mostra els pagaments (`payment`) fets el 27 de juliol de 2005 entre les 10:00 i les 15:00 (incloses) o bé amb un import (`amount`) superior a 11.5. Columnes: `payment_id`, `customer_id`, `amount` i `payment_date`. Ordena per `payment_date` i després per import.",
+          "sql": "SELECT payment_id, customer_id, amount, payment_date\n FROM payment\n WHERE payment_date BETWEEN '2005-07-27 10:00:00' AND '2005-07-27 15:00:00'\n  OR amount > 11.5\n ORDER BY payment_date, amount;"
+        },
+        {
+          "text": "Mostra les pel·lícules que, o bé tenen un `rental_rate` d'1 o més i no inclouen 'Deleted Scenes' als `special_features`, o bé tenen un `rental_rate` inferior a 1 i sí que inclouen 'Deleted Scenes'. Columnes: `film_id`, `title`, `rental_rate` i `special_features`. Ordena per títol.",
+          "sql": "SELECT film_id, title, rental_rate, special_features\n FROM film\n WHERE (rental_rate>=1 AND special_features NOT LIKE '%Deleted Scenes%')\n  OR (rental_rate<1 AND special_features LIKE '%Deleted Scenes%')\n ORDER BY title;"
+        },
+        {
+          "text": "Mostra el `country_id` del país (`country`) anomenat 'Spain'.",
+          "sql": "SELECT country_id\n FROM country\n WHERE country LIKE 'Spain';"
+        },
+        {
+          "text": "Mostra l'`address_id` i l'`address` de les adreces (`address`) de les ciutats amb `city_id` 1, 146, 181, 388 i 459 (les ciutats d'Espanya).",
+          "sql": "SELECT address_id, address\n FROM address\n WHERE city_id IN (1,146,181,388,459);"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`) i la descripció (`description`) de les pel·lícules que tenen almenys tres 'A' al títol i que no tenen tres o més 'E' a la descripció. Ordena per títol.",
+          "sql": "SELECT film_id, title, description\n FROM film\n WHERE title LIKE '%A%A%A%'\n  AND description NOT LIKE '%E%E%E%'\n ORDER BY title;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients amb `customer_id` 454, 178 i 176.",
+          "sql": "SELECT first_name, last_name\n FROM customer\n WHERE customer_id IN (454, 178, 176);"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 2",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el `country_id` del país (`country`) anomenat 'France'.",
+          "sql": "SELECT country_id\n FROM country\n WHERE country like 'France';"
+        },
+        {
+          "text": "Mostra l'`address_id` i l'`address` de les adreces (`address`) de les ciutats amb `city_id` 92, 297, 543 i 544 (les ciutats de França).",
+          "sql": "SELECT address_id, address\n FROM address\n WHERE city_id IN (92,297,543,544);"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`) i la descripció (`description`) de les pel·lícules que tenen almenys tres 'R' al títol i que no tenen tres o més 'S' a la descripció. Ordena per títol.",
+          "sql": "SELECT film_id, title, description\n FROM film\n WHERE title LIKE '%R%R%R%'\n  AND description NOT LIKE '%S%S%S%'\n ORDER BY title;"
+        },
+        {
+          "text": "Mostra les pel·lícules que, o bé duren 150 minuts o menys (`length`) i inclouen 'Behind the Scenes' als `special_features`, o bé duren més de 150 minuts i no l'inclouen. Columnes: `film_id`, `title`, `replacement_cost` i `special_features`. Ordena per títol.",
+          "sql": "SELECT film_id, title, replacement_cost, special_features\n FROM film\n WHERE (length<=150 AND special_features LIKE '%Behind the Scenes%')\n  OR (length>150 AND special_features NOT LIKE '%Behind the Scenes%')\n ORDER BY title;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les 10 pel·lícules més llargues d'entre les que tenen un `rental_duration` superior a 6. Ordena per durada descendent i mostra només 10 files. En cas d'empat en la durada, ordena alfabèticament pel títol.",
+          "sql": "SELECT title,length\n FROM film\n where rental_duration >6\n ORDER BY length DESC, title LIMIT 10;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el `customer_id` dels clients que tenen algun lloguer (`rental`) atès per l'empleat amb `staff_id` 1 i retornat més de 6 dies després de llogar-lo (diferència de dates entre `return_date` i `rental_date`). Ordena per `customer_id`.",
+          "sql": "select distinct customer_id\nfrom rental\nwhere DATEDIFF (return_date,rental_date)> 6 and staff_id =1\norder by customer_id"
+        },
+        {
+          "text": "Mostra els pagaments (`payment`) fets el 20 d'agost de 2005 entre les 10:00 i les 14:00 (incloses) amb un import (`amount`) superior a 5. Columnes: `payment_id`, `customer_id`, `amount` i `payment_date`. Ordena per `payment_date` i després per import.",
+          "sql": "SELECT payment_id, customer_id, amount, payment_date\n FROM payment\n WHERE payment_date BETWEEN '2005-08-20 10:00:00' AND '2005-08-20 14:00:00' and amount > 5\nORDER BY payment_date, amount;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients (`customer`) que tenen almenys tres 'A' al nom i cap 'A' al cognom.",
+          "sql": "SELECT first_name, last_name\n  FROM customer \n  WHERE first_name LIKE '%A%A%A%' AND last_name NOT LIKE '%A%'"
+        },
+        {
+          "text": "Mostra les pel·lícules (`film`) que, o bé tenen `rating` 'PG-13' i un `replacement_cost` superior a 10, o bé no tenen `rating` 'PG-13' i inclouen 'Deleted Scenes' als `special_features`. Columnes: `film_id`, `title`, `rental_rate`, `special_features`, `rating` i `replacement_cost`. Ordena per títol.",
+          "sql": "select film_id, title, rental_rate,special_features, rating, replacement_cost\nfrom film\nwhere (rating like 'PG-13' and replacement_cost > 10) or (rating not like 'PG-13' and special_features like '%Deleted Scenes%')\norder by title"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients (`customer`) que no tenen cap 'A' al nom i tenen almenys tres 'A' al cognom.",
+          "sql": "select first_name, last_name from customer \nwhere first_name not like '%A%' and last_name  like '%A%A%A%';"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 3",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra les pel·lícules (`film`) que, o bé tenen `rating` 'PG-13' i un `replacement_cost` inferior a 10, o bé no tenen `rating` 'PG-13' i no inclouen 'Deleted Scenes' als `special_features`. Columnes: `film_id`, `title`, `rental_rate`, `special_features`, `rating` i `replacement_cost`. Ordena per títol.",
+          "sql": "select film_id, title, rental_rate,special_features, rating, replacement_cost\nfrom film\nwhere (rating like 'PG-13' and replacement_cost < 10) or (rating not like 'PG-13' and special_features not like '%Deleted Scenes%')\norder by title;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la descripció (`description`) de les pel·lícules que contenen a la descripció les paraules 'database', 'Mysql' i 'Kill', en qualsevol ordre.",
+          "sql": "select f.title, f.description \nfrom film f\nwhere description like '%database%' and description like '%Mysql%' and description like '%kill%';"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), la descripció (`description`) i el cost de reemplaçament per minut (`replacement_cost / length`) com a `PreuMinut` de les pel·lícules. Ordena per la descripció (tercera columna) en ordre descendent i mostra només les 2 primeres files.",
+          "sql": "SELECT film_id, title, description, replacement_cost / length as PreuMinut\n FROM film\n ORDER BY 3 desc\n LIMIT 2;"
+        },
+        {
+          "text": "Mostra el `film_id` i el títol (`title`) de les pel·lícules amb un `rental_rate` inferior a 2 o superior a 7 i amb un `rental_duration` d'1, 3, 5, 7 o 9 dies. Ordena per títol.",
+          "sql": "Select f.film_id ,f.title \nfrom film f \nwhere (f.rental_rate <2 or f.rental_rate > 7) and f.rental_duration in (1,3,5,7,9)\norder by f.title"
+        },
+        {
+          "text": "Mostra el títol (`title`), la descripció (`description`) i la qualificació (`rating`) de les pel·lícules que contenen 'boring' a la descripció i tenen un `rating` 'R', 'G', 'PG' o 'PG-13'. Ordena per `rating` i per títol.",
+          "sql": "select f.title, f.description, f.rating \nfrom film f \nwhere description like '%boring%' and rating in ('R', 'G', 'PG', 'PG-13')\norder by f.rating, f.title;"
+        },
+        {
+          "text": "Mostra totes les columnes dels clients (`customer`) que tenen almenys dues 'A' al nom (`first_name`) i com a màxim dues 'A' al cognom (`last_name`).",
+          "sql": "select * from customer \nwhere first_name like '%A%A%' and last_name  not like '%A%A%A%';"
+        },
+        {
+          "text": "Mostra les pel·lícules (`film`) que, o bé duren més de 150 minuts i tenen un `replacement_cost` inferior a 10, o bé duren menys de 100 minuts i no inclouen 'Deleted Scenes' als `special_features`. Columnes: `film_id`, `title`, `special_features`, `length` i `replacement_cost`. Ordena per títol.",
+          "sql": "select film_id, title, special_features, `length`, replacement_cost\nfrom film\nwhere (`length` > 150 and replacement_cost < 10) or (`length` < 100 and special_features not like '%_Deleted_Scenes%')\norder by title;"
+        },
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que, o bé comencen per 'B' i duren més de 120 minuts, o bé contenen almenys dues 'a' al títol i duren més de 135 minuts. Ordena de major a menor durada.",
+          "sql": "SELECT f.title , f.`length` FROM film f \nWHERE (f.title LIKE 'B%' AND f.`length` > 120)\nOR (f.title LIKE '%a%a%' AND f.`length` > 135)\nORDER BY f.`length` DESC;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 4",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el títol (`title`) i la durada (`length`) de les pel·lícules que, o bé comencen per 'B' i duren més de 120 minuts, o bé contenen almenys dues 'c' al títol i duren més de 150 minuts (2 hores i mitja). Ordena de major a menor durada.",
+          "sql": "SELECT f.title , f.`length` FROM film f \nWHERE (f.title LIKE 'B%' AND f.`length` > 120)\nOR (f.title LIKE '%c%c%' AND f.`length` > 150)\nORDER BY f.`length` DESC;"
+        },
+        {
+          "text": "Mostra totes les columnes dels pagaments (`payment`) dels dies 24 i 28 de maig de 2005 atesos per l'empleat amb `staff_id` 2. Ordena per import (`amount`) de menor a major.",
+          "sql": "SELECT *\nFROM payment p\nWHERE (p.payment_date LIKE '2005-05-24%' OR p.payment_date LIKE '2005-05-28%')\nAND p.staff_id = 2\nORDER BY p.amount ;"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), la descripció (`description`) i la durada (`length`) de les 5 pel·lícules més curtes d'entre les que contenen 'Database Administrator' a la descripció. Ordena per durada ascendent i mostra només 5 files.",
+          "sql": "SELECT film_id, title, description, length\n FROM film\n WHERE description LIKE '%Database Administrator%'\n ORDER BY length\n LIMIT 5;"
+        },
+        {
+          "text": "Mostra quants pagaments (`payment`) no estan associats a cap lloguer (`rental_id` NULL) i la suma dels seus imports (`amount`).",
+          "sql": "SELECT COUNT(*), SUM(amount)\n FROM payment\n WHERE rental_id IS NULL;"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), el `rental_rate`, la durada (`length`) i el preu per minut (`rental_rate / length`) com a `price_per_minute` de les pel·lícules amb un preu per minut superior a 0.1. Ordena per preu per minut descendent.",
+          "sql": "SELECT film_id, title, rental_rate, length, rental_rate/length AS price_per_minute\n FROM film\n HAVING price_per_minute>0.1\n ORDER BY price_per_minute DESC;"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`) i el `rental_rate` de les 5 pel·lícules amb el `rental_rate` més alt d'entre les que contenen 'Girl' a la descripció. Ordena per `rental_rate` descendent i mostra només 5 files. En cas d'empat en el preu de lloguer, ordena per `film_id` de menor a major.",
+          "sql": "SELECT film_id, title, rental_rate\n FROM film\n WHERE description LIKE '%Girl%'\n ORDER BY rental_rate DESC, film_id LIMIT 5;"
+        },
+        {
+          "text": "Mostra el nombre de pagaments (`payment`) que no estan associats a cap lloguer (`rental_id` NULL).",
+          "sql": "SELECT COUNT(*)\nFROM payment\nWHERE rental_id IS NULL;"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), la descripció (`description`) i la durada (`length`) de les 4 pel·lícules més llargues d'entre les que contenen 'dentist' i 'drama' a la descripció. Ordena per durada descendent i mostra només 4 files.",
+          "sql": "SELECT film_id, title, description, length\n FROM film\n WHERE  description like '%dentist%' AND description LIKE '%drama%'\n ORDER BY length desc\n LIMIT 4;"
+        },
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), la descripció (`description`) i la durada (`length`) de les 5 pel·lícules més llargues d'entre les que contenen 'India' o 'Australia' a la descripció. Ordena per durada descendent i mostra només 5 files.",
+          "sql": "SELECT film_id, title, description, length\n FROM film\n WHERE  description LIKE '%India%' OR description LIKE '%Australia%'\n ORDER BY length DESC\n LIMIT 5;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 5",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el `film_id`, el títol (`title`), la descripció (`description`) i la durada (`length`) de les 5 pel·lícules més llargues d'entre les que contenen 'Mexico' o 'California' a la descripció. Ordena per durada descendent i mostra només 5 files.",
+          "sql": "SELECT film_id, title, description, length\n FROM film\n WHERE  description LIKE '%Mexico%' or description like '%California%'\n ORDER BY length DESC\n LIMIT 5;"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels clients (`customer`) el nom dels quals és igual al nom d'algun país (`country`).",
+          "sql": "select c3.first_name, c3.last_name \nfrom country c2  join customer c3 on c2.country = c3.first_name"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) dels empleats (`staff`) que tenen el mateix nom (`first_name`) que algun actor (una fila per cada actor coincident).",
+          "sql": "select s.first_name, s.last_name\nfrom staff s join actor a on s.first_name = a.first_name;"
+        },
+        {
+          "text": "Mostra el nom (`country`) dels països que comencen per B o per E juntament amb el nom de cadascuna de les seves ciutats (`city`). Ordena pel nom de la ciutat.",
+          "sql": "SELECT c.country , c2.city \nFROM country c JOIN city c2 ON c.country_id = c2.country_id \nWHERE c.country LIKE 'B%' OR c.country LIKE 'E%'\nORDER BY c2.city ;"
+        },
+        {
+          "text": "Mostra, per a cada botiga, el `store_id` i el nombre de clients actius (`active` > 0) de la taula `customer`.",
+          "sql": "SELECT store_id,count(*)\n FROM customer\n WHERE active>0\ngroup by store_id"
+        },
+        {
+          "text": "Mostra, per a cada empleat, el `staff_id`, la suma dels imports (`amount`) i el nombre de pagaments (`payment`) que ha gestionat.",
+          "sql": "select staff_id,sum(amount), count(*)\nfrom payment\ngroup by staff_id"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 6",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra la botiga que té més exemplars a l'inventari (`inventory`): el seu `store_id` i el nombre d'exemplars com a `n_items`. Ordena de més a menys exemplars i mostra només la primera fila.",
+          "sql": "SELECT store_id, COUNT(*) AS n_items\n FROM inventory\n GROUP BY store_id\n ORDER BY n_items DESC\n LIMIT 1;"
+        },
+        {
+          "text": "Mostra l'`actor_id` i el nombre de pel·lícules (taula `film_actor`) dels 3 actors que han fet més pel·lícules. Ordena de més a menys pel·lícules i mostra només 3 files.",
+          "sql": "select actor_id, count(*)\nfrom film_actor\ngroup by actor_id\norder by 2 desc\nlimit 3"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules amb `rating` 'PG' i el nom de la seva categoria (`name` de `category`). Ordena pel nom de la categoria i pel títol.",
+          "sql": "SELECT f.title, c.name\nfrom film f join film_category fc on f.film_id = fc.film_id join category c on fc.category_id = c.category_id\nwhere f.rating = 'PG'\norder by c.name, f.title"
+        },
+        {
+          "text": "Mostra el `customer_id`, el nombre de pagaments com a `n_payments` i l'import mitjà (`amount`) com a `average` dels clients que han fet més de 40 pagaments (`payment`).",
+          "sql": "SELECT customer_id, COUNT(*) AS n_payments, AVG(amount) AS average\n FROM payment\n GROUP BY customer_id\n HAVING n_payments>40;"
+        },
+        {
+          "text": "Mostra el `customer_id` i el total pagat (suma d'`amount`) com a `total` dels 3 clients que més han pagat entre l'1 de juny de 2005 a les 00:00:00 i l'1 de juliol de 2005 a les 00:00:00 (inclosos). Ordena de més a menys total i mostra només 3 files.",
+          "sql": "SELECT customer_id, SUM(amount) AS total\n FROM payment\n WHERE payment_date BETWEEN '2005-06-01 00:00:00' AND '2005-07-01 00:00:00'\n GROUP BY customer_id\n ORDER BY total DESC\n LIMIT 3;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on viu algun client (`customer`). Ordena pel nom de la ciutat.",
+          "sql": "select distinct c2.city \nfrom customer c join address a on c.address_id = a.address_id join city c2 on a.city_id = c2.city_id \norder by c2.city;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on viu algun empleat (`staff`). Ordena pel nom de la ciutat.",
+          "sql": "select distinct c2.city \nfrom staff s join address a on s.address_id = a.address_id join city c2 on a.city_id = c2.city_id \norder by c2.city;"
+        },
+        {
+          "text": "Mostra el títol (`title`), la descripció (`description`) i el nom (`first_name`) i cognom (`last_name`) dels actors de les pel·lícules que contenen les paraules 'kill' i 'database' a la descripció, en qualsevol ordre. Ordena per títol, nom i cognom.",
+          "sql": "select f.title, f.description, a.first_name, a.last_name \nfrom film f join film_actor fa on f.film_id = fa.film_id join actor a on fa.actor_id = a.actor_id \nwhere description like '%database%' and description like '%kill%'\norder by f.title, a.first_name, a.last_name;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 7",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra el `customer_id` i el nombre de pagaments (`payment`) dels clients que n'han fet més de 15 amb `payment_date` entre '2005-07-01' i '2005-07-31' (amb BETWEEN, és a dir, fins al 31 de juliol a les 00:00:00).",
+          "sql": "select customer_id, count(*)\nfrom payment\nwhere payment_date between '2005-07-01' and '2005-07-31'\ngroup by customer_id\nhaving count(*)>15"
+        },
+        {
+          "text": "Mostra el nom (`first_name`) i el cognom (`last_name`) de tots els actors juntament amb el títol (`title`) de cadascuna de les pel·lícules que han fet (els actors sense pel·lícules també han de sortir). Ordena pel cognom de l'actor.",
+          "sql": "SELECT a.first_name , a.last_name , f.title \nFROM actor a LEFT JOIN film_actor fa ON a.actor_id = fa.actor_id \nLEFT JOIN film f  ON fa.film_id = f.film_id \nORDER BY a.last_name ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`first_name`) i el cognom (`last_name`) dels actors que no han fet mai cap pel·lícula de més de 120 minuts (`length`).",
+          "sql": "select distinct a.first_name , a.last_name \nfrom actor a left join (film_actor fa left join film f on (fa.film_id=f.film_id and f.length > 120) ) on a.actor_id =fa.actor_id \nwhere f.film_id is null"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules de la categoria 'Action' que no tenen cap exemplar a l'inventari (`inventory`).",
+          "sql": "SELECT f.title \nfrom film f left join inventory i on f.film_id = i.film_id \n\tjoin film_category fc on f.film_id = fc.film_id \n\tjoin category c2 on fc.category_id = c2.category_id \nwhere i.film_id is null and c2.name = 'Action'"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules de la categoria 'Drama' que no tenen cap exemplar a l'inventari (`inventory`).",
+          "sql": "SELECT f.title \nfrom film f left join inventory i on f.film_id = i.film_id \n\tjoin film_category fc on f.film_id = fc.film_id \n\tjoin category c2 on fc.category_id = c2.category_id \nwhere i.film_id is null and c2.name = 'Drama';"
+        },
+        {
+          "text": "Mostra el títol (`title`) de les pel·lícules de la categoria 'Comedy' que no tenen cap exemplar a l'inventari (`inventory`).",
+          "sql": "SELECT f.title \nfrom film f left join inventory i on f.film_id = i.film_id \n\tjoin film_category fc on f.film_id = fc.film_id \n\tjoin category c2 on fc.category_id = c2.category_id \nwhere i.film_id is null and c2.name = 'Comedy'"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`first_name`), el cognom (`last_name`) i el títol de la pel·lícula (`title`) dels clients que han llogat alguna vegada la pel·lícula 'ALI FOREVER'. Ordena per nom i cognom.",
+          "sql": "SELECT DISTINCT c.first_name , c.last_name , f.title  \nFROM customer c JOIN rental r ON c.customer_id = r.customer_id \nJOIN inventory i ON r.inventory_id = i.inventory_id \nJOIN film f ON i.film_id = f.film_id \nWHERE f.title LIKE 'ALI FOREVER'\nORDER BY c.first_name , c.last_name;"
+        }
+      ]
+    },
+    {
+      "name": "Sakila QT — Examen fusionat 8",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen reals de QueryTest sobre Sakila, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on hi ha alguna botiga que té inventariada alguna pel·lícula amb la paraula 'Casablanca' al títol.",
+          "sql": "SELECT distinct c.city \nfrom film a join inventory i on a.film_id = i.film_id \n\t\t\tjoin store s on i.store_id = s.store_id\n\t\t\tjoin address a2 on s.address_id = a2.address_id \n\t\t\tjoin city c on a2.city_id = c.city_id \nwhere title like '%Casablanca%';"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on hi ha alguna botiga que té inventariada alguna pel·lícula amb la paraula 'Dinosaur' al títol.",
+          "sql": "SELECT distinct c.city \nfrom film a join inventory i on a.film_id = i.film_id \n\t\t\tjoin store s on i.store_id = s.store_id\n\t\t\tjoin address a2 on s.address_id = a2.address_id \n\t\t\tjoin city c on a2.city_id = c.city_id \nwhere title like '%Dinosaur%';"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`city`) de les ciutats on hi ha alguna botiga que té inventariada alguna pel·lícula on ha participat l'actor Elvis Marx.",
+          "sql": "SELECT distinct c.city \nfrom actor a join film_actor fa on a.actor_id = fa.actor_id \n\t\t\tjoin inventory i on fa.film_id = i.film_id \n\t\t\tjoin store s on i.store_id = s.store_id\n\t\t\tjoin address a2 on s.address_id = a2.address_id \n\t\t\tjoin city c on a2.city_id = c.city_id \nwhere a.first_name = 'Elvis' and a.last_name = 'Marx';"
+        }
+      ]
+    }
+  ]
+}

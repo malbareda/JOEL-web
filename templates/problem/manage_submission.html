@@ -52,12 +52,12 @@
         $(function () {
             $('#by-lang-filter').select2({
                 multiple: true,
-                placeholder: '{{ _('Leave empty to not filter by language') }}'
+                placeholder: '{{ _('Leave empty to not filter by language')|escapejs }}'
             });
 
             $('#by-result-filter').select2({
                 multiple: true,
-                placeholder: '{{ _('Leave empty to not filter by result') }}'
+                placeholder: '{{ _('Leave empty to not filter by result')|escapejs }}'
             });
 
             $('#rescore-all').click(function (e) {

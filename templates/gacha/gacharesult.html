@@ -233,18 +233,9 @@
         40%, 60%  { transform: translate3d(4px, 0, 0); }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-        .gacha-wrapper.charging .container,
-        .gacha-wrapper.show-rays::before {
-            animation: none !important;
-        }
-        .gacha-reveal-banner.show {
-            animation: none !important;
-            opacity: 1;
-            transform: translate(-50%, 0) scale(1);
-            rotate: 0deg;
-        }
-        }
+        {# No prefers-reduced-motion handling on purpose: the institute PCs have Windows animations
+           turned off by policy, which browsers report as "reduce", and the gacha is an optional,
+           always-over-the-top feature -- every pull plays in full. #}
 
         /* Mega fanfare: reserved for the handful of achievements marked `mega_fanfare`, meant to
            feel like an even bigger deal than an ordinary legendary -- a rainbow wash across the
@@ -292,11 +283,6 @@
         to   { transform: translateX(120vw); }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-        #mega-fanfare-bg.show { animation: none !important; opacity: 0.18; }
-        #duck-parade { display: none !important; }
-        }
-
     </style>
 {% endblock %}
 
@@ -333,10 +319,6 @@
     // shows -- every pull starts identical (a neutral grey glow) precisely so the color reveal
     // itself lands as its own beat, instead of telegraphing the rarity from the very first frame.
     var GACHA_SUSPENSE_MS = 1000;
-
-    function prefersReducedMotion() {
-        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    }
 
     function playChargeSound(quality, durationMs) {
         try {
@@ -624,7 +606,7 @@
 
     function startDuckParade() {
         var parade = document.getElementById('duck-parade');
-        if (!parade || prefersReducedMotion()) return;
+        if (!parade) return;
         var totalMs = 12000;
         function spawnDuck() {
             var duck = document.createElement('span');
@@ -673,7 +655,7 @@
 
     function startConfettiRain(quality) {
         var canvas = document.getElementById('gacha-confetti');
-        if (!canvas || !canvas.getContext || prefersReducedMotion()) return;
+        if (!canvas || !canvas.getContext) return;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         var ctx = canvas.getContext('2d');
@@ -720,7 +702,7 @@
 
     function flashScreen() {
         var el = document.getElementById('gacha-flash');
-        if (!el || prefersReducedMotion()) return;
+        if (!el) return;
         el.style.transition = 'none';
         el.style.opacity = '0.9';
         requestAnimationFrame(function () {
@@ -730,7 +712,6 @@
     }
 
     function shakeElement(el, durationMs) {
-        if (prefersReducedMotion()) return;
         el.style.animation = 'none';
         // Force reflow so a second shake (e.g. charge then payoff) restarts the animation
         // instead of being ignored as "already running".
@@ -951,13 +932,13 @@
     </div>
     <p>{{_('Has aconseguit')}} {% if achcat == 1 %} {{_('un Sticker!')}} {% elif achcat == 2 %} {{_('una Icona!')}} {% elif achcat == 3 %} {{_('un Color!')}} {% elif achcat == 4 %} {{_('un Tema!')}} {% endif %}</p>
     {% if repetit == 1 %}
-    <p id="desc-repeat" style="display:none;">{{_('Però estava repetit... Quina llàstima! Com que em sento generós, et torno un 50%% dels teus GachaPoints')}}</p>
+    <p id="desc-repeat" style="display:none;">{{_('Però estava repetit... Quina llàstima! Com que em sento generós, et torno un %(percent)s%% dels teus GachaPoints', percent=refund_percent)}}</p>
     {% endif %}
     <p id="desc-item" style="display:none;">{{achdesc}}</p>
 <form action="{{ url('gacha_go') }}" method="post"
                           class="contest-join-pseudotab unselectable button">
                         {% csrf_token %}
-                        <input type="submit" value="{{ _('Use 5 GachaPoints') }}">
+                        <input type="submit" value="{{ _('Use %(points)s GachaPoints', points=request.profile.gacha_roll_cost) }}">
     </form>
 
 {% endblock %}

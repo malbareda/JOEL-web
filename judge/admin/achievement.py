@@ -21,8 +21,11 @@ class AchievementAdmin(admin.ModelAdmin):
     # renders their human-readable labels (sticker/icon/... and common/rare/epic/legendary)
     # automatically instead of the raw stored integers.
     list_display = ('name', 'category', 'image_preview', 'quality', 'created_by')
-    fields = ('name', 'desc', 'rarity', 'quality', 'category', 'logo_override_image', 'mega_fanfare')
+    fields = ('name', 'desc', 'rarity', 'quality', 'category', 'logo_override_image', 'mega_fanfare',
+              'gacha_discount', 'extra_hint', 'double_daily_bonus', 'duplicate_insurance', 'rainbow_name')
     form = AchievementForm
+    ADMIN_ONLY_FIELDS = ('mega_fanfare', 'rarity', 'gacha_discount', 'extra_hint', 'double_daily_bonus',
+                         'duplicate_insurance', 'rainbow_name')
 
     def image_preview(self, obj):
         # Django's default list_display rendering for an ImageField links through `.url`, which
@@ -40,8 +43,9 @@ class AchievementAdmin(admin.ModelAdmin):
             # (extra confetti/ducks/rainbow + an email to the admins every time someone gets it),
             # and only real admins can raise an achievement's rarity above the normal odds for its
             # quality tier -- a student with limited access to create stickers/icons never sees
-            # either field, so their achievements always keep the default rarity of 1.
-            fields = [f for f in fields if f not in ('mega_fanfare', 'rarity')]
+            # either field, so their achievements always keep the default rarity of 1. Same for
+            # the permanent perks.
+            fields = [f for f in fields if f not in self.ADMIN_ONLY_FIELDS]
         return fields
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):

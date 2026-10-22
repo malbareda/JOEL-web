@@ -3,6 +3,7 @@ import hmac
 import json
 import secrets
 import struct
+import time
 from operator import mul
 
 import pyotp
@@ -10,6 +11,7 @@ import pytz
 import webauthn
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.validators import RegexValidator
 from django.db import models, transaction
 from django.db.models import Max, OuterRef, Subquery
@@ -83,6 +85,28 @@ class Achievement(models.Model):
                     'normal legendary (extra confetti, rubber duck parade, rainbow background, '
                     "a celebration sound), and sends an email to the site admins (settings.ADMINS) "
                     'every time a user obtains it.'))
+    gacha_discount = models.BooleanField(
+        verbose_name=_('gacha discount'), default=False,
+        help_text=_('Whoever owns this achievement pays 4 GachaPoints per gacha roll instead of 5, '
+                    'permanently. Owning more than one copy (or more than one such achievement) '
+                    'does not stack.'))
+    extra_hint = models.BooleanField(
+        verbose_name=_('extra hint'), default=False,
+        help_text=_('Whoever owns this achievement gets one extra hint, permanently, on every problem '
+                    'that already allows at least one. Problems with no hints stay at zero. Owning '
+                    'more than one copy (or more than one such achievement) does not stack.'))
+    double_daily_bonus = models.BooleanField(
+        verbose_name=_('double daily bonus'), default=False,
+        help_text=_("Whoever owns this achievement gets twice the 'first new problem of the day' "
+                    'GachaPoints bonus, permanently. Does not stack.'))
+    duplicate_insurance = models.BooleanField(
+        verbose_name=_('duplicate insurance'), default=False,
+        help_text=_('Whoever owns this achievement gets back 80% of the roll cost on a duplicate '
+                    'gacha result instead of 50%, permanently. Does not stack.'))
+    rainbow_name = models.BooleanField(
+        verbose_name=_('rainbow name'), default=False,
+        help_text=_("Whoever owns this achievement has their username shown with an animated "
+                    'rainbow everywhere on the site. Does not stack.'))
     created_by = models.ForeignKey(
         'Profile', verbose_name=_('created by'), null=True, blank=True, on_delete=models.SET_NULL,
         related_name='created_achievements',
@@ -343,6 +367,64 @@ class Profile(models.Model):
     # calendar date, regardless of the user's own profile.timezone -- solving one problem at
     # 23:59 and another at 00:01 Madrid time is deliberately two different days (and two bonuses).
     DAILY_SOLVE_BONUS_POINTS = 5
+    DAILY_SOLVE_BONUS_POINTS_DOUBLED = 10
+
+    GACHA_ROLL_COST = 5
+    GACHA_ROLL_COST_DISCOUNTED = 4
+
+    # Share of the roll cost given back on a duplicate gacha result.
+    DUPLICATE_REFUND_RATIO = 0.5
+    DUPLICATE_REFUND_RATIO_INSURED = 0.8
+
+    RAINBOW_NAME_CACHE_KEY = 'rainbow_name_profile_ids'
+    RAINBOW_NAME_LOCAL_TTL = 30
+    _rainbow_name_local = (0, None)
+
+    def _has_perk(self, field):
+        # Not cached on purpose: the roll that hands out a perk achievement must not change what
+        # that same roll costs/refunds, but every later page/roll should see the new value.
+        return self.achievementsobtained.filter(**{'achievement__' + field: True}).exists()
+
+    @property
+    def gacha_roll_cost(self):
+        if self._has_perk('gacha_discount'):
+            return self.GACHA_ROLL_COST_DISCOUNTED
+        return self.GACHA_ROLL_COST
+
+    @property
+    def has_extra_hint(self):
+        return self._has_perk('extra_hint')
+
+    @property
+    def daily_solve_bonus_points(self):
+        if self._has_perk('double_daily_bonus'):
+            return self.DAILY_SOLVE_BONUS_POINTS_DOUBLED
+        return self.DAILY_SOLVE_BONUS_POINTS
+
+    @property
+    def duplicate_refund_ratio(self):
+        if self._has_perk('duplicate_insurance'):
+            return self.DUPLICATE_REFUND_RATIO_INSURED
+        return self.DUPLICATE_REFUND_RATIO
+
+    @classmethod
+    def rainbow_name_ids(cls):
+        """Ids of the profiles owning a `rainbow_name` achievement. Cached as one small set
+        because link_user() runs for every username on a page (hundreds on a ranking) -- a
+        query per name would be far too many. Invalidated by the Achievement/AchievementObtained
+        signals in judge/signals.py. The shared cache is file-based here, so on top of it each
+        worker keeps its own copy for RAINBOW_NAME_LOCAL_TTL seconds instead of reading a file per
+        username; a new rainbow name can take that long to show up in other workers."""
+        fetched_at, ids = Profile._rainbow_name_local
+        if ids is not None and time.monotonic() - fetched_at < cls.RAINBOW_NAME_LOCAL_TTL:
+            return ids
+        ids = cache.get(cls.RAINBOW_NAME_CACHE_KEY)
+        if ids is None:
+            ids = set(AchievementObtained.objects.filter(achievement__rainbow_name=True)
+                      .values_list('user_id', flat=True))
+            cache.set(cls.RAINBOW_NAME_CACHE_KEY, ids, 86400)
+        Profile._rainbow_name_local = (time.monotonic(), ids)
+        return ids
     _MADRID_TZ = pytz.timezone('Europe/Madrid')
 
     @classmethod
@@ -362,16 +444,17 @@ class Profile(models.Model):
         Uses select_for_update so two submissions finishing grading at nearly the same moment
         can't both slip through and double-grant the bonus."""
         today = self.madrid_today()
+        points = self.daily_solve_bonus_points
         with transaction.atomic():
             profile = Profile.objects.select_for_update().get(pk=self.pk)
             if profile.last_daily_solve_bonus_date == today:
                 return 0
-            profile.gacha_points -= self.DAILY_SOLVE_BONUS_POINTS
+            profile.gacha_points -= points
             profile.last_daily_solve_bonus_date = today
             profile.save(update_fields=['gacha_points', 'last_daily_solve_bonus_date'])
         self.gacha_points = profile.gacha_points
         self.last_daily_solve_bonus_date = today
-        return self.DAILY_SOLVE_BONUS_POINTS
+        return points
 
     def calculate_points(self, table=_pp_table):
         from judge.models import Problem

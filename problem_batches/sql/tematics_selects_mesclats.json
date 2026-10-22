@@ -4,7 +4,7 @@
    "code": "sqlsel01",
    "database": "northwind",
    "type": "sqlselbasic",
-   "name": "SQL Selects bàsics 1: triar, filtrar i ordenar",
+   "name": "SQL Selects bàsics 1: triar, filtrar i ordenar", "engine": "mysql", "database": "northwind",
    "intro": "Practica `SELECT` de columnes, àlies, `WHERE`, `ORDER BY`, `LIMIT` i `DISTINCT` sobre la base de dades Northwind.",
    "questions": [
     {
@@ -63,7 +63,7 @@
    "code": "sqlsel02",
    "database": "chinook",
    "type": "sqlselbasic",
-   "name": "SQL Selects bàsics 2: filtres avançats",
+   "name": "SQL Selects bàsics 2: filtres avançats", "engine": "mysql", "database": "Chinook",
    "intro": "Practica `LIKE`, `IN`, `NOT IN`, `BETWEEN`, `IS NULL` i la precedència de `AND`/`OR`/`NOT` amb parèntesis a Chinook.",
    "questions": [
     {
@@ -122,7 +122,7 @@
    "code": "sqlsel03",
    "database": "hotel",
    "type": "sqlselbasic",
-   "name": "SQL Selects bàsics 3: expressions i funcions",
+   "name": "SQL Selects bàsics 3: expressions i funcions", "engine": "mysql", "database": "hotel",
    "intro": "Practica càlculs, `CASE WHEN`, `COALESCE`, funcions de text i funcions de dates a la base de dades de l'hotel.",
    "questions": [
     {
@@ -147,7 +147,7 @@
     },
     {
      "text": "Mostra l'identificador (`Id`), el nom complet en minúscules (`FirstName`, un espai i `LastName`, units amb `||`) i la longitud del correu (`LENGTH(Email)`) dels clients de la taula `Customers` amb `Id` entre 1 i 10.",
-     "sql": "SELECT Id, LOWER(FirstName) || ' ' || LOWER(LastName), LENGTH(Email) FROM Customers WHERE Id BETWEEN 1 AND 10",
+     "sql": "SELECT Id, CONCAT(LOWER(FirstName), ' ', LOWER(LastName)), CHAR_LENGTH(Email) FROM Customers WHERE Id BETWEEN 1 AND 10",
      "explain": "`||` concatena textos, `LOWER` passa a minúscules i `LENGTH` compta caràcters. Es poden niar funcions i combinar-les amb literals."
     },
     {
@@ -162,17 +162,17 @@
     },
     {
      "text": "Mostra l'identificador (`Id`) i el nombre de nits de cada reserva de la taula `Bookings` amb `Id` entre 1 i 15, calculat com a diferència entre `CheckOut` i `CheckIn` en dies amb `julianday` i convertit a enter (`CAST(... AS INTEGER)`).",
-     "sql": "SELECT Id, CAST(julianday(CheckOut) - julianday(CheckIn) AS INTEGER) FROM Bookings WHERE Id BETWEEN 1 AND 15",
+     "sql": "SELECT Id, DATEDIFF(CheckOut, CheckIn) FROM Bookings WHERE Id BETWEEN 1 AND 15",
      "explain": "`julianday` converteix una data en un nombre de dies, de manera que la resta dóna els dies entre dues dates. `CAST` treu el decimal que SQLite hi afegeix."
     },
     {
      "text": "Mostra l'identificador (`Id`) i el mes de la data d'entrada en format 'AAAA-MM' (`strftime('%Y-%m', CheckIn)`) de les estades de la taula `Stays` amb `Id` entre 1 i 20.",
-     "sql": "SELECT Id, strftime('%Y-%m', CheckIn) FROM Stays WHERE Id BETWEEN 1 AND 20",
+     "sql": "SELECT Id, DATE_FORMAT(CheckIn, '%Y-%m') FROM Stays WHERE Id BETWEEN 1 AND 20",
      "explain": "`strftime` formata una data text amb codis: `%Y` és l'any de 4 xifres i `%m` el mes de 2 xifres. SQLite no té tipus data propi i treballa amb text 'AAAA-MM-DD'."
     },
     {
      "text": "Mostra l'identificador (`Id`), el nombre de nits (diferència de dies entre `CheckOut` i `CheckIn` convertida a enter amb `julianday` i `CAST`) i una durada ('Curta' si són 2 nits o menys, 'Mitjana' si són de 3 a 6 i 'Llarga' si són 7 o més) de les estades amb `Id` entre 1 i 25 que tenen data de sortida (`CheckOut` no és nul).",
-     "sql": "SELECT Id, CAST(julianday(CheckOut) - julianday(CheckIn) AS INTEGER), CASE WHEN julianday(CheckOut) - julianday(CheckIn) <= 2 THEN 'Curta' WHEN julianday(CheckOut) - julianday(CheckIn) < 7 THEN 'Mitjana' ELSE 'Llarga' END FROM Stays WHERE Id BETWEEN 1 AND 25 AND CheckOut IS NOT NULL",
+     "sql": "SELECT Id, DATEDIFF(CheckOut, CheckIn), CASE WHEN DATEDIFF(CheckOut, CheckIn) <= 2 THEN 'Curta' WHEN DATEDIFF(CheckOut, CheckIn) < 7 THEN 'Mitjana' ELSE 'Llarga' END FROM Stays WHERE Id BETWEEN 1 AND 25 AND CheckOut IS NOT NULL",
      "explain": "Es combinen càlcul de dates i `CASE WHEN`: primer es resta amb `julianday` i després es classifica el resultat. El filtre `IS NOT NULL` evita restes amb dates absents."
     }
    ]
@@ -181,7 +181,7 @@
    "code": "sqlmix01",
    "database": "knights",
    "type": "sqlmixed",
-   "name": "SQL Mesclat 1: cavallers i dragons",
+   "name": "SQL Mesclat 1: cavallers i dragons", "engine": "mysql", "database": "knightsdb",
    "intro": "Repàs mesclat de `SELECT`, `JOIN`, agregats amb `GROUP BY`/`HAVING` i subconsultes sobre cavallers i dragons.",
    "questions": [
     {
@@ -201,7 +201,7 @@
     },
     {
      "text": "Mostra el nom de cada drac i el nom complet (`Firstname`, un espai i `Lastname`) del cavaller que el va matar, només dels dragons amb resultat de batalla (`BattleOutcome`) 'Dead'.",
-     "sql": "SELECT d.Name, k.Firstname || ' ' || k.Lastname FROM Dragons d JOIN Knights k ON d.KilledBy = k.Nickname WHERE d.BattleOutcome = 'Dead'",
+     "sql": "SELECT d.Name, CONCAT(k.Firstname, ' ', k.Lastname) FROM Dragons d JOIN Knights k ON d.KilledBy = k.Nickname WHERE d.BattleOutcome = 'Dead'",
      "explain": "`KilledBy` és una clau forana cap a `Knights.Nickname`, així que s'uneixen les dues taules amb aquesta igualtat. Després `WHERE` filtra i `||` forma el nom complet."
     },
     {
@@ -240,7 +240,7 @@
    "code": "sqlmix02",
    "database": "miniwind",
    "type": "sqlmixed",
-   "name": "SQL Mesclat 2: anàlisi de vendes",
+   "name": "SQL Mesclat 2: anàlisi de vendes", "engine": "mysql", "database": "miniwind",
    "intro": "Repàs final que combina `JOIN` de diverses taules, `GROUP BY`/`HAVING`, subconsultes i `CASE` amb càlculs d'imports.",
    "questions": [
     {
@@ -265,12 +265,12 @@
     },
     {
      "text": "Mostra el nom complet de cada empleat (`first_name`, un espai i `last_name`), el nombre de comandes diferents que ha gestionat i l'import total d'aquestes comandes (suma de `quantity * unit_price`), només per als empleats amb alguna línia de comanda.",
-     "sql": "SELECT e.first_name || ' ' || e.last_name, COUNT(DISTINCT o.id), SUM(d.quantity * d.unit_price) FROM employees e JOIN orders o ON o.employee_id = e.id JOIN order_details d ON d.order_id = o.id GROUP BY e.id, e.first_name, e.last_name",
+     "sql": "SELECT CONCAT(e.first_name, ' ', e.last_name), COUNT(DISTINCT o.id), SUM(d.quantity * d.unit_price) FROM employees e JOIN orders o ON o.employee_id = e.id JOIN order_details d ON d.order_id = o.id GROUP BY e.id, e.first_name, e.last_name",
      "explain": "En unir comandes amb línies cada comanda apareix repetida; per això es compta amb `COUNT(DISTINCT o.id)` i no amb `COUNT(*)`, que comptaria línies."
     },
     {
      "text": "Mostra l'identificador (`order_id`) i l'import total (suma de `quantity * unit_price`) de les comandes amb un import superior a la mitjana dels imports totals de totes les comandes.",
-     "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))",
+     "sql": "SELECT order_id, SUM(quantity * unit_price) FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) AS x)",
      "explain": "La subconsulta interna calcula l'import de cada comanda, la de fora en fa la mitjana, i el `HAVING` compara cada comanda amb aquesta mitjana."
     },
     {
@@ -280,7 +280,7 @@
     },
     {
      "text": "Classifica les comandes segons el seu import total (suma de `quantity * unit_price`): 'Gran' si és 1000 o més, 'Mitjana' si és 300 o més però menys de 1000, i 'Petita' si és menys de 300. Mostra cada classe i quantes comandes hi ha de cada una.",
-     "sql": "SELECT CASE WHEN t >= 1000 THEN 'Gran' WHEN t >= 300 THEN 'Mitjana' ELSE 'Petita' END, COUNT(*) FROM (SELECT order_id, SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) GROUP BY 1",
+     "sql": "SELECT CASE WHEN t >= 1000 THEN 'Gran' WHEN t >= 300 THEN 'Mitjana' ELSE 'Petita' END, COUNT(*) FROM (SELECT order_id, SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) AS x GROUP BY 1",
      "explain": "Primer es calcula l'import per comanda en una subconsulta a `FROM`; fora s'hi aplica `CASE` per classificar i `GROUP BY 1` agrupa per aquesta expressió."
     },
     {

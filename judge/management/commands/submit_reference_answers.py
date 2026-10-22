@@ -33,6 +33,9 @@ class Command(BaseCommand):
         parser.add_argument('--chunk', type=int, default=20, help='submissions sent to the judges at a time')
         parser.add_argument('--timeout', type=int, default=300, help='seconds to wait for each chunk')
         parser.add_argument('--dry-run', action='store_true', help='only list what would be submitted')
+        parser.add_argument('--force', action='store_true',
+                            help='submit again even where %s already has a full-score AC (e.g. after changing '
+                                 'the checker)' % AUTHOR)
 
     def handle(self, *args, **options):
         if options['codes']:
@@ -48,8 +51,8 @@ class Command(BaseCommand):
         todo = []
         for problem in problems:
             # Same condition Submission.can_see_detail uses to say "solved": AC with the problem's full points.
-            if Submission.objects.filter(user=author, problem=problem, result='AC',
-                                         points=problem.points).exists():
+            if not options['force'] and Submission.objects.filter(user=author, problem=problem, result='AC',
+                                                                  points=problem.points).exists():
                 continue
             todo.append(problem)
         self.stdout.write('%d problems, %d already have an AC by %s, %d to submit' %

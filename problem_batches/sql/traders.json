@@ -4,7 +4,7 @@
   "label": "Traders (comerciants espacials: planetes, naus, productes, preus i transaccions)",
   "problems": [
     {
-      "name": "Traders 1: Primeres consultes",
+      "name": "Traders 1: Primeres consultes", "engine": "mysql", "database": "traders",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
       "questions": [
         {
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "name": "Traders 2: Filtrant files",
+      "name": "Traders 2: Filtrant files", "engine": "mysql", "database": "traders",
       "intro": "Practica les condicions del `WHERE`: comparacions i operadors lògics.",
       "questions": [
         {
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "Traders 3: Cerques, llistes i NULL",
+      "name": "Traders 3: Cerques, llistes i NULL", "engine": "mysql", "database": "traders",
       "intro": "Usa `LIKE`, `IN`, `BETWEEN` i `IS NULL` per filtrar amb condicions més expressives.",
       "questions": [
         {
@@ -62,7 +62,7 @@
       ]
     },
     {
-      "name": "Traders 4: Funcions d'agregació",
+      "name": "Traders 4: Funcions d'agregació", "engine": "mysql", "database": "traders",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
       "questions": [
         {
@@ -84,7 +84,7 @@
       ]
     },
     {
-      "name": "Traders 5: Agrupant dades",
+      "name": "Traders 5: Agrupant dades", "engine": "mysql", "database": "traders",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {
@@ -102,7 +102,7 @@
       ]
     },
     {
-      "name": "Traders 6: Filtrant grups",
+      "name": "Traders 6: Filtrant grups", "engine": "mysql", "database": "traders",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {
@@ -120,7 +120,7 @@
       ]
     },
     {
-      "name": "Traders 7: Primers JOINs",
+      "name": "Traders 7: Primers JOINs", "engine": "mysql", "database": "traders",
       "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
       "questions": [
         {
@@ -138,7 +138,7 @@
       ]
     },
     {
-      "name": "Traders 8: JOINs amb filtres i agrupacions",
+      "name": "Traders 8: JOINs amb filtres i agrupacions", "engine": "mysql", "database": "traders",
       "intro": "Combina `JOIN`, `WHERE` i `GROUP BY` unint tres o més taules.",
       "questions": [
         {
@@ -156,7 +156,7 @@
       ]
     },
     {
-      "name": "Traders 9: LEFT JOIN, CASE i dates",
+      "name": "Traders 9: LEFT JOIN, CASE i dates", "engine": "mysql", "database": "traders",
       "intro": "Quan cal incloure files sense coincidència, classificar valors amb `CASE` o treballar amb dates (guardades com a text).",
       "questions": [
         {
@@ -174,7 +174,7 @@
       ]
     },
     {
-      "name": "Traders 10: Repte final",
+      "name": "Traders 10: Repte final", "engine": "mysql", "database": "traders",
       "intro": "Consultes de més d'un pas: `JOIN` de diverses taules, subconsultes i càlculs.",
       "questions": [
         {
@@ -183,7 +183,7 @@
         },
         {
           "text": "Mostra el sobrenom dels comerciants que han fet més estades que la mitjana d'estades per comerciant (calculada només entre els comerciants que tenen alguna estada), juntament amb el seu nombre d'estades.",
-          "sql": "SELECT t.Nickname, COUNT(*) FROM Traders t INNER JOIN Stays s ON s.TraderId = t.Id GROUP BY t.Id, t.Nickname HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Stays GROUP BY TraderId))"
+          "sql": "SELECT t.Nickname, COUNT(*) FROM Traders t INNER JOIN Stays s ON s.TraderId = t.Id GROUP BY t.Id, t.Nickname HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Stays GROUP BY TraderId) AS x)"
         },
         {
           "text": "Mostra el nom de cada producte i el seu preu màxim (`MAX` de `NewPrice`) a `PriceChanges`, només per als productes que mai han aparegut a `TradeLines`. Uneix `Products` i `PriceChanges`, i mostra només els productes amb algun canvi de preu.",

@@ -1,0 +1,194 @@
+[
+  {
+    "db": "chinook",
+    "code": "sqlchinookqt04",
+    "problem": "Chinook QT — Subconsultes 01",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures (`Invoice`) el `Total` de les quals no coincideix amb la suma de `UnitPrice`*`Quantity` de les seves línies (`InvoiceLine`). Ordena per `InvoiceId`.",
+    "sql": "SELECT InvoiceId, Total\n FROM Invoice i\n WHERE Total != (\n   SELECT SUM(UnitPrice*Quantity)\n    FROM InvoiceLine il\n    WHERE il.InvoiceId=i.InvoiceId\n )\n ORDER BY InvoiceId;"
+  },
+  {
+    "db": "chinook",
+    "code": "sqlchinookqt12",
+    "problem": "Chinook QT — Consultes intermèdies 01",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`InvoiceId`), el total facturat (`Total`) i el total calculat (`Total_Calculat`, suma de `UnitPrice`*`Quantity` de `InvoiceLine`) de les factures en què les dues xifres no coincideixen.",
+    "sql": "SELECT \n    i.InvoiceId,\n    i.Total,\n    SUM(il.UnitPrice * il.Quantity) AS Total_Calculat\nFROM \n    Invoice i\nJOIN \n    InvoiceLine il ON i.InvoiceId = il.InvoiceId\nGROUP BY \n    i.InvoiceId,\n    i.Total\nHAVING \n    i.Total != Total_Calculat"
+  },
+  {
+    "db": "chinook",
+    "code": "sqlchinookqt14",
+    "problem": "Chinook QT — Consultes intermèdies 03",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customer`) que no tenen cap factura (`Invoice`) registrada, amb `NOT EXISTS`.",
+    "sql": "SELECT FirstName, LastName\nFROM Customer C\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM Invoice I\n    WHERE I.CustomerId = C.CustomerId\n);"
+  },
+  {
+    "db": "chinook",
+    "code": "sqlchinookqt20",
+    "problem": "Chinook QT — Examen fusionat 4",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures el `Total` de les quals no coincideix amb la suma de `UnitPrice`*`Quantity` de les seves línies (`InvoiceLine`). Ordena per `InvoiceId`.",
+    "sql": "SELECT InvoiceId, Total\n FROM Invoice i\n WHERE Total != (\n   SELECT SUM(UnitPrice*Quantity)\n    FROM InvoiceLine il\n    WHERE il.InvoiceId=i.InvoiceId\n )\n ORDER BY InvoiceId;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt05",
+    "problem": "Hotel QT — Consultes simples (2)",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador de la reserva (`Bookings.Id`) i el nombre d'habitacions assignades (`COUNT(DISTINCT AssignedRoom)`) de les reserves que tenen més d'una habitació assignada. Uneix `Bookings` i `BookingCalendar`.",
+    "sql": "SELECT b.Id AS BookingId, COUNT(DISTINCT bc.AssignedRoom) AS RoomCount\nFROM Bookings b\nJOIN BookingCalendar bc ON b.Id = bc.BookingId\nGROUP BY b.Id\nHAVING RoomCount > 1;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt06",
+    "problem": "Hotel QT — Examen fusionat 1",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra la data de reserva (`ReservationDateTime`), la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`) i el nombre de nits (`DATEDIFF(CheckOut, CheckIn)`) de les reserves (`Bookings`) amb estat 'Reserved' fetes el gener o el març de 2019 que duren més de 4 nits. Ordena per data de reserva.",
+    "sql": "select ReservationDateTime, CheckIn, CheckOut, datediff(CheckOut, CheckIn)\nfrom Bookings b\nwhere (month(ReservationDateTime)=3 or month(ReservationDateTime)=1)\nand year(ReservationDateTime)=2019\nand b.State='Reserved'\nand datediff(CheckOut, CheckIn)>4\norder by ReservationDateTime"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt06",
+    "problem": "Hotel QT — Examen fusionat 1",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra la data de reserva (`ReservationDateTime`), la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`) i el nombre de nits (`DATEDIFF(CheckOut, CheckIn)`) de les reserves (`Bookings`) amb estat 'Reserved' fetes el gener o l'abril de 2020 que duren 7 nits o més. Ordena per data de reserva.",
+    "sql": "select ReservationDateTime, CheckIn, CheckOut, datediff(CheckOut, CheckIn)\nfrom Bookings b\nwhere (month(ReservationDateTime)=1 or month(ReservationDateTime)=4)\nand year(ReservationDateTime)=2020\nand b.State='Reserved'\nand datediff(CheckOut, CheckIn)>=7\norder by ReservationDateTime"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt06",
+    "problem": "Hotel QT — Examen fusionat 1",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el nom (`Name`) dels tipus d'habitació (`RoomTypes`) que no tenen cap servei associat (cap fila a `RoomTypeFacilities`).",
+    "sql": "SELECT rt.Name \nFROM RoomTypes rt LEFT JOIN RoomTypeFacilities rtf ON rt.Id = rtf.RoomTypeId \nWHERE rtf.RoomTypeId IS NULL;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt07",
+    "problem": "Hotel QT — Examen fusionat 2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra tots els camps de les instal·lacions (`Facilities`) que no estan associades a cap tipus d'habitació (cap fila a `RoomTypeFacilities`).",
+    "sql": "SELECT f.*\nFROM Facilities f LEFT JOIN \nRoomTypeFacilities rtf ON f.Id = rtf.FacilityId \nWHERE rtf.FacilityId  IS NULL;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt07",
+    "problem": "Hotel QT — Examen fusionat 2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el número d'habitació (`RoomNumber`) de les habitacions (`Rooms`) on no s'ha produït mai cap estada (cap fila a `Stays`).",
+    "sql": "SELECT r.RoomNumber\nFROM Rooms r LEFT JOIN Stays s ON r.RoomNumber = s.RoomNumber \nWHERE s.Id IS NULL;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt07",
+    "problem": "Hotel QT — Examen fusionat 2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`Id`) de les estades (`Stays`) que no tenen cap reserva associada (`BookingId` sense coincidència a `Bookings`).",
+    "sql": "SELECT s.Id \nFROM Stays s LEFT JOIN Bookings b ON s.BookingId = b.Id \nWHERE b.id IS NULL;"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt07",
+    "problem": "Hotel QT — Examen fusionat 2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el correu (`Email`) dels clients (`Customers`) que tenien assignada l'habitació número 5 (`AssignedRoom`) el dia 25 de gener de 2020 (`BookedDate`). Uneix `Customers`, `Bookings` i `BookingCalendar`.",
+    "sql": "SELECT FirstName, LastName, EMail\nFROM Customers c\nJOIN Bookings b ON b.CustomerId=c.Id\nJOIN BookingCalendar bc ON bc.BookingId=b.Id\nWHERE AssignedRoom=5 AND BookedDate='2020-01-25'"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt07",
+    "problem": "Hotel QT — Examen fusionat 2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra, per a cada tipus de pagament (`PaymentType`) 'Card' o 'Cash', la suma dels preus totals (`SUM(TotalPrice)`) i el nombre d'estades (`COUNT(Id)`) de les estades (`Stays`) pagades durant l'any 2020 (segons `PaymentDateTime`).",
+    "sql": "select s.PaymentType, sum(s.TotalPrice), count(s.Id)\nfrom  hotel.Stays s\nwhere (s.PaymentType like 'Card' or s.PaymentType like 'Cash') and s.PaymentDateTime>='2020-01-01' and s.PaymentDateTime<'2021-01-01' \ngroup by s.PaymentType"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt08",
+    "problem": "Hotel QT — Examen fusionat 3",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`Id`) i el nom complet (nom i cognom en una sola columna com a `nom`) dels hostes (`Hosts`) de nacionalitat 'French' allotjats a l'hotel el 26 de desembre de 2019 (estada amb `CheckIn` anterior o igual i `CheckOut` posterior a aquesta data). Ordena per identificador. Uneix `Hosts`, `StayHosts` i `Stays`.",
+    "sql": "SELECT h.Id, CONCAT(h.FirstName,' ',h.LastName) as nom\nFROM Hosts h\nJOIN StayHosts sh ON sh.HostId=h.Id\nJOIN Stays s ON s.Id=sh.StayId\nWHERE s.CheckIn<='2019-12-26' AND s.CheckOut>'2019-12-26' and h.Nationality like 'French'\nORDER BY h.Id"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt11",
+    "problem": "Hotel QT — Examen fusionat 6",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el número d'habitació (`RoomNumber`) i el nom del tipus d'habitació (`RoomTypes.Name`) de les habitacions del tipus que té el preu més baix entre les temporades que comencen l'any 2019. Uneix `Rooms` i `RoomTypes` amb subconsultes sobre `PriceSeasons` i `Seasons`.",
+    "sql": "select Rooms.RoomNumber,RoomTypes.Name\nfrom Rooms\njoin RoomTypes on Rooms.RoomTypeId=RoomTypes.Id\nwhere Rooms.RoomTypeId=( select RoomTypeId\nfrom hotel.PriceSeasons\nwhere Price=(Select min(PriceSeasons.Price)\n from PriceSeasons\n  join Seasons on PriceSeasons.SeasonId=Seasons.Id\n where Seasons.StartingDay >= '2019-01-01' and Seasons.StartingDay < '2020-01-01'\n ))"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt11",
+    "problem": "Hotel QT — Examen fusionat 6",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el número d'habitació (`RoomNumber`) i el nombre d'estades (`COUNT(Stays.Id)`) de les habitacions amb menys de 5 estades. Inclou les habitacions sense cap estada. Ordena pel número d'habitació. Uneix `Rooms` i `Stays`.",
+    "sql": "select r.RoomNumber, count(s.Id)\nfrom Rooms r\nleft join Stays s on s.RoomNumber=r.RoomNumber\ngroup by r.RoomNumber\nhaving count(s.Id)<5\norder by r.RoomNumber"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt11",
+    "problem": "Hotel QT — Examen fusionat 6",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el número d'habitació (`RoomNumber`) i el nombre d'estades (`COUNT(Stays.Id)`) de les habitacions amb menys de 50 estades. Inclou les habitacions sense cap estada. Ordena pel número d'habitació. Uneix `Rooms` i `Stays`.",
+    "sql": "select r.RoomNumber, count(s.Id)\nfrom Rooms r\nleft join Stays s on s.RoomNumber=r.RoomNumber\ngroup by r.RoomNumber\nhaving count(s.Id)<50\norder by r.RoomNumber"
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt13",
+    "problem": "Hotel QT — Examen fusionat 8",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra els 4 tipus d'habitació (`RoomTypes.Name`) amb més facturació (`SUM(Bookings.Price)` com a `facturacio`) en reserves amb estat 'Reserved' i data d'entrada (`CheckIn`) anterior a l'any 2021, ordenats de menys a més facturació d'entre aquests 4. Uneix `Bookings` i `RoomTypes`.",
+    "sql": "select * from (select RoomTypes.Name, sum(Bookings.Price) as \"facturacio\"\nfrom Bookings join RoomTypes on Bookings.RoomTypeId=RoomTypes.Id\nwhere Bookings.State like 'Reserved' and Bookings.CheckIn < '2021/01/01'\ngroup by RoomTypes.Name\norder by 2 DESC\nlimit 4) as t\norder by \"facturacio\""
+  },
+  {
+    "db": "hotel",
+    "code": "sqlhotelqt14",
+    "problem": "Hotel QT — Examen fusionat 9",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el tipus de document (`DocType`), el número de document (`DocNumber`), el nom (`FirstName`) i el cognom (`LastName`) dels hostes amb alguna de les 4 despeses totals més altes (`SUM(TotalPrice)`). Uneix `Hosts`, `StayHosts` i `Stays`.",
+    "sql": "SELECT  h.DocType , h.DocNumber , h.FirstName , h.LastName\nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id \nGROUP BY h.Id , h.DocType , h.DocNumber , h.FirstName , h.LastName\nHAVING SUM(s.TotalPrice) IN (\n\tSELECT * FROM (SELECT DISTINCT  SUM(s.TotalPrice) \n\t\tFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \n\t\tJOIN Stays s ON sh.StayId = s.Id \n\t\tGROUP BY h.Id \n\t\tORDER BY SUM(s.TotalPrice) DESC \n\t\tLIMIT 4) AS t\n\t);"
+  },
+  {
+    "db": "miniwind",
+    "code": "sqlminiwindqt07",
+    "problem": "Miniwind QT — Test 3 (26/27)",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra el codi (`product_code`), el nom (`product_name`) i el preu de cost (`standard_cost`) dels productes que no tenen categoria (`category` sense valor). Ordena pel nom del producte de la Z a la A.",
+    "sql": "SELECT product_code, product_name, standard_cost \n FROM products\n WHERE category IS NULL\nORDER BY product_name DESC;"
+  },
+  {
+    "db": "miniwind",
+    "code": "sqlminiwindqt07",
+    "problem": "Miniwind QT — Test 3 (26/27)",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`id`), la data (`order_date`) i les despeses d'enviament (`shipping_fee`) de les comandes del client (`customer_id`) 2 amb unes despeses d'enviament superiors a 300,25.",
+    "sql": "SELECT id, order_date, shipping_fee\n FROM orders\n WHERE customer_id = 2\n AND shipping_fee > 300.25;"
+  },
+  {
+    "db": "miniwind",
+    "code": "sqlminiwindqt08",
+    "problem": "Miniwind QT — Test 6",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador (`id`), el codi (`product_code`) i el nom (`product_name`) dels productes el preu de venda (`list_price`) dels quals és inferior al preu de cost (`standard_cost`).",
+    "sql": "SELECT id, product_code, product_name\n FROM products\n WHERE list_price <  standard_cost;"
+  },
+  {
+    "db": "miniwind",
+    "code": "sqlminiwindqt12",
+    "problem": "Miniwind QT — Test 7 (filtres comparatius)",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra totes les dades de les comandes (`orders`) fetes després de l'1 de gener de 2007.",
+    "sql": "SELECT * \nFROM miniwind.orders\nWHERE order_date > '2007-01-01';"
+  },
+  {
+    "db": "miniwind",
+    "code": "sqlminiwindqt15",
+    "problem": "Miniwind QT — Join 03",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "text": "Mostra l'identificador de la comanda, l'identificador de la factura i el cognom (`last_name`) i el nom (`first_name`) del client de les comandes fetes a partir de l'1 de gener de 2018; les comandes sense factura han de mostrar NULL com a identificador de factura. Ordena per identificador de comanda.",
+    "sql": "select orders.id as qOrdre, invoices.id, customers.last_name, customers.first_name \nfrom orders left join invoices on orders.id=invoices.order_id left join customers on orders.customer_id = customers.id \nwhere orders.order_date >= '2018-01-01'\norder by 1"
+  }
+]

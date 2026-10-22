@@ -4,7 +4,7 @@
    "code": "sqlsub01",
    "database": "employees",
    "type": "sqlsubq",
-   "name": "SQL Subconsultes 1: Subconsultes escalars",
+   "name": "SQL Subconsultes 1: Subconsultes escalars", "engine": "mysql", "database": "company",
    "intro": "Subconsultes que retornen un sol valor (mitjana, màxim, mínim) i que s'usen al `WHERE` i al `SELECT`.",
    "questions": [
     {
@@ -63,7 +63,7 @@
    "code": "sqlsub02",
    "database": "northwind",
    "type": "sqlsubq",
-   "name": "SQL Subconsultes 2: IN i NOT IN",
+   "name": "SQL Subconsultes 2: IN i NOT IN", "engine": "mysql", "database": "northwind",
    "intro": "Subconsultes que retornen una llista de valors, ús d'`IN` i `NOT IN` i el perill dels `NULL` amb `NOT IN`.",
    "questions": [
     {
@@ -122,7 +122,7 @@
    "code": "sqlsub03",
    "database": "hotel",
    "type": "sqlsubq",
-   "name": "SQL Subconsultes 3: EXISTS i NOT EXISTS",
+   "name": "SQL Subconsultes 3: EXISTS i NOT EXISTS", "engine": "mysql", "database": "hotel",
    "intro": "Subconsultes correlacionades que comproven l'existència de files amb `EXISTS` i `NOT EXISTS`.",
    "questions": [
     {
@@ -181,14 +181,9 @@
    "code": "sqlsub04",
    "database": "chinook",
    "type": "sqlsubq",
-   "name": "SQL Subconsultes 4: Subconsultes correlacionades",
+   "name": "SQL Subconsultes 4: Subconsultes correlacionades", "engine": "mysql", "database": "Chinook",
    "intro": "Subconsultes que depenen de la fila de la consulta exterior: comparacions amb la mitjana del grup, primer i últim de cada grup.",
    "questions": [
-    {
-     "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i el preu (`UnitPrice`) de les pistes (`Track`) dels àlbums amb `AlbumId` menor o igual que 30 que són més cares que la mitjana de preu de les pistes del seu mateix àlbum.",
-     "sql": "SELECT t.TrackId, t.Name, t.UnitPrice FROM Track t WHERE t.AlbumId <= 30 AND t.UnitPrice > (SELECT AVG(t2.UnitPrice) FROM Track t2 WHERE t2.AlbumId = t.AlbumId)",
-     "explain": "La subconsulta fa referència a `t.AlbumId` de la consulta exterior: per a cada pista es recalcula la mitjana del seu propi àlbum. Per això es diu correlacionada; no es pot executar sola. El filtre per `AlbumId` manté el resultat curt."
-    },
     {
      "text": "Mostra l'identificador (`InvoiceId`), el client (`CustomerId`) i el total (`Total`) de les factures (`Invoice`) amb un total superior a la mitjana dels totals de les factures del seu client.",
      "sql": "SELECT i.InvoiceId, i.CustomerId, i.Total FROM Invoice i WHERE i.Total > (SELECT AVG(i2.Total) FROM Invoice i2 WHERE i2.CustomerId = i.CustomerId)",
@@ -240,17 +235,17 @@
    "code": "sqlsub05",
    "database": "traders",
    "type": "sqlsubq",
-   "name": "SQL Subconsultes 5: Taules derivades i combinacions",
+   "name": "SQL Subconsultes 5: Taules derivades i combinacions", "engine": "mysql", "database": "traders",
    "intro": "Subconsultes a `FROM` (taules derivades), `JOIN` amb taules derivades, subconsultes a `HAVING` i al `SELECT`, i combinacions de totes elles.",
    "questions": [
     {
      "text": "Calcula la mitjana de les sumes de l'import (`Total`) dels intercanvis (`Trades`) de cada estada (`StayId`). Retorna una sola columna amb la mitjana.",
-     "sql": "SELECT AVG(t) FROM (SELECT SUM(Total) AS t FROM Trades GROUP BY StayId)",
+     "sql": "SELECT AVG(t) FROM (SELECT SUM(Total) AS t FROM Trades GROUP BY StayId) AS x",
      "explain": "No es pot fer `AVG(SUM(...))` directament. La subconsulta a `FROM` (taula derivada) agrupa i dóna una suma per estada, i la consulta exterior calcula la mitjana d'aquestes sumes. Una taula derivada es comporta com una taula normal."
     },
     {
      "text": "Calcula el nombre màxim de canvis de preu (`PriceChanges`) que ha tingut un mateix producte (`ProductId`). Retorna una sola columna amb aquest valor.",
-     "sql": "SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM PriceChanges GROUP BY ProductId)",
+     "sql": "SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM PriceChanges GROUP BY ProductId) AS x",
      "explain": "La subconsulta agrupa per producte i compta les seves files; el `MAX` de fora tria el valor més gran d'aquests recomptes. De nou, dues agregacions encadenades necessiten dos nivells de consulta."
     },
     {
@@ -265,7 +260,7 @@
     },
     {
      "text": "Mostra els tipus de vaixell (`Type` de `Ships`) amb el nombre de vaixells de cada tipus, només dels tipus que tenen més vaixells que la mitjana de vaixells per tipus.",
-     "sql": "SELECT Type, COUNT(*) AS n FROM Ships GROUP BY Type HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Ships GROUP BY Type))",
+     "sql": "SELECT Type, COUNT(*) AS n FROM Ships GROUP BY Type HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Ships GROUP BY Type) AS x)",
      "explain": "El `HAVING` filtra grups, i aquí es compara el recompte de cada tipus amb una subconsulta escalar que, al seu torn, usa una taula derivada per obtenir la mitjana de vaixells per tipus (16,67). Cal la derivada perquè la mitjana és d'un recompte ja agrupat."
     },
     {
@@ -275,22 +270,22 @@
     },
     {
      "text": "Mostra l'àlies (`Nickname`) i el nombre d'estades (`Stays`) dels traders que en tenen més que la mitjana d'estades per trader (la mitjana es calcula entre els traders que tenen alguna estada). Fes servir un `JOIN` amb una taula derivada.",
-     "sql": "SELECT t.Nickname, x.n FROM Traders t JOIN (SELECT TraderId, COUNT(*) AS n FROM Stays GROUP BY TraderId) x ON x.TraderId = t.Id WHERE x.n > (SELECT AVG(n) FROM (SELECT COUNT(*) AS n FROM Stays GROUP BY TraderId))",
+     "sql": "SELECT t.Nickname, x.n FROM Traders t JOIN (SELECT TraderId, COUNT(*) AS n FROM Stays GROUP BY TraderId) x ON x.TraderId = t.Id WHERE x.n > (SELECT AVG(n) FROM (SELECT COUNT(*) AS n FROM Stays GROUP BY TraderId) AS y)",
      "explain": "La mateixa taula derivada (recompte per trader) es fa servir dues vegades: una per unir-la amb `Traders` i una altra, dins d'una subconsulta, per calcular la mitjana de recomptes. Cada subconsulta s'ha de repetir perquè aquí no es pot usar una CTE."
     },
     {
      "text": "Mostra l'identificador de l'estada (`StayId`) i l'import total de compres (la suma de `Total` dels `Trades` amb `Type` 'Buy') de les estades on aquest total supera la mitjana de totals de compra per estada (entre les estades que tenen alguna compra).",
-     "sql": "SELECT StayId, SUM(Total) AS total_compres FROM Trades WHERE Type = 'Buy' GROUP BY StayId HAVING SUM(Total) > (SELECT AVG(s) FROM (SELECT SUM(Total) AS s FROM Trades WHERE Type = 'Buy' GROUP BY StayId))",
+     "sql": "SELECT StayId, SUM(Total) AS total_compres FROM Trades WHERE Type = 'Buy' GROUP BY StayId HAVING SUM(Total) > (SELECT AVG(s) FROM (SELECT SUM(Total) AS s FROM Trades WHERE Type = 'Buy' GROUP BY StayId) AS x)",
      "explain": "El `HAVING` compara la suma de cada estada amb la mitjana de totes les sumes, que es calcula amb una taula derivada. Tant la consulta exterior com la derivada filtren per `Type = 'Buy'`, perquè totes dues han de parlar del mateix conjunt de dades."
     },
     {
      "text": "Mostra cada sistema solar (`SolarSystems`): el seu nom (`Name`), el nombre de planetes (`Planets`) que té i la diferència entre aquest nombre i la mitjana de planetes per sistema (nombre menys mitjana; la mitjana es calcula entre els sistemes que tenen algun planeta).",
-     "sql": "SELECT s.Name, COUNT(p.Id) AS n, COUNT(p.Id) - (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Planets GROUP BY SystemId)) AS diferencia FROM SolarSystems s LEFT JOIN Planets p ON p.SystemId = s.Id GROUP BY s.Id, s.Name",
+     "sql": "SELECT s.Name, COUNT(p.Id) AS n, COUNT(p.Id) - (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM Planets GROUP BY SystemId) AS x) AS diferencia FROM SolarSystems s LEFT JOIN Planets p ON p.SystemId = s.Id GROUP BY s.Id, s.Name",
      "explain": "Una subconsulta escalar al `SELECT` (que internament usa una taula derivada) aporta la mitjana de planetes per sistema, que es resta del recompte de cada grup. El `LEFT JOIN` assegura que apareguin tots els sistemes, també els que no tinguessin planetes."
     },
     {
      "text": "Mostra l'àlies (`Nickname`) i el benefici (suma dels `Total` dels `Trades` 'Sell' menys la suma dels de tipus 'Buy', de totes les seves estades) dels traders amb un benefici superior a la mitjana dels beneficis de tots els traders que han fet algun intercanvi. Relació: `Trades.StayId` apunta a `Stays.Id`, que té el `TraderId`.",
-     "sql": "SELECT t.Nickname, x.benefici FROM Traders t JOIN (SELECT s.TraderId, SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS benefici FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId) x ON x.TraderId = t.Id WHERE x.benefici > (SELECT AVG(b) FROM (SELECT SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS b FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId))",
+     "sql": "SELECT t.Nickname, x.benefici FROM Traders t JOIN (SELECT s.TraderId, SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS benefici FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId) x ON x.TraderId = t.Id WHERE x.benefici > (SELECT AVG(b) FROM (SELECT SUM(CASE WHEN tr.Type = 'Sell' THEN tr.Total ELSE -tr.Total END) AS b FROM Trades tr JOIN Stays s ON s.Id = tr.StayId GROUP BY s.TraderId) AS y)",
      "explain": "La taula derivada calcula el benefici per trader unint `Trades` amb `Stays` i sumant els 'Sell' en positiu i els 'Buy' en negatiu amb un `CASE`. La subconsulta escalar del `WHERE` repeteix el càlcul i en fa la mitjana, i el `JOIN` amb `Traders` posa el nom a cada resultat."
     }
    ]

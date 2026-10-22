@@ -1266,6 +1266,125 @@ stdlib.jar Self_testKt`); (2) els dos surten `online=True` i amb Kotlin disponib
 
 ---
 
+### 70. Incident real: 502 Bad Gateway intermitents — `uwsgi` col·lapsava a 1 sol worker
+
+**Abans (símptoma):** l'usuari va reportar `502 Bad Gateway` intermitents a `jo-el.es` un 30 de
+setembre, sense cap canvi conscient al servidor en els dos mesos anteriors.
+
+**Diagnòstic:** `sudo supervisorctl status` mostrava `site` com a `RUNNING`, però `ps aux` només hi
+trobava **un sol procés `uwsgi`** (a banda del màster), actiu des del 18 d'agost, amb 554MB de RSS.
+Als logs de nginx (`/var/log/nginx/error.log`) hi havia `connect() to unix:///home/ubuntu/dmoj-
+site.sock failed (11: Resource temporarily unavailable)` —el sol worker no donava l'abast a la cua
+de connexions del socket sota càrrega (trànsit real d'alumnat barrejat amb molt de soroll de bots
+escanejant `.aws/credentials`, `.ssh/id_rsa`, `/actuator/heapdump`, etc.), produint 502 intermitents
+en lloc d'una caiguda total —consistent amb el que reportava l'usuari (funciona a estones).
+
+`uwsgi.ini` té una configuració d'escalat dinàmic (`cheaper-algo = backlog`, mínim 3, inicial 5,
+màxim 7) amb un límit de memòria per worker (`cheaper-rss-limit-hard`) de només **224MB**. Com que un
+worker sa d'aquesta aplicació ronda normalment els 550-580MB de RSS sota càrrega real (molt per sobre
+d'aquest límit), `uwsgi` els anava matant per excedir-lo, i **el mecanisme de matança per RSS no
+respectava el mínim configurat de 3** —confirmat empíricament: després d'un primer reinici, el pool
+va tornar a baixar a 1 sol worker en menys d'un minut, reproduint exactament el mateix problema.
+
+**Decisió:** pujar els límits de RSS a valors realistes per a aquesta aplicació concreta
+(`cheaper-rss-limit-soft` de 192MB a **750MB**, `cheaper-rss-limit-hard` de 224MB a **1000MB**),
+amb marge còmode per sobre dels ~580MB observats en workers sans, mantenint alhora una xarxa de
+seguretat real contra una fuga de memòria genuïna. Es manté l'escalat dinàmic (`cheaper-algo`) tal
+com estava —el problema no era l'algorisme d'escalat en si, sinó el llindar de memòria massa baix.
+
+**Per què:** l'usuari ho va reportar com a incident actiu i calia una solució ràpida; es va triar
+pujar el llindar (en lloc de, per exemple, desactivar `cheaper` del tot) perquè és el canvi mínim que
+elimina la causa concreta observada, sense perdre l'estalvi de recursos de l'escalat dinàmic en
+moments de poc trànsit.
+
+**Resultat:** reiniciat `site` via `supervisorctl restart site`. Verificat durant més de 2 minuts sota
+trànsit real (a diferència del primer reinici, que va col·lapsar en <1 minut): el pool es manté
+estable a 3 workers (el mínim configurat), amb RSS entre 180-337MB —ben per sota del nou límit—, i
+**zero 502 nous** a `/var/log/nginx/access.log` en aquesta finestra. `manage.py check` net.
+
+**Pendent, no fet en aquesta entrada:** no hi ha rotació de logs per a `/tmp/site.stderr.log` (ha
+crescut fins a 46MB sense cap política de `logrotate`); i encara no s'ha esbrinat si el creixement
+gradual de RSS (~550MB→581MB observat als logs d'aquests darrers dies) és un lleuger fuita de memòria
+real que convindria investigar més endavant, o simplement el rang normal sota càrrega variable.
+
+---
+
+### 71. Mateix incident (#70), continuació: `cheaper` no escalava prou i els 502 van tornar
+
+**Abans (símptoma):** uns minuts després d'aplicar el fix de l'entrada #70 (pujar el límit de RSS),
+els 502 van tornar. `ps aux` mostrava els 3 workers configurats com a mínim (`cheaper = 3`) tots
+tres saturats (40-55% de CPU cada un, estat `R` continu). Un `strace` breu a un dels workers ocupats
+va confirmar que **no estaven penjats ni en bucle**: processaven consultes reals ràpidament (una
+`SELECT DISTINCT` sobre `judge_submission`, lectura/escriptura normal de la cache de fitxers a
+`/cache`). L'`uptime` del sistema mostrava un load average d'entre 1.6 i 1.8 sobre 8 cores —és a dir,
+**sobrava CPU al servidor**; el coll d'ampolla era purament que només 3 processos podien atendre
+peticions alhora, i l'algorisme d'escalat dinàmic (`cheaper-algo = backlog`) no pujava per sobre
+d'aquest mínim malgrat la càrrega —el mateix mecanisme que ja havia fallat baixant per sota del
+mínim a l'entrada #70.
+
+**Decisió:** eliminat l'escalat dinàmic (`cheaper`) del tot, substituït per un **pool fix de 6
+workers** (`processes = 6`), deixant marge d'1-2 cores per als processos del jutge, MySQL, celery i
+nginx en aquest servidor de 8 cores. Aprofitat el mateix canvi per afegir dues xarxes de seguretat
+que no existien: `listen = 256` (cua d'acceptació del socket més gran, per defecte uwsgi en fa
+servir una de mida molt més petita) i `harakiri = 30` (si una petició concreta triga més de 30
+segons, es mata i es recicla el worker en lloc de deixar-lo bloquejat indefinidament).
+
+**Per què:** l'incident #70 no s'havia resolt del tot —calia deixar de dependre d'un mecanisme
+d'escalat dinàmic que ja havia demostrat dues vegades en la mateixa tarda un comportament erroni
+(primer col·lapsant per sota del mínim, després no pujant per sobre seu), a favor d'una configuració
+fixa i predictible.
+
+**Resultat:** reiniciat `site`. Verificat durant més de 3 minuts sota trànsit real: el pool es manté
+constant a 6 workers (sense col·lapsar ni quedar-se curt), i **zero 502 nous** després del breu
+moment del reinici mateix. `curl` repetit contra `https://localhost/` (amb `Host: jo-el.es`) retorna
+`200` de manera consistent durant tota la finestra de comprovació.
+
+---
+
+### 72. Bug real: la generació de PDF fallava (500) des que es va vendoritzar MathJax (entrada #61)
+
+**Abans (símptoma):** l'usuari rebia sovint `Internal Server Error` a `/problem/<codi>/pdf` per a
+problemes que encara no tenien el PDF en caché. Als logs: `GET /problem/escriurebin/pdf => ... 500`
+trigant **18,7 segons**.
+
+**Diagnòstic:** reproduït directament (`SeleniumPDFRender`, el backend actiu en aquest servidor,
+comprovat que Puppeteer/SlimerJS/PhantomJS no ho estan) cridant el mateix codi que la vista. El log
+real de Chrome mostrava:
+```
+Access to font at 'https://jo-el.es/static/libs/mathjax/fonts/.../MathJax_Main-Regular.woff'
+from origin 'null' has been blocked by CORS policy
+...
+PDF math rendering timed out
+```
+La pàgina del PDF es carrega a Chrome com a fitxer local (`file:///home/ubuntu/pdf_render_tmp/...`),
+i des d'un origen `file://` (que el navegador tracta com `null`), carregar un tipus de lletra
+(`.woff`/`.otf`) d'un origen diferent (`https://jo-el.es`) requereix que el servidor enviï la
+capçalera `Access-Control-Allow-Origin` —cosa que el CDN de MathJax (usat abans de l'entrada #61)
+ja feia per defecte, però que el nostre propi nginx, servint els fitxers vendoritzats des de
+`/static`, no enviava mai. Sense els tipus de lletra, MathJax no acaba d'inicialitzar-se, la classe
+`.math-loaded` no apareix mai, i el `WebDriverWait(..., 15)` de `SeleniumPDFRender` expira sempre
+als 15 segons —una **regressió real de l'entrada #61**, no detectada aleshores perquè la
+verificació d'aquella entrada molt probablement va reutilitzar un PDF que ja estava en caché (el codi
+només torna a renderitzar si `os.path.exists(cache)` és fals) en lloc de forçar-ne un de nou.
+
+**Decisió:** afegida la capçalera `Access-Control-Allow-Origin: *` al bloc `location /static` de
+`/etc/nginx/conf.d/nginx.conf` —segur de fer, ja que tot el que hi ha sota `/static` és contingut
+públic i no sensible (CSS, JS, fonts, imatges). **No calia tocar cap PDF ja cachejat**: el codi de
+la vista només escriu a la caché (`shutil.move`) després d'un èxit, així que els 637 PDF ja
+existents eren tots vàlids (generats abans de la regressió); només fallaven els que encara no
+s'havien generat mai.
+
+**Per què:** petició explícita de l'usuari en reportar l'error real.
+
+**Resultat:** `nginx -t` net, `systemctl reload nginx`. Verificat: (1) la capçalera `Access-Control-
+Allow-Origin: *` ara surt en una petició real a un fitxer de tipus de lletra; (2) reproduint
+exactament el mateix render que abans fallava, ara `success=True` en 2,6 segons (abans 15-19s i
+fallava); (3) via el flux real del lloc (`GET /problem/escriurebin/pdf`), `200`, `application/pdf`,
+36.727 bytes en 2,8s, i el fitxer ha quedat correctament cachejat a `/joder-extras/pdfcache/
+escriurebin.ca.pdf`.
+
+---
+
 ### 73. Creació massiva de problemes SQL: comanda `create_db_problems` i 90 problemes de `SELECT`
 
 **Abans:** cada problema de Bases de Dades s'havia de crear a mà (fitxa a l'admin, després pujar BD, `.zip`
@@ -1924,6 +2043,139 @@ Java 8/11/Kotlin), sense cap avís a ningú.
 **Límit conegut:** quan `cptbox` denega un accés a fitxers, no mata el programa sinó que respon "no existeix" (el programa veu una
 `FileNotFoundException`). Aquests intents no es poden distingir d'una ruta equivocada i no es marquen.
 
+---
+
+### 91. El grup "Creador d'Achievements" ara pot editar i esborrar els seus propis achievements
+
+**Abans:** el grup "Creador d'Achievements" (48 membres, tots `is_staff`) només tenia `add_achievement` i `view_achievement`. La lògica de
+l'entrada #55 ("cada alumne edita i esborra només els seus") no funcionava: `AchievementAdmin.has_change_permission`/`has_delete_permission`
+comproven primer el permís de Django i, com que el grup no el tenia, ningú (ni el creador) podia editar ni esborrar res. La verificació de
+l'entrada #55 s'havia fet amb un compte de prova que sí tenia `change_achievement`, no amb el grup real.
+
+**Decisió:** afegits `change_achievement` i `delete_achievement` al grup. L'ha aplicat l'usuari mateix des de la interfície d'admin (el mode
+automàtic de Claude Code va bloquejar fer-ho des de la línia d'ordres per ser una concessió de permisos). Cap canvi de codi.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** comprovat sense escriure res a la BD (amb `RequestFactory` i el compte real `jmiracle`, membre només d'aquest grup): té els quatre
+permisos; sobre un achievement d'un altre (id 156, sense `created_by`) `change=False`, `delete=False`, `view=True` (mode només lectura); sobre un
+achievement amb `created_by` = el seu perfil (objecte en memòria, no desat) `change=True`, `delete=True`. L'acció massiva "esborrar
+seleccionats" també queda limitada: Django 2.2 (`admin/utils.py`, `get_deleted_objects`) comprova `has_delete_permission(request, obj)` per a cada
+objecte i rebutja tota l'operació si n'hi ha algun que no és seu. Com que cap dels achievements existents té `created_by` assignat, cap alumne en
+pot tocar cap dels antics. Els professors del grup que no són superusuaris queden limitats igual als seus.
+
+**A tenir en compte:** esborrar un achievement també esborra (en cascada) els `AchievementObtained` de tots els alumnes que l'havien obtingut
+al gacha.
+
+---
+
+### 92. Achievements amb descompte permanent al gacha (tirades a 4 GachaPoints en lloc de 5)
+
+**Abans:** el cost d'una tirada de gacha era un 5 fix al codi (`GachaGo.gacha_roll`) i als tres botons "Use 5 GachaPoints"
+(`gachamain.html`, `gachago.html`, `gacharesult.html`). En treure un repetit es retornaven sempre 2,5 punts fixos.
+
+**Decisió:**
+- Nou camp `Achievement.gacha_discount` (booleà, per defecte fals, migració `0156_achievement_gacha_discount`). A l'admin només el veuen i
+  el poden marcar els superusuaris, amb el mateix mecanisme que `mega_fanfare` i `rarity` (`AchievementAdmin.get_fields`).
+- Nova propietat `Profile.gacha_roll_cost`: 4 (`GACHA_ROLL_COST_DISCOUNTED`) si l'usuari té algun achievement amb `gacha_discount`, i 5
+  (`GACHA_ROLL_COST`) si no. No s'acumula: tenir-ne més d'una còpia, o més d'un achievement d'aquests, continua sent 4. No està en memòria
+  cau a propòsit: la tirada on surt l'sticker es cobra a 5, i les següents ja a 4.
+- `GachaGo.gacha_roll` fa servir aquest cost per comprovar si hi ha prou punts, per cobrar i per al missatge d'error. Un repetit ara retorna
+  la meitat del que ha costat la tirada (`cost/2`: 2,5 a preu normal, 2 amb descompte), perquè el text "et torno un 50%" continuï sent cert.
+- Els tres botons mostren el cost real de qui mira la pàgina (`request.profile.gacha_roll_cost`, que és qui tirarà si hi clica). Els textos
+  passen a ser "Use %(points)s GachaPoints" i "You need %(points)s GachaPoints in order to make a gacha roll". S'han traduït a ca/es/de i
+  s'han afegit les etiquetes noves de l'admin. Els `.po` s'han editat directament com a text perquè el diff sigui petit: polib reajustava
+  les línies de tot el fitxer.
+- L'sticker en si (imatge, nom, descripció, qualitat llegendària, `mega_fanfare` activat per rebre el correu i poder visitar l'alumne si és
+  de l'institut) el crea l'usuari des de l'admin, marcant-hi "descompte al gacha".
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** comprovat de punta a punta amb el compte real `jmiracle`, dins una transacció que es desfà al final (backend de correu en memòria, cap
+fila deixada a la BD): a preu normal, amb 4,5 punts la tirada es rebutja amb "Necessites 5". Després de rebre un achievement de prova amb
+`gacha_discount`, el cost passa a 4 i el botó diu "Usa 4 GachaPoints". En 6 tirades, les normals cobren 4,0 i els repetits 2,0 nets. Amb 3,9
+punts, la tirada es rebutja amb "Necessites 4". `msgfmt -c` net als 5 idiomes (només els avisos de capçalera que ja tenia `en`),
+`compilemessages` i `manage.py check` nets. Migració aplicada a la BD.
+
+**Pendent:** recarregar uWSGI (`kill -HUP $(cat /home/ubuntu/dmoj-site.pid)`). El mode automàtic de Claude Code ho va bloquejar per ser un
+desplegament a producció. Fins que es recarregui, el web corre el codi vell amb la columna nova ja creada.
+
+---
+
+### 93. El gacha ignora sempre la preferència d'animacions reduïdes
+
+**Abans:** `templates/gacha/gacharesult.html` respectava `prefers-reduced-motion: reduce` a tot arreu. Als PCs de l'institut, el Windows té
+les animacions desactivades (probablement per política) i el navegador ho reporta com a `reduce`. Per això el gacha hi sortia sense
+confeti, flaix ni sacsejada, i el mega fanfare també sense ànecs i amb el fons d'arc de Sant Martí quiet.
+
+**Decisió:** primer es va forçar només per al mega fanfare. Després, a petició de l'usuari, s'ha tret tota la gestió de `reduce` de la pàgina:
+- JS: eliminada la funció `prefersReducedMotion()` i les quatre comprovacions que la feien servir (ànecs, pluja de confeti, flaix, sacsejada).
+- CSS: eliminats els dos blocs `@media (prefers-reduced-motion: reduce)` (targeta/raigs/banner i fons/ànecs del mega fanfare). Hi queda un
+  comentari que explica que no hi és a propòsit.
+
+**Per què:** petició explícita de l'usuari: el gacha és opcional i sempre té fanfàrria, així que qui necessita de debò animacions reduïdes
+no hi va igualment.
+
+**Resultat:** comprovat generant la pàgina real (client de test, dins una transacció desfeta) per a un resultat amb `mega_fanfare` i un de normal:
+cap dels dos conté ja cap `reduce`, i el JS de la pàgina passa `node --check` en tots dos casos. No s'ha comprovat visualment amb Chromium.
+**Pendent:** el mateix `kill -HUP` de l'entrada #92 perquè uWSGI agafi la plantilla.
+
+---
+
+### 94. Achievements amb una pista extra permanent (només en problemes que ja en tenen)
+
+**Abans:** el nombre de pistes d'un problema era `ProblemData.allowed_tips` (per defecte 1), igual per a tothom. Cada enviament en pot gastar
+com a molt una, i el límit es comprovava a `flag_submission` i a la plantilla `submission/status-testcases.html` (comptador "Pistes
+usades/permeses" i botó "Help!").
+
+**Decisió:**
+- Nou camp `Achievement.extra_hint` (booleà, per defecte fals, migració `0157_achievement_extra_hint`). A l'admin només el veuen i el poden
+  marcar els superusuaris, com `gacha_discount`.
+- Nova propietat `Profile.has_extra_hint` i nou mètode `ProblemData.allowed_tips_for(profile)`: `allowed_tips + 1` si el problema en permet
+  almenys una i l'usuari té algun achievement amb `extra_hint`; si no, `allowed_tips`. Els problemes amb 0 pistes es queden a 0. No s'acumula.
+- `flag_submission` fa servir `allowed_tips_for(subm.user)` per decidir si queden pistes. La vista de l'enviament passa `allowed_hints` a la
+  plantilla, calculat per al **propietari** de l'enviament (no per a qui mira): un professor que mira l'enviament d'un alumne veu el que té
+  l'alumne. La plantilla fa servir `allowed_hints` al comptador i a la condició del botó.
+- Etiquetes noves de l'admin traduïdes a ca/es/de.
+
+**Per què:** petició explícita de l'usuari (tercer achievement superllegendari).
+
+**Resultat:** comprovat de punta a punta amb el compte real `Vazgen` al problema `flymemoon` (`allowed_tips=1`, 3 enviaments seus), dins una
+transacció que es desfà al final (cap fila deixada, flags de pistes intactes): sense l'achievement, la pàgina diu `0/1`, la primera pista
+funciona i la segona es rebutja amb "You have no hint reveals left". Amb un achievement de prova amb `extra_hint`, la pàgina diu `1/2`, la
+segona pista funciona i la tercera es rebutja. Un problema amb 0 pistes continua a 0. Migració aplicada a la BD abans de recarregar
+(el codi nou llegeix la columna). `msgfmt -c`, `compilemessages` i `manage.py check` nets.
+**Pendent:** el mateix `kill -HUP` de l'entrada #92.
+
+---
+
+### 95. Secció "Superachievements" a dalt de la pàgina d'usuari
+
+**Abans:** a la pàgina d'usuari, tots els stickers sortien barrejats en una graella d'imatges al final, sense nom ni descripció. Els
+superachievements (els que tenen `mega_fanfare`: "Dret a Crear Achievements", el descompte del gacha #92 i la pista extra #94) no es
+distingien gens, i ningú podia saber què feien.
+
+**Decisió:**
+- `UserAboutPage` (`judge/views/user.py`) passa `super_achievements`: els achievements de l'usuari amb `mega_fanfare`, de qualsevol
+  categoria. Es treuen de la graella normal de stickers (`mega_fanfare=False`) perquè no surtin dues vegades.
+- `templates/user/user-about.html`: nova secció "Superachievements" a dalt de tot del contingut, que només apareix si l'usuari en té algun.
+  Cada un surt en una targeta amb la imatge, el nom i la descripció (renderitzada amb markdown, estil `self-description`, igual que el "Quant a").
+- Animacions permanents, només CSS: vora d'arc de Sant Martí que gira (`conic-gradient` amb `@property --super-angle`), resplendor que
+  batega, la imatge flotant amb un reflex de llum que la travessa, i "✨" davant del nom. Sense excepció per a `prefers-reduced-motion`,
+  igual que el gacha (#93). L'interior de la targeta fa servir `--background-white` (el fons de cada tema) perquè l'arc de Sant Martí només
+  es vegi a la vora. En pantalles estretes (≤600px), la targeta passa a columna i centrada.
+- Nou text "Super achievements" traduït a ca/es/de ("Superachievements", "Super-Achievements").
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** comprovat generant la pàgina real (client de test) per a `Jonny`, que té "Dret a Crear Achievements": surt la secció amb 1
+targeta i la descripció, i l'sticker ja no surt repetit a la graella. Per a un usuari sense cap superachievement, la secció no apareix.
+Verificat **visualment** amb captures de Chromium a 1200px i 390px d'amplada, i amb el tema clar i el `theme-dark`. Un primer intent
+deixava veure l'arc de Sant Martí per tot el fons de la targeta (capa interior semitransparent); corregit amb la capa opaca del fons del tema.
+Les captures són fotos fixes: no s'ha comprovat amb un vídeo que les animacions es moguin. Els navegadors sense `@property` (Firefox
+anterior a la 128) veuen la vora quieta, però la resplendor i la imatge flotant també funcionen.
+**Pendent:** el mateix `kill -HUP` de l'entrada #92.
+
 **Verificat** després que l'usuari reiniciés el bridge (01:23 del 2026-10-21; els dos jutges s'hi van tornar a connectar sols). Tres enviaments
 d'`edgar` al problema privat `aplusb`:
 - Java 25 que intenta llançar un procés → **`SEC`** ("execve syscall disallowed"), amb l'avís nou del sandbox a la pàgina (no el del SQL).
@@ -1931,6 +2183,333 @@ d'`edgar` al problema privat `aplusb`:
 - Java 25 amb una solució normal → `AC`, sense cap avís.
 - Cap fitxer testimoni creat. L'enviament dels dos correus no es pot confirmar des d'aquí (`fail_silently`), i l'ha de comprovar l'usuari a la
   bústia d'`ADMINS`.
+
+---
+
+### 96. Tres superachievements més: bonus diari doble, assegurança antirepetits (80%) i nom d'arc de Sant Martí
+
+**Abans:** el bonus del primer problema nou del dia era de 5 GachaPoints per a tothom. Un repetit al gacha retornava sempre el 50% del cost
+de la tirada (#92), amb el text "et torno un 50%" fix. Els noms d'usuari només es pintaven amb el color del rating.
+
+**Decisió:**
+- Tres camps nous a `Achievement` (migració `0158_achievement_more_perks`): `double_daily_bonus`, `duplicate_insurance` i `rainbow_name`.
+  Només els superusuaris els veuen a l'admin. La llista de camps restringits és ara `AchievementAdmin.ADMIN_ONLY_FIELDS`.
+- `Profile._has_perk(camp)`: comprovació comuna ("té algun achievement amb aquest camp?"), feta servir també per `gacha_roll_cost` i
+  `has_extra_hint`. Cap perk no s'acumula.
+- **Bonus diari doble:** `Profile.daily_solve_bonus_points` (10 amb el perk, 5 sense), fet servir a `grant_daily_solve_bonus` i al banner de
+  l'enviament (`status-testcases.html`).
+- **Assegurança antirepetits:** `Profile.duplicate_refund_ratio` (0,8 amb el perk, 0,5 sense). Un repetit retorna `cost * ràtio`: a preu
+  normal, 2,5 → 4 punts; amb el descompte també, 2 → 3,2. El text del repetit passa a ser "et torno un %(percent)s%%". El percentatge
+  és el de l'usuari que va fer la tirada (`ach.user`), i les traduccions existents (es/en/de/zh_Hans) s'han adaptat.
+- **Nom d'arc de Sant Martí:** `link_user` (`judge/jinja2/reference.py`), que pinta gairebé tots els noms d'usuari del web, afegeix la classe
+  `rainbow-name` si l'usuari té el perk. El CSS (degradat animat retallat al text, `!important` per sobre del color de rating) és a
+  `templates/base.html`, inline, perquè no calgui recompilar els estils. Per no fer una consulta per cada nom (en un rànquing n'hi ha
+  centenars), `Profile.rainbow_name_ids()` guarda el conjunt d'ids a la memòria cau compartida (24 h), i cada worker en guarda una còpia
+  30 s. Un senyal a `judge/signals.py` (`post_save`/`post_delete` d'`Achievement` i `AchievementObtained`) l'esborra amb
+  `transaction.on_commit`. Esborrar-la abans del commit deixaria que una petició concurrent hi tornés a guardar el conjunt antic.
+  Conseqüència: un nom nou pot trigar fins a 30 s a sortir amb l'arc de Sant Martí en els altres workers.
+- Traduccions noves a ca/es/de per a les etiquetes i ajudes de l'admin.
+
+**Per què:** petició explícita de l'usuari, que va triar el 2, el 3 (amb 80% en lloc del 100% proposat) i el 4 d'una llista d'idees.
+
+**Resultat:** comprovat de punta a punta amb el compte real `jmiracle`, dins una transacció que es desfà al final (correu en memòria, cap fila
+deixada, cap raresa canviada). Bonus diari: 5 sense perk, 10 amb perk, 0 si es torna a demanar el mateix dia. Repetit (forçat amb un
+`mock` de `random.random` cap al nivell llegendari): sense assegurança cobra 2,5 nets i el text diu "50%"; amb assegurança, 1,0 i "80%";
+amb assegurança i descompte, 0,8. Nom: el senyal registra 2 esborrats `on_commit`; executats, `rainbow_name_ids()` inclou l'usuari i
+`link_user` dona `class="... rainbow-name"`, mentre que per a un altre usuari no. Captura de Chromium d'una mostra: es veu el degradat,
+també per sobre d'un color de rating. Després de la prova, la memòria cau compartida conté el valor real (conjunt buit). `msgfmt -c`,
+`compilemessages` i `manage.py check` nets, migració aplicada.
+
+**Incidència i desplegament (#92-#96):** l'usuari va recarregar uWSGI a les 02:00, abans que s'acabés aquesta entrada (02:01-02:11). A les
+08:16 un worker es va reiniciar sol: va heretar els models de les 02:00 del procés principal, però en la primera petició va carregar les
+vistes noves. Per això `/gacha/result/84574-0` donava `AttributeError: 'Profile' object has no attribute 'duplicate_refund_ratio'`. Amb la
+recàrrega completa de les 08:54 (`kill -HUP`, feta per l'usuari) es va resoldre. Comprovat després: tots els workers són de les 08:54,
+`/user/Jonny` en viu mostra la secció de superachievements, `/users/` respon 200, i aquell resultat del gacha respon 200 per al seu propietari
+(client de test). **Lliçó:** no encadenar més canvis de codi Python mentre hi hagi una recàrrega pendent, o avisar-ne clarament abans.
+
+---
+
+## 2026-10-22
+
+### 97. El comandament `create_db_problems` admet un autor per lot (camp `author`/`authors`)
+
+**Abans:**
+El comandament `judge/management/commands/create_db_problems.py` fixava els autors dels problemes amb una constant global `AUTHORS = ('edgar', 'marc')`, i els anava alternant al llarg de tota l'execució. No hi havia manera d'indicar qui havia de constar com a creador d'un lot concret sense editar el codi.
+
+**Decisió:**
+S'ha afegit suport perquè cada fitxer de lot (JSON) pugui declarar el seu propi autor amb el camp `"author"` (un sol nom d'usuari) o `"authors"` (una llista). Si el lot no en declara cap, es manté el comportament anterior (alternança sobre `AUTHORS`). Els autors de cada lot es resolen **abans** de crear cap problema, de manera que un nom d'usuari inexistent atura l'execució amb `CommandError` sense deixar problemes a mig crear.
+
+**Per què:**
+S'estan migrant a JOEL els exercicis de la plataforma QueryTest (que es tanca per inseguretat del seu PHP antic). Es volia que tots aquests problemes constessin a nom de `joanq` (creador de QueryTest i autor original dels exercicis, que ja té compte a JOEL, id de perfil 113), i no d'`edgar`/`marc`. El camp per lot és la via neta per fer-ho sense tocar la constant global.
+
+**Resultat:**
+`create_db_problems` ja llegeix `author`/`authors` de cada lot. Comprovació de sintaxi correcta. Els lots SQL generats a partir de QueryTest porten `"author": "joanq"`. El canvi és retrocompatible: els lots existents sense aquest camp es comporten igual que abans. (De moment només s'ha preparat el codi i els fitxers de lot; la creació efectiva dels problemes a la base de dades encara no s'ha executat.)
+
+---
+
+### 98. Pujar `MAX_REFERENCE_ROWS` de 200 a 20000 a `create_db_problems`
+
+**Abans:**
+`create_db_problems.py` rebutjava qualsevol problema la consulta de referència del qual retornés més de 200 files (`MAX_REFERENCE_ROWS = 200`), com a comprovació de sanitat per detectar referències sense `WHERE` o amb un producte cartesià accidental.
+
+**Decisió:**
+S'ha apujat el límit a 20000 files.
+
+**Per què:**
+En migrar els exercicis de QueryTest, 45 preguntes legítimes retornen més de 200 files (p. ex. un `SELECT` de cognoms de la base `lastnames` que en retorna 16.685, o diverses consultes de `hotel` amb 6.000–7.500 files). Són exercicis vàlids que simplement llisten molts resultats. S'ha verificat que el checker del jutge (`dmoj/checkers/sql.py`) fa `fetchall()` **sense cap límit de files** i només es protegeix amb un guardià de temps (`set_progress_handler` amb deadline), de manera que corregir resultats grans és segur. El límit de 200 era, per tant, només una restricció del validador d'importació, no del jutge.
+
+**Resultat:**
+Amb el límit a 20000, les 45 preguntes de >200 files ja validen. Es manté una protecció raonable contra un producte cartesià accidental (res legítim d'aquestes bases s'acosta a 20.000 files, llevat del cas de `lastnames` esmentat, que hi queda per sota).
+
+---
+
+### 99. Creació de 78 problemes SQL migrats de QueryTest (autor `joanq`)
+
+**Abans:**
+Els exercicis de QueryTest (159 tests, 1.460 preguntes, plataforma PHP que es tanca per inseguretat) només existien a QueryTest. Es van descarregar tots (enunciat, solució i pista) des de les pàgines d'edició del compte de professor.
+
+**Decisió:**
+Es van migrar només les 6 bases de dades que JOEL ja té com a BD de mostra (chinook, hotel, miniwind, traders, northwind, lastnames). Els tests temàtics s'han mantingut com un problema per test; els exàmens (models A/B/C, parcials repetits entre cursos) s'han fusionat sense duplicats en "Examen fusionat N" de 10 preguntes ordenades per dificultat. Els enunciats s'han reescrit a l'estil JOEL, i els que a QueryTest només tenien un títol s'han reconstruït a partir del SQL. Arranjaments mecànics del SQL: s'ha tret el prefix `BD.Taula` i s'han canviat `NVL`→`IFNULL`, `UCASE`/`LCASE`→`UPPER`/`LOWER` i `CHAR_LENGTH`→`LENGTH`. També s'han eliminat els enunciats repetits dins de cada BD. Cada problema té un tipus SQL detectat a partir de les seves consultes.
+
+**Per què:**
+QueryTest corria sobre MySQL i el jutge de JOEL usa SQLite. Per indicació de l'usuari, només s'han creat les preguntes que validen tal com estan, sense reescriure SQL. Les que fallen queden aparcades temporalment: funcions MySQL de data, `ALL`/`ANY`, sintaxi no suportada, i les que retornen 0 files perquè les BD de mostra de JOEL tenen dades diferents (p. ex. cognoms en majúscules a `lastnames`).
+
+**Resultat:**
+78 problemes privats (`sql<bd>qtNN`), amb 530 preguntes en total, autor `joanq` i tipus assignat. 116 preguntes queden aparcades (`parked_<bd>.json` al scratchpad de la sessió) per revisar-les més endavant. Verificat a la BD: 78 problemes, 530 casos, 0 públics, cap sense tipus.
+
+Posteriorment, a petició de l'usuari, s'ha enviat la solució de referència de tots 78 com a `edgar` amb `submit_reference_answers`: els 78 han obtingut AC amb la puntuació màxima, i llavors s'han publicat (`is_public=True` i `date` = data de publicació, com els altres problemes SQL públics). S'ha comprovat que tres d'ells es veuen sense iniciar sessió a https://jo-el.es.
+
+---
+
+### 100. Segona instància de MariaDB per corregir problemes SQL amb sintaxi MySQL (fase 1: servidor)
+
+**Abans:**
+El jutge SQL de JOEL només sap corregir sobre SQLite. Els alumnes, que a classe fan servir MySQL, poden topar amb consultes que fallen a JOEL (`YEAR()`, `DATEDIFF()`, `> ALL`, `GROUP_CONCAT ... SEPARATOR`, `BD.Taula`...) o, encara pitjor, que donen un resultat diferent sense cap error: la divisió entera (`5/2` és `2` a SQLite i `2.5` a MySQL), o `WHERE Name='Puig'`, que a MySQL troba `PUIG` gràcies a la col·lació que no distingeix majúscules i a SQLite no.
+
+**Decisió:**
+S'ha triat l'opció de corregir amb un MySQL/MariaDB de veritat, en lloc d'emular-lo sobre SQLite. Primera fase: el servidor. S'ha creat una **segona instància de MariaDB 10.5, separada de la BD del web**, a `/home/ubuntu/mariadb-grader/`:
+- Corre com a usuari `ubuntu` (no hi ha `sudo` sense contrasenya), dins d'un `screen` anomenat `mariadb-grader`, igual que els jutges. S'ha afegit `@reboot` al crontab d'`ubuntu` perquè torni a arrencar si es reinicia el servidor.
+- `skip-networking`: sense port de xarxa, només socket a `/home/ubuntu/mariadb-grader/run/mysqld.sock`. El directori té permisos 700.
+- `innodb_buffer_pool_size=128M`, `max_connections=20`, `performance_schema=OFF`, `local_infile=0`, `secure_file_priv` apuntant a un directori buit, i col·lació per defecte `utf8mb4_general_ci`.
+- L'administració es fa com a `ubuntu` via socket: `mariadb --defaults-file=/home/ubuntu/mariadb-grader/my.cnf`.
+- Usuari de correcció `joel_grader`: només `SELECT`, BD per BD (mai `*.*`), `MAX_STATEMENT_TIME 5` i `MAX_USER_CONNECTIONS 10`. Les credencials són a `/home/ubuntu/.secrets/joel_grader.cnf` (permisos 600).
+
+S'han carregat els dumps MySQL de `importacions/`: `Chinook` (versió amb claus autoincrementals, que és la que fa servir QueryTest), `hotel`, `miniwind`, `traders`, `northwind` (estructura + dades), `lastnames`, `futbol24`, `valorantProMatches`, `ies23g` (renomenada des de `ies23g.sql`; aquell fitxer comença amb `drop database if exists ies23` i s'ha canviat només a les línies 18–20 perquè no esborrés l'altra `ies23`), `company`, `knightsdb` i `groupbytest`. A `futbol24.sql` s'ha saltat la primera línia (`/*M!999999\- enable the sandbox mode */`, una capçalera de `mariadb-dump` 10.11.8+ que el client 10.5 no entén i que no conté dades).
+
+**Per què:**
+És l'única opció que resol alhora la sintaxi MySQL, les diferències silencioses (divisió, col·lació) i, quan hi hagi dumps, les BD que JOEL no té. Una instància a part evita que una consulta abusiva d'un alumne alenteixi el web, o que un error de permisos exposi dades reals.
+
+**Resultat:**
+- Les 6 BD que JOEL ja tenia en SQLite tenen **exactament el mateix nombre de files** a MariaDB: les SQLite es van fer a partir d'aquests mateixos dumps. Les "dades diferents" detectades en migrar QueryTest eren, en realitat, diferències de comportament del motor.
+- Verificat amb `joel_grader`: funcionen `WHERE Name='Puig'`, `YEAR()`/`MONTH()`, `DATEDIFF(...NOW())`, `> ALL`, `GROUP_CONCAT ... SEPARATOR`, `Chinook.Artist` i `5/2 = 2.5`. Queden bloquejats `INSERT`, `CREATE`, `DROP DATABASE`, `INTO OUTFILE`, la lectura de `mysql.user`, l'accés a BD sense permís i `SET GLOBAL`. `LOAD_FILE('/etc/passwd')` retorna NULL. `SLEEP(8)`, `BENCHMARK(...)` i un producte cartesià triple es tallen tots als ~5 s.
+- **Pendent:** `noms.sql` i `ies23.sql` estan malmesos. Després de cada "Dumping data for table X" hi falten les línies `LOCK TABLES` i `INSERT INTO X VALUES (` i el principi de les dades: per exemple, els noms de `female_names` anteriors a "ADRIANA FLORENTINA", o les files d'`alumnes_moduls` anteriors a la 643. Han quedat creades com a BD buides i sense permisos per a `joel_grader`. Cal tornar-les a exportar. Segons la capçalera de `noms.sql`, venen del servidor 162.19.137.5.
+- Encara no ho fa servir cap jutge. Fases següents: checker `mysql` al jutge, suport a la part web, i migració dels problemes "QT".
+
+---
+
+### 101. Checker `mysql` al jutge i suport a la part web (fases 2 i 3a)
+
+**Abans:**
+La instància MariaDB de correcció (#100) existia, però ni el jutge ni el web la sabien fer servir.
+
+**Decisió:**
+- **Jutge** (repo `site-packages/dmoj`, commit `a56460c`): nou `checkers/mysql.py`, registrat a `checkers/__init__.py`. Executa la consulta de referència i la de l'alumne amb l'usuari `joel_grader` (credencials a `/home/ubuntu/.secrets/joel_grader.cnf`, mai a l'`init.yml`) sobre la BD indicada a l'argument `database`. Reaprofita de `sql.py` el tall per preguntes (`-- @@Q<n>@@`), la detecció del tipus de sentència, la llista negra que marca SEC i la comparació de resultats. Particularitats:
+  - Només SELECT: una referència INSERT/UPDATE dona un error de configuració.
+  - Llegeix en streaming com a màxim una fila més de les esperades. Si n'hi ha més, tanca el socket sense buidar el resultat (MariaDB avorta la consulta) i respon "got more than N". Un producte cartesià de 12 milions de files es resol en 0,08 s sense omplir la memòria del jutge.
+  - Normalitza els valors per comparar com amb SQLite: `DECIMAL` es converteix a float (s'hi aplica la tolerància); els nombres sencers es converteixen a int (3, 3.0 i 3.00 són iguals); les dates i hores passen a text en format MySQL.
+  - Timeout de lectura al client (15 s) a més del `MAX_STATEMENT_TIME` del servidor.
+  - També un `.gitignore` per a `__pycache__/` i `*.pyc`.
+- **Web:**
+  - `judge/utils/mysql_grader.py` (nou): connexió de només lectura, llista de BD del catàleg (`SHOW DATABASES`; les etiquetes es reaprofiten de les BD SQLite si el nom coincideix), esquema llegit d'`information_schema` (taules, columnes, PK i FK) i `run_query` per validar referències.
+  - Nova opció de checker `mysql` ("Verificador MySQL") a `ProblemData`/`ProblemTestCase`. La migració `0159_problemdata_mysql_checker` només canvia les opcions i no executa cap SQL.
+  - `DATABASE_CHECKERS` inclou `mysql`: el problema té el formulari d'enviament amb una caixa per pregunta, el botó d'esquema i el diagrama ER.
+  - `ProblemDataCompiler` genera `checker: {name: mysql, args: {database: ...}}`. La BD es desa als `checker_args` del problema com a `{"database": "..."}`, validada amb `^[A-Za-z0-9_]{1,64}$`.
+  - Formulari de dades del problema: camp "Base de dades MySQL" (un desplegable amb el catàleg; només es mostra amb el checker `mysql`). En desar, es guarda a `checker_args`.
+  - Vista d'esquema: branca `mysql` que fa servir la mateixa plantilla i el mateix diagrama.
+  - `create_db_problems`: camp `"engine": "mysql"` (per lot o per problema). Valida les referències contra MariaDB, crea el problema amb checker `mysql` i no hi desa cap fitxer `.db`. La descripció hi afegeix que les consultes s'executen sobre MySQL.
+  - **Correcció d'un parany:** amb `--replace`, `create_db_problems` tornava a posar `is_public = False`, de manera que convertir un problema ja publicat el despublicava. Ara només es posa privat un problema nou.
+  - Traduccions al català de les cadenes noves (`msgfmt -c` net, `compilemessages -l ca`).
+
+**Per què:**
+Fases 2 i 3a del pla per corregir amb MySQL de veritat (#100). La fase 3b, la pujada d'un dump `.sql` propi per problema (BD `p_<codi>` carregada amb un usuari temporal limitat a aquella BD), queda pendent.
+
+**Resultat:**
+- L'usuari va reiniciar els dos jutges a mà (19:52–19:53). Llavors es va recarregar uWSGI amb `kill -HUP` al màster; els treballadors nous responen 200.
+- Problema de prova privat `zzmysqltest01` (BD `northwind`, 4 preguntes amb `YEAR()`/`MONTH()`, `DATEDIFF(IFNULL(...,NOW()))`, `'Puig'` sobre `lastnames.LastNames` i `> ALL`): validat per `create_db_problems`, i la solució enviada com a `edgar` ha obtingut **AC 4/4 al jutge real** (NouJutge, enviament 370621).
+- Amb sessió d'administrador, les pàgines del problema, l'enviament (caixes per pregunta), l'esquema (taules + ER des de MariaDB) i les dades (desplegable amb el catàleg, `northwind` seleccionada) responen 200.
+- Provat també el checker directament: 7 casos amb sintaxi MySQL donen AC, i 10 de dolents fallen amb el missatge correcte (inclòs `@@SECVIOL@@` per a `DROP`). No queden connexions obertes.
+
+---
+
+### 102. Tots els problemes SQL de SELECT passen a corregir-se amb MySQL (MariaDB)
+
+**Abans:**
+209 problemes es corregien amb SQLite: els 78 de QueryTest ("QT"), 126 dels lots de `problem_batches/sql/` i 5 de fets a mà. A més, hi havia 116 preguntes de QT aparcades perquè no funcionaven a SQLite.
+
+**Decisió:**
+Per indicació de l'usuari, s'han passat a MySQL tots els problemes de SELECT. Els 16 d'INSERT/UPDATE (`sqlins01-05`, `sqlupd01-05`, `sqlinsert{chinook,employees,knights}`, `sqlupdate{groupby,hotel,traders}`) es queden a SQLite fins que hi hagi un checker d'escriptura. Es va acordar que seria un checker a part, `mysqlwrite`, amb transacció + `ROLLBACK` i un usuari d'escriptura propi. `mysql` es queda només per a SELECT, i un INSERT/UPDATE en una pregunta de SELECT acabarà marcant SEC.
+
+1. **QT**: s'han regenerat des dels lots originals amb **el SQL original de QueryTest** (MySQL), sense els arranjaments mecànics de l'entrada #99. S'hi han tornat a posar les 116 preguntes aparcades al seu lloc, i els codis s'han mantingut associant-los per nom. Reapareix un problema que s'havia buidat sencer, `sqlchinookqt29` ("Chinook QT — Funcions 01"). 622 preguntes validen a MariaDB; s'han aplicat amb `create_db_problems --replace`, que ara manté públics els problemes publicats. **24 preguntes queden aparcades** perquè la seva referència retorna 0 files amb aquestes dades (factures amb un total que no quadra, habitacions sense estades, reserves de dates concretes…). Amb una referència buida, qualsevol consulta buida treu AC; l'usuari creu que no era el comportament volgut i ho consultarà.
+2. **Lots antics**: s'ha comparat, pregunta per pregunta, el resultat de cada referència a SQLite i a MariaDB, amb la mateixa funció de comparació del checker: 438 iguals, 37 fallaven a MariaDB i 19 donaven resultats diferents. S'han traduït 42 referències a MySQL (`strftime`→`DATE_FORMAT`/`YEAR`, `julianday`→`DATEDIFF`, `||`→`CONCAT`, `LENGTH`→`CHAR_LENGTH`, `CAST(... AS INTEGER)` fora, àlies a les taules derivades). Comprovat: 33 donen exactament el mateix resultat que abans. Les altres 9 canvien perquè MySQL és més correcte:
+   - la còpia SQLite de Chinook tenia `\"` en lloc de `"` (4 preguntes);
+   - `Ç` i `C` s'agrupen juntes amb la col·lació (2);
+   - `189/2` és 94.5, no 94 (1);
+   - `LOWER('Ñ')` dona `ñ` (1);
+   - la correlacionada de `sqlsub04` q1 retornava 110 files per errors de coma flotant i en realitat la resposta és buida, així que **s'ha aparcat** (1).
+
+   Els fitxers del repo `problem_batches/sql/*.json` s'han editat com a text, sense reformatar: als 110 problemes de SELECT s'hi ha afegit `"engine": "mysql", "database": "<nom a MariaDB>"` (`Chinook`, `company` per a `employees`, `knightsdb` per a `knights`…), i s'hi han canviat les referències traduïdes. Abans es va comprovar que els 120 problemes dels lots coincidien exactament amb el que hi havia publicat, i després s'han aplicat amb `--replace --only` per als 110 codis.
+3. **Els 5 fets a mà** (`provasql2`, `sqlselects`, `sqljoins`, `sqlagregacions`, `sqldificil`): feien servir un altre `miniwind.db`, de l'estil Northwind (`categories`, `unit_price`, `company_name`…), comú a tots cinc. S'ha convertit a MariaDB com a `miniwind_classic` (5 taules, 51 files, amb PK i FK; l'script és a `.../scratchpad/miniwind_classic.sql`), amb `GRANT SELECT` per a `joel_grader`. Les 13 referències donen el mateix resultat. S'han passat a `mysql` directament (checker i casos) i s'ha regenerat l'`init.yml`; el fitxer `.db` que tenien no s'ha esborrat.
+4. **Error del checker arreglat** (repo del jutge, commit `d1f0df5`): la comprovació "Only a single SQL statement is allowed" partia pels `;` encara que fossin dins d'un literal (`LIKE '%;%'`) o d'un comentari, i rebutjava consultes correctes. Afectava també els alumnes. Ara treu literals i comentaris abans de comptar.
+5. `submit_reference_answers` té una opció nova, `--force`, per tornar a enviar la solució encara que `edgar` ja tingui AC (per exemple, després de canviar el checker).
+
+En convertir amb `create_db_problems --replace`, el codi existent esborra el fitxer `.db` dels QT i dels lots. Eren còpies de les plantilles de `/judge/_sql_templates/`, que es conserven.
+
+**Per què:**
+Que el comportament de JOEL sigui el de MySQL que veuen els alumnes a classe, i que no quedin dos dialectes barrejats.
+
+**Resultat:**
+195 problemes amb checker `mysql` (79 QT, 110 de lots, 5 de fets a mà i el de prova `zzmysqltest01`) i 16 encara amb `sql`, tots d'escriptura. Els que eren públics continuen públics. Les 25 preguntes aparcades s'han copiat al repo, a `problem_batches/sql/aparcades/` (amb un `README.md`). Al mateix lloc hi ha el bolcat complet dels 159 tests de QueryTest (`querytest_bolcat_complet.json`, l'única còpia quan es tanqui la plataforma) i, a `revisar_enunciats/`, les notes dels enunciats reconstruïts. Els lots dels problemes QT són ara al repo com a `problem_batches/sql/querytest_<bd>.json` (validen sense errors), i l'script de `miniwind_classic` és a `/home/ubuntu/mariadb-grader/fonts/`.
+
+---
+
+### 103. Verificació amb el jutge real i preguntes no deterministes
+
+**Abans:**
+Els 195 problemes MySQL (#102) estaven creats, però encara no s'havien corregit amb el jutge real.
+
+**Decisió:**
+Un cop l'usuari va reiniciar els jutges (20:10, amb `d1f0df5` carregat), s'ha enviat com a `edgar` la solució de tots 195 (`submit_reference_answers --force`). 191 van treure AC. Els 4 restants van treure WA en una pregunta perquè la referència **no era determinista**: comparada amb ella mateixa, donava un altre resultat. Tres eren "top 10" amb empats a la 10a posició (`sqlchinookqt10` q2, `sqlchinookqt16` q2, `sqlhotelqt03` q1) i una era un `GROUP_CONCAT` sense `ORDER BY` (`sqlhotelqt05` q4). Per decisió de l'usuari, s'hi ha afegit un desempat a la referència i a l'enunciat ("en cas d'empat, ordena alfabèticament pel compositor", "per `CustomerId`", "serveis en ordre alfabètic").
+
+Després s'han revisat totes les preguntes MySQL:
+- **1.119 referències executades 5 vegades:** cap altra canvia de resultat.
+- **58 referències amb `ORDER BY ... LIMIT n`:** s'han executat amb `LIMIT n+1` per detectar empats just al tall. Només en surt `sqlchinookqt11` q6.
+- **Referències amb `||` o `&&` fora de literals:** se n'han trobat 2 (`sqlchinookqt11` q6 i `sqlhotelqt04` q3). Venien de QueryTest i a MySQL `||` és un OR, de manera que la columna "Client" sortia `0` en lloc del nom, i un alumne que escrivís `CONCAT` treia WA. S'han canviat per `CONCAT(...)`. A la primera, a més, molts clients empaten amb 38 pistes, així que s'hi ha afegit "si n'hi ha diversos empatats, el primer per ordre alfabètic del nom complet", i s'ha tret el `||` de l'enunciat.
+
+Els canvis s'han fet als lots del repo (`querytest_chinook.json`, `querytest_hotel.json`) i s'han aplicat amb `--replace --only`. Finalment s'ha publicat `sqlchinookqt29`, que ja tenia AC.
+
+**Per què:**
+Una referència no determinista pot donar WA a un alumne amb la consulta correcta només per l'ordre en què MariaDB llegeix les files.
+
+**Resultat:**
+Els 195 problemes MySQL tenen l'últim enviament d'`edgar` amb AC complet; 194 són públics (el privat és el de prova, `zzmysqltest01`). **Avís:** 9 referències depenen de la data actual (`NOW()`, `CURDATE()`, `CURRENT_DATE`...): `sqlnorthwindqt02` q1, `sqltradersqt05` q8, `sqlhotelqt04` q3, `sqlhotelqt05` q6, `sqlhotelqt08` q4, `sqlchinookqt17` q8, `sqlchinookqt29` q2 i q4, i la de prova. Avui funcionen, perquè la referència i l'alumne es corregeixen alhora. Però si n'hi ha alguna del tipus "els últims N anys", amb el temps es pot quedar sense resultats, i llavors qualsevol resposta buida seria acceptada.
+
+---
+
+### 104. Escriptures amb MySQL (checker `mysqlwrite`) i BD pròpia per problema (dump `.sql`)
+
+**Abans:**
+El checker `mysql` només corregia SELECT, de manera que els 16 problemes d'INSERT/UPDATE es corregien encara amb SQLite. Un professor només podia fer servir una BD del catàleg MariaDB. Per carregar-hi BD calia fer-ho a mà amb el client `mariadb`.
+
+**Decisió (acordada amb l'usuari):**
+- **Dos checkers separats.** `mysql` només fa SELECT i té només credencials de lectura. Ara, si en una pregunta de SELECT l'alumne envia una sentència d'escriptura o de control (`INSERT`, `UPDATE`, `DELETE`, `REPLACE`, `SET`, `LOCK`, `CALL`, `COMMIT`…), es marca **SEC**. Una errada de tecleig (`selec`) continua sent un error normal. El nou `mysqlwrite` (repo del jutge, commit `18b5495`) corregeix **INSERT, UPDATE i DELETE**; per decisió de l'usuari, DELETE ara s'admet amb MySQL. `DROP`, `TRUNCATE`, `ALTER`… continuen sent SEC.
+- **Com corregeix `mysqlwrite`:** executa la sentència de l'alumne i la de referència dins d'una transacció a la **còpia d'escriptura `w_<bd>`**, compara el contingut final i sempre fa `ROLLBACK`.
+  - Només es tornen a llegir les taules el `CHECKSUM TABLE` de les quals ha canviat: una pregunta sobre `hotel` passa de 3,7 s a 0,96 s.
+  - Els valors `AUTO_INCREMENT` nous es comparen com a "nous", perquè InnoDB no desfà el comptador.
+  - Si l'altre jutge té bloquejades les files, s'espera fins a 3 s i es reintenta.
+  - El professor només tria "Verificador MySQL": quan es genera l'`init.yml`, cada pregunta va a `mysql` o a `mysqlwrite` segons la seva referència (`ProblemDataCompiler`, que la llegeix del zip).
+- **Usuaris nous a la instància.** Cada usuari té les credencials al seu fitxer, a `/home/ubuntu/.secrets/`, amb permisos 600.
+  - `joel_writer`: SELECT/INSERT/UPDATE/DELETE **només** sobre `w\_%`.
+  - `joel_loader`: `CREATE USER` i tots els permisos amb `GRANT OPTION` **només** sobre `p\_%` i `w\_%`.
+  - A més, `joel_grader` ara també pot llegir les BD `p\_%`.
+  - `max_allowed_packet` passa a 64M (al `my.cnf` i amb `SET GLOBAL`).
+- **Còpies `w_*` de les 13 BD del catàleg.** S'han creat amb la nova comanda `manage.py load_grader_db <nom> <fitxers...> [--copy-only]`, que carrega un catàleg i la seva còpia des de dumps. S'ha verificat que cada `w_*` té exactament les mateixes files que l'original.
+- **Càrrega de dumps** (`judge/utils/mysql_grader.py`):
+  - El text **no passa mai pel client `mariadb`**, que executaria ordres com `\! comanda` al servidor. S'envia pel protocol, en una sola petició multisentència.
+  - Ho fa un **usuari temporal** amb permisos només sobre la BD de destinació, que s'esborra en acabar.
+  - Abans d'enviar-lo, es treuen les línies `CREATE/DROP DATABASE` i `USE`, les clàusules `DEFINER=` i la capçalera de "sandbox mode" de `mariadb-dump` 10.11+. També es descarten les sentències condicionals per a versions més noves (`/*M!100616 ... */;`), es treuen els prefixos amb el nom de la BD original (`` `miniwind`.`customers` ``) i es converteix `DELIMITER`.
+  - Totes les taules es passen a InnoDB. Si la càrrega falla, la BD s'esborra.
+  - En el `GRANT` per a l'usuari temporal, el nom de la BD s'escapa (`p\_codi`): en un GRANT el `_` és un comodí, i sense escapar el carregador no hi tenia permís.
+- **BD pròpia per problema:**
+  - Camp nou `ProblemData.mysql_dump` (migració `0160`: `ADD COLUMN mysql_dump varchar(100) NULL`).
+  - Al formulari de dades, el dump (com a màxim 10 MB) es carrega a `p_<codi>` i `w_p_<codi>` **durant la validació**: si MariaDB el rebutja, l'error surt al formulari i no es desa res. Si hi ha dump, té prioritat sobre la BD del catàleg; si s'esborra, es fan servir el catàleg i les BD `p_`.
+  - Si se'n canvia el codi, es torna a carregar amb el nom nou. Si s'esborra el problema, un senyal `post_delete` de `ProblemData` esborra `p_<codi>` i `w_p_<codi>`.
+  - El desplegable del catàleg ja no mostra les BD `p_*`/`w_*`.
+- **`create_db_problems`:** amb `"engine": "mysql"` accepta INSERT/UPDATE/DELETE i les valida a la còpia `w_`: s'han d'executar i han de canviar alguna cosa. La descripció ja no diu "No es permet `DELETE`" als problemes MySQL.
+- **Conversió dels 16 problemes d'escriptura:** s'ha comparat, per a cada una de les 113 referències, el canvi que fa a SQLite i a MariaDB (files afegides i esborrades per taula, amb els ids nous com a "nous").
+  - 98 fan exactament el mateix canvi.
+  - 13 s'han traduït i ara també fan el mateix canvi: `||`→`CONCAT`, `date(x,'+30 days')`→`DATE_ADD(x, INTERVAL 30 DAY)`, `CAST(... AS INTEGER)`→`TRUNCATE(...,0)` per conservar la truncació de SQLite, i subconsultes sobre la mateixa taula o amb `LIMIT` dins d'`IN` embolcallades en una taula derivada.
+  - 1 (`sqlupd02` q1) només difereix pel `\"` de la còpia SQLite de Chinook.
+  - **1 aparcada** (`sqlupd03` q4): demana posar 'Pending' a `Stays.PaymentType`, que a MariaDB és `ENUM('Card','Cash')`. És a `problem_batches/sql/aparcades/lots_escriptures.json`.
+  - Els 10 de lots s'han aplicat amb `--replace --only` (afegint `"engine": "mysql"` als fitxers del repo) i els 6 fets a mà, directament.
+
+**Per què:**
+Completar el pas a MySQL (#100–#103): que no quedi res a SQLite, i que els professors puguin fer servir les seves pròpies BD MySQL.
+
+**Resultat:**
+- **211 problemes SQL amb checker `mysql`, 0 amb `sql`** (SQLite).
+- Proves directes del checker d'escriptura: 6 casos correctes donen AC (també amb columnes en un altre ordre, un `WHERE` diferent amb el mateix efecte, i `AUTO_INCREMENT` sense id); 7 d'incorrectes o perillosos fallen bé (`DROP`/`TRUNCATE` donen SEC, i una clau forana violada dona l'error de MariaDB). No queda res escrit a les còpies. Amb dos correctors concurrents modificant la mateixa taula, 6 de 6 AC i la còpia intacta.
+- Atacs al carregador: `\!`, `system` i `source` són errors de sintaxi i no creen cap fitxer. Llegir `mysql.user`, esborrar `hotel.Rooms`, `CREATE USER`, `GRANT`, `INTO OUTFILE`, `SET GLOBAL` o escriure en una altra `p_` són denegats. `LOAD_FILE` desa NULL. No queden usuaris temporals.
+- Prova de punta a punta al formulari web amb `zzmysqltest01`: un dump erroni mostra l'error i no es desa; el dump de northwind es carrega a `p_` i `w_p_` (20 taules, 48 comandes), passa a ser la BD del problema, i funcionen l'`init.yml`, l'esquema i el diagrama ER. Traduccions al català afegides.
+- L'usuari va reiniciar els dos jutges (20:47–20:48) i va fer `supervisorctl restart all` (uWSGI i bridge a les 20:48). Jutges en línia, web amb resposta 200, i la instància MariaDB de correcció no es va aturar.
+- S'ha enviat com a `edgar` (`--force`) la solució dels 16 problemes d'escriptura i de `zzmysqltest01` (ara amb la BD pròpia `p_zzmysqltest01`): **17 de 17 AC** amb els jutges reals.
+- Després de les correccions reals, el `CHECKSUM TABLE` de totes les taules de les 14 còpies `w_*` coincideix amb el de les originals: no ha quedat cap canvi.
+
+---
+
+### 105. Migració dels tests de QueryTest de sakila, valorantProMatches, futbol24 i ies23 (28 problemes més)
+
+**Abans:**
+Del bolcat de QueryTest quedaven unes 575 preguntes sense migrar perquè JOEL no tenia les seves BD.
+
+**Decisió:**
+- **Sakila:** descarregada del web oficial de MySQL (`downloads.mysql.com/docs/sakila-db.tar.gz`, sha256 `683e957d…`). Es va inspeccionar abans de carregar-la (16 taules, 7 vistes, 6 triggers, 6 rutines, cap ordre de client) i es va carregar al catàleg amb `load_grader_db` (`sakila` i `w_sakila`).
+- **ies23:** les preguntes de QueryTest encaixen amb `ies23g`, la versió que es va poder carregar: 23 de les 27 solucions diferents funcionen. Les 4 que no ho fan són del test #209, "ies26 - Subconsultes 01": a QueryTest constava com a `ies23`, però fa servir l'esquema d'ies26, així que queda per a quan hi hagi ies26. A les solucions s'ha tret el prefix `ies23.`.
+- **Dues millores al carregador de dumps** (`mysql_grader.load_dump`), trobades amb sakila:
+  - Els prefixos de la BD original es treuen també quan no van entre cometes (`sakila.actor`).
+  - Cada BD carregada té un **usuari propietari fix**, `own_<bd>`, que només té permisos sobre la seva BD i es **bloqueja** (`ACCOUNT LOCK`) en acabar la càrrega, en lloc d'un usuari temporal que s'esborrava. Les vistes, els triggers i les rutines del dump queden a nom seu i funcionen. Amb l'usuari temporal esborrat, les vistes donaven "Access denied" i els triggers haurien fallat a les còpies `w_`. `drop_problem_databases` també esborra aquests usuaris. Comprovat: la vista `film_list` es pot llegir, el trigger `ins_film` funciona dins d'una transacció a `w_sakila`, i no es pot entrar com a `own_sakila`.
+- **Mateix procés que els QT anteriors** (#99): els tests temàtics fan un problema cadascun, i els exàmens es fusionen sense duplicats en blocs de 10 per dificultat. 3 subagents van reescriure els enunciats a l'estil JOEL i van reconstruir a partir del SQL els que només eren un títol. 245 de les 249 solucions originals funcionaven tal com eren a MariaDB. **4 de sakila retornen 0 files i s'han aparcat** (`problem_batches/sql/aparcades/querytest_sakila_resposta_buida.json`). També s'han tret 20 preguntes de sakila amb un SQL idèntic a una altra.
+- **3 empats al `LIMIT` arreglats** amb desempat a la solució i a l'enunciat: `sqlsakilaqt12` q5, `sqlsakilaqt14` q6 i `sqlvalorantqt05` q7. Hi ha un **detector d'empats nou**: afegeix `RAND()` com a últim criteri de l'`ORDER BY` i executa la consulta 8 vegades. El detector anterior no veia els empats quan la columna d'ordenació no sortia al resultat. S'ha passat a les 113 consultes amb `LIMIT` de tots els problemes MySQL publicats i no n'hi ha cap més.
+- **Error del checker arreglat** (repo del jutge, commit `83ef8e6`): una consulta que comença amb parèntesi, com `(SELECT …) UNION (SELECT …)`, es rebutjava amb "Expected a SELECT statement". Ara la paraula clau es busca després dels parèntesis d'obertura, i `(DROP …)` continua sent SEC. També s'ha aplicat a la funció del web que tria entre `mysql` i `mysqlwrite`.
+- Etiquetes per al desplegable del catàleg de les BD sense equivalent SQLite (`MYSQL_DATABASE_INFO` a `mysql_grader.py`): Sakila, Valorant Pro Matches, Futbol24, IES 2023, Miniwind clàssica, Employees (`company`) i Knights & Dragons (`knightsdb`).
+
+**Per què:**
+Aprofitar les BD que ja eren a `importacions/`, més sakila (la BD d'exemple oficial de MySQL), per migrar més tests de QueryTest abans de tancar-lo.
+
+**Resultat:**
+- **28 problemes nous, amb 225 preguntes**, autor `joanq`:
+  - `sqlsakilaqt01-18`: 135 preguntes;
+  - `sqlvalorantqt01-06`: 54;
+  - `sqlies23qt01-03`: 22;
+  - `sqlfutbolqt01`: 14.
+- Els 28 tenen AC d'`edgar` amb el jutge real i, per decisió de l'usuari, s'han publicat. Es veuen sense iniciar sessió.
+- Els lots són al repo (`problem_batches/sql/querytest_{sakila,valorantProMatches,futbol24,ies23g}.json`), i les notes de revisió a `aparcades/revisar_enunciats/`.
+- **A revisar:** en 4 preguntes de valorant i en unes 10 de sakila, l'enunciat original de QueryTest i la seva solució no coincidien. Per exemple, "el mapa més jugat" amb un `ORDER BY COUNT(*)` sense `DESC`. L'enunciat nou descriu el que fa el SQL, però potser l'error era del SQL. Estan detallades a les notes de revisió.
+- **Encara sense BD:** ies26 (146 preguntes, i les 4 del test #209), ies (34), cinema (20), pilotador (19), noms (11, el dump està malmès) i "Múltiples taules" (9).
+- L'usuari va reiniciar els jutges i va fer `supervisorctl restart all` (21:06). Els dos jutges estan en línia, el web respon 200 i la instància de correcció continua en marxa. Prova amb el jutge real: un enviament a `zzmysqltest01` amb les 4 consultes de referència entre parèntesis ha donat **AC 4/4** (enviament 370882, NouJutge).
+- A petició de l'usuari, s'ha esborrat el problema de prova `zzmysqltest01`: era privat, només tenia 4 enviaments d'`edgar` i no era a cap concurs. `Problem.delete()` va esborrar 35 files (el problema, les seves dades, 4 casos, 4 enviaments amb els seus 16 resultats de cas...). El senyal `post_delete` de `ProblemData` va esborrar `p_zzmysqltest01` i `w_p_zzmysqltest01` de MariaDB, que és la primera comprovació real d'aquest senyal. La carpeta `/judge/zzmysqltest01/` (`data.zip`, `init.yml`, `northwind.sql`), que Django no esborra, s'ha esborrat a mà.
+
+---
+
+### 106. Ja no es poden crear problemes SQL amb SQLite (pas 1 de la retirada del checker `sql`)
+
+**Abans:**
+Després de les entrades #102–#105, cap problema ni cap cas fa servir el checker `sql` (SQLite). Els 238 problemes SQL fan servir `mysql`, i cap `init.yml` del jutge esmenta `sql`. Tot i així, el formulari de dades encara oferia "SQL checker", la pujada d'un fitxer `.db` i el selector de BD d'exemple SQLite, i `create_db_problems` feia servir SQLite per defecte si un lot no indicava `"engine"`.
+
+**Decisió:**
+L'usuari ha triat el pas 1 de tres: tancar la porta a problemes SQLite nous **sense esborrar res**.
+- La migració `0161_remove_sqlite_checker_choice` treu "SQL checker" de les opcions de `ProblemData.checker` i `ProblemTestCase.checker`. Només canvia les opcions, no executa SQL.
+- Al formulari de dades (`judge/views/problem_data.py`) s'han tret el camp `sql_db`, el selector `sql_template`, la seva validació i la còpia de la plantilla en desar. A `templates/problem/data.html` s'ha tret el JavaScript que els mostrava o amagava.
+- `create_db_problems` fa servir `mysql` per defecte, i amb `"engine": "sqlite"` dona un error clar en lloc de crear un problema SQLite.
+
+Es manté, inactiu:
+- el checker `sql.py` del jutge, que a més és la base de `mysql.py` i `mysqlwrite.py`, que n'importen el tall per preguntes, la detecció del tipus de sentència, la llista negra SEC i la comparació de resultats;
+- `'sql'` a `DATABASE_CHECKERS`;
+- el camp de model `sql_db`;
+- la branca SQLite de la vista d'esquema;
+- les plantilles de `/judge/_sql_templates/` (9 BD, 9,6 MB);
+- els fitxers `.db` antics d'11 problemes (els 5 fets a mà i els 6 d'escriptura), que ja no es fan servir.
+
+**Per què:**
+Que un professor no creï, sense adonar-se'n, un problema SQL que es corregeixi amb un altre dialecte que la resta.
+
+**Resultat:**
+Amb sessió d'administrador, el desplegable de checkers ofereix `standard`, `rstripped`, `sorted`, `identical`, `linecount`, `mongo` i `mysql`. Al formulari ja no hi ha els camps SQLite, i hi continuen el dump MySQL i la BD del catàleg. Tots els fitxers de lots del repo validen sense errors amb MySQL com a únic motor. `manage.py check` és net. Cal recarregar el web perquè els professors vegin el formulari nou.
+
+**Pendent (passos 2 i 3, si es decideix):**
+- Moure les funcions compartides de `sql.py` a un mòdul base i treure el checker `sql`.
+- Retirar el camp `sql_db` (una migració que esborra una columna; abans cal mirar-ne els valors).
+- Treure el codi SQLite que queda.
+- Esborrar els `.db` antics i les plantilles, amb còpia de seguretat abans.
 
 ---
 

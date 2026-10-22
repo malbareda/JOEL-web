@@ -4,7 +4,7 @@
    "code": "sqlupd01",
    "database": "groupbytest",
    "type": "sqlupdate",
-   "name": "SQL Updates 1: UPDATE bàsic",
+   "name": "SQL Updates 1: UPDATE bàsic", "engine": "mysql", "database": "groupbytest",
    "intro": "Primer contacte amb `UPDATE`: canviar una columna d'una o diverses files amb `WHERE` (per `Id`, per nom, per cognom) i veure què passa quan s'oblida el `WHERE`.",
    "questions": [
     {
@@ -63,7 +63,7 @@
    "code": "sqlupd02",
    "database": "chinook",
    "type": "sqlupdate",
-   "name": "SQL Updates 2: expressions al SET",
+   "name": "SQL Updates 2: expressions al SET", "engine": "mysql", "database": "Chinook",
    "intro": "Practiques expressions dins del `SET`: percentatges i sumes, concatenació amb `||`, `UPPER`, `LOWER`, `TRIM`, i actualitzar diverses columnes alhora, sempre amb `WHERE` selectius.",
    "questions": [
     {
@@ -78,7 +78,7 @@
     },
     {
      "text": "A la taula `Track`, afegeix el text ` (Remastered)` (amb l'espai inicial) al final del nom (`Name`) de les cançons de l'àlbum amb `AlbumId` 2.",
-     "sql": "UPDATE Track SET Name = Name || ' (Remastered)' WHERE AlbumId = 2",
+     "sql": "UPDATE Track SET Name = CONCAT(Name, ' (Remastered)') WHERE AlbumId = 2",
      "explain": "L'operador `||` concatena textos; el nou valor es construeix a partir del nom actual."
     },
     {
@@ -122,7 +122,7 @@
    "code": "sqlupd03",
    "database": "hotel",
    "type": "sqlupdate",
-   "name": "SQL Updates 3: condicions riques i CASE",
+   "name": "SQL Updates 3: condicions riques i CASE", "engine": "mysql", "database": "hotel",
    "intro": "Practiques `WHERE` ben acotats amb `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `AND`/`OR` amb parèntesis, i `CASE WHEN` dins del `SET` per donar valors diferents segons cada fila.",
    "questions": [
     {
@@ -140,11 +140,7 @@
      "sql": "UPDATE Bookings SET State = 'Cancelled' WHERE State = 'Reserved' AND RoomTypeId IN (7, 8) AND CheckIn BETWEEN '2021-01-01' AND '2021-01-31'",
      "explain": "Es combinen tres condicions amb `AND`: estat actual, tipus d'habitació amb `IN` i rang de dates amb `BETWEEN`."
     },
-    {
-     "text": "A la taula `Stays`, posa `PaymentType` al valor `Pending` en les estades que no tenen tipus de pagament (`PaymentType IS NULL`).",
-     "sql": "UPDATE Stays SET PaymentType = 'Pending' WHERE PaymentType IS NULL",
-     "explain": "Les files sense pagament tenen `NULL`, que només es detecta amb `IS NULL` (mai amb `= NULL`)."
-    },
+    
     {
      "text": "A la taula `Stays`, posa `PaymentType` a `Card` de les estades que ara estan pagades amb `Cash` i que tenen `TotalPrice` menor que 100 o `CheckOut` igual a `2021-01-12`.",
      "sql": "UPDATE Stays SET PaymentType = 'Card' WHERE PaymentType = 'Cash' AND (TotalPrice < 100 OR CheckOut = '2021-01-12')",
@@ -172,7 +168,7 @@
     },
     {
      "text": "A la taula `Customers`, canvia el prefix `+34` per `0034` al telèfon (`PhoneNumber`) dels clients amb telèfon que comença per `+34` i cognom (`LastName`) que comença per `GARC`.",
-     "sql": "UPDATE Customers SET PhoneNumber = '0034' || SUBSTR(PhoneNumber, 4) WHERE PhoneNumber LIKE '+34%' AND LastName LIKE 'GARC%'",
+     "sql": "UPDATE Customers SET PhoneNumber = CONCAT('0034', SUBSTR(PhoneNumber, 4)) WHERE PhoneNumber LIKE '+34%' AND LastName LIKE 'GARC%'",
      "explain": "`SUBSTR(PhoneNumber, 4)` retorna el telèfon a partir del 4t caràcter (sense `+34`) i `||` hi enganxa el nou prefix."
     }
    ]
@@ -181,7 +177,7 @@
    "code": "sqlupd04",
    "database": "lastnames",
    "type": "sqlupdate",
-   "name": "SQL Updates 4: UPDATE amb subconsultes",
+   "name": "SQL Updates 4: UPDATE amb subconsultes", "engine": "mysql", "database": "lastnames",
    "intro": "Practiques subconsultes dins d'un `UPDATE`: valors escalars calculats amb `SELECT` al `SET`, subconsultes al `WHERE` amb `IN` o comparacions amb agregats (`AVG`, `MAX`, `MIN`, `COUNT`).",
    "questions": [
     {
@@ -196,7 +192,7 @@
     },
     {
      "text": "A la taula `LastNames`, posa `Freq2` a 0 dels 3 cognoms amb el `Freq1` més alt. Usa una subconsulta amb `ORDER BY Freq1 DESC LIMIT 3` que retorni els `LastNameId`.",
-     "sql": "UPDATE LastNames SET Freq2 = 0 WHERE LastNameId IN (SELECT LastNameId FROM LastNames ORDER BY Freq1 DESC LIMIT 3)",
+     "sql": "UPDATE LastNames SET Freq2 = 0 WHERE LastNameId IN (SELECT LastNameId FROM (SELECT LastNameId FROM LastNames ORDER BY Freq1 DESC LIMIT 3) AS t)",
      "explain": "`IN` amb subconsulta permet escollir les files amb una consulta de rànquing; el `LIMIT` dins de la subconsulta fixa quantes."
     },
     {
@@ -216,7 +212,7 @@
     },
     {
      "text": "A la taula `LastNames`, afegeix un asterisc (`*`) al final del nom (`Name`) dels cognoms que comencen per `AB` i que tenen el `Freq1` mínim de la taula. Usa `WHERE LastNameId IN (SELECT ...)` amb una subconsulta dins d'una altra.",
-     "sql": "UPDATE LastNames SET Name = Name || '*' WHERE LastNameId IN (SELECT LastNameId FROM LastNames WHERE Name LIKE 'AB%' AND Freq1 = (SELECT MIN(Freq1) FROM LastNames))",
+     "sql": "UPDATE LastNames SET Name = CONCAT(Name, '*') WHERE LastNameId IN (SELECT LastNameId FROM (SELECT LastNameId FROM LastNames WHERE Name LIKE 'AB%' AND Freq1 = (SELECT MIN(Freq1) FROM LastNames)) AS t)",
      "explain": "Les subconsultes es poden niuar: la interior calcula el mínim i l'exterior tria els identificadors."
     },
     {
@@ -231,7 +227,7 @@
     },
     {
      "text": "A la taula `LastNames`, posa `Freq2` a la part entera de la mitjana de `Freq1` de tota la taula (`CAST((SELECT AVG(Freq1) FROM LastNames) AS INTEGER)`) per als cognoms amb `LastNameId` entre 1 i 3.",
-     "sql": "UPDATE LastNames SET Freq2 = CAST((SELECT AVG(Freq1) FROM LastNames) AS INTEGER) WHERE LastNameId BETWEEN 1 AND 3",
+     "sql": "UPDATE LastNames SET Freq2 = TRUNCATE((SELECT AVG(Freq1) FROM LastNames), 0) WHERE LastNameId BETWEEN 1 AND 3",
      "explain": "`CAST(... AS INTEGER)` trunca la mitjana a un enter, així que tothom obté el mateix resultat exacte."
     }
    ]
@@ -240,7 +236,7 @@
    "code": "sqlupd05",
    "database": "northwind",
    "type": "sqlupdate",
-   "name": "SQL Updates 5: problema final mesclat",
+   "name": "SQL Updates 5: problema final mesclat", "engine": "mysql", "database": "northwind",
    "intro": "Problema final: `UPDATE` amb diverses columnes al `SET`, subconsultes correlacionades amb dades agregades d'una altra taula, `CASE` i condicions amb `EXISTS` / `NOT EXISTS`.",
    "questions": [
     {
@@ -260,7 +256,7 @@
     },
     {
      "text": "A la taula `customers`, per als clients que tenen alguna comanda a `orders` (`orders.customer_id = customers.id`), posa `job_title` a `Client actiu` i `notes` a `Comandes: ` seguit del nombre de comandes del client (p. ex. `Comandes: 3`).",
-     "sql": "UPDATE customers SET job_title = 'Client actiu', notes = 'Comandes: ' || (SELECT COUNT(*) FROM orders WHERE customer_id = customers.id) WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)",
+     "sql": "UPDATE customers SET job_title = 'Client actiu', notes = CONCAT('Comandes: ', (SELECT COUNT(*) FROM orders WHERE customer_id = customers.id)) WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)",
      "explain": "El `COUNT(*)` correlacionat es concatena amb el text, i l'`EXISTS` deixa intactes els clients sense comandes."
     },
     {

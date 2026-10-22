@@ -3732,7 +3732,7 @@ msgid "You don't have enough points"
 msgstr ""
 
 #: judge/views/user.py:141
-msgid "You need 5 GachaPoints in order to make a gacha roll"
+msgid "You need %(points)s GachaPoints in order to make a gacha roll"
 msgstr ""
 
 #: judge/views/user.py:216 judge/views/user.py:316
@@ -4477,7 +4477,7 @@ msgstr "可用积分"
 
 #: templates/gacha/gachago.html:40 templates/gacha/gachamain.html:40
 #: templates/gacha/gacharesult.html:248
-msgid "Use 5 GachaPoints"
+msgid "Use %(points)s GachaPoints"
 msgstr ""
 
 #: templates/gacha/gacharesult.html:240
@@ -4504,8 +4504,8 @@ msgstr ""
 #, python-format
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-" 50%% dels teus GachaPoints"
-msgstr "但这是重复的……真可惜！既然我感觉很慷慨，就退还你 50%% 的 GachaPoints 吧"
+" %(percent)s%% dels teus GachaPoints"
+msgstr "但这是重复的……真可惜！既然我感觉很慷慨，就退还你 %(percent)s%% 的 GachaPoints 吧"
 
 #: templates/license.html:12
 msgid "Source:"
@@ -6248,3 +6248,60 @@ msgstr "管理资料"
 #: templates/widgets/select_all.html:8
 msgid "Check all"
 msgstr "全选"
+
+#: judge/models/profile.py
+msgid "gacha discount"
+msgstr ""
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement pays 4 GachaPoints per gacha roll instead of 5, "
+"permanently. Owning more than one copy (or more than one such achievement) "
+"does not stack."
+msgstr ""
+
+#: judge/models/profile.py
+msgid "extra hint"
+msgstr ""
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets one extra hint, permanently, on every "
+"problem that already allows at least one. Problems with no hints stay at "
+"zero. Owning more than one copy (or more than one such achievement) does "
+"not stack."
+msgstr ""
+
+#: templates/user/user-about.html
+msgid "Super achievements"
+msgstr ""
+
+#: judge/models/profile.py
+msgid "double daily bonus"
+msgstr ""
+
+#: judge/models/profile.py
+msgid "duplicate insurance"
+msgstr ""
+
+#: judge/models/profile.py
+msgid "rainbow name"
+msgstr ""
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets twice the 'first new problem of the day' "
+"GachaPoints bonus, permanently. Does not stack."
+msgstr ""
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets back 80% of the roll cost on a duplicate "
+"gacha result instead of 50%, permanently. Does not stack."
+msgstr ""
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement has their username shown with an animated "
+"rainbow everywhere on the site. Does not stack."
+msgstr ""

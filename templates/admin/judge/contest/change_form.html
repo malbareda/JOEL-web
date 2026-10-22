@@ -6,7 +6,7 @@
         django.jQuery(function ($) {
             $('.rerate-link').appendTo('div#bottombar').show();
             $('.rejudge-link').click(function () {
-                return confirm('{{ _('Are you sure you want to rejudge ALL the submissions?') }}');
+                return confirm('{{ _('Are you sure you want to rejudge ALL the submissions?')|escapejs }}');
             });
         });
     </script>

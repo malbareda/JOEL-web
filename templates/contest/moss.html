@@ -25,12 +25,12 @@
     <script type="text/javascript">
         $(function () {
             $('.contest-moss').click(function () {
-                return confirm('{{ _('Are you sure you want MOSS the contest?') }}');
+                return confirm('{{ _('Are you sure you want MOSS the contest?')|escapejs }}');
             });
         });
         $(function () {
             $('.contest-moss-delete').click(function () {
-                return confirm('{{ _('Are you sure you want to delete the MOSS results?') }}');
+                return confirm('{{ _('Are you sure you want to delete the MOSS results?')|escapejs }}');
             });
         });
     </script>

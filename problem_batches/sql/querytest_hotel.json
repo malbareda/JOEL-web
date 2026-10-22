@@ -1,0 +1,497 @@
+{
+  "database": "hotel",
+  "engine": "mysql",
+  "code_prefix": "sqlhotelqt",
+  "author": "joanq",
+  "label": "Hotel (reserves, estades, clients, hostes, habitacions, tipus d'habitació, serveis i temporades de preus) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqlhotelqt01",
+      "name": "Hotel QT — Filtrat per comparació",
+      "type": "sqlselbasic",
+      "intro": "Consultes sobre una sola taula filtrant amb operadors de comparació. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra el dia d'inici (`StartingDay`) de la temporada (`Seasons`) anomenada 'Winter 2020'.",
+          "sql": "SELECT StartingDay FROM hotel.Seasons WHERE Name = 'Winter 2020'"
+        },
+        {
+          "text": "Mostra l'identificador de temporada (`SeasonId`) i el preu (`Price`) de la taula `PriceSeasons` per al tipus d'habitació (`RoomTypeId`) 1 amb un preu superior a 33.",
+          "sql": "SELECT SeasonId, price FROM hotel.PriceSeasons WHERE RoomTypeId = 1 AND Price > 33"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), l'identificador del client (`CustomerId`), la data d'entrada (`CheckIn`) i la data de sortida (`CheckOut`) de les reserves (`Bookings`) amb estat (`State`) 'Cancelled', més d'un hoste (`NHosts`) i un preu (`Price`) inferior o igual a 320.",
+          "sql": "SELECT Id, CustomerId, CheckIn, CheckOut \nFROM hotel.Bookings\nWHERE State = 'Cancelled'\nAND NHosts > 1\nAND Price <= 320"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), l'identificador del client (`CustomerId`), la data d'entrada (`CheckIn`) i la data de sortida (`CheckOut`) de les reserves (`Bookings`) amb estat 'Reserved' fetes a partir de l'1 de febrer de 2021 (segons `ReservationDateTime`).",
+          "sql": "SELECT Id, CustomerId, CheckIn, CheckOut \nFROM hotel.Bookings\nWHERE State = 'Reserved'\nAND ReservationDateTime >= '2021-02-01'"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`), el número d'habitació (`RoomNumber`) i el preu total (`TotalPrice`) de les estades (`Stays`) que no s'han pagat amb targeta (`PaymentType` diferent de 'Card') i amb un preu total superior a 500.",
+          "sql": "SELECT Id, CheckIn, RoomNumber, TotalPrice\nFROM hotel.Stays\nWHERE PaymentType != 'Card'\nAND TotalPrice > 500"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt02",
+      "name": "Hotel QT — Filtrat per rangs",
+      "type": "sqlselbasic",
+      "intro": "Filtrat de files amb `BETWEEN`. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Id`), l'identificador del client (`CustomerId`) i el preu (`Price`) de les reserves (`Bookings`) fetes entre el 25 de març i el 25 d'abril de 2021, tots dos inclosos (segons `ReservationDateTime`).",
+          "sql": "SELECT Id, CustomerId, Price\nFROM hotel.Bookings\nWHERE ReservationDateTime BETWEEN '2021-03-25' AND '2021-04-25'"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`), la data de sortida (`CheckOut`), el tipus de pagament (`PaymentType`) i el preu total (`TotalPrice`) de les estades (`Stays`) amb un preu total entre 350 i 400, tots dos inclosos.",
+          "sql": "SELECT RoomNumber, CheckOut, PaymentType, TotalPrice \nFROM hotel.Stays \nWHERE TotalPrice BETWEEN 350 AND 400"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt03",
+      "name": "Hotel QT — Agregació",
+      "type": "sqlagggroup",
+      "intro": "Funcions d'agregació i `GROUP BY` sobre reserves. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra els 10 clients (`CustomerId`) que més diners han gastat en reserves no cancel·lades (estat 'Reserved'), juntament amb la suma gastada com a `total_expense`. Ordena de més a menys despesa. Taula `Bookings`. En cas d'empat en la despesa, ordena per `CustomerId` de menor a major.",
+          "sql": "SELECT CustomerId, SUM(Price) AS total_expense FROM hotel.Bookings WHERE State = 'Reserved' GROUP BY CustomerId ORDER BY SUM(Price) DESC, CustomerId LIMIT 10;"
+        },
+        {
+          "text": "Mostra el preu mitjà (`AVG(Price)`) de les reserves (`Bookings`) cancel·lades (estat 'Cancelled').",
+          "sql": "SELECT AVG(Price)\nFROM hotel.Bookings \nWHERE State = 'Cancelled';"
+        },
+        {
+          "text": "Mostra el nombre d'hostes (`NHosts`) més alt de totes les reserves (`Bookings`) que no estan cancel·lades (estat diferent de 'Cancelled').",
+          "sql": "SELECT MAX(NHosts)\nFROM hotel.Bookings \nWHERE State != 'Cancelled';"
+        },
+        {
+          "text": "Mostra, per a cada mes de la data d'entrada (`CheckIn`), el número de mes i el preu mitjà (`AVG(Price)`) de les reserves (`Bookings`) d'aquell mes. Taula `Bookings`.",
+          "sql": "SELECT MONTH(CheckIn),\nAVG(Price)\nFROM hotel.Bookings\nGROUP BY MONTH(CheckIn);"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt04",
+      "name": "Hotel QT — Consultes simples",
+      "type": "sqljoincomplex",
+      "intro": "`JOIN` de diverses taules amb agregació i ordenació. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra, per a cada nacionalitat (`Hosts.Nationality`), el nombre d'hostes allotjats com a `TotalHostes`, ordenat de més a menys. Uneix `StayHosts` i `Hosts`.",
+          "sql": "SELECT Hosts.Nationality, COUNT(StayHosts.HostId) AS TotalHostes\nFROM StayHosts\nJOIN Hosts ON StayHosts.HostId = Hosts.Id\nGROUP BY Hosts.Nationality\nORDER BY TotalHostes DESC;"
+        },
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`RoomTypes.Name`), el seu preu mitjà de reserva com a `PreuMig`, ordenat de més a menys. Uneix `Bookings`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT RoomTypes.Name, AVG(Bookings.Price) AS PreuMig\nFROM Bookings\nJOIN Rooms ON Bookings.RoomTypeId = Rooms.RoomTypeId\nJOIN RoomTypes ON Rooms.RoomTypeId = RoomTypes.Id\nGROUP BY RoomTypes.Name\nORDER BY PreuMig DESC;"
+        },
+        {
+          "text": "Mostra el nom i cognom del client en una sola columna com a `Client` (`FirstName`, un espai i `LastName`), la data de reserva (`ReservationDateTime`) i l'estat (`State`) de les reserves amb estat 'Reserved' fetes durant els últims 5 anys. Uneix `Bookings` i `Customers`.",
+          "sql": "SELECT CONCAT(Customers.FirstName, ' ', Customers.LastName) AS Client, \n       Bookings.ReservationDateTime, \n       Bookings.State\nFROM Bookings\nJOIN Customers ON Bookings.CustomerId = Customers.Id\nWHERE Bookings.State = 'Reserved' \n  AND Bookings.ReservationDateTime >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 YEAR);"
+        },
+        {
+          "text": "Mostra el número d'habitació (`Rooms.RoomNumber`) i el nom del seu tipus (`RoomTypes.Name`) de les habitacions marcades com a buides (`Empty` igual a 1). Uneix `Rooms` i `RoomTypes`.",
+          "sql": "SELECT Rooms.RoomNumber, RoomTypes.Name\nFROM Rooms\nJOIN RoomTypes ON Rooms.RoomTypeId = RoomTypes.Id\nWHERE Rooms.Empty = 1;"
+        },
+        {
+          "text": "Mostra el nom del tipus d'habitació (`RoomTypes.Name`), la seva capacitat (`Capacity`) i el nombre de serveis que ofereix com a `NumServeis`, ordenat per capacitat descendent i, en empat, per nombre de serveis descendent. Uneix `RoomTypes`, `RoomTypeFacilities` i `Facilities`.",
+          "sql": "SELECT RoomTypes.Name, RoomTypes.Capacity, COUNT(Facilities.Id) AS NumServeis\nFROM RoomTypes\nJOIN RoomTypeFacilities ON RoomTypes.Id = RoomTypeFacilities.RoomTypeId\nJOIN Facilities ON RoomTypeFacilities.FacilityId = Facilities.Id\nGROUP BY RoomTypes.Name, RoomTypes.Capacity\nORDER BY RoomTypes.Capacity DESC, NumServeis DESC;"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt05",
+      "name": "Hotel QT — Consultes simples (2)",
+      "type": "sqljoincomplex",
+      "intro": "`JOIN` de diverses taules, agregació, subconsultes i `HAVING`. Problema temàtic migrat tal qual del test de QueryTest.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, el nom (`FirstName`), el cognom (`LastName`) i l'identificador de la reserva (`Bookings.Id`) dels clients que han reservat una habitació buida (`Empty` igual a 1) amb capacitat (`Capacity`) de 2 places o més durant la temporada 'Summer 2020'. Uneix `Customers`, `Bookings`, `Rooms`, `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT DISTINCT c.FirstName, c.LastName, b.Id\nFROM Customers c\nJOIN Bookings b ON c.Id = b.CustomerId\nJOIN Rooms r ON b.RoomTypeId = r.RoomTypeId\nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id\nJOIN PriceSeasons ps ON rt.Id = ps.RoomTypeId\nJOIN Seasons s ON ps.SeasonId = s.Id\nWHERE r.Empty = 1 AND rt.Capacity >= 2 AND s.Name = 'Summer 2020';"
+        },
+        {
+          "text": "Mostra l'habitació assignada (`BookingCalendar.AssignedRoom`) i el nombre de reserves diferents (`COUNT(DISTINCT Bookings.Id)`) fetes al mes de juny (segons `ReservationDateTime`), només de les habitacions amb més de 20 reserves diferents. Uneix `BookingCalendar` i `Bookings`.",
+          "sql": "SELECT bc.AssignedRoom, COUNT(DISTINCT b.Id)\nFROM BookingCalendar bc\nJOIN Bookings b ON bc.BookingId = b.Id\nWHERE MONTH(b.ReservationDateTime) = 6\nGROUP BY bc.AssignedRoom\nHAVING COUNT(DISTINCT b.Id) > 20;"
+        },
+        {
+          "text": "Mostra l'identificador de la reserva com a `BookingId`, el nom i cognom del client en una sola columna com a `nomComplet` i el nombre d'hostes de les estades de cada reserva, de totes les reserves (`Bookings`) amb estat 'Reserved'. Uneix `Bookings`, `Customers`, `Stays` i `StayHosts`.",
+          "sql": "SELECT b.Id AS BookingId, CONCAT(c.FirstName,' ', c.LastName) AS nomComplet, COUNT(sh.HostId) AS NHots\nFROM Bookings b\nJOIN Customers c ON b.CustomerId = c.Id\nJOIN Stays s ON b.Id = s.BookingId\nJOIN StayHosts sh ON s.Id = sh.StayId\nWHERE b.State = 'Reserved'\nGROUP BY b.Id, c.FirstName, c.LastName;"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`) i la llista dels serveis que ofereix en una sola columna com a `Facility` (separats per comes). Uneix `Rooms`, `RoomTypeFacilities` i `Facilities`. Dins de cada habitació, els serveis han d'aparèixer en ordre alfabètic.",
+          "sql": "SELECT r.RoomNumber, GROUP_CONCAT(f.Name ORDER BY f.Name SEPARATOR ', ') AS Facility FROM Rooms r JOIN RoomTypeFacilities rf ON r.RoomTypeId = rf.RoomTypeId JOIN Facilities f ON rf.FacilityId = f.Id GROUP BY r.RoomNumber;"
+        },
+        {
+          "text": "Mostra el preu mitjà (`AVG(Price)`) de les reserves (`Bookings`) de la temporada 'Winter 2020'. Uneix `Bookings`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT AVG(b.Price) FROM hotel.Bookings b INNER JOIN hotel.PriceSeasons ps ON b.RoomTypeId = ps.RoomTypeId\nINNER JOIN hotel.Seasons s ON ps.SeasonId = s.Id WHERE s.Name = 'Winter 2020';"
+        },
+        {
+          "text": "Mostra el nombre de dies diferents (`COUNT(DISTINCT BookedDate)`) com a `OccupiedDays` en què hi ha hagut habitacions ocupades durant els últims 3 anys. Taula `BookingCalendar`.",
+          "sql": "SELECT COUNT(DISTINCT bc.BookedDate) AS OccupiedDays\nFROM BookingCalendar bc\nWHERE bc.BookedDate BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 3 YEAR) AND CURRENT_DATE();"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el nombre de reserves com a `BookingCount` dels hostes amb més de 6 reserves al sistema. Uneix `Hosts`, `StayHosts`, `Stays` i `Bookings`.",
+          "sql": "SELECT h.FirstName, h.LastName, COUNT(b.Id) AS BookingCount\nFROM Hosts h\nJOIN StayHosts sh ON h.Id = sh.HostId\nJOIN Stays s ON sh.StayId = s.Id\nJOIN Bookings b ON s.BookingId = b.Id\nGROUP BY h.FirstName, h.LastName\nHAVING COUNT(b.Id) > 6;"
+        },
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`RoomTypes.Name`), els ingressos totals com a `TotalIncome` (suma de `Bookings.Price`) formatats amb dues xifres decimals i el símbol ' €'. Uneix `Bookings`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT \n    rt.Name AS RoomType, \n    CONCAT(FORMAT(SUM(b.Price), 2), ' €') AS TotalIncome\nFROM Bookings b\nJOIN Rooms r ON b.RoomTypeId = r.RoomTypeId\nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id\nGROUP BY rt.Name;"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt06",
+      "name": "Hotel QT — Examen fusionat 1",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals, deduplicades i ordenades de menys a més dificultat.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador de la reserva (`Id`) i el preu per persona i nit arrodonit a una xifra decimal com a `PreuPersona` (el preu dividit pel nombre d'hostes i pel nombre de nits) de totes les reserves (`Bookings`). Ordena per identificador de reserva.",
+          "sql": "SELECT b.Id , ROUND(b.Price/b.NHosts/DATEDIFF(b.CheckOut, b.CheckIn),1) AS PreuPersona  FROM Bookings b\nORDER BY b.id;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) de nacionalitat 'French' amb el cognom que comença per 'DUBOU' i dels clients de nacionalitat 'Spanish' amb el cognom que acaba en 'PEREZ'. Ordena per cognom i nom.",
+          "sql": "SELECT c.FirstName , c.LastName FROM Customers c\nWHERE c.Nationality LIKE 'French' AND c.LastName  LIKE 'DUBOU%'\nOR c.Nationality LIKE 'Spanish' AND c.LastName LIKE '%PEREZ'\nORDER BY c.LastName , c.FirstName;"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`) i la quantitat de nits (`DATEDIFF(CheckOut, CheckIn) - 1`) de les reserves (`Bookings`) no cancel·lades (estat diferent de 'Cancelled') amb una durada de 7 nits o més fetes el gener o l'abril de 2021 (segons `ReservationDateTime`).",
+          "sql": "SELECT b.Id , b.CheckIn , (DATEDIFF(b.CheckOut,b.CheckIn)-1) as nits \nfrom Bookings b \nwhere b.State not like 'Cancelled' and DATEDIFF(b.CheckOut,b.CheckIn) >=7 and YEAR(b.ReservationDateTime)= 2021\nand (MONTH (b.ReservationDateTime)=1 or MONTH (b.ReservationDateTime)=4);"
+        },
+        {
+          "text": "Mostra l'identificador de l'estada (`Stays.Id`), la data de reserva (`ReservationDateTime`) i la data de pagament (`PaymentDateTime`) de les estades pagades més de 3 mesos després de fer-se la reserva. Ordena per identificador d'estada. Uneix `Stays` i `Bookings`.",
+          "sql": "select s.Id, b.ReservationDateTime, s.PaymentDateTime\nfrom Stays s\njoin Bookings b on s.BookingId = b.Id\nwhere ADDDATE(b.ReservationDateTime, interval 3 month)<s.PaymentDateTime\norder by s.Id"
+        },
+        {
+          "text": "Mostra l'identificador de l'estada (`Stays.Id`), la data de reserva (`ReservationDateTime`), la data d'entrada (`CheckIn`) i el preu total (`TotalPrice`) de les estades en què la data d'entrada és més de 3 mesos posterior a la data de reserva. Ordena per identificador d'estada. Uneix `Stays` i `Bookings`.",
+          "sql": "select s.Id, b.ReservationDateTime, b.CheckIn, s.TotalPrice\nfrom Stays s\njoin Bookings b on s.BookingId = b.Id\nwhere ADDDATE(b.ReservationDateTime, interval 3 month)<b.CheckIn\norder by s.Id"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) que han fet reserves (`Bookings`) de més de 1300 de preu i més de 7 nits de durada. Ordena per cognom i nom.",
+          "sql": "SELECT c.FirstName , c.LastName \nFROM Customers c JOIN Bookings b ON c.Id = b.CustomerId \nWHERE b.Price > 1300 AND DATEDIFF(b.CheckOut, b.CheckIn) > 7\nORDER BY c.LastName , c.FirstName ;"
+        },
+        {
+          "text": "Mostra, per a cada nacionalitat (`Nationality`) dels hostes (`Hosts`), la longitud mitjana del nom (`AVG(CHAR_LENGTH(FirstName))`) com a `mitjana`. Ordena de més gran a més petita.",
+          "sql": "select Nationality, avg(char_length(FirstName)) as mitjana\nfrom Hosts h\ngroup by Nationality\norder by mitjana desc"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt07",
+      "name": "Hotel QT — Examen fusionat 2",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen reals deduplicades, de dificultat creixent.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Name`) dels tipus d'habitació (`RoomTypes`) dels quals no hi ha cap habitació (cap fila a `Rooms`).",
+          "sql": "SELECT rt.Name \nFROM  RoomTypes rt LEFT JOIN Rooms r ON rt.Id = r.RoomTypeId \nWHERE r.RoomNumber IS NULL;"
+        },
+        {
+          "text": "Mostra el triple del preu (`3 * Price`) del tipus d'habitació 'Suite' durant la temporada 'Spring 2020'. Uneix `PriceSeasons`, `RoomTypes` i `Seasons`.",
+          "sql": "select 3*Price\nfrom PriceSeasons ps\njoin RoomTypes rt on ps.RoomTypeId=rt.Id\njoin Seasons s on s.Id=ps.SeasonId\nwhere rt.Name='Suite' and s.Name='Spring 2020'"
+        },
+        {
+          "text": "Mostra el doble del preu (`2 * Price`) del tipus d'habitació 'Suite' durant la temporada 'Winter 2020'. Uneix `PriceSeasons`, `RoomTypes` i `Seasons`.",
+          "sql": "select 2*Price\nfrom PriceSeasons ps\njoin RoomTypes rt on ps.RoomTypeId=rt.Id\njoin Seasons s on s.Id=ps.SeasonId\nwhere rt.Name='Suite' and s.Name='Winter 2020'"
+        },
+        {
+          "text": "Mostra el nom del tipus d'habitació (`RoomTypes.Name`) i el nom del servei (`Facilities.Name`) de què disposen els tipus d'habitació de capacitat (`Capacity`) 2. Uneix `RoomTypes`, `RoomTypeFacilities` i `Facilities`.",
+          "sql": "SELECT rt.Name , f.Name \nFROM RoomTypes rt JOIN RoomTypeFacilities rtf ON rt.Id = rtf.RoomTypeId \nJOIN Facilities f ON rtf.FacilityId = f.Id \nWHERE Capacity = 2;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el correu (`Email`) i la nacionalitat (`Nationality`) dels clients (`Customers`) que no han fet mai cap reserva (`Bookings`). Ordena per nacionalitat.",
+          "sql": "SELECT DISTINCT c.Email , c.Nationality \nFROM Customers c LEFT JOIN Bookings b ON c.Id = b.CustomerId \nWHERE b.Id IS NULL\nORDER BY c.Nationality ;"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt08",
+      "name": "Hotel QT — Examen fusionat 3",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb `LEFT JOIN`, dates i subconsultes.",
+      "questions": [
+        {
+          "text": "Mostra el correu (`Email`) dels clients (`Customers`) que no han fet cap reserva (`Bookings`) entre l'1 de gener i el 31 d'octubre de 2021 (segons `ReservationDateTime`).",
+          "sql": "SELECT c.Email \nFROM Customers c LEFT JOIN Bookings b \nON c.Id = b.CustomerId AND b.ReservationDateTime BETWEEN '2021-01-01 00:00:00.000' AND '2021-10-31 23:59:59.999'\nWHERE b.Id IS NULL;"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`), el nom del tipus d'habitació (`RoomTypes.Name`) i la seva capacitat (`Capacity`) de les habitacions ocupades ara mateix (estades amb `CheckOut` sense valor), ordenat de major a menor capacitat. Uneix `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT s.RoomNumber  , rt.Name , rt.Capacity \nFROM Stays s JOIN Rooms r ON s.RoomNumber = r.RoomNumber \nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nWHERE s.CheckOut IS NULL\nORDER BY rt.Capacity  DESC;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) que no han cancel·lat mai cap reserva (cap reserva amb estat 'Cancelled'). Ordena per cognom i nom.",
+          "sql": "SELECT c.FirstName, c.LastName FROM Customers c \nWHERE c.Id NOT IN (\n\t\t\t\tSELECT DISTINCT CustomerId FROM Bookings\n\t\t\t\tWHERE State LIKE 'Cancelled')\nORDER BY c.LastName, c.FirstName;"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el número de document (`DocNumber`), el nom (`FirstName`), el cognom (`LastName`) i el nombre de dies que porta a l'hotel (`DATEDIFF(CURRENT_DATE(), CheckIn)`) de cada hoste que encara hi és allotjat (estades amb `CheckOut` sense valor), ordenat de més a menys dies. Uneix `Stays`, `StayHosts` i `Hosts`.",
+          "sql": "SELECT h.Id , h.DocNumber , h.FirstName , h.LastName , DATEDIFF(CURRENT_DATE(), s.CheckIn) Dies\nFROM Stays s JOIN StayHosts sh ON s.Id = sh.StayId\nJOIN Hosts h ON sh.HostId = h.Id\nWHERE s.CheckOut IS NULL\nORDER BY Dies DESC;"
+        },
+        {
+          "text": "Mostra la mitjana de nits (`ROUND(AVG(DATEDIFF(CheckOut, CheckIn)), 1)`) de les reserves (`Bookings`) del tipus d'habitació 'Suite', arrodonida a una xifra decimal. Uneix `Bookings` i `RoomTypes`.",
+          "sql": "SELECT ROUND(AVG(DATEDIFF(b.CheckOut, b.CheckIn)),1) AS mitjana\nFROM Bookings b \nJOIN RoomTypes rt ON rt.Id = b.RoomTypeId \nWHERE rt.Name like 'Suite';"
+        },
+        {
+          "text": "Mostra el nombre de reserves (`COUNT(Id)`) del tipus d'habitació 'Suite' cancel·lades (estat 'Cancelled') amb data d'entrada (`CheckIn`) l'any 2021. Uneix `Bookings` i `RoomTypes`.",
+          "sql": "SELECT COUNT(b.Id) as \"Quantitat\"\nFROM Bookings b JOIN RoomTypes rt ON b.RoomTypeId = rt.Id \nWHERE b.State LIKE 'Cancelled' AND YEAR(b.CheckIn)= 2021 \nAND rt.Name LIKE 'Suite';"
+        },
+        {
+          "text": "Mostra el nombre de reserves (`COUNT(Id)`) del tipus d'habitació 'Suite' cancel·lades (estat 'Cancelled') amb data d'entrada (`CheckIn`) durant l'any 2019. Uneix `Bookings` i `RoomTypes`.",
+          "sql": "select count(Id) as \"quantitat\"\nfrom Bookings\nwhere Bookings.State like 'Cancelled' and Bookings.CheckIn >= '2019/01/01' and Bookings.CheckIn < '2020/01/01'\nand Bookings.RoomTypeId = (select Id from RoomTypes where Name like 'Suite')"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`), l'identificador (`Id`) i el nom (`Name`) del tipus d'habitació de les habitacions que no es van assignar a cap reserva durant l'any 2020 (cap fila a `BookingCalendar` amb aquesta habitació i `BookedDate` del 2020). Ordena pel número d'habitació. Uneix `Rooms` i `RoomTypes`.",
+          "sql": "SELECT r.RoomNumber, rt.Id ,rt.Name\nFROM Rooms r\nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id\nWHERE NOT EXISTS (\nSELECT * FROM BookingCalendar bc\nWHERE bc.AssignedRoom = r.RoomNumber \nand bc.BookedDate>='2020-01-01' AND bc.BookedDate<'2021-01-01'\n)\norder by 1"
+        },
+        {
+          "text": "Mostra, per a cada dia (`BookedDate`) entre l'1 de setembre i el 30 de novembre de 2021, el dia i el nombre d'habitacions ocupades (`COUNT(*)`) a `BookingCalendar`, només dels dies amb menys de 40 habitacions ocupades. Ordena pel nombre d'habitacions i després per data.",
+          "sql": "select bc.BookedDate, count(*)\nfrom BookingCalendar bc\nwhere bc.BookedDate >= '2021-09-01' and bc.BookedDate <= '2021-11-30'\ngroup by bc.BookedDate\nhaving count(*)<40\norder by count(*), bc.BookedDate"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt09",
+      "name": "Hotel QT — Examen fusionat 4",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb `LEFT JOIN`, agregació i subconsultes.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels hostes (`Hosts`) de nacionalitat 'French' que encara són a l'hotel (estades amb `CheckOut` sense valor). Ordena per cognom i nom. Uneix `Stays`, `StayHosts` i `Hosts`.",
+          "sql": "SELECT h.FirstName , h.LastName \nFROM Stays s JOIN StayHosts sh ON s.Id = sh.StayId \nJOIN Hosts h ON sh.HostId = h.Id \nWHERE s.CheckOut IS NULL AND h.Nationality LIKE 'French'\nORDER BY h.LastName , h.FirstName;"
+        },
+        {
+          "text": "Mostra el cognom (`LastName`), el nom (`FirstName`) i la durada en nits (`DATEDIFF(CheckOut, CheckIn)`) de cada estada (`Stays`) ja acabada, de més de 7 nits i pagada en efectiu ('Cash'). Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "SELECT h.LastName , h.FirstName , DATEDIFF(s.CheckOut, s.CheckIn) \nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id \nWHERE s.CheckOut IS NOT NULL\nAND DATEDIFF(s.CheckOut, s.CheckIn) > 7\nAND s.PaymentType LIKE 'Cash';"
+        },
+        {
+          "text": "Mostra el cognom (`LastName`) i el nombre de vegades que apareix (`COUNT(*)`) dels cognoms que es repeteixen (apareixen més d'una vegada) a la taula `Customers`. Ordena de més a menys repeticions.",
+          "sql": "SELECT c.LastName , COUNT(*) Repetits\nFROM Customers c\nGROUP BY c.LastName \nHAVING COUNT(*) > 1\nORDER BY Repetits DESC;"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) de nacionalitat 'English' que no tenen cap reserva ocupant una habitació el 10 de febrer de 2020 (`BookedDate` a `BookingCalendar`).",
+          "sql": "SELECT c.Id, c.FirstName, c.LastName\nFROM Customers c\nWHERE c.Nationality='English' AND\n'2020-02-10' NOT IN (\n  SELECT bc.BookedDate\n  FROM BookingCalendar bc\n  JOIN Bookings b ON b.Id=bc.BookingId\n  WHERE b.CustomerId=c.Id\n)"
+        },
+        {
+          "text": "Mostra, per a cada temporada (`Seasons.Name`), el preu mitjà (`AVG(Price)`) dels seus tipus d'habitació a `PriceSeasons`. Ordena per dia d'inici de la temporada (`StartingDay`). Uneix `Seasons` i `PriceSeasons`.",
+          "sql": "select Name, avg(Price)\nfrom Seasons s\njoin PriceSeasons ps on s.Id=ps.SeasonId\ngroup by s.Id, Name\norder by StartingDay"
+        },
+        {
+          "text": "Mostra el nom del tipus d'habitació (`RoomTypes.Name`) i el seu preu (`Price`) durant la temporada 'Winter 2020'. Ordena pel nom del tipus d'habitació. Uneix `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT rt.Name, ps.Price\nFROM RoomTypes rt\nleft JOIN PriceSeasons ps ON rt.Id=ps.RoomTypeId\nleft JOIN Seasons s ON s.Id=ps.SeasonId\nWHERE s.Name='Winter 2020'\nORDER BY rt.Name"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Name`) dels tipus d'habitació (`RoomTypes`) que disposen del servei 'WIFI', o bé de 'Air conditioner' i 'Sofa' alhora. Ordena alfabèticament. Uneix `Facilities`, `RoomTypeFacilities` i `RoomTypes`.",
+          "sql": "SELECT DISTINCT rt.Name \nFROM Facilities f JOIN RoomTypeFacilities rtf ON f.Id = rtf.FacilityId \nJOIN RoomTypes rt ON rtf.RoomTypeId = rt.Id \nWHERE f.Name LIKE 'WIFI' OR (f.Name LIKE 'Air conditioner' AND f.Name LIKE 'Sofa')\nORDER BY rt.Name;"
+        },
+        {
+          "text": "Mostra l'import total cobrat (`SUM(TotalPrice)`) pel gener de 2021 (segons `PaymentDateTime`) per estades (`Stays`) en habitacions de capacitat (`Capacity`) 2. Uneix `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT SUM(s.TotalPrice) Total\nFROM Stays s JOIN Rooms r ON s.RoomNumber = r.RoomNumber \nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nWHERE rt.Capacity = 2 AND YEAR(s.PaymentDateTime) = 2021 AND MONTH(s.PaymentDateTime) = 01;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) que han fet alguna reserva (`Bookings`) però no la corresponent estada (cap fila a `Stays`).",
+          "sql": "SELECT DISTINCT c.FirstName , c.LastName \nFROM Customers c JOIN Bookings b ON c.Id = b.CustomerId \nLEFT JOIN Stays s ON b.Id = s.BookingId\nWHERE s.Id IS NULL;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el correu (`Email`) i la nacionalitat (`Nationality`) dels clients (`Customers`) que no han estat mai a l'hotel (cap estada associada a `Stays`). Ordena per nacionalitat. Uneix `Customers`, `Bookings` i `Stays`.",
+          "sql": "SELECT DISTINCT c.Email , c.Nationality \nFROM Customers c LEFT JOIN Bookings b ON c.Id = b.CustomerId \nLEFT JOIN Stays s ON b.Id = s.BookingId \nWHERE s.Id  IS NULL\nORDER BY c.Nationality ;"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt10",
+      "name": "Hotel QT — Examen fusionat 5",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb `LEFT JOIN`, agregació i `GROUP BY`.",
+      "questions": [
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`), el nom de la temporada (`Seasons.Name`) i el preu (`Price`) de les habitacions de capacitat (`Capacity`) 3 en cada temporada. Ordena pel número d'habitació i el preu. Uneix `Rooms`, `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT r.RoomNumber, s.Name , ps.Price \nFROM Rooms r JOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nJOIN PriceSeasons ps ON rt.Id = ps.RoomTypeId \nJOIN Seasons s ON ps.SeasonId = s.Id \nWHERE rt.Capacity = 3\nORDER BY r.RoomNumber , ps.Price ;"
+        },
+        {
+          "text": "Mostra quantes habitacions (`COUNT(*)`) del tipus 'Double room with private bathroom' no estaven ocupades entre el 5 i el 8 de febrer de 2020 (no apareixen a `BookingCalendar` amb `BookedDate` en aquestes dates). Uneix `Rooms` i `RoomTypes`.",
+          "sql": "SELECT COUNT(*)\nFROM Rooms r\nJOIN RoomTypes rt ON rt.Id=r.RoomTypeId\nWHERE rt.Name='Double room with private bathroom'\nAND r.RoomNumber NOT IN (\nSELECT bc.AssignedRoom\nFROM BookingCalendar bc\nWHERE bc.BookedDate >= '2020-02-05' AND bc.BookedDate < '2020-02-08'\n)"
+        },
+        {
+          "text": "Mostra, per a cada habitació (`RoomNumber`), el nombre d'estades (`COUNT(Stays.Id)`) i la suma dels preus totals (`SUM(TotalPrice)`, o 0 si no en té cap). Inclou les habitacions sense cap estada. Uneix `Rooms` i `Stays`.",
+          "sql": "select Rooms.RoomNumber, count(Stays.Id), NVL(sum(Stays.TotalPrice),0)\n from Rooms left join Stays on Rooms.RoomNumber=Stays.RoomNumber\n group by Rooms.RoomNumber"
+        },
+        {
+          "text": "Mostra quantes habitacions (`COUNT(*)`) del tipus 'Double room with private bathroom' no estaven ocupades entre l'1 i el 3 de febrer de 2021 (no apareixen a `BookingCalendar` amb `BookedDate` en aquestes dates). Uneix `Rooms` i `RoomTypes`.",
+          "sql": "SELECT COUNT(*)\nFROM Rooms r\nJOIN RoomTypes rt ON rt.Id=r.RoomTypeId\nWHERE rt.Name='Double room with private bathroom'\nAND r.RoomNumber NOT IN (\nSELECT bc.AssignedRoom\nFROM BookingCalendar bc\nWHERE bc.BookedDate >= '2021-02-01' AND bc.BookedDate <= '2021-02-03 23:59:59'\n)"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`) i el nom del tipus d'habitació (`RoomTypes.Name`) de les habitacions buides (`Empty` igual a 1) que disposen del servei 'Sofa'. Ordena pel número d'habitació de major a menor. Uneix `Rooms`, `RoomTypes`, `RoomTypeFacilities` i `Facilities`.",
+          "sql": "SELECT r.RoomNumber , rt.Name \nFROM Rooms r JOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nJOIN RoomTypeFacilities rtf ON rt.Id = rtf.RoomTypeId \nJOIN Facilities f ON rtf.FacilityId = f.Id \nWHERE r.Empty = 1 AND f.Name LIKE 'Sofa'\nORDER BY r.RoomNumber DESC;"
+        },
+        {
+          "text": "Mostra, per a cada habitació (`RoomNumber`), el nombre d'estades ja acabades (`COUNT(Stays.Id)`) i l'import total cobrat (`SUM(TotalPrice)`, o 0 si no en té cap). Uneix `Rooms` i `Stays`.",
+          "sql": "SELECT r.RoomNumber , COUNT(s.Id) NumEstades, NVL(SUM(s.TotalPrice),0) TotalImport\nFROM Rooms r LEFT JOIN Stays s ON r.RoomNumber = s.RoomNumber\nWHERE s.CheckOut IS NOT NULL\nGROUP BY r.RoomNumber;"
+        },
+        {
+          "text": "Mostra, per a cada habitació (`RoomNumber`), el nombre d'estades (`COUNT(Stays.Id)`) i l'import total (`SUM(TotalPrice)`, o 0 si no en té cap). Inclou les habitacions sense cap estada. Uneix `Rooms` i `Stays`.",
+          "sql": "SELECT Rooms.RoomNumber, COUNT(Stays.Id) Vegades, NVL(SUM(Stays.TotalPrice),0) Total\n FROM Rooms LEFT JOIN Stays ON Rooms.RoomNumber=Stays.RoomNumber\n GROUP BY Rooms.RoomNumber;"
+        },
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`RoomTypes.Name`), la llista dels seus serveis (`GROUP_CONCAT(Facilities.Name)`), o un guió '-' si no en té cap. Ordena pel nom del tipus d'habitació. Uneix `RoomTypes`, `RoomTypeFacilities` i `Facilities`.",
+          "sql": "SELECT rt.Name, IFNULL(GROUP_CONCAT(f.Name), '-')\nFROM RoomTypes rt\nLEFT JOIN RoomTypeFacilities rtf ON rtf.RoomTypeId = rt.Id\nLEFT JOIN Facilities f ON f.Id = rtf.FacilityId\nGROUP BY rt.Id, rt.Name\nORDER BY rt.Name"
+        },
+        {
+          "text": "Mostra, per a cada habitació assignada (`AssignedRoom`), la mitjana de nits de les seves reserves (`ROUND(AVG(DATEDIFF(CheckOut, CheckIn)), 1)`) com a `mitjana`, arrodonida a una xifra decimal. Ordena per habitació. Uneix `Rooms`, `BookingCalendar` i `Bookings`.",
+          "sql": "Select BookingCalendar.AssignedRoom, ROUND(avg(DATEDIFF(Bookings.CheckOut,Bookings.CheckIn)),1) as \"mitjana\"\nfrom Rooms join BookingCalendar on Rooms.RoomNumber=BookingCalendar.AssignedRoom \njoin Bookings on BookingCalendar.BookingId=Bookings.Id\ngroup by BookingCalendar.AssignedRoom\norder by 1"
+        },
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`Id`, `Name`), el preu màxim (`MAX(Price)`) de les temporades que comencen abans del 21 de desembre de 2021 (`StartingDay`). Ordena per identificador del tipus d'habitació. Uneix `Seasons`, `PriceSeasons` i `RoomTypes`.",
+          "sql": "select rt.Id,rt.Name, max(Price)\nfrom Seasons s\njoin PriceSeasons ps on s.Id=ps.SeasonId\njoin RoomTypes rt on rt.Id=ps.RoomTypeId\nwhere s.StartingDay<'2021-12-21'\ngroup by rt.Id, rt.Name\norder by rt.Id"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt11",
+      "name": "Hotel QT — Examen fusionat 6",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb agregació, `HAVING` i subconsultes.",
+      "questions": [
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`Id`, `Name`), la suma dels preus totals (`SUM(TotalPrice)`) de les estades ja pagades (`PaymentDateTime` amb valor). Ordena de més a menys import. Uneix `RoomTypes`, `Rooms` i `Stays`.",
+          "sql": "select rt.Id, rt.Name, sum(s.TotalPrice)\nfrom RoomTypes rt\njoin Rooms r on r.RoomTypeId = rt.Id\njoin Stays s on s.RoomNumber = r.RoomNumber\nwhere s.PaymentDateTime is not null\ngroup by rt.Id, rt.Name\norder by sum(s.TotalPrice) desc"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Name`) dels tipus d'habitació (`RoomTypes`) reservats per entrar (`CheckIn`) abans del dia d'inici de la temporada 'Summer 2022' (`StartingDay`). Uneix `Bookings`, `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT DISTINCT rt.Name \nFROM Bookings b JOIN RoomTypes rt ON b.RoomTypeId = rt.Id \nJOIN PriceSeasons ps ON ps.RoomTypeId = rt.Id \nJOIN Seasons s ON s.Id = ps.SeasonId \nWHERE b.CheckIn < s.StartingDay AND s.Name LIKE 'Summer 2022';"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el nombre de reserves cancel·lades (`COUNT(Bookings.Id)`) de cada client (`Customers`). Inclou amb un 0 els clients que no n'han cancel·lat cap.",
+          "sql": "SELECT c.FirstName , c.LastName, COUNT(b.Id) Cancel·lacions\nFROM Customers c LEFT JOIN Bookings b\nON c.Id = b.CustomerId AND b.State LIKE 'Cancelled'\nGROUP BY c.Id , c.FirstName ,c.LastName;"
+        },
+        {
+          "text": "Mostra, per a cada nacionalitat (`Nationality`), la despesa mitjana per nit d'estada sense decimals (`ROUND(SUM(TotalPrice) / SUM(DATEDIFF(CheckOut, CheckIn)))`), considerant només les estades ja acabades. Uneix `Customers`, `Bookings` i `Stays`.",
+          "sql": "SELECT c.Nationality , ROUND(SUM(s.TotalPrice)/SUM(DATEDIFF(s.CheckOut, s.CheckIn))) DespesaDia\nFROM Customers c JOIN Bookings b ON c.Id = b.CustomerId \nJOIN Stays s ON b.Id = s.BookingId \nWHERE s.CheckOut IS NOT NULL\nGROUP BY c.Nationality;"
+        },
+        {
+          "text": "Mostra, per a cada mes (`MONTH(PaymentDateTime)`), l'import total cobrat (`ROUND(SUM(TotalPrice), 1)`) per estades en habitacions de capacitat (`Capacity`) 3, arrodonit a una xifra decimal. Ordena de major a menor import. Uneix `Stays`, `Bookings` i `RoomTypes`.",
+          "sql": "SELECT MONTH(s.PaymentDateTime) Mes, ROUND(SUM(s.TotalPrice),1) Total\nFROM Stays s JOIN Bookings b ON s.BookingId  = b.Id\nJOIN RoomTypes rt ON b.RoomTypeId = rt.Id\nWHERE rt.Capacity = 3 AND YEAR(s.PaymentDateTime)\nGROUP BY MONTH(s.PaymentDateTime)\nORDER BY Total DESC;"
+        },
+        {
+          "text": "Mostra, per a cada tipus d'habitació (`Id`, `Name`), el preu mitjà (`AVG(Price)`) durant les temporades d'estiu (nom que comença per 'Summer'). Uneix `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT rt.Id, rt.Name, AVG(ps.Price)\nFROM RoomTypes rt\nJOIN PriceSeasons ps ON ps.RoomTypeId=rt.Id\nJOIN Seasons s ON s.Id=ps.SeasonId\nWHERE s.Name LIKE 'Summer%'\nGROUP BY rt.Id, rt.Name"
+        },
+        {
+          "text": "Mostra els 5 hostes (`Id`, `FirstName`, `LastName`) que més nits han passat a l'hotel, amb el total de nits (`SUM(DATEDIFF(CheckOut, CheckIn))`) com a `NightsSpent`. Ordena de més a menys nits. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "SELECT h.Id, h.FirstName, h.LastName, SUM(DATEDIFF(s.CheckOut, s.CheckIn)) AS NightsSpent\n  FROM Hosts h\n  JOIN StayHosts sh ON sh.HostId=h.Id\n  JOIN Stays s ON s.Id=sh.StayId\n  GROUP BY h.id, h.FirstName, h.LastName\n  ORDER BY NightsSpent DESC\n  LIMIT 5"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt12",
+      "name": "Hotel QT — Examen fusionat 7",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb subconsultes i `HAVING`.",
+      "questions": [
+        {
+          "text": "Mostra el nom del tipus d'habitació (com a `tipus`), el nom de la temporada (com a `temporada`) i el preu (`Price`) de la combinació amb el preu més baix de tot `PriceSeasons`. Pot haver-hi més d'un resultat. Uneix `RoomTypes`, `PriceSeasons` i `Seasons`.",
+          "sql": "SELECT rt.Name 'tipus', s.Name 'temporada', ps.Price \nFROM RoomTypes rt JOIN PriceSeasons ps ON rt.Id = ps.RoomTypeId \nJOIN Seasons s ON ps.SeasonId = s.Id \nWHERE ps.Price = (\n\t\t\tSELECT MIN(ps.Price)\n\t\t\tFROM PriceSeasons ps)\n;"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`FirstName`), el cognom (`LastName`) i la nacionalitat (`Nationality`) dels clients (`Customers`) que no han reservat mai una 'Suite'. Ordena per nacionalitat i, en empat, per cognom.",
+          "sql": "SELECT c.id, c.FirstName , c.LastName, c.Nationality  \nFROM Customers c\nWHERE c.Id NOT IN (SELECT DISTINCT c.Id\n   \t FROM Customers c JOIN Bookings b ON c.Id = b.CustomerId\n   \t JOIN RoomTypes rt ON b.RoomTypeId = rt.id\n   \t WHERE rt.Name LIKE 'Suite')\nORDER BY c.Nationality , c.LastName\n;"
+        },
+        {
+          "text": "Mostra la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`), el preu total (`TotalPrice`) i el nom del tipus d'habitació (`RoomTypes.Name`) de les estades pagades en efectiu ('Cash') amb un preu superior a la mitjana de preu de les estades pagades en efectiu. Ordena pel preu total. Uneix `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "Select Stays.CheckIn, Stays.CheckOut, Stays.TotalPrice, RoomTypes.Name\nfrom Stays join Rooms on Stays.RoomNumber=Rooms.RoomNumber join RoomTypes on Rooms.RoomTypeId=RoomTypes.Id\nwhere PaymentType like 'Cash' \nand TotalPrice > (select avg(TotalPrice)\nfrom Stays\nwhere Stays.PaymentType like 'Cash')\norder by Stays.TotalPrice"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el nombre d'estades (`COUNT(*)`) dels hostes (`Hosts`) que han estat a l'hotel més d'una vegada. Ordena per cognom i nom. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "select FirstName, LastName, count(*)\nfrom Hosts h\njoin StayHosts sh on h.Id=sh.HostId\njoin Stays s on s.Id=sh.StayId\ngroup by h.Id, h.FirstName, h.LastName\nhaving count(*)>1\norder by LastName, FirstName"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`), la nacionalitat (`Nationality`) i el nombre d'estades (`COUNT(*)`) dels hostes (`Hosts`) que han estat a l'hotel més de dues vegades. Ordena per cognom i nom. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "select FirstName, LastName, Nationality, count(*)\nfrom Hosts h\njoin StayHosts sh on h.Id=sh.HostId\njoin Stays s on s.Id=sh.StayId\ngroup by h.Id, h.FirstName, h.LastName, h.Nationality\nhaving count(*)>2\norder by LastName, FirstName"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`), el preu total (`TotalPrice`) i el nom del tipus d'habitació (`RoomTypes.Name`) de les estades pagades amb targeta ('Card') amb un preu superior a la mitjana de preu de les estades pagades amb targeta. Ordena pel preu total. Uneix `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "Select Stays.id, Stays.CheckIn, Stays.CheckOut, Stays.TotalPrice, RoomTypes.Name\nfrom Stays join Rooms on Stays.RoomNumber=Rooms.RoomNumber join RoomTypes on Rooms.RoomTypeId=RoomTypes.Id\nwhere PaymentType like 'Card' \nand TotalPrice > (select avg(TotalPrice)\nfrom Stays\nwhere Stays.PaymentType like 'Card')\norder by Stays.TotalPrice"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`FirstName`) i el cognom (`LastName`) dels hostes (`Hosts`) que van estar en habitacions de capacitat (`Capacity`) 3 algun dia del gener de 2021. Ordena per cognom i nom. Uneix `Hosts`, `StayHosts`, `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT DISTINCT h.FirstName , h.LastName \nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id \nJOIN Rooms r ON s.RoomNumber = r.RoomNumber \nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nWHERE (s.CheckIn >= '2021-01-01' AND s.CheckIn <= '2021-01-31'\nOR s.CheckIn < '2021-01-01' AND s.CheckOut > '2021-01-01')\nAND rt.Capacity = 3\nORDER BY h.LastName , h.FirstName;"
+        },
+        {
+          "text": "Mostra el mes (`MONTH(ReservationDateTime)`) i l'any (`YEAR(ReservationDateTime)`) en què s'han cancel·lat més reserves (estat 'Cancelled'), segons la data de reserva. Pot haver-hi més d'un resultat. Taula `Bookings`.",
+          "sql": "SELECT MONTH(b.ReservationDateTime) Mes, YEAR(b.ReservationDateTime) Any\nFROM Bookings b \nWHERE b.State LIKE 'Cancelled'\nGROUP BY  MONTH(b.ReservationDateTime), YEAR(b.ReservationDateTime)\nHAVING COUNT(b.Id) = (\n\t\tSELECT COUNT(b.Id) FROM Bookings b \n\t\tWHERE b.State LIKE 'Cancelled'\n\t\tGROUP BY YEAR(b.ReservationDateTime), MONTH(b.ReservationDateTime)\n\t\tORDER BY COUNT(b.Id) DESC \n\t\tLIMIT 1)\n;"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt13",
+      "name": "Hotel QT — Examen fusionat 8",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, amb subconsultes correlacionades i `HAVING`.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Id`), la data d'entrada (`CheckIn`), la data de sortida (`CheckOut`), el preu total (`TotalPrice`) i el nom del tipus d'habitació (`RoomTypes.Name`) de les estades pagades amb targeta ('Card') amb un preu superior a la mitjana de preu de totes les estades. Ordena pel preu total ascendent. Uneix `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "Select Stays.id, Stays.CheckIn, Stays.CheckOut, Stays.TotalPrice, RoomTypes.Name\nfrom Stays join Rooms on Stays.RoomNumber=Rooms.RoomNumber join RoomTypes on Rooms.RoomTypeId=RoomTypes.Id\nwhere PaymentType like 'Card' \nand TotalPrice > (select avg(TotalPrice)\nfrom Stays )\norder by Stays.TotalPrice;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`), la nacionalitat (`Nationality`) i el nombre d'estades (`COUNT(*)`) dels hostes (`Hosts`) que han vingut més de dues vegades a l'hotel. Ordena per cognom i nom. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "select FirstName, LastName, Nationality, count(*)\nfrom Hosts h\njoin StayHosts sh on h.Id=sh.HostId\njoin Stays s on s.Id=sh.StayId\ngroup by h.Id, h.FirstName, h.LastName, h.Nationality\nhaving count(*)>2\norder by LastName, FirstName;"
+        },
+        {
+          "text": "Mostra, sense repeticions, la nacionalitat (`Nationality`) dels hostes (`Hosts`) allotjats ara mateix (estada amb `CheckOut` sense valor) en habitacions de tipus 'Suite'. Uneix `Hosts`, `StayHosts`, `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT DISTINCT h.Nationality \nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id \nJOIN Rooms r ON s.RoomNumber = r.RoomNumber \nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id \nWHERE rt.Name LIKE 'Suite' AND s.CheckOut IS NULL;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el correu (`Email`) dels clients (`Customers`) espanyols ('Spanish') que han reservat habitacions de capacitat 3 amb el servei 'Heating', i dels clients francesos ('French') que han reservat habitacions de capacitat 6 amb el servei 'Air Conditioner'. Uneix `Customers`, `Bookings`, `RoomTypes`, `RoomTypeFacilities` i `Facilities`.",
+          "sql": "SELECT DISTINCT c.Email \nFROM Customers c JOIN Bookings b ON c.Id = b.CustomerId \nJOIN RoomTypes rt ON b.RoomTypeId = rt.Id \nJOIN RoomTypeFacilities rtf ON rt.Id = rtf.RoomTypeId \nJOIN Facilities f ON rtf.FacilityId = f.Id \nWHERE (c.Nationality LIKE 'Spanish' AND f.Name LIKE 'Heating' AND rt.Capacity = 3)\nOR (c.Nationality LIKE 'French' AND f.Name LIKE 'Air Conditioner' AND rt.Capacity = 6);"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`), la seva nacionalitat (`Nationality`) i el total d'hostes reservats (`SUM(NHosts)`) dels clients les reserves 'Reserved' dels quals sumen menys hostes que la mitjana d'hostes per reserva 'Reserved'. Uneix `Bookings` i `Customers`.",
+          "sql": "select Bookings.CustomerId,Customers.Nationality, sum(Bookings.NHosts)\nfrom hotel.Bookings join Customers on Bookings.CustomerId=Customers.Id\nwhere Bookings.State like 'Reserved'\ngroup by Bookings.CustomerId,Customers.Nationality\nhaving sum(Bookings.NHosts)< (select avg(Bookings.NHosts)\n\t\t\t\t\tfrom Bookings  where Bookings.State like 'Reserved')"
+        },
+        {
+          "text": "Mostra el total gastat (`ROUND(SUM(TotalPrice), 1)`) per l'hoste anomenat 'CAROL GRAHAM' en estades en habitacions de tipus 'Suite', amb una xifra decimal. Uneix `Hosts`, `StayHosts`, `Stays`, `Rooms` i `RoomTypes`.",
+          "sql": "SELECT ROUND(SUM(s.TotalPrice),1) Total\nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId\nJOIN Stays s ON sh.StayId = s.Id\nJOIN Rooms r ON s.RoomNumber = r.RoomNumber\nJOIN RoomTypes rt ON r.RoomTypeId = rt.Id\nWHERE h.FirstName LIKE 'CAROL' AND h.LastName LIKE 'GRAHAM'\nAND rt.Name LIKE 'Suite';"
+        },
+        {
+          "text": "Mostra, per a cada habitació (`RoomNumber`), el nombre d'hostes allotjats (`COUNT(StayHosts.HostId)`) el 26 de novembre de 2018 (estades amb `CheckIn` anterior o igual i `CheckOut` posterior a aquesta data). Inclou les habitacions sense cap hoste aquell dia. Ordena pel número d'habitació. Uneix `Rooms`, `Stays` i `StayHosts`.",
+          "sql": "select r.RoomNumber, count(sh.HostId)\nfrom Rooms r\nleft join (\n  select * from Stays s\n  where CheckIn<='2018-11-26' and CheckOut>'2018-11-26'\n) as st on r.RoomNumber=st.RoomNumber \nleft join StayHosts sh on sh.StayId=st.Id\ngroup by r.RoomNumber\norder by r.RoomNumber"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customers`) que han fet més reserves (`Bookings`) que el client anomenat 'HACER CUVELIER'. Ordena pel cognom.",
+          "sql": "select c.FirstName,c.LastName\nfrom Customers c join Bookings b on c.id=b.CustomerId\ngroup by b.CustomerId,c.FirstName,c.LastName\nhaving count(*)>(select count(*)\nfrom Bookings b join Customers c on b.CustomerId=c.id\nwhere c.FirstName like 'HACER' and c.LastName like 'CUVELIER')\norder by 2"
+        },
+        {
+          "text": "Mostra el número d'habitació (`RoomNumber`) i el nombre d'estades (`COUNT(*)`) de l'habitació o habitacions amb menys estades de més de 7 nits (`DATEDIFF(CheckOut, CheckIn) > 7`). Uneix `Rooms` i `Stays`.",
+          "sql": "SELECT r.RoomNumber , COUNT(*) Estades\nFROM Rooms r JOIN Stays s ON r.RoomNumber = s.RoomNumber \nWHERE DATEDIFF(s.CheckOut, s.CheckIn) > 7\nGROUP BY r.RoomNumber \nHAVING Estades = (SELECT COUNT(*)\n\t\tFROM Rooms r JOIN Stays s ON r.RoomNumber = s.RoomNumber \n\t\tWHERE DATEDIFF(s.CheckOut, s.CheckIn) > 7\n\t\tGROUP BY r.RoomNumber \n\t\tORDER BY COUNT(*) \n\t\tLIMIT 1);"
+        }
+      ]
+    },
+    {
+      "code": "sqlhotelqt14",
+      "name": "Hotel QT — Examen fusionat 9",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen reals deduplicades, de més dificultat (subconsultes amb `ALL` i màxims).",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`FirstName`) i el cognom (`LastName`) de l'hoste o hostes que més nits han passat a l'hotel en total (`SUM(DATEDIFF(CheckOut, CheckIn))`). Ordena per identificador. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "SELECT h.Id, h.FirstName, h.LastName\nfrom Hosts h join StayHosts sh on h.Id=sh.HostId join Stays s on sh.StayId=s.Id\ngroup by 1,2,3\nhaving SUM(DATEDIFF(s.CheckOut, s.CheckIn))= (SELECT SUM(DATEDIFF(s.CheckOut, s.CheckIn)) AS NightsSpent\n\t\t\t\t\t\t\t\t\tFROM Stays s join StayHosts sh on s.Id= sh.StayId\n\t\t\t\t\t\t\t\t\tGROUP BY sh.HostId\n\t\t\t\t\t\t\t\t\tORDER BY NightsSpent DESC\n\t\t\t\t\t\t\t\t\tlimit 1)\norder by 1"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`FirstName`), el cognom (`LastName`), la nacionalitat (`Nationality`) i el total gastat (`SUM(TotalPrice)`) dels clients (`Customers`) que han gastat menys que qualsevol client francès ('French'). Ordena per identificador. Uneix `Customers`, `Bookings` i `Stays`.",
+          "sql": "SELECT c.Id, c.FirstName, c.LastName, c.Nationality, SUM(s.TotalPrice) AS total\n FROM Customers c\n JOIN Bookings b ON c.Id=b.CustomerId\n JOIN Stays s ON s.BookingId=b.Id\n GROUP BY c.Id, c.FirstName, c.LastName, c.Nationality\n HAVING total < ALL (\n    SELECT SUM(s.TotalPrice) AS preutotal\n     FROM Customers c\n     JOIN Bookings b ON c.Id=b.CustomerId\n     JOIN Stays s ON s.BookingId=b.Id\n     WHERE c.Nationality LIKE 'French'\n     GROUP BY c.Id)\n ORDER BY c.Id"
+        },
+        {
+          "text": "Mostra l'identificador (`Id`), el nom (`FirstName`), el cognom (`LastName`) i el total gastat (`SUM(TotalPrice)`) dels clients (`Customers`) anglesos ('English') que han gastat més que qualsevol client francès ('French'). Ordena per identificador. Uneix `Customers`, `Bookings` i `Stays`.",
+          "sql": "SELECT c.Id, c.FirstName, c.LastName, SUM(s.TotalPrice) AS total\n FROM Customers c\n JOIN Bookings b ON c.Id=b.CustomerId\n JOIN Stays s ON s.BookingId=b.Id\n WHERE c.Nationality LIKE 'English'\n GROUP BY c.Id, c.FirstName, c.LastName, c.Nationality\n HAVING total > all (\n    SELECT sum(TotalPrice) AS preutotal\n     FROM Customers c\n     JOIN Bookings b ON c.Id=b.CustomerId\n     JOIN Stays s ON s.BookingId=b.Id\n     WHERE c.Nationality LIKE 'French'\n     group by c.id)\n ORDER BY 1"
+        },
+        {
+          "text": "Mostra el número de document (`DocNumber`), el nom (`FirstName`) i el cognom (`LastName`) de l'hoste o hostes que més nits han passat a l'hotel (sumant les estades ja acabades, `SUM(DATEDIFF(CheckOut, CheckIn))`). Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "SELECT h.DocNumber, h.FirstName , h.LastName \nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id  \nWHERE s.CheckOut IS NOT NULL\nGROUP BY h.DocNumber, h.FirstName , h.LastName\nHAVING SUM(DATEDIFF(s.CheckOut,s.CheckIn)) = (\n\tSELECT SUM(DATEDIFF(s.CheckOut,s.CheckIn)) diesEstada\n\tFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \n\tJOIN Stays s ON sh.StayId = s.Id \n\tWHERE s.CheckOut IS NOT NULL\n\tGROUP BY h.Id\n\tORDER BY diesEstada DESC\n\tLIMIT 1)\n;"
+        },
+        {
+          "text": "Mostra el número de document (`DocNumber`), el nom (`FirstName`), el cognom (`LastName`) i el total gastat (`SUM(TotalPrice)`) de l'hoste o hostes que més han gastat a l'hotel. Uneix `Hosts`, `StayHosts` i `Stays`.",
+          "sql": "SELECT h.DocNumber, h.FirstName , h.LastName, SUM(s.TotalPrice) Total\nFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \nJOIN Stays s ON sh.StayId = s.Id \nGROUP BY h.DocNumber, h.FirstName , h.LastName\nHAVING Total = (\n\tSELECT SUM(s.TotalPrice) Total\n\tFROM Hosts h JOIN StayHosts sh ON h.Id = sh.HostId \n\tJOIN Stays s ON sh.StayId = s.Id \n\tGROUP BY h.Id\n\tORDER BY Total DESC\n\tLIMIT 1)\n;"
+        }
+      ]
+    }
+  ]
+}

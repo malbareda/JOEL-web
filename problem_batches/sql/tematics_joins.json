@@ -4,7 +4,7 @@
       "code": "sqljoin01",
       "database": "miniwind",
       "type": "sqljoinbasic",
-      "name": "SQL Joins 1: LEFT JOIN",
+      "name": "SQL Joins 1: LEFT JOIN", "engine": "mysql", "database": "miniwind",
       "intro": "Comences amb un `INNER JOIN` per recordar com es combinen dues taules i, després, practiques el `LEFT JOIN`: com conservar les files de l'esquerra que no tenen parella, comptar zeros i detectar les files 'òrfenes' amb `IS NULL`.",
       "questions": [
         {
@@ -63,7 +63,7 @@
       "code": "sqljoin02",
       "database": "traders",
       "type": "sqljoinbasic",
-      "name": "SQL Joins 2: RIGHT JOIN",
+      "name": "SQL Joins 2: RIGHT JOIN", "engine": "mysql", "database": "traders",
       "intro": "`A RIGHT JOIN B` conserva **totes les files de la taula de la dreta** (`B`) i hi enganxa les de l'esquerra (`A`) que hi casen; on no n'hi ha cap, les columnes d'`A` surten amb `NULL`. És el mirall del `LEFT JOIN`: `A RIGHT JOIN B` dona el mateix resultat que `B LEFT JOIN A`. En aquest problema, cada enunciat diu \"Combinant A i B\" i la taula de la qual cal conservar totes les files és la segona: resol-lo amb `RIGHT JOIN` (el jutge compara resultats, així que també t'acceptarà el `LEFT JOIN` girat, però la idea és practicar el `RIGHT JOIN`).",
       "questions": [
         {
@@ -122,7 +122,7 @@
       "code": "sqljoin03",
       "database": "northwind",
       "type": "sqljoincomplex",
-      "name": "SQL Joins 3: Triar el join correcte",
+      "name": "SQL Joins 3: Triar el join correcte", "engine": "mysql", "database": "northwind",
       "intro": "Els enunciats van per parelles que només es diferencien en una paraula clau ('només els que...' contra 'tots, també els que no...'). Has de decidir en cada cas si cal mantenir només les files amb parella o totes les files d'una de les taules, perquè el resultat canvia.",
       "questions": [
         {
@@ -181,7 +181,7 @@
       "code": "sqljoin04",
       "database": "chinook",
       "type": "sqljoincomplex",
-      "name": "SQL Joins 4: Joins encadenats",
+      "name": "SQL Joins 4: Joins encadenats", "engine": "mysql", "database": "Chinook",
       "intro": "Practiques els joins encadenats sobre la botiga de música Chinook: de 3 a 6 taules unides pas a pas, seguint les claus foranes (pista, àlbum, artista, gènere, factura, client, empleat...) amb filtres i agrupacions.",
       "questions": [
         {
@@ -240,7 +240,7 @@
       "code": "sqljoin05",
       "database": "hotel",
       "type": "sqljoincomplex",
-      "name": "SQL Joins 5: Joins mesclats",
+      "name": "SQL Joins 5: Joins mesclats", "engine": "mysql", "database": "hotel",
       "intro": "Sobre la base de dades d'un hotel combines `INNER JOIN` i `LEFT JOIN` en una mateixa consulta, uneixes taules pont, fas autojoins i unions amb més d'una condició, i ho agrupes tot amb `GROUP BY` i `HAVING`.",
       "questions": [
         {

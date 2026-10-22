@@ -4,7 +4,7 @@
   "label": "Northwind (empresa d'aliments: clients, empleats, productes, comandes, factures i compres a proveïdors)",
   "problems": [
     {
-      "name": "Northwind 1: Primeres consultes",
+      "name": "Northwind 1: Primeres consultes", "engine": "mysql", "database": "northwind",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre una sola taula.",
       "questions": [
         {"text": "Mostra l'identificador (`id`) i el nom de l'empresa (`company`) de tots els transportistes (`shippers`), en aquest ordre.",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "name": "Northwind 2: Filtrant files",
+      "name": "Northwind 2: Filtrant files", "engine": "mysql", "database": "northwind",
       "intro": "Practica les condicions del `WHERE`: comparacions, `AND`/`OR` i `NULL`.",
       "questions": [
         {"text": "Mostra el nom del producte i el preu de venda (`list_price`) dels productes que costen més de 40, en aquest ordre.",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "name": "Northwind 3: Cerques, rangs i NULL",
+      "name": "Northwind 3: Cerques, rangs i NULL", "engine": "mysql", "database": "northwind",
       "intro": "Usa `LIKE`, `IN`, `BETWEEN` i `IS NULL` per filtrar amb més precisió.",
       "questions": [
         {"text": "Mostra el nom de l'empresa (`company`) dels clients (`customers`) el nom de la qual comença per la lletra 'L'.",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "Northwind 4: Funcions d'agregació",
+      "name": "Northwind 4: Funcions d'agregació", "engine": "mysql", "database": "northwind",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula o sobre un subconjunt.",
       "questions": [
         {"text": "Mostra quantes comandes hi ha a la taula `orders`.",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "name": "Northwind 5: Agrupant dades",
+      "name": "Northwind 5: Agrupant dades", "engine": "mysql", "database": "northwind",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {"text": "Per cada categoria (`category`) de productes, mostra la categoria i el nombre de productes que conté, en aquest ordre.",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "name": "Northwind 6: Filtrant grups",
+      "name": "Northwind 6: Filtrant grups", "engine": "mysql", "database": "northwind",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {"text": "Mostra les categories que tenen 3 productes o més, juntament amb el nombre de productes de cadascuna, en aquest ordre.",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "Northwind 7: Primers JOINs",
+      "name": "Northwind 7: Primers JOINs", "engine": "mysql", "database": "northwind",
       "intro": "`INNER JOIN` per combinar dues taules relacionades per una clau.",
       "questions": [
         {"text": "Per cada comanda, mostra el seu identificador (`orders.id`) i el nom de l'empresa del client (`customers.company`) que l'ha feta, en aquest ordre.",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "Northwind 8: JOINs de diverses taules",
+      "name": "Northwind 8: JOINs de diverses taules", "engine": "mysql", "database": "northwind",
       "intro": "Combina `JOIN`, `WHERE` i `GROUP BY`, arribant a unir tres taules.",
       "questions": [
         {"text": "Per cada comanda, mostra el seu identificador, el nom de l'empresa del client i el cognom de l'empleat que l'ha gestionada, en aquest ordre.",
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "Northwind 9: LEFT JOIN, subconsultes i CASE",
+      "name": "Northwind 9: LEFT JOIN, subconsultes i CASE", "engine": "mysql", "database": "northwind",
       "intro": "Quan cal incloure les files sense coincidència, calcular un valor intermedi o classificar amb `CASE`.",
       "questions": [
         {"text": "Mostra el nom de l'empresa de tots els clients i el nombre de comandes que han fet, incloent-hi els que no n'han fet cap (amb un 0), en aquest ordre.",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "name": "Northwind 10: Repte final",
+      "name": "Northwind 10: Repte final", "engine": "mysql", "database": "northwind",
       "intro": "Consultes de més d'un pas: `JOIN` de diverses taules, subconsultes i càlculs.",
       "questions": [
         {"text": "Per cada comanda, mostra el seu identificador i l'import total de les seves línies, calculat com la suma de `quantity * unit_price` de `order_details`, en aquest ordre. Només cal incloure les comandes que tinguin línies de detall.",
@@ -120,7 +120,7 @@
         {"text": "Mostra el cognom de l'empleat que ha gestionat més comandes, i el nombre de comandes, en aquest ordre.",
          "sql": "SELECT e.last_name, COUNT(*) FROM employees e INNER JOIN orders o ON o.employee_id = e.id GROUP BY e.id, e.last_name ORDER BY COUNT(*) DESC LIMIT 1"},
         {"text": "Mostra l'identificador de les comandes l'import total de les quals (suma de `quantity * unit_price` de `order_details`) és superior a la mitjana dels imports totals de totes les comandes que tenen línies de detall.",
-         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id))"},
+         "sql": "SELECT order_id FROM order_details GROUP BY order_id HAVING SUM(quantity * unit_price) > (SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_details GROUP BY order_id) AS x)"},
         {"text": "Mostra el nom de l'empresa dels clients que han comprat el producte 'Northwind Traders Coffee' (unint `customers`, `orders`, `order_details` i `products`). Cada empresa ha de sortir una sola vegada.",
          "sql": "SELECT DISTINCT c.company FROM customers c INNER JOIN orders o ON o.customer_id = c.id INNER JOIN order_details d ON d.order_id = o.id INNER JOIN products p ON p.id = d.product_id WHERE p.product_name = 'Northwind Traders Coffee'"}
       ]

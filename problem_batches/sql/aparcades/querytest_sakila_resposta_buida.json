@@ -1,0 +1,34 @@
+[
+  {
+    "db": "sakila",
+    "problem": "Sakila QT — Join 01",
+    "id": "T3.1",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "enunciat_original": "Mostra el nom i cognom dels actors que no han participat a cap pel·lícula.",
+    "sql": "select a.first_name , a.last_name \nfrom actor a left join film_actor fa on a.actor_id = fa.actor_id \nwhere  fa.film_id is null;"
+  },
+  {
+    "db": "sakila",
+    "problem": "Sakila QT — Unions 01",
+    "id": "T9.0",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "enunciat_original": "Mostra tota la informació dels clients que mai han fet una compra (rental).",
+    "sql": "SELECT *\nFROM customer c\nWHERE NOT EXISTS (SELECT *\nFROM rental r\nWHERE c.customer_id = r. customer_id)"
+  },
+  {
+    "db": "sakila",
+    "problem": "Sakila QT — Examen fusionat 5",
+    "id": "E5.2",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "enunciat_original": "Valor NUL\n-----------\nMostra el codi de pagament, el seu import (amount) així com el nom i cognom del client associat,\nd'aquells pagaments que no estiguin associats a cap lloguer (rental).",
+    "sql": "SELECT p.payment_id, p.amount, c2.first_name, c2.last_name \n FROM payment p join customer c2 on p.customer_id = c2.customer_id \n WHERE rental_id IS NULL;"
+  },
+  {
+    "db": "sakila",
+    "problem": "Sakila QT — Examen fusionat 5",
+    "id": "E5.5",
+    "motiu": "la referència retorna 0 files amb aquestes dades",
+    "enunciat_original": "Valor NUL\n-----------\nMostra el codi de pagament, el seu import (amount) així com el nom, cognom i email del client associat,\nd'aquells pagaments que no estiguin associats a cap lloguer (rental).",
+    "sql": "SELECT p.payment_id, p.amount, c2.first_name, c2.last_name , c2.email\n FROM payment p join customer c2 on p.customer_id = c2.customer_id \n WHERE rental_id IS NULL;"
+  }
+]

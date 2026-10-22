@@ -1,0 +1,1173 @@
+{
+  "database": "Chinook",
+  "engine": "mysql",
+  "code_prefix": "sqlchinookqt",
+  "author": "joanq",
+  "label": "Chinook (botiga de música digital: artistes, àlbums, pistes, clients, factures i empleats) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqlchinookqt01",
+      "name": "Chinook QT — Agregació 01",
+      "type": "sqljoincomplex",
+      "intro": "Funcions d'agregació (`COUNT`, `AVG`, `SUM`) sobre les taules de música.",
+      "questions": [
+        {
+          "text": "Mostra quants àlbums hi ha a la taula `Album`.",
+          "sql": "SELECT COUNT(*)\n FROM Album;"
+        },
+        {
+          "text": "Mostra quants artistes (`Artist`) tenen un nom (`Name`) que comença per l'article 'The ' (seguit d'un espai).",
+          "sql": "SELECT COUNT(*)\n FROM Artist\n WHERE Name LIKE 'The %';"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) dels tres artistes que tenen més àlbums (`Album`). Ordena de més a menys àlbums i mostra només el nom.",
+          "sql": "select a2.Name from Album a join Artist a2 on a.ArtistId = a2.ArtistId \ngroup by a2.Name \norder by count(a.AlbumId) desc \nlimit 3;"
+        },
+        {
+          "text": "Mostra la durada mitjana de totes les pistes (`Track`) en segons, és a dir, la mitjana de `Milliseconds` dividida per 1000.",
+          "sql": "SELECT AVG(Milliseconds)/1000\n FROM Track;"
+        },
+        {
+          "text": "Mostra quantes pistes (`Track`) tenen un compositor (`Composer` amb valor).",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE Composer IS NOT NULL;"
+        },
+        {
+          "text": "Mostra quants minuts de música hi ha del compositor (`Composer`) 'Johann Sebastian Bach', és a dir, la suma de `Milliseconds` dividida per 60000.",
+          "sql": "SELECT SUM(Milliseconds)/60000\n FROM Track\n WHERE Composer LIKE 'Johann Sebastian Bach';"
+        },
+        {
+          "text": "Mostra el preu mitjà de les pistes (mitjana de `UnitPrice` de `Track`).",
+          "sql": "SELECT AVG(UnitPrice)\n FROM Track;"
+        },
+        {
+          "text": "Mostra cada preu diferent (`UnitPrice`) de les pistes (`Track`) i quantes pistes n'hi ha de cada preu, en aquest ordre.",
+          "sql": "SELECT UnitPrice, COUNT(*)\n FROM Track\n GROUP BY UnitPrice;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt02",
+      "name": "Chinook QT — Agregació 03",
+      "type": "sqljoincomplex",
+      "intro": "Agregació amb `JOIN`, `LEFT JOIN`, `RIGHT JOIN`, `GROUP BY` i `HAVING`.",
+      "questions": [
+        {
+          "text": "Mostra quants àlbums (`Album`) té l'artista (`Artist`) de nom 'Deep Purple', unint `Album` i `Artist`.",
+          "sql": "SELECT COUNT(*)\n FROM Album\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n WHERE Artist.Name LIKE 'Deep Purple';"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de tots els empleats (`Employee`) i la quantitat de clients (`Customer`) que tenen assignats com a suport (`SupportRepId`), amb l'àlies `NSupportCustomers`. Inclou-hi també els empleats sense cap client.",
+          "sql": "SELECT Employee.Firstname, Employee.LastName, COUNT(Customer.SupportRepId) AS NSupportCustomers\n FROM Employee\n LEFT JOIN Customer ON Employee.EmployeeId = Customer.SupportRepId\n GROUP BY Employee.EmployeeId, Employee.Firstname, Employee.LastName;"
+        },
+        {
+          "text": "Mostra l'identificador (`GenreId`), el nom (`Name`) i els beneficis del gènere (`Genre`) 'Blues', calculats com la suma de `UnitPrice`*`Quantity` de `InvoiceLine` (àlies `Profits`), unint `InvoiceLine`, `Track` i `Genre`.",
+          "sql": "SELECT Genre.GenreId, Genre.Name, SUM(InvoiceLine.UnitPrice*InvoiceLine.Quantity) AS Profits\n FROM InvoiceLine\n JOIN Track ON InvoiceLine.TrackId = Track.TrackId\n JOIN Genre ON Track.GenreId = Genre.GenreId\n WHERE Genre.Name LIKE 'Blues'\n GROUP BY Genre.GenreId, Genre.Name;"
+        },
+        {
+          "text": "Mostra l'identificador (`GenreId`), el nom (`Name`) i els beneficis (`Profits`, suma de `UnitPrice`*`Quantity`) de cada gènere (`Genre`) que hagi generat algun benefici. Ordena de més a menys beneficis i, en cas d'empat, pel nom del gènere.",
+          "sql": "SELECT Genre.GenreId, Genre.Name, SUM(InvoiceLine.UnitPrice*InvoiceLine.Quantity) AS Profits\n FROM InvoiceLine\n JOIN Track ON InvoiceLine.TrackId = Track.TrackId\n JOIN Genre ON Track.GenreId = Genre.GenreId\n GROUP BY Genre.GenreId, Genre.Name\n ORDER BY Profits DESC, Genre.Name;"
+        },
+        {
+          "text": "Mostra l'identificador (`GenreId`), el nom (`Name`) i els beneficis (`Profits`, suma de `UnitPrice`*`Quantity`) de tots els gèneres (`Genre`), encara que no s'hagi venut cap cançó del gènere. Ordena de més a menys beneficis i, en cas d'empat, pel nom del gènere.",
+          "sql": "SELECT Genre.GenreId, Genre.Name, SUM(InvoiceLine.UnitPrice*InvoiceLine.Quantity) AS Profits\n FROM InvoiceLine\n RIGHT JOIN Track ON InvoiceLine.TrackId = Track.TrackId\n RIGHT JOIN Genre ON Track.GenreId = Genre.GenreId\n GROUP BY Genre.GenreId, Genre.Name\n ORDER BY Profits DESC, Genre.Name;"
+        },
+        {
+          "text": "Mostra l'identificador (`GenreId`), el nom (`Name`) i els beneficis (`Profits`, suma de `UnitPrice`*`Quantity`) dels gèneres que han generat més de 100 dòlars de benefici. Ordena de més a menys beneficis.",
+          "sql": "SELECT Genre.GenreId, Genre.Name, SUM(InvoiceLine.UnitPrice*InvoiceLine.Quantity) AS Profits\n FROM InvoiceLine\n JOIN Track ON InvoiceLine.TrackId = Track.TrackId\n JOIN Genre ON Track.GenreId = Genre.GenreId\n GROUP BY Genre.GenreId, Genre.Name\n HAVING Profits > 100\n ORDER BY Profits DESC;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de tots els clients (`Customer`) i la quantitat de comandes (factures de `Invoice`) que ha fet cadascun (àlies `NInvoices`), incloent-hi els clients sense cap comanda.",
+          "sql": "SELECT Customer.FirstName, Customer.LastName, COUNT(Invoice.InvoiceId) AS NInvoices\n FROM Customer\n LEFT JOIN Invoice ON Customer.CustomerId = Invoice.CustomerId\n GROUP BY Customer.CustomerId, Customer.FirstName, Customer.LastName;"
+        },
+        {
+          "text": "Mostra l'identificador (`GenreId`), el nom (`Name`) i la quantitat de pistes (`Track`) de cada gènere (`Genre`), incloent-hi els gèneres sense cap pista.",
+          "sql": "SELECT Genre.GenreId, Genre.Name, COUNT(Track.TrackId)\n FROM Genre\n LEFT JOIN Track ON Genre.GenreId = Track.GenreId\n GROUP BY Genre.GenreId, Genre.Name;"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) i la quantitat d'àlbums (`NAlbums`) dels tres artistes que tenen més àlbums. Ordena de més a menys àlbums.",
+          "sql": "SELECT Artist.Name, COUNT(*) AS NAlbums\n FROM Album\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n GROUP BY Artist.ArtistId, Artist.Name\n ORDER BY NAlbums DESC\n LIMIT 3;"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) i la quantitat d'àlbums (`NAlbums`) dels artistes que tenen més de 8 àlbums. Ordena de més a menys àlbums i, en cas d'empat, pel nom de l'artista.",
+          "sql": "SELECT Artist.Name, COUNT(*) AS NAlbums\n FROM Album\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n GROUP BY Artist.ArtistId, Artist.Name\n HAVING NAlbums > 8\n ORDER BY NAlbums DESC, Artist.Name;"
+        },
+        {
+          "text": "Mostra el títol de l'àlbum (`Album.Title`), el nom de l'artista (`Artist.Name`) i la durada mitjana de les seves pistes (`TrackDuration`, mitjana de `Milliseconds`) dels 5 àlbums amb la durada mitjana de pistes més alta. Ordena de més a menys durada mitjana.",
+          "sql": "SELECT Album.Title, Artist.Name, AVG(Track.Milliseconds) AS TrackDuration\n FROM Album\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n JOIN Track ON Album.AlbumId = Track.AlbumId\n GROUP BY Track.AlbumId, Album.Title, Artist.Name\n ORDER BY TrackDuration DESC\n LIMIT 5;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt03",
+      "name": "Chinook QT — Agregació 04",
+      "type": "sqljoincomplex",
+      "intro": "Agregació amb `JOIN` de diverses taules, `HAVING` i funcions.",
+      "questions": [
+        {
+          "text": "Mostra el nom del gènere (`Genre.Name`) i la quantitat de pistes (`NTracks`) dels tres gèneres amb més pistes (`Track`). Ordena de més a menys pistes.",
+          "sql": "SELECT Genre.Name, COUNT(*) AS NTracks\n FROM Genre\n JOIN Track ON Genre.GenreId = Track.GenreId\n GROUP BY Genre.GenreId, Genre.Name\n ORDER BY NTracks DESC\n LIMIT 3;"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`), el nom (`Name`) i la quantitat de cançons (`NTracks`) de les llistes de reproducció (`Playlist`) que contenen més de 1000 cançons. Ordena de més a menys cançons i, en cas d'empat, per l'identificador de la llista.",
+          "sql": "SELECT Playlist.PlaylistId, Playlist.Name, COUNT(*) AS NTracks\n FROM Playlist\n JOIN PlaylistTrack ON Playlist.PlaylistId = PlaylistTrack.PlaylistId\n GROUP BY Playlist.PlaylistId, Playlist.Name\n HAVING NTracks > 1000\n ORDER BY NTracks DESC, Playlist.PlaylistId;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i els beneficis (`Profits`, suma de `Quantity`*`UnitPrice` de `InvoiceLine`) de les cançons que han generat més de 2 dòlars de benefici. Ordena de més a menys beneficis i, en cas d'empat, pel nom de la cançó.",
+          "sql": "SELECT Track.Name, SUM(InvoiceLine.Quantity*InvoiceLine.UnitPrice) AS Profits\n FROM Track\n JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId\n GROUP BY Track.TrackId, Track.Name\n HAVING Profits > 2\n ORDER BY Profits DESC, Track.Name;"
+        },
+        {
+          "text": "Mostra l'identificador (`Track.TrackId`), el nom (`Track.Name`), el títol de l'àlbum (`Album.Title`) i el nombre de llistes de reproducció (`NPlaylists`) de les cançons que apareixen a més de 4 llistes de reproducció (`PlaylistTrack`).",
+          "sql": "SELECT Track.TrackId, Track.Name, Album.Title, COUNT(*) AS NPlaylists\n FROM Track\n JOIN Album ON Track.AlbumId = Album.AlbumId\n JOIN PlaylistTrack ON Track.TrackId = PlaylistTrack.TrackId\n GROUP BY Track.TrackId, Track.Name, Album.Title\n HAVING NPlaylists > 4;"
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i la quantitat de cançons del gènere (`Genre.Name`) 'World' que ha creat (`NTracks`), dels artistes que n'han creat més de 5.",
+          "sql": "SELECT Artist.Name, COUNT(*) AS NTracks\n FROM Artist\n JOIN Album ON Artist.ArtistId = Album.ArtistId\n JOIN Track ON Album.AlbumId = Track.AlbumId\n JOIN Genre ON Track.GenreId = Genre.GenreId\n WHERE Genre.Name LIKE 'World'\n GROUP BY Artist.ArtistId, Artist.Name\n HAVING NTracks > 5;"
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i la quantitat de cançons (`NTracks`) de l'artista preferit del client de nom 'Enrique' i cognom 'Muñoz' (l'artista del qual ha comprat més cançons). Ordena de més a menys cançons i mostra només el primer.",
+          "sql": "SELECT Artist.Name, COUNT(*) AS NTracks\n FROM Artist\n JOIN Album ON Artist.ArtistId = Album.ArtistId\n JOIN Track ON Album.AlbumId = Track.AlbumId\n JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId\n JOIN Invoice ON InvoiceLine.InvoiceId = Invoice.InvoiceId\n JOIN Customer ON Invoice.CustomerId = Customer.CustomerId\n WHERE Customer.FirstName LIKE 'Enrique'\n  AND Customer.LastName LIKE 'Muñoz'\n GROUP BY Artist.ArtistId, Artist.Name\n ORDER BY NTracks DESC\n LIMIT 1;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de cada empleat i la quantitat d'empleats que depenen d'ell (`NDependants`, segons `ReportsTo`).",
+          "sql": "SELECT e1.FirstName, e1.LastName, COUNT(e2.EmployeeId) AS NDependants\n FROM Employee e1\n LEFT JOIN Employee e2 ON e1.EmployeeId = e2.ReportsTo\n GROUP BY e1.EmployeeId, e1.FirstName, e1.LastName;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom de l'artista creador (`Art1Nom`), el nom d'un altre artista (`Art2Nom`) i el títol de la cançó (`TrackNom`) quan el nom del segon artista apareix dins del nom d'una cançó del primer. Els dos artistes han de ser diferents.",
+          "sql": "SELECT DISTINCT a1.Name Art1Nom, a2.Name Art2Nom , Track.Name TrackNom \n FROM Artist a1\n JOIN Album ON a1.ArtistId = Album.ArtistId\n JOIN Track ON Album.AlbumId = Track.AlbumId\n JOIN Artist a2 ON Track.Name LIKE CONCAT('%',a2.Name,'%')\n WHERE a1.Name NOT LIKE a2.Name;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt04",
+      "name": "Chinook QT — Subconsultes 01",
+      "type": "sqlsubq",
+      "intro": "Subconsultes amb `SELECT` dins del `WHERE` i del `HAVING`.",
+      "questions": [
+        {
+          "text": "Mostra quantes pistes (`Track`) tenen el preu (`UnitPrice`) més alt de totes, utilitzant una subconsulta amb `MAX`.",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE UnitPrice = (\n   SELECT MAX(UnitPrice)\n    FROM Track\n );"
+        },
+        {
+          "text": "Mostra el nom (`Name`) de les cinc últimes cançons alfabèticament d'entre les de preu (`UnitPrice`) màxim. Ordena pel nom de manera descendent.",
+          "sql": "SELECT Name\n FROM Track\n WHERE UnitPrice = (\n   SELECT MAX(UnitPrice)\n    FROM Track\n )\n ORDER BY Name DESC\n LIMIT 5;"
+        },
+        {
+          "text": "Mostra el nom (`Name`) i la durada en minuts (`Milliseconds`/60000, àlies `d`) de les cançons que duren més de tres vegades la durada mitjana de totes les cançons. Ordena pel nom i, en cas d'empat, per la durada.",
+          "sql": "SELECT Name, Milliseconds/60000 as d\n FROM Track\n WHERE Milliseconds > 3*(\n   SELECT AVG(Milliseconds)\n    FROM Track\n )\n ORDER BY Name, d;"
+        },
+        {
+          "text": "Mostra el nom (`Name`) i la durada en format hora:minuts:segons (`Duration`) de les cançons que duren més que la cançó 'Take The Celestra'. Ordena pel nom.",
+          "sql": "SELECT Name, SEC_TO_TIME(Milliseconds/1000) AS Duration\n FROM Track\n WHERE Milliseconds > (\n   SELECT Milliseconds\n    FROM Track\n    WHERE Name LIKE 'Take The Celestra'\n )\n ORDER BY Name;"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) dels artistes que tenen les 4 xifres d'àlbums més altes. Mostra només el nom, ordenat alfabèticament.",
+          "sql": "SELECT ar.Name\nFROM Artist ar JOIN Album al ON ar.ArtistId = al.ArtistId\nGROUP BY ar.ArtistId, ar.Name\nHAVING COUNT(al.AlbumId) >= (SELECT MIN(count_al) FROM \n(SELECT COUNT(a2.AlbumId) AS count_al\nFROM Artist a JOIN Album a2 ON a.ArtistId = a2.ArtistId\nGROUP BY a.ArtistId\nORDER BY COUNT(a2.AlbumId) DESC\nLIMIT 4) AS temp_table)\nORDER BY ar.Name"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la quantitat de cançons (`NTracks`) dels àlbums que tenen tantes cançons com l'àlbum 'Live After Death'. Ordena pel títol.",
+          "sql": "SELECT Title, COUNT(*) AS NTracks\n FROM Track t\n JOIN Album a ON t.AlbumId=a.AlbumId\n GROUP BY t.AlbumId, Title\n HAVING NTracks = (\n    SELECT COUNT(*)\n     FROM Track t\n     JOIN Album a ON t.AlbumId=a.AlbumId\n     WHERE Title LIKE 'Live After Death'\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la quantitat de cançons (`NTracks`) dels àlbums que tenen el mínim nombre de cançons. Ordena pel títol.",
+          "sql": "SELECT Title, COUNT(*) AS NTracks\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY t.AlbumId, Title\n HAVING NTracks = (\n   SELECT MIN(NTracks)\n    FROM (\n      SELECT COUNT(*) AS NTracks\n       FROM Track t\n       GROUP BY t.AlbumId\n   ) AS temp\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la quantitat de cançons comprades (`TotalTracks`, suma de `Quantity`) dels clients que han comprat tantes cançons com la clienta de nom 'Camille' i cognom 'Bernard'. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, SUM(Quantity) as TotalTracks\n FROM Customer c\n JOIN Invoice i ON c.CustomerId=i.CustomerId\n JOIN InvoiceLine il ON i.InvoiceId=il.InvoiceId\n GROUP BY c.CustomerId, FirstName, LastName\n HAVING TotalTracks = (\n     SELECT SUM(Quantity)\n      FROM Customer c\n      JOIN Invoice i ON c.CustomerId=i.CustomerId\n      JOIN InvoiceLine il ON i.InvoiceId=il.InvoiceId\n      WHERE FirstName LIKE 'Camille'\n       AND LastName LIKE 'Bernard'\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums que duren menys que l'àlbum 'Bach: Goldberg Variations'. Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY a.AlbumId, Title\n HAVING SUM(Milliseconds) < (\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Bach: Goldberg Variations'\n )\n ORDER BY Title;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt05",
+      "name": "Chinook QT — Subconsultes 02",
+      "type": "sqlsubq",
+      "intro": "Subconsultes amb `ALL`, `ANY`, `EXISTS` i `NOT EXISTS`.",
+      "questions": [
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums la durada dels quals es diferencia com a màxim un 10% de la de l'àlbum 'Bach: Goldberg Variations' (entre el 90% i el 110%). Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY a.AlbumId, Title\n HAVING SUM(Milliseconds)>=0.9*(\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Bach: Goldberg Variations'\n ) AND SUM(Milliseconds)<=1.1*(\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Bach: Goldberg Variations'\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la quantitat de comandes (`NInvoices`) dels clients que han fet menys comandes que tots els clients de Noruega ('Norway'), amb `ALL`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, COUNT(i.InvoiceId) AS NInvoices\n FROM Customer c\n LEFT JOIN Invoice i ON i.CustomerId=c.CustomerId\n GROUP BY c.CustomerId, FirstName, LastName\n HAVING NInvoices < ALL (\n    SELECT COUNT(i.InvoiceId) AS NInvoices\n     FROM Invoice i\n     RIGHT JOIN Customer c ON c.CustomerId=i.CustomerId\n     WHERE c.Country LIKE 'Norway'\n     GROUP BY c.CustomerId\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i el total gastat (`TotalSpending`, suma de `Total`) dels clients que han gastat menys que tots els clients de Noruega ('Norway'), amb `ALL`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, SUM(Total) AS TotalSpending\n FROM Customer c\n LEFT JOIN Invoice i ON i.CustomerId=c.CustomerId\n GROUP BY c.CustomerId, FirstName, LastName\n HAVING TotalSpending < ALL (\n     SELECT SUM(Total) AS TotalSpending\n      FROM Invoice i\n      RIGHT JOIN Customer c ON c.CustomerId=i.CustomerId\n      WHERE c.Country LIKE 'Norway'\n      GROUP BY c.CustomerId\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i el total gastat (`TotalSpending`, suma de `Total`) dels clients que han gastat almenys un 20% més que algun dels clients de Noruega ('Norway'), amb `ANY`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, SUM(Total) AS TotalSpending\n FROM Customer c\n LEFT JOIN Invoice i ON i.CustomerId=c.CustomerId\n GROUP BY c.CustomerId, FirstName, LastName\n HAVING TotalSpending >= ANY (\n     SELECT 1.2*SUM(Total)\n      FROM Invoice i\n      RIGHT JOIN Customer c ON c.CustomerId=i.CustomerId\n      WHERE c.Country LIKE 'Norway'\n      GROUP BY c.CustomerId\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra el país (`Country`) i la quantitat de factures (`NInvoices`) dels països que tenen la mateixa quantitat de factures que el país que en té menys, amb `ALL`. Ordena pel nom del país.",
+          "sql": "SELECT Country, COUNT(InvoiceId) AS NInvoices\n FROM Customer c\n LEFT JOIN Invoice i ON c.CustomerId=i.CustomerId\n GROUP BY Country\n HAVING NInvoices <= ALL (\n     SELECT COUNT(InvoiceId) AS NInvoices\n      FROM Customer c\n      LEFT JOIN Invoice i ON c.CustomerId=i.CustomerId\n      GROUP BY Country\n )\n ORDER BY Country;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) dels clients als quals s'ha facturat alguna vegada a una adreça de França (`BillingCountry` = 'France'), utilitzant `EXISTS`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName\n FROM Customer c\n WHERE EXISTS (\n     SELECT *\n      FROM Invoice i\n      WHERE i.CustomerId=c.CustomerId\n       AND BillingCountry LIKE 'France'\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) dels clients que mai han comprat una cançó composta per 'Johann Sebastian Bach', utilitzant `NOT EXISTS`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName\n FROM Customer c\n WHERE NOT EXISTS (\n     SELECT *\n      FROM Track t\n      JOIN InvoiceLine il ON t.TrackId=il.TrackId\n      JOIN Invoice i ON i.InvoiceId=il.InvoiceId\n      WHERE i.CustomerId=c.CustomerId\n       AND t.Composer LIKE 'Johann Sebastian Bach'\n )\n ORDER BY c.CustomerId;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt06",
+      "name": "Chinook QT — JOIN 02",
+      "type": "sqljoinbasic",
+      "intro": "Combinació de taules amb `JOIN`, incloent-hi autojoins i filtres per dates.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, el nom (`FirstName`) i el cognom (`LastName`) dels empleats (`Employee`) que estan assignats com a suport d'algun client (`Customer.SupportRepId`).",
+          "sql": "SELECT DISTINCT Employee.Firstname, Employee.Lastname\n FROM Employee\n JOIN Customer ON Employee.EmployeeId = Customer.SupportRepId;"
+        },
+        {
+          "text": "Mostra el nom de cada cançó (`Track.Name`, àlies `TrackName`) i el nom de l'artista (`Artist.Name`, àlies `ArtistName`) de l'àlbum 'Back to Black', unint `Track`, `Album` i `Artist`.",
+          "sql": "SELECT Track.Name AS TrackName, Artist.Name AS ArtistName\n FROM Track\n JOIN Album ON Track.AlbumId = Album.AlbumId\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n WHERE Album.Title LIKE 'Back to Black';"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`Artist.Name`) dels artistes que es diuen igual que alguna cançó (`Track.Name`).",
+          "sql": "SELECT DISTINCT Artist.Name\n FROM Artist\n JOIN Track ON Artist.Name LIKE Track.Name;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`, àlies `tname`), el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`, àlies `aname`) de les cançons comprades a la factura amb identificador 225.",
+          "sql": "SELECT Track.Name as tname, Album.Title, Artist.Name  as aname\n FROM Track\n JOIN Album ON Track.AlbumId = Album.AlbumId\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId\n WHERE InvoiceLine.InvoiceId = 225;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`, àlies `tname`), la seva durada en segons (`Milliseconds`/1000) i el nom de l'artista (`Artist.Name`, àlies `aname`) de la llista de reproducció (`Playlist`) anomenada 'Grunge'.",
+          "sql": "SELECT Track.Name as tname , Track.Milliseconds/1000 , Artist.Name as aname\n FROM Track\n JOIN Album ON Track.AlbumId = Album.AlbumId\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n JOIN PlaylistTrack ON Track.TrackId = PlaylistTrack.TrackId\n JOIN Playlist ON PlaylistTrack.PlaylistId = Playlist.PlaylistId\n WHERE Playlist.Name LIKE 'Grunge';"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i la data de la factura (`Invoice.InvoiceDate`) de les cançons comprades pel client de nom 'Enrique' i cognom 'Muñoz'.",
+          "sql": "SELECT Track.Name, Invoice.InvoiceDate\n FROM Track\n JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId\n JOIN Invoice ON InvoiceLine.InvoiceId = Invoice.InvoiceId\n JOIN Customer ON Invoice.CustomerId = Customer.CustomerId\n WHERE Customer.FirstName LIKE 'Enrique'\n  AND Customer.LastName LIKE 'Muñoz';"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels empleats que tenen com a responsable (`ReportsTo`) l'empleada de nom 'Nancy' i cognom 'Edwards'. Ordena pel cognom.",
+          "sql": "select e.FirstName, e.LastName \nfrom Employee e join Employee e2  on e.ReportsTo = e2.EmployeeId \nwhere e2.FirstName = 'Nancy' and e2.LastName = 'Edwards'\norder by LastName;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) del cap directe (`ReportsTo`) de l'empleada de nom 'Nancy' i cognom 'Edwards'.",
+          "sql": "select e2.FirstName, e2.LastName \nfrom Employee e join Employee e2  on e.ReportsTo = e2.EmployeeId \nwhere e.FirstName = 'Nancy' and e.LastName = 'Edwards';"
+        },
+        {
+          "text": "Mostra el nom de dos artistes relacionats (`Artista1` i `Artista2`) quan el nom d'un artista coincideix amb el nom d'alguna cançó d'un altre artista. Els dos artistes han de ser diferents.",
+          "sql": "SELECT a1.Name Artista1, a2.Name Artista2 \n FROM Artist a1\n JOIN Album ON a1.ArtistId = Album.ArtistId\n JOIN Track ON Album.AlbumId = Track.AlbumId\n JOIN Artist a2 ON a2.Name LIKE Track.Name\n WHERE a1.Name NOT LIKE a2.Name;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el títol de l'àlbum (`Album.Title`) de les cançons del gènere (`Genre.Name`) 'Rock'. Ordena pel nom de la cançó i, en cas d'empat, pel títol de l'àlbum.",
+          "sql": "select Track.Name, Album.Title\nfrom Track join Album on Track.AlbumId=Album.AlbumId \njoin Genre on Track.GenreId= Genre.GenreId\nwhere Genre.Name like 'Rock'\norder by 1,2"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) de cada client juntament amb el nom i el cognom de l'empleat que l'atén (`SupportRepId`), en aquest ordre de columnes.",
+          "sql": "SELECT c.FirstName as cfn, c.LastName as cln, e.FirstName as efn, e.LastName as eln\nFROM Customer c JOIN Employee e ON c.SupportRepId = e.EmployeeId;"
+        },
+        {
+          "text": "Mostra el títol (`Album.Title`) dels àlbums de l'artista 'Green Day'.",
+          "sql": "select Album.Title\nfrom Album join Artist on Album.ArtistId=Artist.ArtistId\nwhere Artist.Name like 'Green Day'"
+        },
+        {
+          "text": "Mostra el títol de l'àlbum (`Album.Title`) i el nom de cada cançó (`Track.Name`) dels àlbums de l'artista 'Green Day'. Ordena pel títol de l'àlbum i, dins de cada àlbum, pel nom de la cançó.",
+          "sql": "select Album.Title, Track.Name\nfrom Album join Artist on Album.ArtistId=Artist.ArtistId join Track on Album.AlbumId=Track.AlbumId\nwhere Artist.Name like 'Green Day'\norder by 1,2"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), el total (`Total`), el nom (`FirstName`) i el cognom (`LastName`) del client de les factures generades el gener de 2013 (`InvoiceDate` com '2013-01%').",
+          "sql": "select Invoice.InvoiceId,Invoice.Total,Customer.FirstName,Customer.LastName\nfrom Invoice join Customer on Invoice.CustomerId=Customer.CustomerId\nwhere Invoice.InvoiceDate like '2013-01%'"
+        },
+        {
+          "text": "Mostra l'identificador de la factura (`InvoiceId`) i el nom de la cançó (`Track.Name`) de les factures emeses el gener de 2013. Ordena per identificador i, en cas d'empat, pel nom de la cançó.",
+          "sql": "select Invoice.InvoiceId,Track.Name\nfrom Invoice join InvoiceLine on Invoice.InvoiceId=InvoiceLine.InvoiceId\njoin Track on Track.TrackId=InvoiceLine.TrackId\nwhere Invoice.InvoiceDate like '2013-01%'\norder by 1,2"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt07",
+      "name": "Chinook QT — JOIN 01",
+      "type": "sqljoinbasic",
+      "intro": "Primers `JOIN` entre taules relacionades.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador (`Album.AlbumId`) i el títol (`Album.Title`) de cada àlbum amb l'identificador (`Track.TrackId`) i el nom (`Track.Name`) de les seves cançons. Ordena per identificador d'àlbum i, dins de cada àlbum, per identificador de cançó.",
+          "sql": "SELECT Album.AlbumId,Album.Title, Track.TrackId , Track.Name \n FROM Album JOIN Track ON Album.AlbumId = Track.AlbumId\n ORDER BY Album.AlbumId, TrackId ;"
+        },
+        {
+          "text": "Mostra el nom (`Track.Name`) de les cançons de l'àlbum 'Body Count', ordenades alfabèticament.",
+          "sql": "SELECT Track.Name \n FROM Album JOIN Track ON Album.AlbumId = Track.AlbumId\n WHERE Album.Title = 'Body Count'\n ORDER BY Track.Name ;"
+        },
+        {
+          "text": "Mostra l'identificador (`Track.TrackId`) i el nom (`Track.Name`) de les cançons facturades a les factures amb identificador 3 o 4.",
+          "sql": "SELECT t.TrackId, t.Name \nFROM InvoiceLine il JOIN Track t ON  il.TrackId = t.TrackId\nWHERE il.InvoiceId = 3 OR il.InvoiceId = 4;"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats (`Employee`) que tenen un supervisor assignat (`ReportsTo` amb valor).",
+          "sql": "SELECT *\nFROM Employee\nWHERE ReportsTo IS NOT NULL;"
+        },
+        {
+          "text": "Mostra l'identificador (`EmployeeId`), el nom (`FirstName`) i el cognom (`LastName`) de cada empleat juntament amb l'identificador, el nom i el cognom del seu supervisor (`ReportsTo`), en aquest ordre de columnes.",
+          "sql": "SELECT e.EmployeeId as a1, e.FirstName a2, e.LastName a3, s.EmployeeId a4, s.FirstName a5, s.LastName a6\nFROM Employee e JOIN Employee s ON e.ReportsTo = s.EmployeeId;"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), el total (`Total`), l'identificador del client (`CustomerId`) i la data (`InvoiceDate`) de les factures emeses durant el novembre de 2012. Ordena per `InvoiceId`.",
+          "sql": "SELECT InvoiceId , Total , CustomerId , InvoiceDate \nFROM Invoice\nWHERE InvoiceDate BETWEEN '2012-11-01 00:00:00' AND '2012-11-30 23:59:59'\nORDER BY InvoiceId;"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), el total (`Total`), l'identificador del client (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la data (`InvoiceDate`) de les factures emeses durant el novembre de 2012. Ordena per data de facturació.",
+          "sql": "SELECT InvoiceId , Total , c.CustomerId , FirstName , LastName , InvoiceDate \nFROM Invoice i JOIN Customer c\nON i.CustomerId = c.CustomerId \nWHERE InvoiceDate BETWEEN '2012-11-01 00:00:00' AND '2012-11-30 23:59:59'\nORDER BY InvoiceDate ;"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), el país de facturació (`BillingCountry`), l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) del client de les factures enviades a Portugal amb un total superior a 10 o a Canadà amb un total superior a 12. Ordena pel país de facturació i per l'identificador de factura.",
+          "sql": "SELECT i.InvoiceId , i.BillingCountry , c.CustomerId , c.FirstName , c.LastName  \nFROM Invoice i JOIN Customer c \nON i.CustomerId = c.CustomerId \nWHERE (BillingCountry LIKE 'Portugal' AND Total > 10)\nOR (BillingCountry LIKE 'Canada' AND Total > 12)\nORDER BY i.BillingCountry , i.InvoiceId  ;"
+        },
+        {
+          "text": "Mostra el nom (`Playlist.Name`) de la llista de reproducció amb identificador 3 juntament amb els identificadors de les seves cançons (`PlaylistTrack.TrackId`).",
+          "sql": "SELECT p.Name , pt.TrackId \nFROM Playlist p JOIN PlaylistTrack pt  \nON p.PlaylistId = pt.PlaylistId \nWHERE p.PlaylistId = 3;"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`) i el nom (`Name`) de les llistes de reproducció 3 o 5 amb els identificadors de les seves cançons (`TrackId`) compresos entre 3350 i 3370. Ordena per identificador de llista i de cançó.",
+          "sql": "SELECT p.PlaylistId , p.Name , pt.TrackId \nFROM Playlist p JOIN PlaylistTrack pt  ON p.PlaylistId = pt.PlaylistId \nWHERE (p.PlaylistId = 3 OR p.PlaylistId = 5) AND pt.TrackId BETWEEN 3350 AND 3370\nORDER BY p.PlaylistId , pt.TrackId ;"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`) i el nom (`Playlist.Name`) de les llistes de reproducció 3 o 5 amb l'identificador (`TrackId`) i el nom (`Track.Name`) de les seves cançons amb identificador entre 3350 i 3370. Ordena per identificador de llista i de cançó.",
+          "sql": "SELECT p.PlaylistId , p.Name  as kk, pt.TrackId , t.Name\nFROM Playlist p JOIN PlaylistTrack pt  ON p.PlaylistId = pt.PlaylistId\nJOIN Track t ON pt.TrackId = t.TrackId \nWHERE (p.PlaylistId = 3 OR p.PlaylistId = 5) AND pt.TrackId BETWEEN 3350 AND 3370\nORDER BY p.PlaylistId , pt.TrackId ;"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`) i el nom (`Playlist.Name`) de les llistes de reproducció 3 o 5, amb l'identificador (`TrackId`) i el nom (`Track.Name`) de les seves cançons i l'identificador (`AlbumId`) i el títol (`Album.Title`) del seu àlbum, per a les cançons amb identificador entre 3350 i 3370. Ordena per identificador de llista i de cançó.",
+          "sql": "SELECT p.PlaylistId , p.Name as kk , pt.TrackId , t.Name, a.AlbumId , a.Title \nFROM Playlist p JOIN PlaylistTrack pt  ON p.PlaylistId = pt.PlaylistId\nJOIN Track t ON pt.TrackId = t.TrackId \nJOIN Album a ON t.AlbumId = a.AlbumId \nWHERE (p.PlaylistId = 3 OR p.PlaylistId = 5) AND pt.TrackId BETWEEN 3350 AND 3370\nORDER BY p.PlaylistId , pt.TrackId ;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt08",
+      "name": "Chinook QT — Filtrat per llistes",
+      "type": "sqlselbasic",
+      "intro": "Filtrar files amb l'operador `IN`.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Name`), el preu (`UnitPrice`) i el compositor (`Composer`) de les cançons (`Track`) compostes per 'AC/DC', 'Green Day' o 'Queen', amb l'operador `IN`.",
+          "sql": "SELECT Name, UnitPrice, Composer FROM Chinook.Track\nWHERE Composer IN ('AC/DC', 'Green Day', 'Queen')"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i el telèfon (`Phone`) dels clients (`Customer`) que viuen a 'Brazil', 'USA', 'Austria' o 'India', amb l'operador `IN`.",
+          "sql": "SELECT FirstName, LastName, Phone \nFROM Chinook.Customer\nWHERE Country IN ('Brazil', 'USA', 'Austria', 'India')"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt09",
+      "name": "Chinook QT — Filtre per patrons",
+      "type": "sqlselbasic",
+      "intro": "Filtrar amb patrons mitjançant `LIKE`.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i l'adreça de correu (`Email`) dels clients (`Customer`) que tenen un correu de 'yahoo' (que conté 'yahoo'), amb `LIKE`.",
+          "sql": "SELECT FirstName, LastName, Email\nFROM Chinook.Customer\nWHERE Email LIKE ('%yahoo%')"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt10",
+      "name": "Chinook QT — Agregació 05",
+      "type": "sqlagggroup",
+      "intro": "`GROUP BY` amb `ORDER BY` i `LIMIT` per obtenir rànquings.",
+      "questions": [
+        {
+          "text": "Mostra les 10 ciutats (`BillingCity`, àlies `city`) que més diners han gastat en música, amb la suma gastada (`TotalExpense`, suma de `Total` de `Invoice`). Ordena de més a menys despesa.",
+          "sql": "SELECT BillingCity AS city,\nSUM(Total) AS TotalExpense\nFROM Chinook.Invoice\nGROUP BY BillingCity \nORDER BY TotalExpense DESC\nLIMIT 10;"
+        },
+        {
+          "text": "Mostra els 10 compositors (`Composer`) amb més cançons i el nombre total de cançons (`totalSongs`, compte de `TrackId`) de cadascun. Ordena de més a menys cançons. En cas d'empat en el nombre de cançons, ordena alfabèticament pel compositor.",
+          "sql": "SELECT Composer, COUNT(TrackId) AS totalSongs FROM Chinook.Track GROUP BY Composer ORDER BY totalSongs DESC, Composer LIMIT 10;"
+        },
+        {
+          "text": "Mostra el compositor (`Composer`) i el nombre de cançons (`totalSongs`) de les cançons compostes per 'Angus Young' (el nom del qual conté 'Angus Young') o per 'AC/DC'.",
+          "sql": "SELECT Composer, COUNT(TrackId) AS totalSongs\nFROM Chinook.Track\nWHERE Composer LIKE ('%Angus Young%')\nOR Composer = 'AC/DC'\nGROUP BY Composer ;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt29",
+      "name": "Chinook QT — Funcions 01",
+      "type": "sqlaggbasic",
+      "intro": "Funcions de data (`YEAR`, `MONTH`, `DATEDIFF`, `DATE_SUB`) sobre factures i empleats.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`) de les factures (`Invoice`) fetes durant l'any 2009, amb la funció `YEAR`.",
+          "sql": "SELECT distinct CustomerId\nFROM Chinook.Invoice \nWHERE YEAR(InvoiceDate) = 2009;"
+        },
+        {
+          "text": "Mostra totes les dades dels empleats (`Employee`) amb més de 21 anys d'antiguitat, comptats com la diferència de dies (`DATEDIFF`) entre `CURRENT_DATE` i `HireDate`, considerant que un any té 365 dies (7665 dies).",
+          "sql": "SELECT *\nFROM Chinook.Employee\nWHERE DATEDIFF(CURRENT_DATE, HireDate) >= 7665;"
+        },
+        {
+          "text": "Mostra el nombre total de factures (`Invoice`) generades al mes de gener de qualsevol any (`TotalFacturesGenerades`), amb la funció `MONTH`.",
+          "sql": "SELECT COUNT(InvoiceId) AS TotalFacturesGenerades\nFROM Invoice\nWHERE MONTH(InvoiceDate) = 1;"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), la data (`InvoiceDate`) i el total (`Total`) de les factures creades fa més de 30 dies, amb `DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`.",
+          "sql": "SELECT InvoiceId, InvoiceDate, Total\nFROM Chinook.Invoice\nWHERE InvoiceDate <= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY);"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`) i la data (`InvoiceDate`) de les factures fetes durant el primer trimestre (gener, febrer o març) de 2009, amb `YEAR` i `MONTH`. Ordena per identificador del client.",
+          "sql": "SELECT CustomerId, InvoiceDate\nFROM Chinook.Invoice\nWHERE YEAR(InvoiceDate) = 2009 AND MONTH(InvoiceDate) BETWEEN 1 AND 3\norder by 1;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt11",
+      "name": "Chinook QT — Consultes simples",
+      "type": "sqljoincomplex",
+      "intro": "`JOIN`, agregació i rànquings sobre tota la base de dades.",
+      "questions": [
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el títol de l'àlbum (`Album.Title`) de cada àlbum, unint `Album` i `Artist`. Ordena pel nom de l'artista.",
+          "sql": "SELECT a2.Name, a.Title \nFROM Chinook.Album a INNER JOIN Chinook.Artist a2 ON a.ArtistId = a2.ArtistId \nORDER BY a2.Name"
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el títol de l'àlbum (`Album.Title`) dels àlbums dels artistes el nom dels quals conté almenys tres lletres 'd' (patró '%d%d%d%'). Ordena pel nom de l'artista.",
+          "sql": "SELECT a2.Name, a.Title \nFROM Chinook.Album a INNER JOIN Chinook.Artist a2 ON a.ArtistId = a2.ArtistId \nWHERE Name LIKE ('%d%d%d%')\nORDER BY a2.Name"
+        },
+        {
+          "text": "Mostra el nom (`Track.Name`) de les cançons comprades pel client amb `CustomerId` 3, unint `Customer`, `Invoice`, `InvoiceLine` i `Track`.",
+          "sql": "SELECT t.Name\nFROM Chinook.Customer c\nINNER JOIN Chinook.Invoice i ON c.customerId = i.CustomerId \nINNER JOIN Chinook.InvoiceLine il ON i.InvoiceId = il.InvoiceId \nINNER JOIN Chinook.Track t ON il.TrackId = t.TrackId \nWHERE c.CustomerId = 3;"
+        },
+        {
+          "text": "Mostra el nom del gènere (`Genre.Name`) i el nombre total de pistes (`TotalPistes`) del gènere amb més pistes de la base de dades.",
+          "sql": "SELECT Genre.Name, COUNT(Track.TrackId) AS TotalPistes\nFROM Track\nJOIN Genre ON Track.GenreId = Genre.GenreId\nGROUP BY Genre.Name\nORDER BY TotalPistes DESC\nLIMIT 1;"
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i els ingressos generats (`Ingressos`, suma de `UnitPrice`*`Quantity` de `InvoiceLine`), unint `InvoiceLine`, `Track`, `Album` i `Artist`. Ordena de més a menys ingressos.",
+          "sql": "SELECT Artist.Name, SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) AS Ingressos\nFROM InvoiceLine\nJOIN Track ON InvoiceLine.TrackId = Track.TrackId\nJOIN Album ON Track.AlbumId = Album.AlbumId\nJOIN Artist ON Album.ArtistId = Artist.ArtistId\nGROUP BY Artist.Name\nORDER BY Ingressos DESC;"
+        },
+        {
+          "text": "Mostra el nom complet del client (`FirstName`, un espai i `LastName`, en una sola columna amb àlies `Client`) i el nombre total de pistes comprades (`TotalPistesComprades`, suma de `Quantity`) del client que més pistes ha comprat. Si n'hi ha diversos empatats, mostra només el primer per ordre alfabètic del nom complet.",
+          "sql": "SELECT CONCAT(Customer.FirstName, ' ', Customer.LastName) AS Client, SUM(InvoiceLine.Quantity) AS TotalPistesComprades FROM Invoice JOIN Customer ON Invoice.CustomerId = Customer.CustomerId JOIN InvoiceLine ON Invoice.InvoiceId = InvoiceLine.InvoiceId GROUP BY Customer.CustomerId, Customer.FirstName, Customer.LastName ORDER BY TotalPistesComprades DESC, Client LIMIT 1;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt12",
+      "name": "Chinook QT — Consultes intermèdies 01",
+      "type": "sqlsubq",
+      "intro": "Subconsultes amb `ALL`, `ANY` i agregació.",
+      "questions": [
+        {
+          "text": "Mostra quantes pistes (`Track`) tenen el preu (`UnitPrice`) més alt de totes (àlies `canciones`), amb una subconsulta `MAX`.",
+          "sql": "SELECT \n    COUNT(*) AS canciones\nFROM \n    Track\nWHERE \n    UnitPrice = (SELECT MAX(UnitPrice) FROM Track);"
+        },
+        {
+          "text": "Mostra el nom (`Name`) i la durada en minuts (`Durada_Minuts`, `Milliseconds`/60000) de les cançons que duren més de tres vegades la durada mitjana de totes. Ordena per la durada de més a menys.",
+          "sql": "SELECT \n    Name,\n    Milliseconds / 60000 AS Durada_Minuts\nFROM \n    Track\nWHERE \n    Milliseconds > 3 * (SELECT AVG(Milliseconds) FROM Track)\nORDER BY \n    Durada_Minuts DESC;"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) dels tres artistes amb més àlbums. Ordena de més a menys àlbums i, en cas d'empat, alfabèticament; mostra només el nom.",
+          "sql": "SELECT \n    a.Name\nFROM \n    Artist a\nJOIN \n    Album a2 ON a.ArtistId = a2.ArtistId\nGROUP BY \n    a.Name\nORDER BY \n    COUNT(a2.AlbumId) DESC, a.Name ASC\nLIMIT 3;"
+        },
+        {
+          "text": "Mostra el títol (`Album.Title`) dels àlbums que tenen el mateix nombre de cançons que l'àlbum 'Live After Death', sense mostrar 'Live After Death'.",
+          "sql": "SELECT a.Title FROM Album a \nJOIN Track t ON a.AlbumId = t.AlbumId \nWHERE a.Title NOT IN ('Live After Death')\nGROUP BY a.Title\n\nHAVING COUNT(t.TrackId) = (SELECT COUNT(t.TrackId) \nFROM Album a JOIN Track t ON a.AlbumId = t.AlbumId\nWHERE a.Title = 'Live After Death')"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) dels clients que han comprat tantes cançons (suma de `Quantity`) com la clienta de nom 'Camille' i cognom 'Bernard'.",
+          "sql": "SELECT c.CustomerId, c.FirstName, c.LastName \nFROM Customer c \nJOIN Invoice i ON c.CustomerId = i.CustomerId \nJOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId \nGROUP BY c.CustomerId, c.FirstName, c.LastName \nHAVING SUM(il.quantity) = (SELECT SUM(il.quantity)\nFROM Customer c \nJOIN Invoice i ON c.CustomerId = i.CustomerId \nJOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId \nWHERE c.FirstName = 'Camille' AND c.LastName = 'Bernard')"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums la durada dels quals es diferencia com a màxim un 10% de la de l'àlbum 'Bach: Goldberg Variations'. Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId \n GROUP BY Title \n HAVING SUM(Milliseconds)>=(\n     SELECT 0.9*SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Bach: Goldberg Variations'\n ) AND SUM(Milliseconds)<=(\n     SELECT 1.1*SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Bach: Goldberg Variations'\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la quantitat de comandes (`NInvoices`) dels clients que n'han fet menys que tots els clients de Noruega ('Norway'), amb `ALL`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, COUNT(i.InvoiceId) AS NInvoices\n FROM Customer c\n INNER JOIN Invoice i ON i.CustomerId=c.CustomerId\n GROUP BY c.CustomerId, FirstName, LastName\n HAVING NInvoices < ALL (\n    SELECT COUNT(i.InvoiceId) AS NInvoices\n     FROM Invoice i\n     INNER JOIN Customer c ON c.CustomerId=i.CustomerId\n     WHERE c.Country LIKE 'Norway'\n     GROUP BY c.CustomerId\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) dels clients als quals s'ha facturat alguna vegada a França ('France'), amb `EXISTS`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName\n FROM Customer c\n WHERE EXISTS (\n     SELECT *\n      FROM Invoice i\n      WHERE i.CustomerId=c.CustomerId\n       AND BillingCountry LIKE 'France'\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`) i el cognom (`LastName`) dels clients que mai han comprat una cançó composta per 'Johann Sebastian Bach', amb `NOT EXISTS`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName\n FROM Customer c\n WHERE NOT EXISTS (\n     SELECT *\n      FROM Track t\n      JOIN InvoiceLine il ON t.TrackId=il.TrackId\n      JOIN Invoice i ON i.InvoiceId=il.InvoiceId\n      WHERE i.CustomerId=c.CustomerId\n       AND t.Composer LIKE 'Johann Sebastian Bach'\n )\n ORDER BY c.CustomerId;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt13",
+      "name": "Chinook QT — Consultes intermèdies 02",
+      "type": "sqlsubq",
+      "intro": "Subconsultes correlacionades i funcions de data.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Track.Name`) de la cançó o cançons que apareixen (publicades) més vegades a la taula `Track`. Ordena alfabèticament.",
+          "sql": "select t.Name\nfrom Track t\ngroup by t.`Name`\nhaving count(*) = (\n\tselect  count(*)\n\tfrom Track t\n\tgroup by  t.Name\n\torder by count(*) desc\n\tlimit 1\n\t)"
+        },
+        {
+          "text": "Mostra, per cada client, el seu identificador (`CustomerId`), el número de factura (`InvoiceId`), la data (`InvoiceDate`) i l'import (`Total`) de la seva última factura (la de data més recent).",
+          "sql": "SELECT c.CustomerId, i.InvoiceId, i.InvoiceDate, i.Total \nFROM Customer c INNER JOIN Invoice i ON c.CustomerId=i.CustomerId\nWHERE i.InvoiceId = (SELECT ii.InvoiceId \n\tFROM Invoice ii \n\tWHERE ii.CustomerId = i.CustomerId \n\tORDER BY ii.InvoiceDate DESC \n\tLIMIT 1)"
+        },
+        {
+          "text": "Mostra el nom de la llista (`Playlist.Name`, àlies `plName`), el nom de la cançó (`Track.Name`, àlies `tName`) i el nom del gènere (`Genre.Name`, àlies `gName`) de les pistes que són del gènere, d'una llista i d'una cançó que continguin totes la paraula 'Classical'.",
+          "sql": "SELECT pl.Name AS plName, t.Name AS tName, g.Name AS gName\nFROM Playlist pl \n\tJOIN PlaylistTrack plt ON pl.PlaylistId=plt.PlaylistId \n\tJOIN Track t ON plt.TrackId=t.TrackId \n\tJOIN Genre g ON t.GenreId=g.GenreId\nWHERE g.Name LIKE '%Classical%' AND pl.Name LIKE '%Classical%' AND t.Name LIKE '%Classical%'"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia del mes (`DAY`) i el mes (`MONTH`) de les factures fetes el dia i el mes de l'aniversari (`BirthDate`) de l'empleada de nom 'Nancy' i cognom 'Edwards'.",
+          "sql": "SELECT i.InvoiceId, DAY(e.BirthDate), MONTH(e.BirthDate)\nFROM Employee e, Invoice i\nWHERE DAY(e.BirthDate)=DAY(i.InvoiceDate) \nAND MONTH(e.BirthDate)=MONTH(i.InvoiceDate) \nAND e.FirstName='Nancy' \nAND e.LastName='Edwards'"
+        },
+        {
+          "text": "Mostra la ciutat (`BillingCity`), el número de factura (`InvoiceId`) i l'import (`Total`) de les factures l'import de les quals és almenys el doble de la mitjana de les factures de la mateixa ciutat. Ordena per ciutat i per número de factura.",
+          "sql": "SELECT i.BillingCity, i.InvoiceId, i.Total\nFROM Invoice i \nWHERE i.Total >= 2*(\n\tSELECT  avg(ii.Total)\n\tFROM Invoice ii \n\tWHERE ii.BillingCity=i.BillingCity)\nORDER BY i.BillingCity, i.InvoiceId"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt14",
+      "name": "Chinook QT — Consultes intermèdies 03",
+      "type": "sqlsubq",
+      "intro": "`EXISTS`, `NOT EXISTS`, `ANY`, `ALL` i `UNION`.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customer`) que tenen almenys una factura (`Invoice`) registrada, amb `EXISTS`.",
+          "sql": "SELECT FirstName, LastName\nFROM Customer C\nWHERE EXISTS (\n    SELECT 1\n    FROM Invoice I\n    WHERE I.CustomerId = C.CustomerId\n);"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`) i el total (`Total`) de les factures el total de les quals és superior al d'alguna factura del client amb `CustomerId` 3, amb `ANY`.",
+          "sql": "SELECT InvoiceId, Total\nFROM Invoice\nWHERE Total > ANY (\n    SELECT Total\n    FROM Invoice\n    WHERE CustomerId = 3\n);"
+        },
+        {
+          "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i el preu (`UnitPrice`) de les pistes el preu de les quals és superior al de totes les pistes del gènere amb `GenreId` 1, amb `ALL`.",
+          "sql": "SELECT TrackId, Name, UnitPrice\nFROM Track\nWHERE UnitPrice > ALL (\n    SELECT UnitPrice\n    FROM Track\n    WHERE GenreId = 1\n);"
+        },
+        {
+          "text": "Mostra el nom (`Playlist.Name`) de les llistes de reproducció que contenen almenys una pista (`PlaylistTrack`), amb `EXISTS`.",
+          "sql": "SELECT Name\nFROM Playlist P\nWHERE EXISTS (\n    SELECT 1\n    FROM PlaylistTrack PT\n    WHERE PT.PlaylistId = P.PlaylistId\n);"
+        },
+        {
+          "text": "Mostra en una mateixa columna els títols dels àlbums (`Album.Title`) i els noms dels gèneres (`Genre.Name`), amb `UNION`.",
+          "sql": "SELECT Title\nFROM Album\nUNION\nSELECT Name\nFROM Genre;"
+        },
+        {
+          "text": "Mostra en una mateixa columna les adreces de facturació (`Invoice.BillingAddress`) i les adreces dels clients (`Customer.Address`), incloent-hi els duplicats, amb `UNION ALL`.",
+          "sql": "SELECT BillingAddress\nFROM Invoice\nUNION ALL\nSELECT Address\nFROM Customer;"
+        },
+        {
+          "text": "Mostra el nom i el cognom en una sola columna (`CONCAT(FirstName,' ',LastName)`, àlies `NomComplet`) dels clients i dels empleats, amb `UNION`.",
+          "sql": "SELECT CONCAT(FirstName,' ',LastName) AS NomComplet\nFROM Customer\nUNION\nSELECT CONCAT(FirstName,' ',LastName)\nFROM Employee;"
+        },
+        {
+          "text": "Mostra en una mateixa columna els identificadors de les pistes (`Track.TrackId`) i els identificadors dels àlbums (`Album.AlbumId`), incloent-hi els duplicats, amb l'àlies `ID` i `UNION ALL`.",
+          "sql": "SELECT TrackId AS ID\nFROM Track\nUNION ALL\nSELECT AlbumId\nFROM Album;"
+        },
+        {
+          "text": "Mostra en una mateixa columna les ciutats de facturació (`Invoice.BillingCity`) i les ciutats dels clients (`Customer.City`), sense duplicats, amb l'àlies `City` i `UNION`.",
+          "sql": "SELECT BillingCity AS City\nFROM Invoice\nUNION\nSELECT City\nFROM Customer;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt15",
+      "name": "Chinook QT — Agregació 02",
+      "type": "sqlagggroup",
+      "intro": "`GROUP BY`, `HAVING` i funcions de data sense `JOIN`.",
+      "questions": [
+        {
+          "text": "Mostra l'identificador de l'àlbum (`AlbumId`) i els megabytes que ocupa (`MB`, suma de `Bytes`/1024/1024) de cada àlbum (`Track`). Ordena de més a menys MB.",
+          "sql": "SELECT AlbumId, SUM(Bytes)/1024/1024 AS MB\n FROM Track\n GROUP BY AlbumId\n ORDER BY MB DESC;"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`) i la quantitat de cançons de cada llista de reproducció (`PlaylistTrack`).",
+          "sql": "SELECT PlaylistId, count(*)\n FROM PlaylistTrack\n GROUP BY PlaylistId"
+        },
+        {
+          "text": "Mostra l'identificador (`PlaylistId`) i la quantitat de cançons de les llistes de reproducció amb més de 1000 cançons (`PlaylistTrack`).",
+          "sql": "SELECT PlaylistId, count(*)\n FROM PlaylistTrack\n GROUP BY PlaylistId\n HAVING COUNT(*) > 1000;"
+        },
+        {
+          "text": "Mostra el nom de la ciutat (`City`) i el nombre de clients (`Customer`) de cada ciutat del Brasil ('Brazil').",
+          "sql": "SELECT City, COUNT(*)\n FROM Customer\n WHERE Country LIKE 'Brazil'\n GROUP BY City;"
+        },
+        {
+          "text": "Mostra el país (`Country`) i el nombre de clients (`NumCustomers`) de França ('France') i dels Estats Units ('USA'). Ordena pel nom del país.",
+          "sql": "SELECT Country, COUNT(*) AS NumCustomers\n FROM Customer\n WHERE Country LIKE 'France'OR Country LIKE 'USA'\n GROUP BY Country\n order by 1;"
+        },
+        {
+          "text": "Mostra el país (`Country`), la ciutat (`City`) i el nombre de clients (`NumCustomers`) de cada ciutat de França ('France') i dels Estats Units ('USA'). Ordena pel país i per la ciutat.",
+          "sql": "SELECT Country, city,COUNT(*) AS NumCustomers\n FROM Customer\n WHERE Country LIKE 'France'OR Country LIKE 'USA'\n GROUP BY Country,city\n order by 1,2;"
+        },
+        {
+          "text": "Mostra el país (`Country`), la ciutat (`City`) i el nombre de clients (`NumCustomers`) de les ciutats de França ('France') o dels Estats Units ('USA') on hi ha més d'un client.",
+          "sql": "SELECT Country, City, COUNT(*) AS NumCustomers\n FROM Customer\n WHERE Country LIKE 'France'\n  OR Country LIKE 'USA'\n GROUP BY City, Country\n HAVING NumCustomers>1;"
+        },
+        {
+          "text": "Utilitzant només la taula `InvoiceLine`, mostra el preu total (suma de `UnitPrice`*`Quantity`) de la factura amb `InvoiceId` 4 (primera consulta).",
+          "sql": "SELECT SUM(UnitPrice*Quantity)\n FROM InvoiceLine\n WHERE InvoiceId=4;"
+        },
+        {
+          "text": "Mostra el total (`Total`) de la factura amb `InvoiceId` 4 de la taula `Invoice` (segona consulta, per comprovar el resultat anterior).",
+          "sql": "SELECT Total\n FROM Invoice\n WHERE InvoiceId=4;"
+        },
+        {
+          "text": "Utilitzant només la taula `InvoiceLine`, mostra l'identificador (`InvoiceId`) i el preu total (`Total`, suma de `UnitPrice`*`Quantity`) de les factures amb un total superior o igual a 20.",
+          "sql": "SELECT InvoiceId, SUM(UnitPrice*Quantity) AS Total\n FROM InvoiceLine\n GROUP BY InvoiceId\n HAVING Total >= 20;"
+        },
+        {
+          "text": "Utilitzant només la taula `InvoiceLine`, mostra l'identificador de la cançó (`TrackId`) i els beneficis (`Total`, suma de `UnitPrice`*`Quantity`) de les cançons que han generat 2 dòlars o més de beneficis.",
+          "sql": "SELECT TrackId, SUM(UnitPrice*Quantity) AS Total\n FROM InvoiceLine\n GROUP BY TrackId\n HAVING Total>=2;"
+        },
+        {
+          "text": "Mostra el país de facturació (`BillingCountry`) i la mitjana (`Average`, mitjana de `Total`) de les factures (`Invoice`) dels països on la mitjana supera els 6 dòlars.",
+          "sql": "SELECT BillingCountry, AVG(Total) AS Average\n FROM Invoice\n GROUP BY BillingCountry\n HAVING Average>6;"
+        },
+        {
+          "text": "Mostra l'any (`Year`, funció `YEAR` sobre `InvoiceDate`) i els diners cobrats cada any (`Sum`, suma de `Total`). Ordena de més a menys guanys.",
+          "sql": "SELECT YEAR(InvoiceDate) AS Year, SUM(Total) AS Sum\n FROM Invoice\n GROUP BY Year\n ORDER BY Sum DESC;"
+        },
+        {
+          "text": "Mostra la mitjana del total (`AVG` de `Total`) de les factures (`Invoice`).",
+          "sql": "SELECT AVG(Total)\n FROM Invoice;"
+        },
+        {
+          "text": "Mostra el mes (`Month`, funció `MONTH` sobre `InvoiceDate`) i la mitjana de les factures (`Average`, mitjana de `Total`) dels mesos en què la mitjana supera la mitjana global (5.651942). Ordena de més gran a més petita.",
+          "sql": "SELECT MONTH(InvoiceDate) AS Month, AVG(Total) AS Average\n FROM Invoice\n GROUP BY Month\n HAVING Average>5.651942\n ORDER BY Average DESC;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt16",
+      "name": "Chinook QT — Més agregació sense JOIN",
+      "type": "sqlagggroup",
+      "intro": "Més pràctica de `GROUP BY`, `HAVING` i rànquings.",
+      "questions": [
+        {
+          "text": "Mostra les 10 ciutats (`BillingCity`, àlies `city`) que més diners han gastat, amb la suma (`TotalExpense`, suma de `Total`). Ordena de més a menys despesa.",
+          "sql": "SELECT BillingCity AS city,\nSUM(Total) AS TotalExpense\nFROM Chinook.Invoice\nGROUP BY BillingCity \nORDER BY TotalExpense DESC\nLIMIT 10;"
+        },
+        {
+          "text": "Mostra els 10 compositors (`Composer`) amb més cançons (`totalSongs`, compte de `TrackId`), ignorant les pistes sense compositor. Ordena de més a menys cançons. En cas d'empat en el nombre de cançons, ordena alfabèticament pel compositor.",
+          "sql": "SELECT Composer, COUNT(TrackId) AS totalSongs FROM Chinook.Track where Composer is not null GROUP BY Composer ORDER BY totalSongs DESC, Composer LIMIT 10;"
+        },
+        {
+          "text": "Mostra el compositor (`Composer`) i el nombre de cançons (`totalSongs`) de les cançons compostes per 'Angus Young' (que contingui 'Angus Young') o per 'AC/DC'.",
+          "sql": "SELECT Composer, COUNT(TrackId) AS totalSongs\nFROM Chinook.Track\nWHERE Composer LIKE ('%Angus Young%')\nOR Composer = 'AC/DC'\nGROUP BY Composer ;"
+        },
+        {
+          "text": "Mostra quants àlbums (`Album`) hi ha a la base de dades.",
+          "sql": "SELECT COUNT(*)\n FROM Album;"
+        },
+        {
+          "text": "Mostra quants artistes (`Artist`) tenen un nom (`Name`) que comença per 'The ' (seguit d'un espai).",
+          "sql": "SELECT COUNT(*)\n FROM Artist\n WHERE Name LIKE 'The %';"
+        },
+        {
+          "text": "Mostra quantes pistes (`Track`) tenen compositor (`Composer` amb valor).",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE Composer IS NOT NULL;"
+        },
+        {
+          "text": "Mostra quants minuts de música hi ha del compositor (`Composer`) 'Johann Sebastian Bach' (suma de `Milliseconds`/60000).",
+          "sql": "SELECT SUM(Milliseconds)/60000\n FROM Track\n WHERE Composer LIKE 'Johann Sebastian Bach';"
+        },
+        {
+          "text": "Mostra cada preu diferent (`UnitPrice`) de les pistes i quantes n'hi ha de cada preu.",
+          "sql": "SELECT UnitPrice, COUNT(*)\n FROM Track\n GROUP BY UnitPrice;"
+        },
+        {
+          "text": "Mostra l'identificador de l'àlbum (`AlbumId`) dels tres àlbums amb més cançons (`Track`). Ordena de més a menys cançons i mostra només l'identificador.",
+          "sql": "select t.AlbumId\nfrom Track t \ngroup by t.AlbumId \norder by count(t.TrackId) desc\nlimit 3;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt17",
+      "name": "Chinook QT — Examen fusionat 1",
+      "type": "sqlselbasic",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`FirstName`) dels empleats (`Employee`) que coincideix amb el nom d'algun client (`Customer`).",
+          "sql": "select  e.`FirstName`\nfrom Employee e, Customer c\nwhere e.`FirstName` = c.`FirstName`"
+        },
+        {
+          "text": "Mostra el cognom (`LastName`) dels empleats (`Employee`) que coincideix amb el cognom d'algun client (`Customer`).",
+          "sql": "select  e.`LastName`\nfrom Employee e, Customer c\nwhere e.`LastName` = c.`LastName`"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia (`DAY`) i el mes (`MONTH`) de les factures (`Invoice`) emeses el dia i el mes de l'aniversari (`BirthDate`) de l'empleada de nom 'Nancy' i cognom 'Edwards'.",
+          "sql": "select i.`InvoiceId`, day(e.`BirthDate`), month(e.`BirthDate`)\nfrom Employee e, Invoice i\nwhere day(e.`BirthDate`)=day(i.`InvoiceDate`) and month(e.`BirthDate`)=month(i.`InvoiceDate`) and e.`FirstName`='Nancy' and e.`LastName`='Edwards'"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia (`DAY`) i el mes (`MONTH`) de les factures emeses el dia i el mes de l'aniversari (`BirthDate`) de l'empleat de nom 'Robert' i cognom 'King'.",
+          "sql": "select i.`InvoiceId`, day(e.`BirthDate`), month(e.`BirthDate`)\nfrom Employee e, Invoice i\nwhere day(e.`BirthDate`)=day(i.`InvoiceDate`) and month(e.`BirthDate`)=month(i.`InvoiceDate`) and e.`FirstName`='Robert' and e.`LastName`='King'"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia (`DAY`) i el mes (`MONTH`) de les factures emeses el dia i el mes de l'aniversari (`BirthDate`) de l'empleada 'Nancy Edwards'.",
+          "sql": "select i.`InvoiceId`, day(e.`BirthDate`), month(e.`BirthDate`)\nfrom Employee e, Invoice i\nwhere day(e.`BirthDate`)=day(i.`InvoiceDate`) and month(e.`BirthDate`)=month(i.`InvoiceDate`) and e.`FirstName`='Nancy' and e.`LastName`='Edwards'"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia (`DAY`), el mes (`MONTH`) i l'any (`YEAR`) de les factures emeses el dia i el mes de l'aniversari (`BirthDate`) de l'empleat 'Robert King', en columnes separades.",
+          "sql": "select i.`InvoiceId`, day(i.InvoiceDate), month(i.InvoiceDate), year(i.InvoiceDate)\nfrom Employee e, Invoice i\nwhere day(e.`BirthDate`)=day(i.`InvoiceDate`) and month(e.`BirthDate`)=month(i.`InvoiceDate`) and e.`FirstName`='Robert' and e.`LastName`='King'"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), el dia (`DAY`), el mes (`MONTH`) i l'any (`YEAR`) de les factures emeses el dia i el mes de l'aniversari (`BirthDate`) de l'empleada 'Laura Callahan', en columnes separades.",
+          "sql": "select i.`InvoiceId`, day(i.InvoiceDate), month(i.InvoiceDate), year(i.InvoiceDate)\nfrom Employee e, Invoice i\nwhere day(e.`BirthDate`)=day(i.`InvoiceDate`) and month(e.`BirthDate`)=month(i.`InvoiceDate`) and e.`FirstName`='Laura' and e.`LastName`='Callahan';"
+        },
+        {
+          "text": "Mostra l'identificador (`InvoiceId`), la data (`InvoiceDate`) i el total (`Total`) de les factures fetes els darrers 20 anys durant el mes de gener (`MONTH`=1) o amb un total superior a 20. Ordena pel total de més a menys.",
+          "sql": "SELECT InvoiceId, InvoiceDate, Total\nFROM Invoice\nWHERE (InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 20 YEAR)\nAND MONTH(InvoiceDate) = 1)\nOR Total > 20\nORDER BY Total DESC;"
+        },
+        {
+          "text": "Mostra, sense repeticions, els països (`Country`) on viu algun client (`Customer`) i també algun empleat (`Employee`).",
+          "sql": "select distinct c.`Country`\nfrom Customer c, Employee e\nwhere c.`Country` = e.`Country`"
+        },
+        {
+          "text": "Mostra, sense repeticions, les ciutats (`City`) on viu algun client (`Customer`) i també algun empleat (`Employee`). Ordena per la ciutat.",
+          "sql": "select distinct c.`City`\nfrom Customer c, Employee e\nwhere c.`City`=e.`City`\norder by c.`City` asc"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt18",
+      "name": "Chinook QT — Examen fusionat 2",
+      "type": "sqljoinbasic",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra en majúscules (`UPPER`) el nom (`Name`) de les cançons (`Track`) que tenen una sola paraula (sense cap espai).",
+          "sql": "select upper(t.name)\nfrom Track t \nwhere t.name not like '% %'"
+        },
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`) i el nom de l'empresa (`Company`) o, si no en té, el correu (`Email`), dels clients amb alguna factura de més de 10 dòlars (`Total`). Ordena per `CustomerId`.",
+          "sql": "select c.CustomerId, ifnull(c.Company,c.Email)\nfrom Customer c join Invoice i2 on c.CustomerId = i2.CustomerId \nwhere i2.Total > 10\norder by c.CustomerId;"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`) i el fax (`Fax`) o, si no en té, el correu (`Email`), dels clients amb alguna factura emesa el primer dia del mes (`DAY`=1). Ordena per `CustomerId`.",
+          "sql": "select c.CustomerId, ifnull(c.fax, c.Email)\nfrom Customer c \n\tjoin Invoice i on c.CustomerId = i.CustomerId \nwhere day(i.InvoiceDate) = 1\norder by c.CustomerId;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) dels clients (`Customer`) i dels empleats (`Employee`) que viuen al Canadà ('Canada'), amb `UNION`.",
+          "sql": "SELECT c.FirstName, c.LastName\nFROM Customer c\nWHERE c.Country = 'Canada'\nUNION\nSELECT e.FirstName, e.LastName\nFROM Employee e\nWHERE e.Country = 'Canada';"
+        },
+        {
+          "text": "Mostra en minúscules (`LOWER`) el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) dels àlbums amb un títol d'una sola paraula (sense espais). Ordena pel nom de l'artista i, en cas d'empat, pel títol.",
+          "sql": "select lower(a.title), lower (a2.Name)\nfrom Album a \n\tjoin Artist a2 on a.ArtistId = a2.ArtistId \nwhere a.title not like '% %'\norder by a2.name, a.Title ;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom de totes les ciutats (`City`) on hi ha almenys un client (`Customer`) o un empleat (`Employee`), amb `UNION`. Ordena per la ciutat.",
+          "sql": "select distinct city\nfrom Customer c \nUNION\nselect DISTINCT city\nfrom Employee e \nORDER BY 1;"
+        },
+        {
+          "text": "Mostra en minúscules (`LOWER`) el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`) dels artistes amb un nom d'una sola paraula (sense espais). Ordena pel nom de l'artista i, en cas d'empat, pel títol.",
+          "sql": "select lower(a.title), lower (a2.Name)\nfrom Album a \n\tjoin Artist a2 on a.ArtistId = a2.ArtistId \nwhere a2.name not like '% %'\norder by a2.name, a.Title;"
+        },
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`) i el fax (`Fax`) o, si no en té, el correu (`Email`), dels clients amb alguna factura emesa al mes de maig (`MONTH`=5). Ordena per `CustomerId`.",
+          "sql": "select distinctrow c.CustomerId, ifnull(c.fax, c.Email)\nfrom Customer c \n\tjoin Invoice i on c.CustomerId = i.CustomerId \nwhere month(i.InvoiceDate) = 5\norder by c.CustomerId;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt19",
+      "name": "Chinook QT — Examen fusionat 3",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`) i el nom de l'empresa (`Company`) o, si no en té, el correu (`Email`), dels clients amb alguna factura de més de 5 dòlars (`Total`). Ordena per `CustomerId`.",
+          "sql": "select distinct c.CustomerId, ifnull(c.Company,c.Email)\nfrom Customer c join Invoice i2 on c.CustomerId = i2.CustomerId \nwhere i2.Total > 5\norder by c.CustomerId;"
+        },
+        {
+          "text": "Mostra, sense repeticions, totes les ciutats (`City`) on hi ha almenys un client (`Customer`) o un empleat (`Employee`), amb `UNION`. Ordena per la ciutat.",
+          "sql": "select distinct city\nfrom Customer c \nUNION\nselect DISTINCT city\nfrom Employee e \nORDER BY 1;"
+        },
+        {
+          "text": "Mostra el nom (`Track.Name`) de les cançons que no s'han venut mai (sense cap línia a `InvoiceLine`). Ordena pel nom.",
+          "sql": "select Track.`Name`\nfrom Track\nleft join InvoiceLine on Track.`TrackId` = InvoiceLine.`TrackId`\nwhere InvoiceLine.`TrackId` is null\norder by `Name`"
+        },
+        {
+          "text": "Mostra el nom (`Artist.Name`) dels artistes que no tenen cap àlbum (`Album`). Ordena pel nom.",
+          "sql": "select Artist.`Name`\nfrom Artist\nleft join Album on Artist.`ArtistId` = Album.`ArtistId`\nwhere Album.`Title` is null\norder by Name"
+        },
+        {
+          "text": "Mostra el nom complet de cada empleat (`CONCAT(FirstName,' ',LastName)`) i, entre parèntesis, el del seu cap (`ReportsTo`). Ordena pel cognom i el nom de l'empleat.",
+          "sql": "select concat(e1.`FirstName`,\" \" ,e1.`LastName`), concat(\"(\",e2.`FirstName`, \" \", e2.`LastName`, \")\")\nfrom Employee e1 left join Employee e2 on e1.`ReportsTo`=e2.`EmployeeId`\norder by e1.`LastName`, e1.`FirstName`"
+        },
+        {
+          "text": "Mostra el nom complet de cada empleat (`CONCAT(FirstName,' ',LastName)`) i, entre parèntesis, el d'un empleat que depèn d'ell (`ReportsTo`). Ordena pel cognom i el nom de l'empleat.",
+          "sql": "select concat(e1.`FirstName`,\" \" ,e1.`LastName`), concat(\"(\",e2.`FirstName`, \" \", e2.`LastName`, \")\")\nfrom Employee e1 left join Employee e2 on e1.`EmployeeId`=e2.`ReportsTo`\norder by e1.`LastName`, e1.`FirstName`"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la ciutat (`City`) dels clients als quals s'ha facturat alguna vegada al Canadà ('Canada'), amb `EXISTS`. Ordena per `CustomerId`.",
+          "sql": "SELECT c.CustomerId, FirstName, LastName, city\n FROM Customer c\n WHERE EXISTS (\n     SELECT *\n      FROM Invoice i\n      WHERE i.CustomerId=c.CustomerId\n       AND BillingCountry LIKE 'Canada'\n )\n ORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`), el nom i el cognom en una sola columna (`CONCAT(FirstName,' ',LastName)`) i la ciutat (`City`) dels clients als quals s'ha facturat alguna vegada al Canadà ('Canada'). Ordena per `CustomerId`.",
+          "sql": "SELECT DISTINCTROW c.CustomerId, concat(FirstName, ' ', LastName), city\nFROM Customer c\n \tjoin Invoice i2 on c.CustomerId = i2.CustomerId \nWHERE \tBillingCountry LIKE 'Canada'\nORDER BY c.CustomerId;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt20",
+      "name": "Chinook QT — Examen fusionat 4",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra, sense repeticions, l'identificador del client (`CustomerId`), el nom i el cognom en una sola columna (`CONCAT(FirstName,' ',LastName)`) i la ciutat (`City`) dels clients als quals s'ha facturat alguna vegada a Portugal ('Portugal'). Ordena per `CustomerId`.",
+          "sql": "SELECT DISTINCTROW c.CustomerId, concat(FirstName, ' ', LastName), city\nFROM Customer c\n \tjoin Invoice i2 on c.CustomerId = i2.CustomerId \nWHERE \tBillingCountry LIKE 'Portugal'\nORDER BY c.CustomerId;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la ciutat (`City`) dels clients que viuen en ciutats on no hi ha cap empleat (`Employee`). Ordena per ciutat, nom i cognom.",
+          "sql": "select c2.FirstName, c2.LastName , c2.City \nfrom Customer c2 \nwhere c2.City not in (\n\tselect e.City\n\tfrom Employee e \n)\norder by c2.City, c2.FirstName, c2.LastName;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista de l'àlbum (`Artist.Name`), de les cançons que duren més de 15 minuts (`Milliseconds` > 15*60*1000). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`, IFNULL(t.`Composer`, r.`Name`)\n from Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Milliseconds` > 15*60*1000\n order by t.name"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`), la data de la primera (`MIN`) i de l'última (`MAX`) factura i els dies entre totes dues (`DATEDIFF`, àlies `diferencia`). Mostra només el client amb la diferència més gran.",
+          "sql": "select i.`CustomerId`, min(i.`InvoiceDate`), max(i.`InvoiceDate`), datediff(max(i.`InvoiceDate`),min(i.`InvoiceDate`)) as diferencia\nfrom Invoice i\ngroup by i.`CustomerId`\norder by diferencia desc\nlimit 1"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons de més de 40.000.000 de bytes (`Bytes`). Ordena per `Bytes` de més a menys.",
+          "sql": "select t.`Name`,  IFNULL(t.`Composer`, r.`Name`)\n from Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Bytes` > 40000000\n order by Bytes desc"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`) i els dies entre la seva primera i última factura (`DATEDIFF` de `MAX` i `MIN` de `InvoiceDate`, àlies `diferencia`). Mostra només el client amb la diferència més gran.",
+          "sql": "select i.`CustomerId`, datediff(max(i.`InvoiceDate`),min(i.`InvoiceDate`)) as diferencia\nfrom Invoice i\ngroup by i.`CustomerId`\norder by diferencia desc\nlimit 1"
+        },
+        {
+          "text": "Mostra quantes pistes (`Track`) tenen el preu (`UnitPrice`) més baix de totes, amb una subconsulta `MIN`.",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE UnitPrice = (\n   SELECT MIN(UnitPrice)\n    FROM Track\n );"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt21",
+      "name": "Chinook QT — Examen fusionat 5",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra quantes cançons (`Track`) tenen el mateix preu (`UnitPrice`) que la més barata, amb una subconsulta `MIN`.",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE UnitPrice = (\n   SELECT MIN(UnitPrice)\n    FROM Track\n );"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`) i el seu índex de fidelitat (`DATEDIFF` entre l'última i la primera factura, àlies `diferencia`). Mostra només el client amb l'índex més gran.",
+          "sql": "select i.`CustomerId`, datediff(max(i.`InvoiceDate`),min(i.`InvoiceDate`)) as diferencia\nfrom Invoice i\ngroup by i.`CustomerId`\norder by diferencia desc\nlimit 1;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons de més de 30.000.000 de bytes (`Bytes`). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`,  IFNULL(t.`Composer`, r.`Name`)\nfrom Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Bytes` > 30000000\n order by t.`Name`;"
+        },
+        {
+          "text": "Mostra quantes cançons (`Track`) tenen el mateix preu (`UnitPrice`) que la més cara, amb una subconsulta `MAX`.",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE UnitPrice = (\n   SELECT MAX(UnitPrice)\n    FROM Track\n );"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons que duren més de 15 minuts (`Milliseconds` > 15*60*1000). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`, IFNULL(t.`Composer`, r.`Name`)\n from Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Milliseconds` > 15*60*1000\n order by t.name;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons de menys d'1.000.000 de bytes (`Bytes`). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`,  IFNULL(t.`Composer`, r.`Name`)\nfrom Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Bytes` < 1000000\n order by t.`Name`;"
+        },
+        {
+          "text": "Mostra quantes cançons (`Track`) duren (`Milliseconds`) tant com la que dura més, amb una subconsulta `MAX`.",
+          "sql": "SELECT COUNT(*)\n FROM Track\n WHERE Milliseconds = (\n   SELECT Max(Milliseconds)\n    FROM Track\n );"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons que duren menys d'un minut (`Milliseconds` < 60*1000). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`, IFNULL(t.`Composer`, r.`Name`)\n from Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Milliseconds` < 60*1000\n order by t.name;"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el seu compositor (`Composer`) o, si no en té, el nom de l'artista (`Artist.Name`), de les cançons de menys de 100.000 bytes (`Bytes`). Ordena pel nom de la cançó.",
+          "sql": "select t.`Name`,  IFNULL(t.`Composer`, r.`Name`)\nfrom Track t join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\n where `Bytes` < 100000\n order by t.`Name`;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt22",
+      "name": "Chinook QT — Examen fusionat 6",
+      "type": "sqljoincomplex",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`), el nom de l'artista (`artistName`) i la relació preu/durada (`UnitPrice`*1000/`Milliseconds`) de la cançó amb la relació més baixa (la menys rendible per minut).",
+          "sql": "select Track.name , Artist.Name as artistName, Track.`UnitPrice`*1000/Track.`Milliseconds`\nfrom Track join Album on Track.`AlbumId`=Album.`AlbumId` join Artist on Album.`ArtistId`=Artist.`ArtistId`\norder by Track.`UnitPrice`*1000/Track.`Milliseconds` asc\nlimit 1"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`), el nom de l'artista (`artistName`) i la relació preu/durada (`UnitPrice`*1000/`Milliseconds`) de la cançó amb la relació més alta.",
+          "sql": "select Track.name , Artist.Name as artistName, Track.`UnitPrice`*1000/Track.`Milliseconds`\nfrom Track join Album on Track.`AlbumId`=Album.`AlbumId` join Artist on Album.`ArtistId`=Artist.`ArtistId`\norder by Track.`UnitPrice`*1000/Track.`Milliseconds` desc\nlimit 1"
+        },
+        {
+          "text": "Mostra el compositor (`Composer`) de les cançons compostes per compositors amb menys de 3 cançons, ignorant les cançons sense compositor. Ordena alfabèticament.",
+          "sql": "select t.`Composer`\nfrom Track t\nwhere t.`Composer` is not null\ngroup by t.`Composer`\nhaving count(*) <3\norder by t.`Composer`;"
+        },
+        {
+          "text": "Mostra el número de factura (`InvoiceId`), l'import (suma de `UnitPrice`*`Quantity`) i el nombre de línies (`COUNT`) de les factures amb almenys 10 línies i un import d'almenys 20 dòlars (`InvoiceLine`). Ordena pel número de factura.",
+          "sql": "select il.InvoiceId, sum(il.UnitPrice*il.Quantity), count(*)\nfrom InvoiceLine il \ngroup by il.InvoiceId\nhaving count(*)>=10 and sum(il.UnitPrice*il.Quantity) >= 20\norder by InvoiceId;"
+        },
+        {
+          "text": "Mostra el compositor (`Composer`) de les cançons compostes per compositors amb més de 40 cançons, ignorant les cançons sense compositor. Ordena alfabèticament.",
+          "sql": "select t.`Composer`\nfrom Track t\nwhere t.`Composer` is not null\ngroup by t.`Composer`\nhaving count(*) >40\norder by t.`Composer`;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el títol (`Album.Title`) dels àlbums que tenen alguna cançó d'un tipus de suport (`MediaType.Name`) que conté 'AAC'. Ordena pel títol.",
+          "sql": "select distinct Title \nfrom Album join Track on Album.`AlbumId`=Track.`AlbumId` join MediaType on Track.`MediaTypeId`=MediaType.`MediaTypeId`\nwhere MediaType.Name like '%AAC%'\norder by Title"
+        },
+        {
+          "text": "Mostra, sense repeticions, el títol (`Album.Title`) dels àlbums de l'artista 'Iron Maiden' que tenen alguna cançó composta per algú que inclou 'Bruce Dickinson' (`Composer`).",
+          "sql": "select distinct Album.Title  \nfrom Album join Track on Album.`AlbumId`=Track.`AlbumId`  join Artist on Album.`ArtistId` = Artist.`ArtistId`\nwhere `Composer` like '%Bruce Dickinson%' and Artist.`Name` like '%Iron Maiden%'"
+        },
+        {
+          "text": "Mostra, sense repeticions, el títol (`Album.Title`) dels àlbums que tenen alguna cançó d'un tipus de suport (`MediaType.Name`) que conté 'Protected'. Ordena pel títol.",
+          "sql": "select distinct Title \nfrom Album join Track on Album.`AlbumId`=Track.`AlbumId` join MediaType on Track.`MediaTypeId`=MediaType.`MediaTypeId`\nwhere MediaType.Name like '%Protected%'\norder by Title;"
+        },
+        {
+          "text": "Mostra, sense repeticions, el títol (`Album.Title`) dels àlbums d'artistes que no són 'Iron Maiden' que tenen alguna cançó composta per algú que inclou 'Steve Harris' (`Composer`).",
+          "sql": "select distinct Album.Title  \nfrom Album join Track on Album.`AlbumId`=Track.`AlbumId`  join Artist on Album.`ArtistId` = Artist.`ArtistId`\nwhere `Composer` like '%Steve Harris%' and Artist.`Name`  not like '%Iron Maiden%'"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt23",
+      "name": "Chinook QT — Examen fusionat 7",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el nom (`Artist.Name`) dels artistes que tenen almenys un àlbum amb una cançó de més de 5 minuts (`Milliseconds` > 300000), amb `IN`.",
+          "sql": "SELECT Name \nFROM Artist \nWHERE ArtistId IN (\n    SELECT Album.ArtistId \n    FROM Album \n    JOIN Track ON Album.AlbumId = Track.AlbumId \n    WHERE Track.Milliseconds > 300000\n);"
+        },
+        {
+          "text": "Mostra, sense repeticions, el nom (`FirstName`) i el cognom (`LastName`) dels caps (`ReportsTo`) dels empleats que no tenen cap client assignat (`SupportRepId`). Ordena per `EmployeeId` del cap.",
+          "sql": "select distinct e2.`FirstName`, e2.`LastName`\nfrom Employee e1 left join Customer on e1.`EmployeeId` = Customer.`SupportRepId` inner join Employee e2 on e1.`ReportsTo` = e2.`EmployeeId`\nwhere Customer.`SupportRepId` is null\norder by e2.`EmployeeId`"
+        },
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb més pistes (`Track`) i el nombre de pistes (`pistes`) que en té.",
+          "sql": "select m.`Name`, count(t.`TrackId`) as pistes\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by pistes desc\nlimit 1"
+        },
+        {
+          "text": "Mostra la ciutat (`BillingCity`), el número de factura (`InvoiceId`) i l'import (`Total`) de les factures l'import de les quals és almenys el doble de la mitjana de les factures de la mateixa ciutat. Ordena per ciutat i número de factura.",
+          "sql": "select i.`BillingCity`, i.`InvoiceId`, i.`Total`\nfrom Invoice i \nwhere i.`Total` >= 2*(\n\tselect  avg(ii.`Total`)\n\tfrom Invoice ii \n\twhere ii.`BillingCity`=i.`BillingCity`\n\tgroup by ii.`BillingCity`)\norder by i.`BillingCity`, i.`InvoiceId`"
+        },
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb més bytes enregistrats (`espai`, suma de `Bytes`) i aquesta suma.",
+          "sql": "select m.`Name`, sum(t.`Bytes`) as espai\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by espai desc\nlimit 1"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`, àlies `TrackName`), el títol de l'àlbum (`Album.Title`) i el nom de l'artista (`Artist.Name`, àlies `ArtistName`) de les cançons comprades a la factura amb identificador 285.",
+          "sql": "SELECT Track.Name AS TrackName, Album.Title, Artist.Name as ArtistName\n FROM Track\n JOIN Album ON Track.AlbumId = Album.AlbumId\n JOIN Artist ON Album.ArtistId = Artist.ArtistId\n JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId\n WHERE InvoiceLine.InvoiceId = 285;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt24",
+      "name": "Chinook QT — Examen fusionat 8",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb més bytes enregistrats (`espai`, suma de `Bytes`) i aquesta suma total.",
+          "sql": "select m.`Name`, sum(t.`Bytes`) as espai\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by espai desc\nlimit 1;"
+        },
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb més pistes (`pistes`, compte de `TrackId`) i aquest nombre.",
+          "sql": "select m.`Name`, count(t.`TrackId`) as pistes\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by pistes desc\nlimit 1;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) del client al qual s'ha fet la factura de més import (`Total`) facturada a Madrid ('Madrid').",
+          "sql": "select c2.FirstName, c2.LastName \nfrom Customer c2 \n\tjoin Invoice i2 on c2.CustomerId = i2.CustomerId \nwhere i2.total = (\n\tselect max(i.Total) \n\tfrom Invoice i \n\twhere BillingCity = 'Madrid'\n) and i2.BillingCity = 'Madrid';"
+        },
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb menys pistes (`pistes`, compte de `TrackId`) i aquest nombre.",
+          "sql": "select m.`Name`, count(t.`TrackId`) as pistes\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by pistes asc\nlimit 1"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) del client al qual s'ha fet la factura de més import (`Total`) facturada a qualsevol país diferent d'Espanya ('Spain').",
+          "sql": "select c2.FirstName, c2.LastName \nfrom Customer c2 \n\tjoin Invoice i2 on c2.CustomerId = i2.CustomerId \nwhere i2.total = (\n\tselect max(i.Total) \n\tfrom Invoice i \n\twhere i.BillingCountry <> 'Spain'\n) and i2.BillingCountry <> 'Spain';"
+        },
+        {
+          "text": "Mostra el nom del tipus de suport (`MediaType.Name`) amb menys temps enregistrat (`pistes`, suma de `Milliseconds`) i aquesta suma.",
+          "sql": "select m.`Name`, sum(t.Milliseconds) as pistes\nfrom MediaType m join Track t on m.`MediaTypeId`=t.`MediaTypeId` \ngroup by m.`Name`\norder by pistes asc\nlimit 1;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`) i el cognom (`LastName`) del client al qual s'ha fet la factura de més import (`Total`) facturada a Itàlia ('Italy').",
+          "sql": "select c2.FirstName, c2.LastName \nfrom Customer c2 \n\tjoin Invoice i2 on c2.CustomerId = i2.CustomerId \nwhere i2.total = (\n\tselect max(i.Total) \n\tfrom Invoice i \n\twhere i.BillingCountry = 'Italy'\n) and i2.BillingCountry = 'Italy';"
+        },
+        {
+          "text": "Mostra el nom de la llista (`plName`), de la cançó (`tName`) i del gènere (`gName`) de les pistes del gènere 'Classical', d'una llista i d'una cançó que continguin totes la paraula 'Classical'.",
+          "sql": "select pl.`Name` as plName, t.`Name` as tName, g.`Name` as gName\nfrom Playlist pl join PlaylistTrack plt on pl.`PlaylistId`=plt.`PlaylistId` join Track t on plt.`TrackId`=t.`TrackId` join Genre g on t.`GenreId`=g.`GenreId`\nwhere g.`Name` like '%Classical%' and pl.`Name` like '%Classical%' and t.`Name` like '%Classical%'"
+        },
+        {
+          "text": "Mostra el nom de la llista (`plName`), de la cançó (`tName`) i del gènere (`gName`) de les pistes del gènere que conté 'Rock', d'una llista que conté 'Classic' i amb un nom de cançó que conté 'Rock'.",
+          "sql": "select pl.`Name` as plName, t.`Name` as tName, g.`Name` as gName\nfrom Playlist pl join PlaylistTrack plt on pl.`PlaylistId`=plt.`PlaylistId` join Track t on plt.`TrackId`=t.`TrackId` join Genre g on t.`GenreId`=g.`GenreId`\nwhere g.`Name` like '%Rock%' and pl.`Name` like '%Classic%' and t.`Name` like '%Rock%'"
+        },
+        {
+          "text": "Mostra el nom de la llista (`plName`), de la cançó (`tName`), del gènere (`gName`) i el compositor (`Composer`) de les pistes que, o bé contenen 'Rock' al nom i són del gènere 'Rock' i estan en una llista que conté 'Classic', o bé tenen un compositor que conté 'Rock'. Ordena per `TrackId`.",
+          "sql": "select p.Name as plName , t.Name as tName , g.Name as gName, t.Composer \nfrom Playlist p \n\tjoin PlaylistTrack pt on p.PlaylistId = pt.PlaylistId \n\tjoin Track t on pt.TrackId = t.TrackId\n\tjoin Genre g on g.GenreId = t.GenreId \nwhere (t.Name like '%Rock%' and  g.Name like '%Rock%' and p.name like '%Classic%') or t.Composer like '%Rock%'\norder by t.TrackId;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt25",
+      "name": "Chinook QT — Examen fusionat 9",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el nom de la llista (`plName`), de la cançó (`tName`), del gènere (`gName`) i el compositor (`Composer`) de les pistes que, o bé contenen 'Metal' al nom, o bé són del gènere 'Metal', estan en una llista que conté 'Metal' i tenen un compositor que conté 'Metal'. Ordena per `TrackId`.",
+          "sql": "select p.Name as plName , t.Name as tName , g.Name as gName, t.Composer \nfrom Playlist p \n\tjoin PlaylistTrack pt on p.PlaylistId = pt.PlaylistId \n\tjoin Track t on pt.TrackId = t.TrackId\n\tjoin Genre g on g.GenreId = t.GenreId \nwhere t.Name like '%Metal%'or(g.Name like 'Metal' and p.name like '%Metal%' and t.Composer like '%Metal%')\norder by t.TrackId;"
+        },
+        {
+          "text": "Mostra l'identificador del client (`CustomerId`) i el nom de l'empresa (`Company`) o, si no en té, el correu (`Email`), dels clients als quals s'ha facturat més de 40 dòlars en total (`SUM(Total)`). Ordena per `CustomerId`.",
+          "sql": "select c.CustomerId, ifnull(c.Company,c.Email)\nfrom Customer c join Invoice i2 on c.CustomerId = i2.CustomerId \ngroup by c.CustomerId, c.Company, c.Email \nhaving sum(i2.Total) > 40\norder by c.CustomerId;"
+        },
+        {
+          "text": "Mostra el nom de l'artista (`Artist.Name`) i el nombre d'àlbums (`NumAlbums`) dels artistes amb més de 10 àlbums.",
+          "sql": "SELECT Artist.Name, COUNT(Album.AlbumId) AS NumAlbums\nFROM Artist\nJOIN Album ON Artist.ArtistId = Album.ArtistId\nGROUP BY Artist.Name\nHAVING COUNT(Album.AlbumId) > 10;"
+        },
+        {
+          "text": "Mostra el nom i el cognom en una sola columna (`CONCAT(FirstName,' ',LastName)`, àlies `FullName`) i el total gastat (`TotalSpent`, suma de `Total`) dels clients que han gastat més de 45 en totes les seves factures.",
+          "sql": "SELECT CONCAT(c.FirstName,' ',c.LastName) AS FullName, SUM(i.Total) AS TotalSpent\nFROM Customer c\nJOIN Invoice i ON c.CustomerId = i.CustomerId\nGROUP BY c.FirstName, c.LastName\nHAVING SUM(i.Total) > 45;"
+        },
+        {
+          "text": "Mostra el nom (`Track.Name`) de les cançons de l'àlbum amb més cançons, amb una subconsulta.",
+          "sql": "SELECT Name \nFROM Track \nWHERE AlbumId = (\n    SELECT AlbumId \n    FROM Track \n    GROUP BY AlbumId \n    ORDER BY COUNT(*) DESC \n    LIMIT 1\n);"
+        },
+        {
+          "text": "Mostra l'identificador (`CustomerId`), el nom (`FirstName`), el cognom (`LastName`) i la data de l'última compra (`LastPurchaseDate`, `MAX(InvoiceDate)`) dels clients amb alguna compra entre el desembre de 2012 i el febrer de 2013. Ordena per data de l'última compra de més a menys.",
+          "sql": "SELECT DISTINCT c.CustomerId, c.FirstName, c.LastName, MAX(i.InvoiceDate) AS LastPurchaseDate\nFROM Customer c\nJOIN Invoice i ON c.CustomerId = i.CustomerId\nWHERE (MONTH(i.InvoiceDate) = 12 AND YEAR(i.InvoiceDate) = 2012)\nOR (MONTH(i.InvoiceDate) IN (1,2) AND YEAR(i.InvoiceDate) = 2013)\nGROUP BY c.CustomerId, c.FirstName, c.LastName\nORDER BY LastPurchaseDate DESC;"
+        },
+        {
+          "text": "Mostra l'any (`YEAR(InvoiceDate)`), el nom (`FirstName`) i el cognom (`LastName`) de l'empleat de suport, el nombre de factures (`COUNT`) i l'import total (`SUM(Total)`), agrupant per any i empleat.",
+          "sql": "select year(i.`InvoiceDate`), e.`FirstName`, e.`LastName`, count(*), sum(`Total`)\nfrom Invoice i join Customer c on i.`CustomerId`=c.`CustomerId` join Employee e on c.`SupportRepId`=e.`EmployeeId`\ngroup by year(i.`InvoiceDate`), e.`FirstName`, e.`LastName`"
+        },
+        {
+          "text": "Mostra el nom (`Track.Name`) de la cançó o cançons que apareixen més vegades a la taula `Track`.",
+          "sql": "select t.`Name`\nfrom Track t\ngroup by t.`Name`\nhaving count(*) = (\n\tselect  count(*)\n\tfrom Track t\n\tgroup by  t.`Name`\n\torder by count(*) desc\n\tlimit 1\n\t)"
+        },
+        {
+          "text": "Mostra el compositor (`Composer`) que ha compost més cançons (`Track`), ignorant les cançons sense compositor.",
+          "sql": "select t.`Composer`\nfrom Track t\ngroup by t.`Composer`\nhaving count(*) = (\n\tselect  count(*)\n\tfrom Track t\n\twhere t.`Composer` is not null\n\tgroup by  t.`Composer`\n\torder by count(*) desc\n\tlimit 1\n\t)"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt26",
+      "name": "Chinook QT — Examen fusionat 10",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el compositor (`Composer`) més famós, és a dir, el que ha compost més cançons (`Track`), ignorant les cançons sense compositor. Ordena alfabèticament.",
+          "sql": "select t.`Composer`\nfrom Track t\ngroup by t.`Composer`\nhaving count(*) = (\n\tselect  count(*)\n\tfrom Track t\n\twhere t.`Composer` is not null\n\tgroup by  t.`Composer`\n\torder by count(*) desc\n\tlimit 1\n\t)"
+        },
+        {
+          "text": "Mostra el títol (`Album.Title`), el nombre de cançons (`cancons`) i la durada en minuts (`duration`, suma de `Milliseconds`/60000) dels àlbums de l'artista 'Iron Maiden'. Ordena pel nombre de cançons de més a menys i, en cas d'empat, per la durada de més a menys.",
+          "sql": "select a2.Title , count(*) as cancons, sum(t.Milliseconds)/60000 as duration\nfrom Artist a \n\tjoin Album a2 on a.ArtistId = a2.ArtistId \n\tjoin Track t on t.AlbumId = a2.AlbumId \nwhere a.name like 'Iron Maiden'  \ngroup by a2.Title \norder by cancons desc, duration desc;"
+        },
+        {
+          "text": "Mostra el títol (`Album.Title`), el nombre de cançons (`cancons`) i la durada en minuts (`duration`, suma de `Milliseconds`/60000) dels àlbums de l'artista 'Metallica'. Ordena pel nombre de cançons de més a menys i, en cas d'empat, per la durada de més a menys.",
+          "sql": "select a2.Title , count(*) as cancons, sum(t.Milliseconds)/60000 as duration\nfrom Artist a \n\tjoin Album a2 on a.ArtistId = a2.ArtistId \n\tjoin Track t on t.AlbumId = a2.AlbumId \nwhere a.name like 'Metallica'  \ngroup by a2.Title \norder by cancons desc, duration desc;"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la ciutat (`City`) dels clients que viuen en ciutats on hi ha més d'un client. Ordena per ciutat, nom i cognom.",
+          "sql": "select c2.FirstName, c2.LastName , c2.City \nfrom Customer c2 \nwhere c2.City in (\n\tselect c.City\n\tfrom Customer c\n\tgroup by City \n\thaving count(*) > 1\n)\norder by c2.City, c2.FirstName, c2.LastName"
+        },
+        {
+          "text": "Mostra el nom (`FirstName`), el cognom (`LastName`) i la ciutat (`City`) dels empleats que viuen en ciutats on hi ha més d'un empleat. Ordena per ciutat, nom i cognom.",
+          "sql": "select e.FirstName, e.LastName , e.City \nfrom Employee e\nwhere e.City in (\nselect e.City\n\tfrom Employee e \n\tgroup by City \n\thaving count(*) > 1\n)\norder by e.City, e.FirstName, e.LastName"
+        },
+        {
+          "text": "Mostra el títol de l'àlbum (`Album.Title`) i el nombre de cançons dels gèneres 'Heavy Metal' o 'Rock' (`COUNT(TrackId)`) dels àlbums que en tenen 10 o més.",
+          "sql": "SELECT Album.Title, count(Trackid)\nFROM Album join Track on  Album.AlbumId = Track.AlbumId \nJOIN Genre ON Track.GenreId = Genre.GenreId\nwhere (Genre.`Name` = 'Heavy Metal' or Genre.`Name`='Rock')\nGROUP BY Album.Title\nhaving count(Trackid)>=10"
+        },
+        {
+          "text": "Mostra el nom de la cançó (`Track.Name`) i el nom de dos artistes diferents (`artist1`, `artist2`) que tenen una cançó amb el mateix nom.",
+          "sql": "select distinctrow t1.Name, at1.Name as artist1, at2.Name as artist2\nfrom Track t1 inner join Album a1 on t1.`AlbumId`=a1.`AlbumId` join Artist at1 on a1.`ArtistId` = at1.`ArtistId`,  \nTrack t2 inner join Album a2 on t2.`AlbumId`=a2.`AlbumId` join Artist at2 on a2.`ArtistId`=at2.`ArtistId`\nwhere t1.`TrackId`<>t2.trackid and t1.`Name` = t2.`Name` and at1.`Name`<>at2.`Name`"
+        },
+        {
+          "text": "Mostra el títol de l'àlbum (`Album.Title`) i el nombre de cançons (`COUNT(TrackId)`) dels àlbums dels artistes 'Apocalyptica' o 'Metallica' que tenen 10 o més cançons.",
+          "sql": "SELECT Album.Title, count(TrackId)\nFROM Album join Artist on  Album.`ArtistId` = Artist.`ArtistId` \njoin Track on Album.`AlbumId` = Track.`AlbumId`\nwhere (Artist.`Name` = 'Apocalyptica' or Artist.`Name`='Metallica') \nGROUP BY Album.Title\nhaving count(Trackid)>=10"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt27",
+      "name": "Chinook QT — Examen fusionat 11",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra l'any (`YEAR(InvoiceDate)`), el títol de l'àlbum (`Album.Title`), el nombre de línies venudes (`COUNT`) i l'import total (`SUM(Total)`), agrupant per any i àlbum.",
+          "sql": "select year(i.`InvoiceDate`), a.`Title`, count(*), sum(`Total`)\nfrom Invoice i join InvoiceLine l on i.`InvoiceId`=l.`InvoiceId` join Track t on l.`TrackId`=t.`TrackId` join Album a on t.`AlbumId`= a.`AlbumId`\ngroup by year(i.`InvoiceDate`), a.`Title`"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la quantitat de cançons (`NTracks`) dels àlbums que tenen el màxim nombre de cançons. Ordena pel títol.",
+          "sql": "SELECT Title, COUNT(*) AS NTracks\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY t.AlbumId, Title\n HAVING NTracks = (\n   SELECT MAX(NTracks)\n    FROM (\n      SELECT COUNT(*) AS NTracks\n       FROM Track t\n       GROUP BY t.AlbumId\n   ) AS temp\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra el nom de les ciutats (`City`) on hi ha més d'un client que hagi fet almenys 5 factures (`COUNT`) amb una mitjana (`AVG(Total)`) superior a 5 dòlars.",
+          "sql": "select t.City \nfrom(\n\tSELECT i.CustomerId , c2.City , COUNT(*) AS n_payments, AVG(i.Total) AS average\n \tFROM Invoice i \n\t \tjoin Customer c2 on c2.CustomerId = i.CustomerId \n \tGROUP BY c2.City, i.customerid\n \tHAVING n_payments>=5 and average > 5\n\torder by c2.city, c2.customerId\n\t) as t\n\tgroup by t.City \n\thaving count(*)>1;"
+        },
+        {
+          "text": "Mostra el nom dels països (`Country`) on hi ha més d'un client que hagi fet almenys 5 factures (`COUNT`) amb una mitjana (`AVG(Total)`) superior a 5 dòlars.",
+          "sql": "select t.Country \nfrom(\n\tSELECT i.CustomerId , c2.Country , COUNT(*) AS n_payments, AVG(i.Total) AS average\n \tFROM Invoice i \n\t \tjoin Customer c2 on c2.CustomerId = i.CustomerId \n \tGROUP BY c2.Country, i.customerid\n \tHAVING n_payments>=5 and average > 5\n\torder by c2.Country, c2.customerId\n\t) as t\n\tgroup by t.Country \n\thaving count(*)>1;"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la quantitat de cançons (`NTracks`) dels àlbums amb més cançons. Ordena pel títol.",
+          "sql": "SELECT Title, COUNT(*) AS NTracks\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY t.AlbumId, Title\n HAVING NTracks = (\n   SELECT MAX(NTracks)\n    FROM (\n      SELECT COUNT(*) AS NTracks\n       FROM Track t\n       GROUP BY t.AlbumId\n   ) AS temp\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra el títol (`Title`), l'identificador de l'artista (`ArtistId`) i la quantitat de cançons (`NTracks`) dels àlbums amb més cançons. Ordena per `ArtistId`.",
+          "sql": "SELECT a.Title, a.ArtistId, COUNT(*) AS NTracks\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY t.AlbumId, a.Title, a.ArtistId \n HAVING NTracks = (\n   SELECT MAX(NTracks)\n    FROM (\n      SELECT COUNT(*) AS NTracks\n       FROM Track t\n       GROUP BY t.AlbumId\n   ) AS temp\n )\n ORDER BY a.ArtistId ;"
+        },
+        {
+          "text": "Mostra el nom i el cognom en una sola columna (`CONCAT(FirstName,' ',LastName)`, àlies `nomComplet`) dels clients que han comprat més de l'1% de les cançons del catàleg.",
+          "sql": "SELECT CONCAT(c.FirstName , ' ', c.LastName) AS nomComplet\nFROM Customer c\nWHERE CustomerId = (\n    SELECT i.CustomerId \n    FROM Invoice i \n    JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId \n    WHERE i.CustomerId = c.CustomerId\n    GROUP BY i.CustomerId \n    HAVING COUNT(il.TrackId) > (\n        SELECT COUNT(*)*0.01\n        FROM Track\n    )\n);"
+        },
+        {
+          "text": "Mostra el nom del gènere (`Genre.Name`) i la durada mitjana màxima (`MaxAvgDuration`) de les cançons dels gèneres que pertanyen a àlbums la durada total dels quals supera la mitjana de la durada total de tots els àlbums.",
+          "sql": "SELECT g.Name, MAX(ag.AvgTrackDuration) AS MaxAvgDuration\nFROM Genre g\nJOIN (\n    SELECT t.GenreId, AVG(t.Milliseconds) AS AvgTrackDuration\n    FROM Track t\n    WHERE t.AlbumId IN (\n        SELECT AlbumId\n        FROM (\n            SELECT AlbumId, SUM(Milliseconds) AS TotalDuration\n            FROM Track t2\n            GROUP BY AlbumId\n            HAVING TotalDuration > (\n                SELECT AVG(TotalDuration)\n                FROM (\n                    SELECT SUM(Milliseconds) AS TotalDuration\n                    FROM Track t3\n                    GROUP BY AlbumId\n                ) AS ad\n            )\n        ) AS la\n    )\n    GROUP BY t.GenreId\n) AS ag ON g.GenreId = ag.GenreId\nGROUP BY g.Name\nORDER BY MaxAvgDuration DESC\nLIMIT 1;"
+        }
+      ]
+    },
+    {
+      "code": "sqlchinookqt28",
+      "name": "Chinook QT — Examen fusionat 12",
+      "type": "sqlsubq",
+      "intro": "Preguntes d'examen de dificultat creixent, barrejades de diversos exàmens reals.",
+      "questions": [
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums que duren més que l'àlbum 'Supernatural'. Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY a.AlbumId, Title\n HAVING SUM(Milliseconds) > (\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title = 'Supernatural'\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums que duren més que l'àlbum 'Powerslave'. Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY a.AlbumId, a.Title\n HAVING SUM(Milliseconds) > (\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title = 'Powerslave'\n )\n ORDER BY a.Title;"
+        },
+        {
+          "text": "Mostra el nom de la llista de reproducció (`Playlist.Name`, àlies `pName`) i el nombre de cançons (`COUNT`) de l'artista 'Iron Maiden' que conté cada llista, agrupant per llista.",
+          "sql": "select p.`Name` as pName, count(*)\nfrom Playlist p join PlaylistTrack l on p.`PlaylistId`= l.`PlaylistId` join Track t on l.`TrackId`=t.`TrackId` join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\nwhere r.`Name` like 'Iron Maiden'\ngroup by pName"
+        },
+        {
+          "text": "Mostra el nom de la llista de reproducció (`Playlist.Name`, àlies `pName`) i el nombre de cançons (`COUNT`) de l'artista 'Metallica' que conté cada llista, agrupant per llista.",
+          "sql": "select p.`Name` as pName, count(*)\nfrom Playlist p join PlaylistTrack l on p.`PlaylistId`= l.`PlaylistId` join Track t on l.`TrackId`=t.`TrackId` join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\nwhere r.`Name` like 'Metallica'\ngroup by pName"
+        },
+        {
+          "text": "Mostra el títol (`Title`) i la durada en minuts (`Duration`, suma de `Milliseconds`/60000) dels àlbums que duren menys que l'àlbum 'Chemical Wedding'. Ordena pel títol.",
+          "sql": "SELECT Title, SUM(Milliseconds)/60000 AS Duration\n FROM Album a\n JOIN Track t ON a.AlbumId=t.AlbumId\n GROUP BY a.AlbumId, Title\n HAVING SUM(Milliseconds) < (\n     SELECT SUM(Milliseconds)\n      FROM Track t\n      JOIN Album a ON t.AlbumId=a.AlbumId\n      WHERE Title LIKE 'Chemical Wedding'\n )\n ORDER BY Title;"
+        },
+        {
+          "text": "Mostra el nom de la llista de reproducció (`Playlist.Name`, àlies `pName`) i el nombre de cançons (`COUNT`) de l'artista 'Queen' que conté cada llista, agrupant per llista.",
+          "sql": "select p.`Name` as pName, count(*)\nfrom Playlist p join PlaylistTrack l on p.`PlaylistId`= l.`PlaylistId` join Track t on l.`TrackId`=t.`TrackId` join Album a on t.`AlbumId`=a.`AlbumId` join Artist r on a.`ArtistId`=r.`ArtistId`\nwhere r.`Name` like 'Queen'\ngroup by pName"
+        },
+        {
+          "text": "Mostra el país (`Country`) i la quantitat de factures (`NInvoices`) dels països amb el mínim nombre de factures, amb `ALL`. Ordena pel país.",
+          "sql": "SELECT Country, COUNT(InvoiceId) AS NInvoices\n FROM Customer c\n LEFT JOIN Invoice i ON c.CustomerId=i.CustomerId\n GROUP BY Country\n HAVING NInvoices <= ALL (\n     SELECT COUNT(InvoiceId) AS NInvoices\n      FROM Customer c\n      LEFT JOIN Invoice i ON c.CustomerId=i.CustomerId\n      GROUP BY Country\n )\n ORDER BY Country;"
+        }
+      ]
+    }
+  ]
+}

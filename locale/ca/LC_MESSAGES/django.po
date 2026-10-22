@@ -4044,8 +4044,8 @@ msgid "You don't have enough points"
 msgstr "No tens prou punts"
 
 #: judge/views/user.py:145
-msgid "You need 5 GachaPoints in order to make a gacha roll"
-msgstr "Necessites 5 GachaPoints per fer una tirada de gacha"
+msgid "You need %(points)s GachaPoints in order to make a gacha roll"
+msgstr "Necessites %(points)s GachaPoints per fer una tirada de gacha"
 
 #: judge/views/user.py:246 judge/views/user.py:357
 msgid "My account"
@@ -4854,8 +4854,8 @@ msgstr ""
 
 #: templates/gacha/gachago.html:40 templates/gacha/gachamain.html:40
 #: templates/gacha/gacharesult.html:960
-msgid "Use 5 GachaPoints"
-msgstr "Usa 5 GachaPoints"
+msgid "Use %(points)s GachaPoints"
+msgstr "Usa %(points)s GachaPoints"
 
 #: templates/gacha/gacharesult.html:864
 msgid "Bé... un més per la col·lecció."
@@ -5121,7 +5121,7 @@ msgstr ""
 #, python-format
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-" 50%% dels teus GachaPoints"
+" %(percent)s%% dels teus GachaPoints"
 msgstr ""
 
 #: templates/institution/home.html:17
@@ -6934,3 +6934,124 @@ msgstr "Perfil d'Admin"
 #: templates/widgets/select_all.html:8
 msgid "Check all"
 msgstr "Comprova-ho tot"
+
+#: judge/models/profile.py
+msgid "gacha discount"
+msgstr "descompte al gacha"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement pays 4 GachaPoints per gacha roll instead of 5, "
+"permanently. Owning more than one copy (or more than one such achievement) "
+"does not stack."
+msgstr ""
+"Qui tingui aquest achievement paga 4 GachaPoints per tirada de gacha en "
+"lloc de 5, per sempre. Tenir-ne més d'una còpia (o més d'un achievement així) "
+"no s'acumula."
+
+#: judge/models/profile.py
+msgid "extra hint"
+msgstr "pista extra"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets one extra hint, permanently, on every "
+"problem that already allows at least one. Problems with no hints stay at "
+"zero. Owning more than one copy (or more than one such achievement) does "
+"not stack."
+msgstr ""
+"Qui tingui aquest achievement té una pista extra, per sempre, a cada "
+"problema que ja en permeti almenys una. Els problemes sense pistes continuen "
+"a zero. Tenir-ne més d'una còpia (o més d'un achievement així) no "
+"s'acumula."
+
+#: templates/user/user-about.html
+msgid "Super achievements"
+msgstr "Superachievements"
+
+#: judge/models/profile.py
+msgid "double daily bonus"
+msgstr "bonus diari doble"
+
+#: judge/models/profile.py
+msgid "duplicate insurance"
+msgstr "assegurança antirepetits"
+
+#: judge/models/profile.py
+msgid "rainbow name"
+msgstr "nom d'arc de Sant Martí"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets twice the 'first new problem of the day' "
+"GachaPoints bonus, permanently. Does not stack."
+msgstr ""
+"Qui tingui aquest achievement rep el doble del bonus de GachaPoints del "
+"primer problema nou del dia, per sempre. No s'acumula."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets back 80% of the roll cost on a duplicate "
+"gacha result instead of 50%, permanently. Does not stack."
+msgstr ""
+"Qui tingui aquest achievement recupera el 80% del cost de la tirada quan li "
+"surt un repetit al gacha, en lloc del 50%, per sempre. No s'acumula."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement has their username shown with an animated "
+"rainbow everywhere on the site. Does not stack."
+msgstr ""
+"Qui tingui aquest achievement té el nom d'usuari amb un arc de Sant Martí "
+"animat a tot el web. No s'acumula."
+
+msgid "MySQL checker"
+msgstr "Verificador MySQL"
+
+msgid "MySQL database"
+msgstr "Base de dades MySQL"
+
+#, python-format
+msgid "%s (not available on the grading server)"
+msgstr "%s (no disponible al servidor de correcció)"
+
+msgid "(cap seleccionada)"
+msgstr "(cap seleccionada)"
+
+msgid "MySQL checker requires a database. Please choose one."
+msgstr "El verificador MySQL necessita una base de dades. Tria'n una."
+
+msgid ""
+"MySQL checker requires a database. Please choose one in the \"MySQL "
+"database\" field."
+msgstr ""
+"El verificador MySQL necessita una base de dades. Tria'n una al camp \"Base "
+"de dades MySQL\"."
+
+msgid "MySQL dump"
+msgstr "Dump MySQL"
+
+msgid "SQL dump (.sql) with this problem's own database, for the MySQL checker"
+msgstr ""
+"Dump SQL (.sql) amb la base de dades pròpia d'aquest problema, per al "
+"verificador MySQL. Si n'hi ha, té prioritat sobre la base de dades triada al "
+"catàleg."
+
+msgid "The MySQL dump must be a .sql file."
+msgstr "El dump MySQL ha de ser un fitxer .sql."
+
+#, python-format
+msgid "The MySQL dump can be at most %d MB."
+msgstr "El dump MySQL pot ocupar com a màxim %d MB."
+
+msgid "MySQL checker requires a database. Please choose one or upload a dump."
+msgstr ""
+"El verificador MySQL necessita una base de dades. Tria'n una del catàleg o "
+"puja un dump."
+
+#, python-format
+msgid "MariaDB could not load this dump: %s"
+msgstr "MariaDB no ha pogut carregar aquest dump: %s"
+
+msgid "The MySQL grading server is not available right now."
+msgstr "Ara mateix el servidor de correcció MySQL no està disponible."

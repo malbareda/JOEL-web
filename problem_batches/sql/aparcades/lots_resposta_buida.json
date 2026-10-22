@@ -1,0 +1,10 @@
+[
+  {
+    "code": "sqlsub04",
+    "problem": "SQL Subconsultes 4: Subconsultes correlacionades",
+    "motiu": "a MariaDB la referència retorna 0 files (a SQLite en tornava 110 per errors de coma flotant)",
+    "text": "Mostra l'identificador (`TrackId`), el nom (`Name`) i el preu (`UnitPrice`) de les pistes (`Track`) dels àlbums amb `AlbumId` menor o igual que 30 que són més cares que la mitjana de preu de les pistes del seu mateix àlbum.",
+    "sql": "SELECT t.TrackId, t.Name, t.UnitPrice FROM Track t WHERE t.AlbumId <= 30 AND t.UnitPrice > (SELECT AVG(t2.UnitPrice) FROM Track t2 WHERE t2.AlbumId = t.AlbumId)",
+    "explain": "La subconsulta fa referència a `t.AlbumId` de la consulta exterior: per a cada pista es recalcula la mitjana del seu propi àlbum. Per això es diu correlacionada; no es pot executar sola. El filtre per `AlbumId` manté el resultat curt."
+  }
+]

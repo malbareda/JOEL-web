@@ -1,0 +1,72 @@
+{
+  "database": "futbol24",
+  "engine": "mysql",
+  "code_prefix": "sqlfutbolqt",
+  "author": "joanq",
+  "label": "Futbol24 (partits internacionals de futbol, golejadors i tandes de penals) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "name": "Futbol24 QT — Consultes barrejades",
+      "type": "sqlsubq",
+      "intro": "Selecció amb filtres, agrupacions amb HAVING i subconsultes sobre partits i tandes de penals de seleccions nacionals.",
+      "questions": [
+        {
+          "text": "Mostra els 4 països que han guanyat més tandes de penals (`shootouts`): el país guanyador (`winner`) i el nombre de tandes guanyades (`count(*)`, sense àlies). Ordena de més a menys tandes guanyades i mostra només 4 files.",
+          "sql": "SELECT winner, count(*) \nfrom shootouts s \ngroup by winner \norder by count(*) desc\nlimit 4;"
+        },
+        {
+          "text": "Mostra totes les columnes de les tandes de penals (`shootouts`) que ha guanyat 'Spain' (`winner`) i en què 'Spain' també va començar llançant (`first_shooter`).",
+          "sql": "select * \nfrom shootouts s \nwhere winner = first_shooter and winner = 'Spain'"
+        },
+        {
+          "text": "Mostra totes les columnes de les tandes de penals (`shootouts`) que ha guanyat l'equip local (`home_team`) i en què també va començar llançant l'equip local (`first_shooter`). Ordena per equip guanyador (`winner`) i, en cas d'empat, per data (`date`).",
+          "sql": "select * \nfrom shootouts s \nwhere winner = first_shooter and winner = home_team \norder by  s.winner, s.`date`"
+        },
+        {
+          "text": "Mostra totes les columnes dels partits (`matches`) que 'Spain' ha jugat com a local (`home_team`) contra 'Italy' com a visitant (`away_team`). Ordena per `id`.",
+          "sql": "select * \nfrom matches m \nwhere m.home_team = 'Spain' and m.away_team = 'Italy'\norder by id"
+        },
+        {
+          "text": "Mostra totes les columnes dels partits (`matches`) jugats entre 'Spain' i 'Italy', sense importar quin dels dos era el local (`home_team`) i quin el visitant (`away_team`).",
+          "sql": "select * \nfrom matches m \nwhere (m.home_team = 'Spain' and m.away_team = 'Italy') or (m.home_team = 'Italy' and m.away_team = 'Spain')"
+        },
+        {
+          "text": "Mostra totes les columnes dels partits (`matches`) que 'Spain' ha guanyat a 'Italy' (més gols segons `home_score` i `away_score`), sense importar quin dels dos era el local i quin el visitant.",
+          "sql": "select * \nfrom matches m \nwhere (m.home_team = 'Spain' and m.away_team = 'Italy' and m.home_score > m.away_score) or (m.home_team = 'Italy' and m.away_team = 'Spain' and m.home_score < m.away_score)"
+        },
+        {
+          "text": "Per a cada ciutat (`city`) dels partits (`matches`) disputats a 'Spain' (`country`), mostra la ciutat i el nombre de partits que s'hi han jugat (`count(*)`, sense àlies). Ordena per nombre de partits de més a menys i, en cas d'empat, pel nom de la ciutat.",
+          "sql": "select city, count(*)\nfrom matches m\nwhere country = 'Spain'\ngroup by city\norder by count(*) desc, city"
+        },
+        {
+          "text": "Mostra la ciutat (`city`), el país (`country`) i el nombre de partits (`count(*)`, sense àlies) de les ciutats on s'han disputat més de 100 partits (`matches`). Agrupa per país i ciutat. Ordena per nombre de partits de més a menys i, en cas d'empat, pel nom de la ciutat.",
+          "sql": "select city, country, count(*)\nfrom matches m\ngroup by country, city\nhaving count(*) > 100\norder by count(*) desc, city"
+        },
+        {
+          "text": "Per a cada selecció que ha jugat com a local (`home_team` de `matches`), mostra el seu nom, el nombre de partits que ha jugat com a local, els gols que ha marcat com a local (suma de `home_score`) i els gols que ha encaixat com a local (suma de `away_score`). Les tres columnes calculades no tenen àlies.",
+          "sql": "select m.home_team, count(*), sum(home_score), sum(away_score)\nfrom matches m \ngroup by m.home_team"
+        },
+        {
+          "text": "Per a cada selecció que ha jugat com a local (`home_team` de `matches`), mostra el seu nom, el nombre de partits que ha jugat com a local, els gols marcats com a local (suma de `home_score`) i els gols encaixats com a local (suma de `away_score`), però només de les seleccions que han jugat almenys 200 partits com a local i que, com a local, han encaixat més gols dels que han marcat. Les columnes calculades no tenen àlies.",
+          "sql": "select m.home_team, count(*), sum(home_score), sum(away_score)\nfrom matches m \ngroup by m.home_team \nhaving count(*) >= 200 and sum(home_score) < sum(away_score)"
+        },
+        {
+          "text": "Mostra totes les columnes del partit o partits (`matches`) amb més gols en total (`home_score + away_score`). Fes-ho amb una subconsulta.",
+          "sql": "select *\nfrom matches m \nwhere (m.home_score + m.away_score) = (select max(m.home_score + m.away_score)\n\t\t\t\t\t\t\t\t\t   from matches m);"
+        },
+        {
+          "text": "Mostra totes les columnes dels partits (`matches`) que han acabat en empat (`home_score` igual a `away_score`) amb el màxim nombre de gols totals d'entre tots els partits empatats.",
+          "sql": "select *\nfrom matches m \nwhere (m.home_score + m.away_score) = (select max(m.home_score + m.away_score)\n\t\t\t\t\t\t\t\t\t   from matches m where m.home_score=m.away_score)\n\t   and (m.home_score = m.away_score)"
+        },
+        {
+          "text": "Mostra, en una sola columna sense àlies, el nombre total de gols que ha marcat 'Spain' a la taula `matches`, sumant els gols com a local (`home_score` quan és `home_team`) i com a visitant (`away_score` quan és `away_team`).",
+          "sql": "select (select sum(m.home_score) from matches m where m.home_team = 'Spain') + (select sum(m.away_score) from matches m where m.away_team = 'Spain')"
+        },
+        {
+          "text": "Mostra, sense repeticions, les seleccions (`home_team`) que han jugat com a locals contra 'Spain' però que mai no han jugat com a visitants a casa de 'Spain'; és a dir, que han rebut 'Spain' però mai no han anat a jugar a 'Spain'.",
+          "sql": "select distinct home_team \nfrom matches\nwhere away_team = 'Spain' and home_team not in (select distinct away_team equip\n\t\t\t\t\t\t\t\t\t\t\t\tfrom matches\n\t\t\t\t\t\t\t\t\t\t\t\twhere home_team = 'Spain')"
+        }
+      ]
+    }
+  ]
+}

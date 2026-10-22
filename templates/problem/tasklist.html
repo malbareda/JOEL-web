@@ -103,7 +103,7 @@
 
             $('#username').select2({
                 multiple: 1,
-                placeholder: '{{ _('Filter by user name...') }}',
+                placeholder: '{{ _('Filter by user name...')|escapejs }}',
                 minimumInputLength: 1,
                 ajax: {
                     url: '{{ url('user_search_select2_ajax') }}',
@@ -112,13 +112,13 @@
 
             $('#equip').select2({
                 multiple: 1,
-                placeholder: '{{ _('Filter by Equip...') }}',
+                placeholder: '{{ _('Filter by Equip...')|escapejs }}',
                 matcher: idAndTextMatcher,
             }).css({'visibility': 'visible'});
 
             $('#institut').select2({
                 multiple: 1,
-                placeholder: '{{ _('Filter by Institution...') }}',
+                placeholder: '{{ _('Filter by Institution...')|escapejs }}',
                 matcher: idAndTextMatcher,
             }).css({'visibility': 'visible'});
 

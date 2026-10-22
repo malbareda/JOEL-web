@@ -4,7 +4,7 @@
   "label": "GroupBy (tres taules d'empleats per practicar GROUP BY, HAVING, DISTINCT i operacions de conjunts)",
   "problems": [
     {
-      "name": "GroupBy 1: Primeres consultes",
+      "name": "GroupBy 1: Primeres consultes", "engine": "mysql", "database": "groupbytest",
       "intro": "Primer contacte amb `SELECT`, `WHERE` i `ORDER BY` sobre les taules d'empleats.",
       "questions": [
         {"text": "Mostra tots els camps de la taula `Employees`.",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "name": "GroupBy 2: Filtrant i limitant",
+      "name": "GroupBy 2: Filtrant i limitant", "engine": "mysql", "database": "groupbytest",
       "intro": "Combina condicions amb `AND`, la comprovació de `NULL` i `LIMIT`.",
       "questions": [
         {"text": "Mostra l'identificador (`Id`) i el cognom dels empleats de la taula `Employees2` que es diuen 'Pere' i cobren 1500 o més.",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "name": "GroupBy 3: DISTINCT, LIKE i BETWEEN",
+      "name": "GroupBy 3: DISTINCT, LIKE i BETWEEN", "engine": "mysql", "database": "groupbytest",
       "intro": "Elimina duplicats i filtra amb patrons i intervals.",
       "questions": [
         {"text": "Mostra els noms (`FirstName`) diferents que hi ha a la taula `Employees2`, sense repeticions.",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "name": "GroupBy 4: Funcions d'agregació",
+      "name": "GroupBy 4: Funcions d'agregació", "engine": "mysql", "database": "groupbytest",
       "intro": "`COUNT`, `SUM`, `AVG`, `MIN` i `MAX` sobre tota una taula.",
       "questions": [
         {"text": "Mostra quants empleats hi ha a la taula `Employees2`.",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "name": "GroupBy 5: Agrupant dades",
+      "name": "GroupBy 5: Agrupant dades", "engine": "mysql", "database": "groupbytest",
       "intro": "`GROUP BY` per obtenir una fila de resultat per cada grup.",
       "questions": [
         {"text": "Per cada nom (`FirstName`) de la taula `Employees2`, mostra el nom i el nombre d'empleats que el tenen.",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "name": "GroupBy 6: Filtrant grups amb HAVING",
+      "name": "GroupBy 6: Filtrant grups amb HAVING", "engine": "mysql", "database": "groupbytest",
       "intro": "`HAVING` serveix per filtrar grups, igual que `WHERE` filtra files.",
       "questions": [
         {"text": "Mostra els noms de la taula `Employees2` que comparteixen més d'un empleat, juntament amb el nombre d'empleats de cadascun.",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "GroupBy 7: Operacions de conjunts",
+      "name": "GroupBy 7: Operacions de conjunts", "engine": "mysql", "database": "groupbytest",
       "intro": "`UNION`, `UNION ALL`, `INTERSECT` i `EXCEPT` combinen els resultats de dues consultes.",
       "questions": [
         {"text": "Mostra els cognoms de la taula `Employees2` que no apareixen a la taula `Employees`.",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "GroupBy 8: JOINs entre taules",
+      "name": "GroupBy 8: JOINs entre taules", "engine": "mysql", "database": "groupbytest",
       "intro": "Uneix les taules d'empleats per `Id` o per nom, fins i tot una taula amb ella mateixa.",
       "questions": [
         {"text": "Mostra el cognom i el sou (de la taula `Employees2`) dels empleats que a la taula `Employees3` (mateix `Id`) tenen el sou NULL.",
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "GroupBy 9: Subconsultes i CASE",
+      "name": "GroupBy 9: Subconsultes i CASE", "engine": "mysql", "database": "groupbytest",
       "intro": "Usa una consulta dins d'una altra i classifica valors amb `CASE`.",
       "questions": [
         {"text": "Mostra el cognom i el sou dels empleats de la taula `Employees2` que cobren més que el sou mitjà dels empleats de la taula `Employees`.",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "name": "GroupBy 10: Repte final",
+      "name": "GroupBy 10: Repte final", "engine": "mysql", "database": "groupbytest",
       "intro": "Consultes de més d'un pas que combinen agrupacions, subconsultes i comptatges.",
       "questions": [
         {"text": "Mostra el nom que apareix més vegades a la taula `Employees2`, juntament amb el nombre de vegades que hi apareix.",

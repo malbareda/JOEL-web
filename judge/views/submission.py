@@ -188,6 +188,7 @@ class SubmissionStatus(SubmissionDetailBase):
         # SEC from the judge's own sandbox (judge/utils/sandbox.py), not from the SQL/Mongo checkers.
         context['sandbox_violation'] = any(case.status == 'SEC' and is_sandbox_feedback(case.feedback) for case in cases)
         context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
+        context['allowed_hints'] = 0
 
         votes = SubmissionVote.objects.filter(submission_id=submission.id).aggregate(
             yay=Sum(Case(When(score=1, then=1), When(score=10, then=10), default=0, output_field=IntegerField())),
@@ -206,6 +207,9 @@ class SubmissionStatus(SubmissionDetailBase):
             data_files = None
 
         if data_files is not None:
+            # The submission's owner's allowance, not the viewer's: a teacher looking at a
+            # student's submission sees what that student can still use.
+            context['allowed_hints'] = data_files.allowed_tips_for(submission.user)
             user_can_evaluate = submission.problem.is_evaluable_by(self.request.user)
             # Cases where this same test case (same problem, same case number) already
             # had its hint revealed on an EARLIER submission, so we can point to it
@@ -325,7 +329,7 @@ def flag_submission(request, case):
         elif subm.flag:
             error = _('You have already used your hint for this problem on a different test case.')
         else:
-            allowed_tips = subm.problem.data_files.allowed_tips
+            allowed_tips = subm.problem.data_files.allowed_tips_for(subm.user)
             used = Submission.objects.filter(problem=subm.problem, user=subm.user, flag=True).count()
             if used >= allowed_tips:
                 error = _('You have no hint reveals left for this problem.')

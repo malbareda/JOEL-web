@@ -140,10 +140,12 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
         profile = request.profile
 
 
+        cost = profile.gacha_roll_cost
         gpoints = profile.points - profile.gacha_points
-        if gpoints < 5:
-            return generic_message(request, _('You don\'t have enough points'), _('You need 5 GachaPoints in order to make a gacha roll'))
-        profile.gacha_points+=5
+        if gpoints < cost:
+            return generic_message(request, _('You don\'t have enough points'),
+                                   _('You need %(points)s GachaPoints in order to make a gacha roll') % {'points': cost})
+        profile.gacha_points+=cost
         rand = random.random()
         if rand <0.65:
             items = Achievement.objects.filter(quality=1)
@@ -183,7 +185,7 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
             moregp = int(selach.name.split()[0])
             profile.gacha_points-=moregp
         elif repetits.count() > 1:
-            profile.gacha_points-=2.5
+            profile.gacha_points-=cost*profile.duplicate_refund_ratio
             repetit = 1
 
         profile.save()
@@ -316,6 +318,7 @@ class GachaResult(TitleMixin, UserMixin, DetailView):
         context['achdesc'] = ach.achievement.desc
         context['repetit'] = repetit
         context['mega_fanfare'] = ach.achievement.mega_fanfare
+        context['refund_percent'] = int(round(ach.user.duplicate_refund_ratio * 100))
 
         return context
 
@@ -449,7 +452,11 @@ class UserAboutPage(UserPage):
             'height': '%.3fem' % rating_progress(rating.rating),
         } for rating in ratings]))
 
-        context['stickers'] = self.object.achievements.filter(category=1).order_by('name').distinct()
+        # Super achievements (the mega_fanfare ones: "Dret a Crear Achievements", the cheaper gacha
+        # roll, the extra hint...) get their own glowing section at the top of the page, with their
+        # description, so they're left out of the plain sticker grid below to avoid showing twice.
+        context['super_achievements'] = self.object.achievements.filter(mega_fanfare=True).order_by('name').distinct()
+        context['stickers'] = self.object.achievements.filter(category=1, mega_fanfare=False).order_by('name').distinct()
 
         if ratings:
             user_data = self.object.ratings.aggregate(Min('rating'), Max('rating'))

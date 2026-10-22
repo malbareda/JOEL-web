@@ -4090,8 +4090,8 @@ msgid "You don't have enough points"
 msgstr "No tienes suficientes puntos"
 
 #: judge/views/user.py:145
-msgid "You need 5 GachaPoints in order to make a gacha roll"
-msgstr "Necesitas 5 GachaPoints para hacer una tirada de gacha"
+msgid "You need %(points)s GachaPoints in order to make a gacha roll"
+msgstr "Necesitas %(points)s GachaPoints para hacer una tirada de gacha"
 
 #: judge/views/user.py:246 judge/views/user.py:357
 msgid "My account"
@@ -4903,8 +4903,8 @@ msgstr "Puntos Disponibles"
 
 #: templates/gacha/gachago.html:40 templates/gacha/gachamain.html:40
 #: templates/gacha/gacharesult.html:960
-msgid "Use 5 GachaPoints"
-msgstr "Usa 5 GachaPoints"
+msgid "Use %(points)s GachaPoints"
+msgstr "Usa %(points)s GachaPoints"
 
 #: templates/gacha/gacharesult.html:864
 msgid "Bé... un més per la col·lecció."
@@ -5170,10 +5170,10 @@ msgstr "¡un Tema!"
 #, python-format
 msgid ""
 "Però estava repetit... Quina llàstima! Com que em sento generós, et torno un"
-" 50%% dels teus GachaPoints"
+" %(percent)s%% dels teus GachaPoints"
 msgstr ""
 "Pero estaba repetido... ¡Qué lástima! Como me siento generoso, te devuelvo "
-"un 50%% de tus GachaPoints"
+"un %(percent)s%% de tus GachaPoints"
 
 #: templates/institution/home.html:17
 #, python-format
@@ -7005,3 +7005,72 @@ msgstr "Perfil del administrador"
 #: templates/widgets/select_all.html:8
 msgid "Check all"
 msgstr "Seleccionar todo"
+
+#: judge/models/profile.py
+msgid "gacha discount"
+msgstr "descuento en el gacha"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement pays 4 GachaPoints per gacha roll instead of 5, "
+"permanently. Owning more than one copy (or more than one such achievement) "
+"does not stack."
+msgstr ""
+"Quien tenga este achievement paga 4 GachaPoints por tirada de gacha en "
+"lugar de 5, para siempre. Tener más de una copia (o más de un achievement así) "
+"no se acumula."
+
+#: judge/models/profile.py
+msgid "extra hint"
+msgstr "pista extra"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets one extra hint, permanently, on every "
+"problem that already allows at least one. Problems with no hints stay at "
+"zero. Owning more than one copy (or more than one such achievement) does "
+"not stack."
+msgstr ""
+"Quien tenga este achievement tiene una pista extra, para siempre, en cada "
+"problema que ya permita al menos una. Los problemas sin pistas siguen a "
+"cero. Tener más de una copia (o más de un achievement así) no se acumula."
+
+#: templates/user/user-about.html
+msgid "Super achievements"
+msgstr "Superachievements"
+
+#: judge/models/profile.py
+msgid "double daily bonus"
+msgstr "bonus diario doble"
+
+#: judge/models/profile.py
+msgid "duplicate insurance"
+msgstr "seguro antirrepetidos"
+
+#: judge/models/profile.py
+msgid "rainbow name"
+msgstr "nombre arcoíris"
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets twice the 'first new problem of the day' "
+"GachaPoints bonus, permanently. Does not stack."
+msgstr ""
+"Quien tenga este achievement recibe el doble del bonus de GachaPoints del "
+"primer problema nuevo del día, para siempre. No se acumula."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement gets back 80% of the roll cost on a duplicate "
+"gacha result instead of 50%, permanently. Does not stack."
+msgstr ""
+"Quien tenga este achievement recupera el 80% del coste de la tirada cuando le "
+"sale un repetido en el gacha, en lugar del 50%, para siempre. No se acumula."
+
+#: judge/models/profile.py
+msgid ""
+"Whoever owns this achievement has their username shown with an animated "
+"rainbow everywhere on the site. Does not stack."
+msgstr ""
+"Quien tenga este achievement tiene el nombre de usuario con un arcoíris "
+"animado en toda la web. No se acumula."

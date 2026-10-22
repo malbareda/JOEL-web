@@ -1,0 +1,57 @@
+{
+  "database": "lastnames",
+  "engine": "mysql",
+  "code_prefix": "sqllastnamesqt",
+  "author": "joanq",
+  "label": "Cognoms (freqüència de cada cognom com a primer i com a segon cognom) — exercicis migrats de QueryTest",
+  "problems": [
+    {
+      "code": "sqllastnamesqt01",
+      "name": "Lastnames QT — Test 1",
+      "type": "sqlselbasic",
+      "intro": "Consultes d'una sola taula (`LastNames`) amb `WHERE`, `DISTINCT`, `BETWEEN`, `IN` i condicions combinades.",
+      "questions": [
+        {
+          "text": "Mostra la freqüència com a primer cognom (`Freq1`) del cognom (`Name`) 'Puig'.",
+          "sql": "SELECT Freq1 FROM LastNames WHERE Name='Puig';"
+        },
+        {
+          "text": "Mostra totes les freqüències com a primer cognom (`Freq1`) que hi ha a `LastNames`, sense repeticions i ordenades de menor a major.",
+          "sql": "SELECT DISTINCT Freq1 FROM LastNames ORDER BY Freq1;"
+        },
+        {
+          "text": "Mostra el cognom (`Name`) i la seva freqüència com a primer cognom (`Freq1`) dels cognoms en què la freqüència com a primer cognom (`Freq1`) és idèntica a la freqüència com a segon cognom (`Freq2`). Ordena per `Freq1` de menor a major i, en cas d'empat, alfabèticament pel nom.",
+          "sql": "SELECT Name, Freq1 FROM LastNames WHERE Freq1=Freq2 ORDER BY Freq1, Name;"
+        },
+        {
+          "text": "Mostra el cognom (`Name`) i la seva freqüència com a primer cognom (`Freq1`) dels cognoms amb `Freq1` superior a 100000. Ordena alfabèticament pel nom.",
+          "sql": "SELECT Name, Freq1 FROM LastNames WHERE Freq1>100000 ORDER BY Name;"
+        },
+        {
+          "text": "Mostra el cognom (`Name`) i les seves freqüències com a primer (`Freq1`) i com a segon cognom (`Freq2`) dels cognoms que tenen una freqüència superior a 100000 com a primer cognom o com a segon. Ordena alfabèticament pel nom.",
+          "sql": "SELECT Name, Freq1, Freq2 FROM LastNames WHERE Freq1>100000 OR Freq2>100000 ORDER BY Name;"
+        },
+        {
+          "text": "Mostra els cognoms (`Name`) que, alfabèticament, es troben entre 'As' i 'Be'. Ordena'ls alfabèticament.",
+          "sql": "SELECT Name FROM LastNames WHERE Name BETWEEN 'As%' AND 'Be' ORDER BY Name;"
+        },
+        {
+          "text": "Mostra els cognoms (`Name`) que tenen una freqüència com a primer cognom (`Freq1`) entre 8500 i 9100, tots dos inclosos. Ordena'ls alfabèticament.",
+          "sql": "SELECT Name FROM LastNames WHERE Freq1 BETWEEN 8500 AND 9100 ORDER BY Name;"
+        },
+        {
+          "text": "Mostra el cognom (`Name`) i la seva freqüència com a primer cognom (`Freq1`) dels cognoms BONASTRA, MAURELL, BERNHARDT, CANCA, ALDUNATE, GRANYO, ALBERICH, CHALAR, DE AVILA i SOBRIN. Ordena per `Freq1` de menor a major.",
+          "sql": "SELECT Name, Freq1 FROM LastNames WHERE Name IN ('BONASTRA', 'MAURELL', 'BERNHARDT', 'CANCA', 'ALDUNATE', 'GRANYO', 'ALBERICH', 'CHALAR', 'DE AVILA', 'SOBRIN') ORDER BY Freq1;"
+        },
+        {
+          "text": "Mostra els cognoms (`Name`), ordenats alfabèticament, que compleixen almenys una d'aquestes condicions: el cognom és ARANDA o MASOLIVER; la freqüència com a primer cognom (`Freq1`) és entre 200 i 300 (inclosos); o la freqüència com a segon cognom (`Freq2`) és entre 300 i 400 (exclosos).",
+          "sql": "SELECT Name FROM LastNames WHERE (Name = 'ARANDA' OR Name = 'MASOLIVER') OR Freq1 BETWEEN 200 AND 300 OR Freq2 BETWEEN 301 AND 399 ORDER BY Name;"
+        },
+        {
+          "text": "Mostra els cognoms (`Name`), ordenats alfabèticament, que compleixen totes aquestes condicions: la freqüència com a primer cognom (`Freq1`) és superior a 10000 o inferior a 50; `Freq1` és superior a la freqüència com a segon cognom (`Freq2`); i el cognom no és ni MONEGRO ni HARDY.",
+          "sql": "SELECT Name FROM LastNames WHERE (Freq1>10000 OR Freq1<50) AND Freq1>Freq2 AND Name NOT IN ('MONEGRO', 'HARDY') ORDER BY Name;"
+        }
+      ]
+    }
+  ]
+}
