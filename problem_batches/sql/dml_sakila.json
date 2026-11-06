@@ -1,0 +1,179 @@
+{
+ "database": "sakila",
+ "engine": "mysql",
+ "code_prefix": "sqldmlsakila",
+ "label": "Sakila (videoclub: pel·lícules, actors, inventari, clients, lloguers i pagaments)",
+ "problems": [
+  {
+   "name": "Sakila — INSERT avançat",
+   "type": "sqlinsert",
+   "intro": "El videoclub Sakila amplia el catàleg i l'estoc: noves categories i ciutats, actors assignats a pel·lícules, exemplars nous a les botigues i cobraments. Cada pregunta és UN sol `INSERT` (també `INSERT ... SELECT`, `INSERT IGNORE`, `REPLACE` o `INSERT ... ON DUPLICATE KEY UPDATE`), independent de les altres, i és correcta si deixa la base de dades igual que la solució. Les claus foranes es busquen pel nom, sense escriure identificadors a mà quan l'enunciat ho diu. Les columnes AUTO_INCREMENT i `last_update` s'omplen soles.",
+   "questions": [
+    {
+     "text": "El videoclub obre dues seccions noves. Afegeix a `category` les categories `Anime` i `Western` (només el nom, `name`; l'identificador és automàtic) amb una sola sentència.",
+     "sql": "INSERT INTO category (name) VALUES ('Anime'), ('Western')",
+     "explain": "Un sol `INSERT` pot portar diverses files a `VALUES`, separades per comes. `category_id` és AUTO_INCREMENT i `last_update` té valor per defecte, així que només cal donar el nom."
+    },
+    {
+     "text": "Afegeix a `city` la ciutat `Sabadell` del país `Spain`. No escriguis el `country_id` a mà: busca'l a `country` pel nom del país.",
+     "sql": "INSERT INTO city (city, country_id) SELECT 'Sabadell', country_id FROM country WHERE country = 'Spain'",
+     "explain": "Amb `INSERT ... SELECT` el valor de la clau forana surt de la taula `country`; si el país no existís, no s'inseriria res en lloc de posar un identificador inventat."
+    },
+    {
+     "text": "L'actor `NICK` `WAHLBERG` (`first_name`, `last_name` a `actor`) també surt a la pel·lícula `ZORRO ARK` (`title` a `film`). Afegeix aquesta relació a `film_actor` buscant els dos identificadors pel nom, sense escriure cap número.",
+     "sql": "INSERT INTO film_actor (actor_id, film_id) SELECT a.actor_id, f.film_id FROM actor a, film f WHERE a.first_name = 'NICK' AND a.last_name = 'WAHLBERG' AND f.title = 'ZORRO ARK'",
+     "explain": "El producte de les dues taules filtrat pels noms dona exactament una fila (actor, pel·lícula). Compte amb noms repetits: hi ha dos actors `SUSAN DAVIS`, i amb aquest mètode s'inseririen dues files."
+    },
+    {
+     "text": "Els treballadors (`staff`) també poden llogar pel·lícules. Dona d'alta cada membre del personal com a client (`customer`) de la seva pròpia botiga, copiant de `staff` les columnes `store_id`, `first_name`, `last_name`, `email` i `address_id`. Posa `active` a 1 i `create_date` a `'2006-02-15 00:00:00'`. El `customer_id` és automàtic.",
+     "sql": "INSERT INTO customer (store_id, first_name, last_name, email, address_id, active, create_date) SELECT store_id, first_name, last_name, email, address_id, 1, '2006-02-15 00:00:00' FROM staff",
+     "explain": "`INSERT ... SELECT` copia files d'una taula a una altra; les columnes es fan correspondre per posició, no pel nom. Els valors fixos (`1`, la data) es posen directament al `SELECT`. La data va escrita explícitament per no dependre del rellotge."
+    },
+    {
+     "text": "Totes les pel·lícules que contenen `DRAGON` al títol (`title`) han de ser també de la categoria `Action`. Afegeix a `film_category` la parella (pel·lícula, categoria `Action`) per a cadascuna. Alguna ja hi és: fes servir `INSERT IGNORE` perquè la sentència no falli per clau duplicada i només afegeixi les que falten.",
+     "sql": "INSERT IGNORE INTO film_category (film_id, category_id) SELECT f.film_id, c.category_id FROM film f, category c WHERE f.title LIKE '%DRAGON%' AND c.name = 'Action'",
+     "explain": "La clau primària de `film_category` és (`film_id`, `category_id`). `DRAGON SQUAD` ja és d'Action, i un `INSERT` normal donaria error 1062 i no inseriria res; `INSERT IGNORE` converteix el duplicat en un avís i insereix les altres tres."
+    },
+    {
+     "text": "Els idiomes s'han de mostrar en el seu propi idioma. Amb `REPLACE`, deixa l'idioma amb `language_id` 2 amb el nom `Italiano` i crea l'idioma amb `language_id` 7 i nom `Català`.",
+     "sql": "REPLACE INTO language (language_id, name) VALUES (2, 'Italiano'), (7, 'Català')",
+     "explain": "`REPLACE` insereix la fila i, si ja n'hi ha una amb la mateixa clau, primer l'ESBORRA i després insereix la nova. Aquí funciona perquè cap pel·lícula fa servir l'idioma 2; amb l'idioma 1 (English) fallaria per la clau forana RESTRICT de `film`, i caldria `ON DUPLICATE KEY UPDATE`, que actualitza sense esborrar."
+    },
+    {
+     "text": "Arriba un fitxer del distribuïdor amb dues pel·lícules: `film_id` 1 (`ACADEMY DINOSAUR`, `language_id` 1, `rental_rate` 1.99) i `film_id` 1001 (`SABADELL NIGHTS`, `language_id` 1, `rental_rate` 2.99). Insereix-les amb aquests quatre valors (la resta de columnes amb el valor per defecte) i, si el `film_id` ja existeix, actualitza'n NOMÉS el `rental_rate`. Fes-ho amb `INSERT ... ON DUPLICATE KEY UPDATE`.",
+     "sql": "INSERT INTO film (film_id, title, language_id, rental_rate) VALUES (1, 'ACADEMY DINOSAUR', 1, 1.99), (1001, 'SABADELL NIGHTS', 1, 2.99) ON DUPLICATE KEY UPDATE rental_rate = VALUES(rental_rate)",
+     "explain": "La pel·lícula 1 ja existeix i només li canvia el preu; la 1001 és nova. `REPLACE` no serviria: esborraria la 1, que té actors, exemplars i categoria (RESTRICT). Fixa't que el trigger `ins_film` de Sakila afegeix automàticament la nova pel·lícula a `film_text`. El `film_id` 1001 es dona explícit perquè el resultat sigui sempre el mateix."
+    },
+    {
+     "text": "La botiga 2 vol tenir totes les pel·lícules de la categoria `Animation`. Afegeix a `inventory` un exemplar a la botiga 2 (`store_id` 2) de cada pel·lícula d'`Animation` que encara no en té cap a la botiga 2.",
+     "sql": "INSERT INTO inventory (film_id, store_id) SELECT fc.film_id, 2 FROM film_category fc JOIN category c ON c.category_id = fc.category_id WHERE c.name = 'Animation' AND NOT EXISTS (SELECT 1 FROM inventory i WHERE i.film_id = fc.film_id AND i.store_id = 2)",
+     "explain": "Es parteix de les pel·lícules de la categoria i el `NOT EXISTS` descarta les que ja tenen algun exemplar a la botiga 2 (n'hi ha 9 que no en tenen). Sense el filtre `store_id = 2` dins la subconsulta, també es descartarien les que només tenen còpies a la botiga 1."
+    },
+    {
+     "text": "Cobra la pèrdua dels exemplars no retornats. Per a cada lloguer (`rental`) amb `return_date` NULL, insereix un pagament a `payment` amb el client (`customer_id`) i el treballador (`staff_id`) del lloguer, el `rental_id` del lloguer, com a import (`amount`) el cost de reposició (`replacement_cost`) de la pel·lícula llogada i com a `payment_date` `'2006-02-15 00:00:00'`.",
+     "sql": "INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date) SELECT r.customer_id, r.staff_id, r.rental_id, f.replacement_cost, '2006-02-15 00:00:00' FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id JOIN film f ON f.film_id = i.film_id WHERE r.return_date IS NULL",
+     "explain": "Per arribar del lloguer al preu cal passar per `inventory` (l'exemplar) fins a `film`. Cada lloguer pendent genera exactament un pagament (183 files). La condició és `IS NULL`, no `= NULL`."
+    },
+    {
+     "text": "Reforç d'estoc: compta quantes vegades s'ha llogat cada pel·lícula (lloguers de `rental`, de qualsevol exemplar i botiga) i afegeix a `inventory` un exemplar nou a la botiga 1 de les 10 pel·lícules més llogades. En cas d'empat en el nombre de lloguers, tenen preferència les de `film_id` més petit.",
+     "sql": "INSERT INTO inventory (film_id, store_id) SELECT i.film_id, 1 FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id GROUP BY i.film_id ORDER BY COUNT(*) DESC, i.film_id LIMIT 10",
+     "explain": "`INSERT ... SELECT` admet `GROUP BY`, `ORDER BY` i `LIMIT`. Com que hi ha empats (diverses pel·lícules amb 32 o 31 lloguers), el desempat per `film_id` és imprescindible perquè les 10 escollides siguin sempre les mateixes."
+    }
+   ]
+  },
+  {
+   "name": "Sakila — UPDATE amb JOIN i subconsultes",
+   "type": "sqlupdate",
+   "intro": "El videoclub revisa preus, durades, lloguers pendents i pagaments. Cada pregunta és UN sol `UPDATE`, independent de les altres: `UPDATE` multitaula amb `JOIN`, subconsultes correlacionades, `CASE` amb trams, `ORDER BY ... LIMIT`, funcions de dates (`DATE_ADD`, `DATEDIFF`) i de text. La columna `last_update` s'actualitza sola i no cal tocar-la.",
+   "questions": [
+    {
+     "text": "El videoclub canvia de domini de correu. Als clients (`customer`) de la botiga 1 (`store_id` 1), substitueix a l'`email` el text `@sakilacustomer.org` per `@videoclub.cat`.",
+     "sql": "UPDATE customer SET email = REPLACE(email, '@sakilacustomer.org', '@videoclub.cat') WHERE store_id = 1",
+     "explain": "La funció de text `REPLACE(text, buscat, nou)` (no confondre amb la sentència `REPLACE`) canvia només el tros de text indicat i deixa intacta la part del nom."
+    },
+    {
+     "text": "Nous preus per durada per a les pel·lícules de classificació (`rating`) `PG-13`: el `rental_rate` passa a ser 0.99 si la durada (`length`) és inferior a 60 minuts, 2.99 si és de 60 a 119 minuts, i 4.99 si és de 120 minuts o més.",
+     "sql": "UPDATE film SET rental_rate = CASE WHEN length < 60 THEN 0.99 WHEN length < 120 THEN 2.99 ELSE 4.99 END WHERE rating = 'PG-13'",
+     "explain": "Un `CASE` amb trams retorna un valor diferent per a cada fila. Les branques s'avaluen en ordre, de manera que el segon `WHEN` ja sap que `length >= 60`."
+    },
+    {
+     "text": "Les novetats es lloguen més cares: augmenta en 1.00 el `rental_rate` de totes les pel·lícules de la categoria `New` (`name` a `category`). Fes-ho amb un `UPDATE` multitaula amb `JOIN`.",
+     "sql": "UPDATE film f JOIN film_category fc ON fc.film_id = f.film_id JOIN category c ON c.category_id = fc.category_id SET f.rental_rate = f.rental_rate + 1.00 WHERE c.name = 'New'",
+     "explain": "A MySQL l'`UPDATE` pot unir diverses taules i modificar només les columnes de la que interessa (`f.rental_rate`). Les altres taules serveixen per filtrar."
+    },
+    {
+     "text": "Les 5 pel·lícules més llargues (`length`) són les que més costa reposar: augmenta en 5.00 el seu `replacement_cost`. Si hi ha empat de durada, tenen preferència les de `film_id` més petit.",
+     "sql": "UPDATE film SET replacement_cost = replacement_cost + 5.00 ORDER BY length DESC, film_id LIMIT 5",
+     "explain": "`UPDATE ... ORDER BY ... LIMIT` només es pot fer amb una sola taula (en un `UPDATE` multitaula dona error). Hi ha 10 pel·lícules de 185 minuts, així que sense el desempat per `film_id` no es podria saber quines 5 es modifiquen."
+    },
+    {
+     "text": "Tanca els lloguers pendents: per a cada lloguer (`rental`) amb `return_date` NULL, posa com a `return_date` la data de lloguer (`rental_date`) més tants dies com el `rental_duration` de la pel·lícula llogada (cal passar per `inventory` per arribar a `film`).",
+     "sql": "UPDATE rental r JOIN inventory i ON i.inventory_id = r.inventory_id JOIN film f ON f.film_id = i.film_id SET r.return_date = DATE_ADD(r.rental_date, INTERVAL f.rental_duration DAY) WHERE r.return_date IS NULL",
+     "explain": "`DATE_ADD(data, INTERVAL n DAY)` admet una columna com a `n`, de manera que cada lloguer rep la seva pròpia data segons la pel·lícula. L'hora de `rental_date` es conserva."
+    },
+    {
+     "text": "Marca com a inactius (`active` = 0) els clients (`customer`) l'últim lloguer dels quals (`rental_date` més recent a `rental`) és anterior al `'2005-08-20'`. Fes servir una subconsulta correlacionada.",
+     "sql": "UPDATE customer c SET active = 0 WHERE (SELECT MAX(r.rental_date) FROM rental r WHERE r.customer_id = c.customer_id) < '2005-08-20'",
+     "explain": "La subconsulta es calcula per a cada client (correlacionada per `customer_id`) i retorna la data del seu darrer lloguer. Tots els clients tenen lloguers, així que no hi ha cap `MAX` nul."
+    },
+    {
+     "text": "Ajusta la durada de lloguer de les pel·lícules de la categoria `Travel` a la realitat: el `rental_duration` de cada una ha de ser la mitjana, arrodonida amb `ROUND` a enter, dels dies (`DATEDIFF(return_date, rental_date)`) que han durat els seus lloguers ja retornats. Modifica només les pel·lícules `Travel` que tenen almenys un lloguer retornat.",
+     "sql": "UPDATE film f JOIN film_category fc ON fc.film_id = f.film_id JOIN category c ON c.category_id = fc.category_id SET f.rental_duration = (SELECT ROUND(AVG(DATEDIFF(r.return_date, r.rental_date))) FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id WHERE i.film_id = f.film_id AND r.return_date IS NOT NULL) WHERE c.name = 'Travel' AND EXISTS (SELECT 1 FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id WHERE i.film_id = f.film_id AND r.return_date IS NOT NULL)",
+     "explain": "La subconsulta correlacionada del `SET` calcula un valor per pel·lícula. L'`EXISTS` del `WHERE` evita les pel·lícules sense lloguers retornats: per a elles la mitjana seria NULL i `rental_duration` no admet NULL."
+    },
+    {
+     "text": "Augmenta en 0.50 el `rental_rate` de les pel·lícules de classificació (`rating`) `G` que duren més (`length`) que la durada mitjana de TOTES les pel·lícules. Compte: a MySQL, una subconsulta sobre `film` dins d'un `UPDATE film` dona l'error 1093; escriu-la de manera que funcioni també a MySQL.",
+     "sql": "UPDATE film SET rental_rate = rental_rate + 0.50 WHERE rating = 'G' AND length > (SELECT m FROM (SELECT AVG(length) AS m FROM film) t)",
+     "explain": "MySQL no deixa llegir la mateixa taula que s'està modificant (error 1093, \"You can't specify target table 'film' for update in FROM clause\"). Embolcallar la subconsulta en una taula derivada `(SELECT ...) t` obliga a calcular-la abans (es materialitza) i l'error desapareix. MariaDB (el servidor del corrector) també accepta la versió directa, però la forma amb taula derivada és la portable."
+    },
+    {
+     "text": "Preus segons popularitat per a la categoria `Comedy`: compta els lloguers (`rental`) de cada pel·lícula (de tots els seus exemplars) i posa el `rental_rate` a 4.99 si en té 25 o més, a 2.99 si en té de 15 a 24, i a 0.99 si en té menys de 15. Modifica només les pel·lícules `Comedy` que s'han llogat almenys una vegada. Fes servir un `JOIN` amb una taula derivada que faci el recompte.",
+     "sql": "UPDATE film f JOIN film_category fc ON fc.film_id = f.film_id JOIN category c ON c.category_id = fc.category_id JOIN (SELECT i.film_id, COUNT(*) AS n FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id GROUP BY i.film_id) t ON t.film_id = f.film_id SET f.rental_rate = CASE WHEN t.n >= 25 THEN 4.99 WHEN t.n >= 15 THEN 2.99 ELSE 0.99 END WHERE c.name = 'Comedy'",
+     "explain": "La taula derivada calcula una sola vegada el nombre de lloguers per pel·lícula i el `JOIN` la uneix amb cada pel·lícula; les que no s'han llogat mai no hi surten i no es modifiquen. El `CASE` aplica els trams."
+    },
+    {
+     "text": "Recàrrec per retard: per als lloguers fets abans del `'2005-05-28'` (`rental_date`) que es van retornar tard, és a dir, amb `DATEDIFF(return_date, rental_date)` més gran que el `rental_duration` de la pel·lícula, suma a l'import (`amount`) dels seus pagaments (`payment`) 0.50 per cada dia de retard (dies de lloguer menys `rental_duration`).",
+     "sql": "UPDATE payment p JOIN rental r ON r.rental_id = p.rental_id JOIN inventory i ON i.inventory_id = r.inventory_id JOIN film f ON f.film_id = i.film_id SET p.amount = p.amount + 0.50 * (DATEDIFF(r.return_date, r.rental_date) - f.rental_duration) WHERE r.rental_date < '2005-05-28' AND DATEDIFF(r.return_date, r.rental_date) > f.rental_duration",
+     "explain": "Es modifica `payment` però la condició i el càlcul depenen de `rental` i de `film`: un `UPDATE` de quatre taules. `DATEDIFF` compta dies de calendari (ignora l'hora)."
+    }
+   ]
+  },
+  {
+   "name": "Sakila — DELETE",
+   "type": "sqldelete",
+   "intro": "El videoclub fa neteja. A Sakila gairebé totes les claus foranes són RESTRICT (no es pot esborrar una fila que altres taules fan servir), excepte `payment.rental_id`, que és `ON DELETE SET NULL`. Cada pregunta és UN sol `DELETE`, independent de les altres: rangs i patrons, `NOT IN` i `NOT EXISTS`, `DELETE` multitaula amb `JOIN` i `DELETE ... ORDER BY ... LIMIT`.",
+   "questions": [
+    {
+     "text": "Anul·la els cobraments petits de febrer de 2006: esborra de `payment` els pagaments amb `payment_date` a partir del `'2006-02-01'` i import (`amount`) inferior a 1.",
+     "sql": "DELETE FROM payment WHERE payment_date >= '2006-02-01' AND amount < 1",
+     "explain": "Un `DELETE` amb un rang de dates i una condició numèrica. `payment` no té cap taula que hi apunti, així que es pot esborrar lliurement."
+    },
+    {
+     "text": "Es refà el repartiment de les pel·lícules de dinosaures: esborra de `film_actor` totes les files de les pel·lícules que contenen `DINOSAUR` al títol (`title` de `film`).",
+     "sql": "DELETE FROM film_actor WHERE film_id IN (SELECT film_id FROM film WHERE title LIKE '%DINOSAUR%')",
+     "explain": "El patró `LIKE '%DINOSAUR%'` troba el text en qualsevol posició del títol. S'esborren les relacions actor-pel·lícula, no les pel·lícules ni els actors."
+    },
+    {
+     "text": "Esborra de `inventory` els exemplars que no s'han llogat mai (que no surten a cap fila de `rental`). Fes servir `NOT IN`.",
+     "sql": "DELETE FROM inventory WHERE inventory_id NOT IN (SELECT inventory_id FROM rental)",
+     "explain": "Un exemplar llogat no es pot esborrar (la clau forana de `rental` és RESTRICT), però un que no s'ha llogat mai no té dependències. `rental.inventory_id` no pot ser NULL, així que aquí `NOT IN` és segur."
+    },
+    {
+     "text": "Neteja de ciutats: esborra de `city` les ciutats que no tenen cap adreça (`address`). Fes servir `NOT EXISTS`.",
+     "sql": "DELETE FROM city WHERE NOT EXISTS (SELECT 1 FROM address a WHERE a.city_id = city.city_id)",
+     "explain": "Les ciutats amb adreces no es poden esborrar (RESTRICT); el `NOT EXISTS` correlacionat tria precisament les que no tenen cap dependència."
+    },
+    {
+     "text": "Esborra de `language` els idiomes que cap pel·lícula fa servir, ni com a idioma (`film.language_id`) ni com a idioma original (`film.original_language_id`). Atenció: `original_language_id` és NULL a totes les pel·lícules.",
+     "sql": "DELETE FROM language WHERE NOT EXISTS (SELECT 1 FROM film f WHERE f.language_id = language.language_id OR f.original_language_id = language.language_id)",
+     "explain": "Parany del `NOT IN` amb NULL: `language_id NOT IN (SELECT original_language_id FROM film)` no és mai cert si la llista conté algun NULL (la comparació amb NULL és desconeguda), i no s'esborraria res. Amb `NOT EXISTS` no passa. Esborrar idiomes usats fallaria per la clau forana RESTRICT."
+    },
+    {
+     "text": "La clienta `MARY` `SMITH` (`first_name`, `last_name` de `customer`) reclama: esborra els seus 5 pagaments (`payment`) d'import (`amount`) més petit. En cas d'empat d'import, primer els de `payment_id` més petit.",
+     "sql": "DELETE FROM payment WHERE customer_id = (SELECT customer_id FROM customer WHERE first_name = 'MARY' AND last_name = 'SMITH') ORDER BY amount, payment_id LIMIT 5",
+     "explain": "`DELETE ... ORDER BY ... LIMIT` (només d'una taula) esborra les primeres files segons l'ordre. MARY SMITH té molts pagaments de 0.99, i el desempat per `payment_id` fixa quins 5 cauen."
+    },
+    {
+     "text": "Retira els repartiments de les pel·lícules curtes de terror: esborra de `film_actor` les files de les pel·lícules de la categoria `Horror` que duren (`length`) menys de 60 minuts. Fes-ho amb un `DELETE` multitaula amb `JOIN`.",
+     "sql": "DELETE fa FROM film_actor fa JOIN film f ON f.film_id = fa.film_id JOIN film_category fc ON fc.film_id = f.film_id JOIN category c ON c.category_id = fc.category_id WHERE c.name = 'Horror' AND f.length < 60",
+     "explain": "A `DELETE fa FROM ... JOIN ...` només s'esborra de les taules escrites abans del `FROM` (aquí `fa`); les altres serveixen per filtrar."
+    },
+    {
+     "text": "Els lloguers de febrer de 2006 no retornats es consideren un error de càrrega: esborra de `rental` els lloguers amb `rental_date` a partir del `'2006-02-01'` i `return_date` NULL. Els seus pagaments NO s'han d'esborrar.",
+     "sql": "DELETE FROM rental WHERE rental_date >= '2006-02-01' AND return_date IS NULL",
+     "explain": "Tot i que `payment` apunta a `rental`, aquesta clau forana és `ON DELETE SET NULL`: en esborrar el lloguer, el pagament es conserva i el seu `rental_id` passa a NULL automàticament. Per això el `DELETE` funciona i la taula `payment` també canvia. Amb RESTRICT (la resta de claus de Sakila) fallaria."
+    },
+    {
+     "text": "La pel·lícula `ACADEMY DINOSAUR` (`title`) ha tingut un problema amb els lloguers: esborra, amb UNA sola sentència `DELETE` multitaula, tots els seus lloguers (`rental`, a través d'`inventory`) i també tots els pagaments (`payment`) d'aquests lloguers.",
+     "sql": "DELETE r, p FROM rental r JOIN inventory i ON i.inventory_id = r.inventory_id JOIN film f ON f.film_id = i.film_id LEFT JOIN payment p ON p.rental_id = r.rental_id WHERE f.title = 'ACADEMY DINOSAUR'",
+     "explain": "Un `DELETE` multitaula pot esborrar de diverses taules alhora (`DELETE r, p`). Si només s'esborrés `rental`, els pagaments quedarien amb `rental_id` NULL per la regla SET NULL. El `LEFT JOIN` fa que també s'esborrin els lloguers que no tinguessin pagament."
+    },
+    {
+     "text": "Per als clients amb `customer_id` de 1 a 3, esborra de `payment` els pagaments l'import (`amount`) dels quals és inferior a la mitjana dels pagaments del mateix client. Calcula les mitjanes amb una taula derivada unida amb `JOIN` (així funciona també a MySQL, on una subconsulta sobre `payment` dins d'un `DELETE FROM payment` dona l'error 1093).",
+     "sql": "DELETE p FROM payment p JOIN (SELECT customer_id, AVG(amount) AS m FROM payment GROUP BY customer_id) t ON t.customer_id = p.customer_id WHERE p.customer_id BETWEEN 1 AND 3 AND p.amount < t.m",
+     "explain": "La taula derivada `t` es calcula sencera abans d'esborrar res, de manera que les mitjanes són les originals i no canvien a mesura que desapareixen files (n'han de caure 42). Compte: si la mateixa taula derivada es posa DINS d'una subconsulta correlacionada del `WHERE` (`amount < (SELECT m FROM (SELECT ...) t WHERE t.customer_id = payment.customer_id)`), MariaDB la pot recalcular mentre esborra: en treure pagaments petits la mitjana puja i s'acaben esborrant més files (49)."
+    }
+   ]
+  }
+ ]
+}

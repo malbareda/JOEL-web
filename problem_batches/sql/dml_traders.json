@@ -1,0 +1,179 @@
+{
+ "database": "traders",
+ "engine": "mysql",
+ "code_prefix": "sqldmltraders",
+ "label": "Traders (comerciants espacials: planetes, naus, productes, preus i transaccions)",
+ "problems": [
+  {
+   "name": "Traders — INSERT avançat",
+   "type": "sqlinsert",
+   "intro": "La Federació Comercial de la galàxia posa al dia el seu registre: nous productes al catàleg, naus que arriben a la drassana, estades i operacions dels comerciants i tarifes de preus. Cada pregunta és una sola sentència `INSERT` (també valen `INSERT ... SELECT`, `INSERT IGNORE`, `REPLACE` i `INSERT ... ON DUPLICATE KEY UPDATE`) i es corregeix comparant el contingut final de totes les taules amb el de la solució. Quan no s'indica cap `Id`, deixa que el generi l'`AUTO_INCREMENT`. Recorda que totes les claus foranes són `RESTRICT` i que hi ha claus úniques (per exemple `Ships`.`Name` o la terna `Date`, `ProductId`, `PlanetId` de `PriceChanges`).",
+   "questions": [
+    {
+     "text": "Dona d'alta a `Products` tres productes nous amb una sola sentència: 'Quantum Saffron', 'Ion Pepper' i 'Nebula Honey'. No indiquis l'`Id`: el genera l'`AUTO_INCREMENT`.",
+     "sql": "INSERT INTO `Products` (`Name`) VALUES ('Quantum Saffron'), ('Ion Pepper'), ('Nebula Honey')",
+     "explain": "Un sol `INSERT` pot portar diverses tuples separades per comes després de `VALUES`. Com que només s'indica la columna `Name`, l'`Id` el posa l'`AUTO_INCREMENT`."
+    },
+    {
+     "text": "Registra a `Stays` una estada nova del comerciant amb `Nickname` 'Mime' al planeta 'Pasnillon', amb `StartDate` '2390-01-10' i `EndDate` '2390-06-30'. Obtén el `TraderId` i el `PlanetId` a partir dels noms (no els escriguis a mà).",
+     "sql": "INSERT INTO `Stays` (`StartDate`, `TraderId`, `EndDate`, `PlanetId`) SELECT '2390-01-10', t.`Id`, '2390-06-30', p.`Id` FROM `Traders` t JOIN `Planets` p ON p.`Name` = 'Pasnillon' WHERE t.`Nickname` = 'Mime'",
+     "explain": "Les claus foranes es poden buscar amb subconsultes escalars dins de `VALUES` o bé amb un `INSERT ... SELECT` que combini `Traders` i `Planets` filtrant cadascuna pel seu nom: el `SELECT` retorna exactament una fila."
+    },
+    {
+     "text": "La Federació convoca una assemblea al planeta 'Cretestea'. Registra a `Stays` una estada per a cada comerciant que no té `DeceaseDate` (és a dir, `DeceaseDate` és NULL), amb `StartDate` '2400-01-01', `EndDate` '2400-01-15' i el `PlanetId` de 'Cretestea'.",
+     "sql": "INSERT INTO `Stays` (`StartDate`, `TraderId`, `EndDate`, `PlanetId`) SELECT '2400-01-01', t.`Id`, '2400-01-15', p.`Id` FROM `Traders` t CROSS JOIN `Planets` p WHERE t.`DeceaseDate` IS NULL AND p.`Name` = 'Cretestea'",
+     "explain": "`INSERT ... SELECT` insereix una fila per cada fila del `SELECT`: aquí, una per comerciant viu (11). El planeta és fix i es pot obtenir amb un `CROSS JOIN` filtrat o amb una subconsulta escalar."
+    },
+    {
+     "text": "Arriben tres naus a la drassana: ('Phoenix', 'Fighter', 8), ('Star Wanderer', 'Cargo ship', 220) i ('Comet Tail', 'Spaceship', 12), amb les columnes `Name`, `Type` i `Capacity`. Ja hi ha una nau que es diu 'Phoenix' (`Name` és clau única): aquesta fila s'ha de quedar exactament com està i només s'han d'afegir les altres dues, amb una sola sentència que no doni error.",
+     "sql": "INSERT IGNORE INTO `Ships` (`Name`, `Type`, `Capacity`) VALUES ('Phoenix', 'Fighter', 8), ('Star Wanderer', 'Cargo ship', 220), ('Comet Tail', 'Spaceship', 12)",
+     "explain": "`INSERT IGNORE` converteix l'error de clau duplicada en un avís i descarta només la fila conflictiva. Un `ON DUPLICATE KEY UPDATE` que no canvia res (`Name = Name`) fa el mateix; en canvi, actualitzar la capacitat modificaria la 'Phoenix' existent."
+    },
+    {
+     "text": "Registra al planeta 'Cretestea' (`PlanetId` 1) els preus del dia '2200-03-29': producte 17 ('Venom Chicory') a 2250.00 i producte 13 ('Snowy Petal') a 980.50. Si ja existeix un preu per a aquella data, producte i planeta (clau única), cal sobreescriure'n `NewPrice` mantenint l'`Id` de la fila existent; si no existeix, s'insereix una fila nova.",
+     "sql": "INSERT INTO `PriceChanges` (`Date`, `ProductId`, `PlanetId`, `NewPrice`) VALUES ('2200-03-29', 17, 1, 2250.00), ('2200-03-29', 13, 1, 980.50) ON DUPLICATE KEY UPDATE `NewPrice` = VALUES(`NewPrice`)",
+     "explain": "`ON DUPLICATE KEY UPDATE` actualitza la fila que ja té la mateixa clau única i `VALUES(col)` hi posa el valor que s'intentava inserir. Un `REPLACE` no serveix: esborra la fila antiga i n'insereix una de nova, i per tant el preu del producte 17 perdria el seu `Id` original."
+    },
+    {
+     "text": "La nau amb `Id` 31 ('CS Firebrand') no té cap propietari i ha estat reconstruïda: substitueix la seva fila sencera per `Name` 'CS Firebrand II', `Type` 'Cargo ship' i `Capacity` 140 (mateix `Id`). En la mateixa sentència, dona d'alta la nau amb `Id` 128, `Name` 'Iron Pelican', `Type` 'Cargo ship' i `Capacity` 180. Fes-ho amb `REPLACE`.",
+     "sql": "REPLACE INTO `Ships` (`Id`, `Name`, `Type`, `Capacity`) VALUES (31, 'CS Firebrand II', 'Cargo ship', 140), (128, 'Iron Pelican', 'Cargo ship', 180)",
+     "explain": "`REPLACE` funciona com un `INSERT`, però si la fila xoca amb una clau primària o única existent, primer l'esborra i després insereix la nova. Per això cal indicar l'`Id` 31; sense l'`Id` s'afegirien dues naus noves. Només funciona perquè la nau 31 no té files a `ShipOwners`: amb fills, l'esborrat implícit fallaria per la clau forana `RESTRICT`."
+    },
+    {
+     "text": "Per a cada estada del comerciant amb `Nickname` 'Cyclone' que tingui almenys una compra (`Type` 'Buy'), registra a `Trades` una venda (`Type` 'Sell') amb `DateTime` igual a la `EndDate` de l'estada a les 12:00:00 i `Total` igual a la suma dels `Total` de les compres d'aquella estada multiplicada per 1.15, arrodonida a 2 decimals.",
+     "sql": "INSERT INTO `Trades` (`StayId`, `DateTime`, `Type`, `Total`) SELECT s.`Id`, TIMESTAMP(s.`EndDate`, '12:00:00'), 'Sell', ROUND(SUM(t.`Total`) * 1.15, 2) FROM `Stays` s JOIN `Traders` tr ON tr.`Id` = s.`TraderId` JOIN `Trades` t ON t.`StayId` = s.`Id` WHERE tr.`Nickname` = 'Cyclone' AND t.`Type` = 'Buy' GROUP BY s.`Id`, s.`EndDate`",
+     "explain": "El `GROUP BY` per estada genera una fila per estada amb compres, i `SUM` acumula només les files de tipus 'Buy' gràcies al `WHERE`. MySQL permet llegir de la mateixa taula on s'insereix en un `INSERT ... SELECT` (materialitza el resultat abans d'inserir)."
+    },
+    {
+     "text": "Totes les naus de tipus 'Fighter' que no tenen cap registre a `ShipOwners` passen a ser del comerciant amb `Nickname` 'Panther'. Insereix a `ShipOwners` una fila per a cadascuna amb `AcquisitionDate` '2390-05-01' i `AcquisitionPrice` = `Capacity` de la nau multiplicada per 1500. Indica només les columnes `ShipId`, `TraderId`, `AcquisitionDate` i `AcquisitionPrice` (la resta, valor per defecte).",
+     "sql": "INSERT INTO `ShipOwners` (`ShipId`, `TraderId`, `AcquisitionDate`, `AcquisitionPrice`) SELECT s.`Id`, t.`Id`, '2390-05-01', s.`Capacity` * 1500 FROM `Ships` s JOIN `Traders` t ON t.`Nickname` = 'Panther' WHERE s.`Type` = 'Fighter' AND NOT EXISTS (SELECT 1 FROM `ShipOwners` o WHERE o.`ShipId` = s.`Id`)",
+     "explain": "`NOT EXISTS` (o un `LEFT JOIN ... IS NULL`) selecciona les naus sense propietari. Les columnes no indicades prenen el valor per defecte: `AcquisitionCause` 'Bought', `LostDate` NULL, `LostBenefit` 0 i `LostCause` ''."
+    },
+    {
+     "text": "Fixa una tarifa de referència al planeta 'Cretestea' per al '2501-01-01': per a cada producte que tingui almenys 400 canvis de preu registrats en planetes del sistema solar 'Cailt', insereix a `PriceChanges` una fila amb aquest `Date`, el `ProductId`, el `PlanetId` de 'Cretestea' i `NewPrice` = la mitjana dels preus (`NewPrice`) d'aquell producte als planetes de 'Cailt', arrodonida a 2 decimals.",
+     "sql": "INSERT INTO `PriceChanges` (`Date`, `ProductId`, `PlanetId`, `NewPrice`) SELECT '2501-01-01', pc.`ProductId`, (SELECT `Id` FROM `Planets` WHERE `Name` = 'Cretestea'), ROUND(AVG(pc.`NewPrice`), 2) FROM `PriceChanges` pc JOIN `Planets` p ON p.`Id` = pc.`PlanetId` JOIN `SolarSystems` ss ON ss.`Id` = p.`SystemId` WHERE ss.`Name` = 'Cailt' GROUP BY pc.`ProductId` HAVING COUNT(*) >= 400",
+     "explain": "Tres taules unides (`PriceChanges`, `Planets`, `SolarSystems`) per quedar-se amb els preus de 'Cailt', `GROUP BY` per producte, `HAVING` per filtrar els grups i `ROUND(AVG(...), 2)` per al preu. Surten 5 productes."
+    },
+    {
+     "text": "A totes les compres (`Type` 'Buy') de les estades del comerciant amb `Nickname` 'Nix' s'hi afegeixen 25 unitats del producte 'Worm Celery'. Si l'operació ja té una línia (`TradeLines`) d'aquest producte (clau única `ProductId`, `TradeId`), suma 25 a la seva `Quantity` i deixa el preu com està; si no en té, crea la línia amb `UnitPrice` 40000.00 i `Quantity` 25. Una sola sentència.",
+     "sql": "INSERT INTO `TradeLines` (`ProductId`, `TradeId`, `UnitPrice`, `Quantity`) SELECT p.`Id`, t.`Id`, 40000.00, 25 FROM `Trades` t JOIN `Stays` s ON s.`Id` = t.`StayId` JOIN `Traders` tr ON tr.`Id` = s.`TraderId` JOIN `Products` p ON p.`Name` = 'Worm Celery' WHERE tr.`Nickname` = 'Nix' AND t.`Type` = 'Buy' ON DUPLICATE KEY UPDATE `Quantity` = `TradeLines`.`Quantity` + 25",
+     "explain": "`INSERT ... SELECT` combinat amb `ON DUPLICATE KEY UPDATE`: de les 7 compres de 'Nix', 2 ja tenen línia de 'Worm Celery' (s'hi sumen 25 unitats) i 5 no (es creen). A la part `UPDATE`, `Quantity` és el valor actual de la fila existent i `VALUES(Quantity)` el que s'intentava inserir."
+    }
+   ]
+  },
+  {
+   "name": "Traders — UPDATE amb JOIN i subconsultes",
+   "type": "sqlupdate",
+   "intro": "La Federació Comercial revisa els registres: paga assegurances, allarga estades, ajusta preus segons el sistema solar i la distància, reclassifica naus i recalcula totals d'operacions. Cada pregunta és una sola sentència `UPDATE` (pot ser multitaula, amb `JOIN`, o amb subconsultes) i es corregeix comparant el contingut final de totes les taules amb el de la solució. Quan es demana arrodonir, fes-ho amb `ROUND(..., 2)` si no es diu el contrari.",
+   "questions": [
+    {
+     "text": "L'asseguradora paga les naus destruïdes: als registres de `ShipOwners` amb `LostCause` 'Destroyed' i `AcquisitionCause` 'Bought', posa `LostBenefit` = el 40% d'`AcquisitionPrice`, arrodonit a 2 decimals.",
+     "sql": "UPDATE `ShipOwners` SET `LostBenefit` = ROUND(`AcquisitionPrice` * 0.40, 2) WHERE `LostCause` = 'Destroyed' AND `AcquisitionCause` = 'Bought'",
+     "explain": "El nou valor es calcula a partir d'una altra columna de la mateixa fila. Un 40% és multiplicar per 0.40, no per 0.04."
+    },
+    {
+     "text": "Les estades (`Stays`) en planetes dels sistemes solars 'Ichua' i 'Exax' que van començar el '2350-01-01' o més tard s'allarguen exactament 30 dies: suma 30 dies a la seva `EndDate`.",
+     "sql": "UPDATE `Stays` SET `EndDate` = DATE_ADD(`EndDate`, INTERVAL 30 DAY) WHERE `StartDate` >= '2350-01-01' AND `PlanetId` IN (SELECT p.`Id` FROM `Planets` p JOIN `SolarSystems` ss ON ss.`Id` = p.`SystemId` WHERE ss.`Name` IN ('Ichua', 'Exax'))",
+     "explain": "La subconsulta `IN` tradueix noms de sistemes a identificadors de planeta. `INTERVAL 30 DAY` no és el mateix que `INTERVAL 1 MONTH`: els mesos tenen 28, 29, 30 o 31 dies."
+    },
+    {
+     "text": "Crisi al sistema solar 'Vrauddact': rebaixa un 15% tots els preus de `PriceChanges` amb `Date` igual o posterior a '2490-01-01' registrats en planetes d'aquest sistema (nou preu = 85% de l'actual, arrodonit a 2 decimals). Fes-ho amb un `UPDATE` multitaula amb `JOIN`.",
+     "sql": "UPDATE `PriceChanges` pc JOIN `Planets` p ON p.`Id` = pc.`PlanetId` JOIN `SolarSystems` ss ON ss.`Id` = p.`SystemId` SET pc.`NewPrice` = ROUND(pc.`NewPrice` * 0.85, 2) WHERE ss.`Name` = 'Vrauddact' AND pc.`Date` >= '2490-01-01'",
+     "explain": "En un `UPDATE` multitaula es posen les taules unides abans de `SET` i es qualifica la columna que es modifica (`pc.NewPrice`). Les taules `Planets` i `SolarSystems` només serveixen per filtrar."
+    },
+    {
+     "text": "Reclassifica les naus de tipus 'Cargo ship' segons la seva `Capacity`: les de menys de 150 passen a 'Light cargo ship', les de 300 o més passen a 'Heavy cargo ship' i les altres continuen sent 'Cargo ship'. Una sola sentència amb `CASE`.",
+     "sql": "UPDATE `Ships` SET `Type` = CASE WHEN `Capacity` < 150 THEN 'Light cargo ship' WHEN `Capacity` >= 300 THEN 'Heavy cargo ship' ELSE `Type` END WHERE `Type` = 'Cargo ship'",
+     "explain": "`CASE` avalua les condicions en ordre i es queda amb la primera certa; l'`ELSE Type` deixa la fila igual. Atenció als límits: la nau de capacitat exactament 300 ha de ser 'Heavy cargo ship' (`>= 300`)."
+    },
+    {
+     "text": "Les 5 naus de tipus 'Cargo ship' amb menys `Capacity` reben una ampliació de 50 unitats. En cas d'empat de capacitat, tenen prioritat les de menor `Id`. Fes-ho amb `ORDER BY ... LIMIT`.",
+     "sql": "UPDATE `Ships` SET `Capacity` = `Capacity` + 50 WHERE `Type` = 'Cargo ship' ORDER BY `Capacity`, `Id` LIMIT 5",
+     "explain": "MySQL permet `ORDER BY` i `LIMIT` en un `UPDATE` d'una sola taula. Afegir l'`Id` a l'ordenació fa el resultat determinista si hi ha empats. (`IN` no admet `LIMIT` dins la subconsulta directament: cal una taula derivada.)"
+    },
+    {
+     "text": "Corregeix el `Total` de totes les operacions (`Trades`) de les estades del comerciant amb `Nickname` 'Pug': ha de ser la suma de `UnitPrice` * `Quantity` de les seves línies (`TradeLines`), arrodonida a 2 decimals. Fes-ho amb una subconsulta correlacionada.",
+     "sql": "UPDATE `Trades` t SET t.`Total` = (SELECT ROUND(SUM(l.`UnitPrice` * l.`Quantity`), 2) FROM `TradeLines` l WHERE l.`TradeId` = t.`Id`) WHERE t.`StayId` IN (SELECT s.`Id` FROM `Stays` s JOIN `Traders` tr ON tr.`Id` = s.`TraderId` WHERE tr.`Nickname` = 'Pug')",
+     "explain": "La subconsulta del `SET` s'avalua una vegada per cada operació (`l.TradeId = t.Id`). Totes les operacions tenen línies, així que la suma mai no és NULL. Alternativa: `JOIN` amb una taula derivada agrupada."
+    },
+    {
+     "text": "Recàrrec de transport sobre els preus de l'any 2499 (`Date` entre '2499-01-01' i '2499-12-31'): segons la `AverageDistance` del planeta del preu, multiplica `NewPrice` per 1.02 si la distància és menor que 1, per 1.05 si és menor que 10 i per 1.10 en la resta de casos. Arrodoneix a 2 decimals.",
+     "sql": "UPDATE `PriceChanges` pc JOIN `Planets` p ON p.`Id` = pc.`PlanetId` SET pc.`NewPrice` = ROUND(pc.`NewPrice` * CASE WHEN p.`AverageDistance` < 1 THEN 1.02 WHEN p.`AverageDistance` < 10 THEN 1.05 ELSE 1.10 END, 2) WHERE pc.`Date` BETWEEN '2499-01-01' AND '2499-12-31'",
+     "explain": "El `CASE` dins de l'expressió del `SET` tria el factor per trams; com que les condicions s'avaluen en ordre, el segon tram ja no ha de repetir `>= 1`. La distància ve d'una altra taula: `JOIN` o subconsulta correlacionada."
+    },
+    {
+     "text": "Les naus de tipus 'Fighter' amb `Capacity` inferior a la capacitat mitjana dels 'Fighter' passen a tenir aquesta mitjana arrodonida a l'enter (`ROUND(AVG(Capacity))`). La mitjana es calcula amb les dades d'abans del canvi. Parany: a MySQL, una subconsulta que llegeix la mateixa taula que s'està actualitzant dona l'error 1093 (\"You can't specify target table 'Ships' for update in FROM clause\"); la solució portable és calcular la mitjana dins d'una taula derivada (`SELECT ... FROM (SELECT AVG(...) ...) AS x`).",
+     "sql": "UPDATE `Ships` SET `Capacity` = (SELECT ROUND(x.`m`) FROM (SELECT AVG(`Capacity`) AS `m` FROM `Ships` WHERE `Type` = 'Fighter') AS x) WHERE `Type` = 'Fighter' AND `Capacity` < (SELECT x.`m` FROM (SELECT AVG(`Capacity`) AS `m` FROM `Ships` WHERE `Type` = 'Fighter') AS x)",
+     "explain": "Una taula derivada amb funció d'agregat es materialitza abans de modificar res, de manera que la mitjana (4.4333) és la de l'estat inicial i MySQL no protesta. MariaDB (el motor del corrector) accepta també la subconsulta directa, però la versió amb taula derivada (o el `JOIN` amb la derivada) funciona a tots dos. Les naus de capacitat 1, 2 i 3 passen a 4."
+    },
+    {
+     "text": "El comerciant amb `Nickname` 'Cyclone' mor el '2384-06-01'. Amb un sol `UPDATE` multitaula sobre `Traders` i `ShipOwners`: posa-li aquesta `DeceaseDate` i, als seus registres de `ShipOwners` amb `LostDate` posterior a aquesta data, posa `LostDate` '2384-06-01', `LostCause` 'Owner deceased' i `LostBenefit` 0.",
+     "sql": "UPDATE `Traders` t JOIN `ShipOwners` o ON o.`TraderId` = t.`Id` SET t.`DeceaseDate` = '2384-06-01', o.`LostDate` = '2384-06-01', o.`LostCause` = 'Owner deceased', o.`LostBenefit` = 0 WHERE t.`Nickname` = 'Cyclone' AND o.`LostDate` > '2384-06-01'",
+     "explain": "Un `UPDATE` multitaula de MySQL pot modificar columnes de més d'una taula alhora. Cada fila de `Traders` es modifica una sola vegada encara que el `JOIN` la repeteixi; aquí canvien el comerciant i 3 registres de propietat."
+    },
+    {
+     "text": "Reajusta els preus de compra de 'Nix': a cada línia (`TradeLines`) de les compres (`Type` 'Buy') de les estades del comerciant amb `Nickname` 'Nix', posa `UnitPrice` = el preu vigent del producte al planeta de l'estada en el moment de l'operació, és a dir, el `NewPrice` de `PriceChanges` del mateix producte i planeta amb la `Date` més recent que sigui igual o anterior a la data (`DATE`) de `DateTime` de l'operació. (Totes aquestes línies tenen algun preu vigent.)",
+     "sql": "UPDATE `TradeLines` l JOIN `Trades` t ON t.`Id` = l.`TradeId` JOIN `Stays` s ON s.`Id` = t.`StayId` JOIN `Traders` tr ON tr.`Id` = s.`TraderId` SET l.`UnitPrice` = (SELECT pc.`NewPrice` FROM `PriceChanges` pc WHERE pc.`ProductId` = l.`ProductId` AND pc.`PlanetId` = s.`PlanetId` AND pc.`Date` <= DATE(t.`DateTime`) ORDER BY pc.`Date` DESC, pc.`Id` DESC LIMIT 1) WHERE tr.`Nickname` = 'Nix' AND t.`Type` = 'Buy'",
+     "explain": "La subconsulta correlacionada del `SET` fa servir columnes de tres taules del `JOIN` (`l`, `s` i `t`). El \"preu vigent\" és l'últim canvi no posterior a l'operació: `ORDER BY Date DESC LIMIT 1` o bé `Date = (SELECT MAX(Date) ...)`. Es modifiquen 11 línies."
+    }
+   ]
+  },
+  {
+   "name": "Traders — DELETE",
+   "type": "sqldelete",
+   "intro": "La Federació Comercial fa neteja de l'arxiu: preus antics, naus i productes que ningú no fa servir, estades buides i registres duplicats. Cada pregunta és una sola sentència `DELETE` (pot ser multitaula, amb `JOIN`, o amb subconsultes). Totes les claus foranes de la base de dades són `RESTRICT`: no es pot esborrar una fila que encara té files filles (per exemple, una nau amb registres a `ShipOwners` o una estada amb operacions a `Trades`), i si ho intentes la sentència falla sencera.",
+   "questions": [
+    {
+     "text": "Esborra de `PriceChanges` tots els canvis de preu de l'any 2200.",
+     "sql": "DELETE FROM `PriceChanges` WHERE `Date` < '2201-01-01'",
+     "explain": "`PriceChanges` no té cap taula filla, així que es pot esborrar sense problemes de claus foranes. Totes les dates són de l'any 2200 o posteriors; `YEAR(Date) = 2200` o un rang de dates són equivalents."
+    },
+    {
+     "text": "Esborra de `PriceChanges` els canvis de preu anteriors al '2220-01-01' dels productes el nom dels quals acaba en 'Leaf'.",
+     "sql": "DELETE FROM `PriceChanges` WHERE `Date` < '2220-01-01' AND `ProductId` IN (SELECT `Id` FROM `Products` WHERE `Name` LIKE '%Leaf')",
+     "explain": "`LIKE '%Leaf'` vol dir \"acaba en Leaf\" (el `%` és qualsevol seqüència de caràcters). Afecta 'Viper Tea Leaf' i 'Cliff Leaf'."
+    },
+    {
+     "text": "Esborra de `Ships` les naus de tipus 'Fighter' que no tenen cap registre a `ShipOwners`. Les que en tenen no es poden esborrar (clau forana `RESTRICT`).",
+     "sql": "DELETE FROM `Ships` WHERE `Type` = 'Fighter' AND NOT EXISTS (SELECT 1 FROM `ShipOwners` o WHERE o.`ShipId` = `Ships`.`Id`)",
+     "explain": "`NOT EXISTS` (o `NOT IN`, segur aquí perquè `ShipOwners`.`ShipId` no pot ser NULL) es queda només amb les naus sense fills. Si la condició deixés passar alguna nau amb propietaris, tota la sentència fallaria."
+    },
+    {
+     "text": "Esborra de `Products` els productes que no apareixen ni a `TradeLines` ni a `PriceChanges`. Compte: un producte que no s'ha comerciat però que té preus registrats no es pot esborrar.",
+     "sql": "DELETE FROM `Products` WHERE NOT EXISTS (SELECT 1 FROM `TradeLines` l WHERE l.`ProductId` = `Products`.`Id`) AND NOT EXISTS (SELECT 1 FROM `PriceChanges` pc WHERE pc.`ProductId` = `Products`.`Id`)",
+     "explain": "Cal comprovar les dues taules filles. Si només es mira `TradeLines`, la condició inclou 'Viper Tea Leaf' (Id 9), que té preus a `PriceChanges`, i la sentència falla per la clau forana `RESTRICT`. S'esborren 5 productes."
+    },
+    {
+     "text": "Esborra de `PriceChanges` els canvis de preu anteriors al '2210-01-01' dels planetes del sistema solar 'Exax'. Fes-ho amb un `DELETE` multitaula amb `JOIN`.",
+     "sql": "DELETE pc FROM `PriceChanges` pc JOIN `Planets` p ON p.`Id` = pc.`PlanetId` JOIN `SolarSystems` ss ON ss.`Id` = p.`SystemId` WHERE ss.`Name` = 'Exax' AND pc.`Date` < '2210-01-01'",
+     "explain": "En un `DELETE` multitaula, l'àlies que va just després de `DELETE` indica de quina taula s'esborra; les altres només filtren. La sintaxi `DELETE FROM ... USING ...` és equivalent."
+    },
+    {
+     "text": "Esborra de `TradeLines` les 3 línies amb l'import més petit (`UnitPrice` * `Quantity`). En cas d'empat, esborra primer les de menor `Id`. Fes-ho amb `ORDER BY ... LIMIT`.",
+     "sql": "DELETE FROM `TradeLines` ORDER BY `UnitPrice` * `Quantity`, `Id` LIMIT 3",
+     "explain": "`DELETE` d'una sola taula admet `ORDER BY` i `LIMIT`. L'ordre és per l'import (preu per quantitat), no pel preu unitari."
+    },
+    {
+     "text": "Esborra de `Stays` les estades que no tenen cap operació a `Trades`. Fes-ho amb un `DELETE` multitaula amb `LEFT JOIN`.",
+     "sql": "DELETE s FROM `Stays` s LEFT JOIN `Trades` t ON t.`StayId` = s.`Id` WHERE t.`Id` IS NULL",
+     "explain": "El `LEFT JOIN ... WHERE t.Id IS NULL` troba les estades sense fills a `Trades`: són les úniques que es poden esborrar (n'hi ha 2)."
+    },
+    {
+     "text": "Esborra les línies (`TradeLines`) de les vendes (`Type` 'Sell') del comerciant amb `Nickname` 'Quote' fetes en planetes del sistema solar 'Zaif'.",
+     "sql": "DELETE l FROM `TradeLines` l JOIN `Trades` t ON t.`Id` = l.`TradeId` JOIN `Stays` s ON s.`Id` = t.`StayId` JOIN `Traders` tr ON tr.`Id` = s.`TraderId` JOIN `Planets` p ON p.`Id` = s.`PlanetId` JOIN `SolarSystems` ss ON ss.`Id` = p.`SystemId` WHERE tr.`Nickname` = 'Quote' AND ss.`Name` = 'Zaif' AND t.`Type` = 'Sell'",
+     "explain": "Un camí de cinc `JOIN` porta de la línia fins al comerciant i al sistema solar; només s'esborra de `l`. S'eliminen 9 línies; les operacions (`Trades`) es queden, encara que sense línies."
+    },
+    {
+     "text": "Esborra de `ShipOwners` els registres de naus de tipus 'Cargo ship' amb `AcquisitionPrice` superior a la mitjana d'`AcquisitionPrice` de tots els registres amb `AcquisitionCause` 'Bought'. Parany: si ho escrius com a `DELETE o FROM ShipOwners o JOIN Ships s ...` amb una subconsulta directa sobre `ShipOwners`, MariaDB/MySQL dona l'error 1093 (la taula és alhora objectiu i font); cal embolcallar la mitjana en una taula derivada.",
+     "sql": "DELETE o FROM `ShipOwners` o JOIN `Ships` s ON s.`Id` = o.`ShipId` WHERE s.`Type` = 'Cargo ship' AND o.`AcquisitionPrice` > (SELECT x.`m` FROM (SELECT AVG(`AcquisitionPrice`) AS `m` FROM `ShipOwners` WHERE `AcquisitionCause` = 'Bought') AS x)",
+     "explain": "La taula derivada es materialitza abans d'esborrar, així que la mitjana és la de l'estat inicial i no hi ha error 1093. Un `DELETE` d'una sola taula amb subconsulta sobre ella mateixa també funciona a MariaDB. Compte a fer la mitjana només de les compres ('Bought'): les herències valen 0 i abaixarien la mitjana."
+    },
+    {
+     "text": "Cada nau només ha de conservar el seu registre de propietat més recent: esborra de `ShipOwners` tots els registres per als quals existeix un altre registre de la mateixa nau (`ShipId`) amb `AcquisitionDate` posterior.",
+     "sql": "DELETE o FROM `ShipOwners` o JOIN `ShipOwners` o2 ON o2.`ShipId` = o.`ShipId` AND o2.`AcquisitionDate` > o.`AcquisitionDate`",
+     "explain": "Una autocombinació (`ShipOwners` amb ella mateixa) troba, per a cada registre, si n'hi ha un de posterior de la mateixa nau. Esborrar de `o` a partir d'un `JOIN` amb `o2` és vàlid (no és una subconsulta). La nau 94 té tres registres i en perd dos, encara que el `JOIN` repeteixi files. S'esborren 21 registres."
+    }
+   ]
+  }
+ ]
+}

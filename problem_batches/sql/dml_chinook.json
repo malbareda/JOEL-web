@@ -1,0 +1,179 @@
+{
+ "database": "Chinook",
+ "engine": "mysql",
+ "code_prefix": "sqldmlchinook",
+ "label": "Chinook (botiga de música digital: artistes, àlbums, pistes, clients, factures i llistes)",
+ "problems": [
+  {
+   "name": "Chinook — INSERT avançat",
+   "type": "sqlinsert",
+   "intro": "La botiga renova el catàleg: nous gèneres, àlbums i pistes, llistes de reproducció generades a partir de les vendes i factures noves. Les claus foranes es busquen pel nom amb subconsultes (mai escrivint l'identificador a mà, si no es diu el contrari). Una pregunta d'inserció es pot respondre amb `INSERT`, `INSERT ... SELECT`, `INSERT IGNORE`, `INSERT ... ON DUPLICATE KEY UPDATE` o `REPLACE`; compte que totes les claus foranes de Chinook són NO ACTION, de manera que un `REPLACE` sobre una fila que té fills (per exemple, un gènere amb pistes) falla. Cada pregunta és una sola sentència i parteix de la base de dades original; les claus `AUTO_INCREMENT` es poden ometre.",
+   "questions": [
+    {
+     "text": "Insereix dos gèneres nous a la taula `Genre`: `K-Pop` i `Flamenco`, en una sola sentència. No cal indicar el `GenreId` (és `AUTO_INCREMENT`).",
+     "sql": "INSERT INTO `Genre` (`Name`) VALUES ('K-Pop'), ('Flamenco')",
+     "explain": "Un sol `INSERT` pot portar diverses tuples a `VALUES`, separades per comes. Si s'omet la clau `AUTO_INCREMENT`, la base de dades n'assigna una de nova a cada fila."
+    },
+    {
+     "text": "Afegeix a `Album` un àlbum nou titulat `Live at Wembley 2026` de l'artista `Queen`. No escriguis l'`ArtistId` a mà: busca'l a `Artist` pel nom amb una subconsulta.",
+     "sql": "INSERT INTO `Album` (`Title`, `ArtistId`) VALUES ('Live at Wembley 2026', (SELECT `ArtistId` FROM `Artist` WHERE `Name` = 'Queen'))",
+     "explain": "Una subconsulta escalar entre parèntesis pot ocupar el lloc d'un valor dins de `VALUES`. Així la sentència no depèn de saber que `Queen` té l'`ArtistId` 51."
+    },
+    {
+     "text": "Afegeix a `Track` la pista `Smells Like Teen Spirit (Demo)` a l'àlbum titulat `Nevermind`, amb tipus de fitxer (`MediaType`) `MPEG audio file`, gènere `Rock`, compositor (`Composer`) `Kurt Cobain`, 301000 mil·lisegons, 9800000 bytes i preu 0.99. Busca l'`AlbumId`, el `MediaTypeId` i el `GenreId` pel nom amb subconsultes.",
+     "sql": "INSERT INTO `Track` (`Name`, `AlbumId`, `MediaTypeId`, `GenreId`, `Composer`, `Milliseconds`, `Bytes`, `UnitPrice`) VALUES ('Smells Like Teen Spirit (Demo)', (SELECT `AlbumId` FROM `Album` WHERE `Title` = 'Nevermind'), (SELECT `MediaTypeId` FROM `MediaType` WHERE `Name` = 'MPEG audio file'), (SELECT `GenreId` FROM `Genre` WHERE `Name` = 'Rock'), 'Kurt Cobain', 301000, 9800000, 0.99)",
+     "explain": "Cada clau forana es resol amb la seva pròpia subconsulta escalar. Una alternativa és un `INSERT ... SELECT` que creua les tres taules filtrant cadascuna pel nom (cada filtre retorna una sola fila)."
+    },
+    {
+     "text": "Afegeix a la llista de reproducció `Grunge` totes les pistes de l'artista `Nirvana`. Algunes ja hi són i la clau primària de `PlaylistTrack` (`PlaylistId`, `TrackId`) no admet duplicats: les que ja hi són s'han de deixar com estan, sense que la sentència falli (per exemple, amb `INSERT IGNORE`).",
+     "sql": "INSERT IGNORE INTO `PlaylistTrack` (`PlaylistId`, `TrackId`) SELECT p.`PlaylistId`, t.`TrackId` FROM `Playlist` p JOIN `Track` t JOIN `Album` al ON al.`AlbumId` = t.`AlbumId` JOIN `Artist` ar ON ar.`ArtistId` = al.`ArtistId` WHERE p.`Name` = 'Grunge' AND ar.`Name` = 'Nirvana'",
+     "explain": "`INSERT IGNORE` converteix l'error de clau duplicada en un avís i se salta aquella fila. L'alternativa sense `IGNORE` és filtrar al `SELECT` les pistes que ja són a la llista (`NOT IN` / `NOT EXISTS`). Un `INSERT` normal fallaria amb l'error 1062."
+    },
+    {
+     "text": "Per a cada gènere del qual s'hagin venut més de 75 unitats (suma de `InvoiceLine`.`Quantity` de les seves pistes), crea una llista de reproducció nova a `Playlist` amb el nom `Top ` seguit del nom del gènere (per exemple, `Top Rock`).",
+     "sql": "INSERT INTO `Playlist` (`Name`) SELECT CONCAT('Top ', g.`Name`) FROM `Genre` g JOIN `Track` t ON t.`GenreId` = g.`GenreId` JOIN `InvoiceLine` l ON l.`TrackId` = t.`TrackId` GROUP BY g.`GenreId`, g.`Name` HAVING SUM(l.`Quantity`) > 75",
+     "explain": "`INSERT ... SELECT` insereix tantes files com en retorna la consulta, i la consulta pot tenir `JOIN`, `GROUP BY` i `HAVING`. Aquí en surten cinc: Rock, Latin, Metal, Alternative & Punk i Jazz. Comptar pistes del catàleg (`COUNT(*)` sense `InvoiceLine`) dona una altra llista de gèneres (hi entrarien Blues, TV Shows...)."
+    },
+    {
+     "text": "Afegeix a la llista `On-The-Go 1` les 10 pistes del gènere `Metal` que més unitats s'han venut (suma de `InvoiceLine`.`Quantity`). Si hi ha empat, tria primer les de `TrackId` més petit. Busca el `PlaylistId` pel nom.",
+     "sql": "INSERT INTO `PlaylistTrack` (`PlaylistId`, `TrackId`) SELECT (SELECT `PlaylistId` FROM `Playlist` WHERE `Name` = 'On-The-Go 1'), t.`TrackId` FROM `Track` t JOIN `Genre` g ON g.`GenreId` = t.`GenreId` JOIN `InvoiceLine` l ON l.`TrackId` = t.`TrackId` WHERE g.`Name` = 'Metal' GROUP BY t.`TrackId` ORDER BY SUM(l.`Quantity`) DESC, t.`TrackId` LIMIT 10",
+     "explain": "L'`ORDER BY ... LIMIT` també funciona dins d'un `INSERT ... SELECT`. Com que moltes pistes empaten a 2 unitats, el desempat per `TrackId` és el que fa que el resultat sigui únic."
+    },
+    {
+     "text": "Per a cada client de `Portugal`, crea una factura nova (`Invoice`) amb data `2014-01-15`, total 0 i les dades de facturació (`BillingAddress`, `BillingCity`, `BillingState`, `BillingCountry`, `BillingPostalCode`) copiades de l'adreça del client (`Address`, `City`, `State`, `Country`, `PostalCode`).",
+     "sql": "INSERT INTO `Invoice` (`CustomerId`, `InvoiceDate`, `BillingAddress`, `BillingCity`, `BillingState`, `BillingCountry`, `BillingPostalCode`, `Total`) SELECT `CustomerId`, '2014-01-15', `Address`, `City`, `State`, `Country`, `PostalCode`, 0 FROM `Customer` WHERE `Country` = 'Portugal'",
+     "explain": "El `SELECT` barreja columnes de `Customer` amb constants (la data i el total): cada client de Portugal produeix una factura. L'ordre de les columnes de la llista d'`INSERT` és lliure mentre coincideixi amb el del `SELECT`."
+    },
+    {
+     "text": "Arriba una llista de gèneres amb el seu identificador: (5, `Rock & Roll`), (24, `Classical Music`) i (26, `Lo-fi`). Si el `GenreId` ja existeix, només se n'ha de canviar el nom; si no existeix, s'ha de crear el gènere. Fes-ho amb `INSERT ... ON DUPLICATE KEY UPDATE` (un `REPLACE` fallaria, perquè esborraria gèneres que tenen pistes).",
+     "sql": "INSERT INTO `Genre` (`GenreId`, `Name`) VALUES (5, 'Rock & Roll'), (24, 'Classical Music'), (26, 'Lo-fi') ON DUPLICATE KEY UPDATE `Name` = VALUES(`Name`)",
+     "explain": "`ON DUPLICATE KEY UPDATE` fa un \"upsert\": quan la fila xoca amb una clau existent, s'executa l'`UPDATE` indicat, i `VALUES(Name)` és el valor que s'intentava inserir. `REPLACE` esborra la fila vella i n'insereix una de nova, i l'esborrat falla per la clau forana de `Track`; `INSERT IGNORE` crearia `Lo-fi` però no canviaria els noms."
+    },
+    {
+     "text": "Les llistes de reproducció que no tenen cap pista s'han de marcar afegint ` (buida)` al final del nom (per exemple, `Movies (buida)`). Fes-ho amb una sola sentència d'inserció que reescrigui aquestes files de `Playlist` a partir d'un `SELECT`: `REPLACE ... SELECT` o `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE`. Aquí `REPLACE` funciona perquè aquestes llistes no tenen cap fila filla a `PlaylistTrack`.",
+     "sql": "REPLACE INTO `Playlist` (`PlaylistId`, `Name`) SELECT p.`PlaylistId`, CONCAT(p.`Name`, ' (buida)') FROM `Playlist` p WHERE NOT EXISTS (SELECT 1 FROM `PlaylistTrack` pt WHERE pt.`PlaylistId` = p.`PlaylistId`)",
+     "explain": "`REPLACE ... SELECT` esborra i torna a inserir cada fila amb la mateixa clau; només és segur quan la fila no té fills (amb claus foranes NO ACTION l'esborrat falla). Si s'hi colés una llista amb pistes (com `TV Shows`), la sentència sencera fallaria. Hi ha quatre llistes buides: 2, 4, 6 i 7."
+    },
+    {
+     "text": "El client de la factura amb `InvoiceId` 392 vol completar l'àlbum `For Those About To Rock We Salute You`. Afegeix a `InvoiceLine` una línia per a cada pista d'aquest àlbum que aquest client no hagi comprat mai abans (en cap de les seves factures): `InvoiceId` 392, preu (`UnitPrice`) igual al preu actual de la pista a `Track` i quantitat 1. (El `Total` de la factura no s'ha de tocar.)",
+     "sql": "INSERT INTO `InvoiceLine` (`InvoiceId`, `TrackId`, `UnitPrice`, `Quantity`) SELECT 392, t.`TrackId`, t.`UnitPrice`, 1 FROM `Track` t JOIN `Album` a ON a.`AlbumId` = t.`AlbumId` WHERE a.`Title` = 'For Those About To Rock We Salute You' AND NOT EXISTS (SELECT 1 FROM `InvoiceLine` l JOIN `Invoice` i ON i.`InvoiceId` = l.`InvoiceId` WHERE l.`TrackId` = t.`TrackId` AND i.`CustomerId` = (SELECT `CustomerId` FROM `Invoice` WHERE `InvoiceId` = 392))",
+     "explain": "El `NOT EXISTS` ha de mirar totes les factures del mateix client (no només la 392, ni les factures de tothom). El client és el 4, que ja tenia 4 de les 10 pistes; se n'afegeixen 6."
+    }
+   ]
+  },
+  {
+   "name": "Chinook — UPDATE amb JOIN i subconsultes",
+   "type": "sqlupdate",
+   "intro": "La botiga revisa preus, dades de clients i factures. Practiques `UPDATE` amb funcions de text, `ROUND`, `CASE` per trams, `ORDER BY ... LIMIT`, `UPDATE` multitaula amb `JOIN` (fins i tot modificant dues taules alhora), taules derivades amb `GROUP BY` i subconsultes correlacionades. Cada pregunta és un sol `UPDATE` i parteix de la base de dades original; es corregeix comparant el contingut final de totes les taules.",
+   "questions": [
+    {
+     "text": "Als telèfons (`Phone`) dels clients del Brasil (`Country` = `Brazil`) treu els parèntesis: `+55 (12) 3923-5555` ha de quedar `+55 12 3923-5555`.",
+     "sql": "UPDATE `Customer` SET `Phone` = REPLACE(REPLACE(`Phone`, '(', ''), ')', '') WHERE `Country` = 'Brazil'",
+     "explain": "`REPLACE(text, buscat, nou)` (la funció de text, no la sentència) substitueix totes les aparicions; niant-ne dues es treuen els dos caràcters."
+    },
+    {
+     "text": "Els empleats del departament d'informàtica (els que tenen un `Title` que comença per `IT`) estrenen adreça: el seu `Email` ha de ser el nom i el cognom en minúscules separats per un punt, seguits de `@chinook.cat` (per exemple, `robert.king@chinook.cat`).",
+     "sql": "UPDATE `Employee` SET `Email` = CONCAT(LOWER(`FirstName`), '.', LOWER(`LastName`), '@chinook.cat') WHERE `Title` LIKE 'IT%'",
+     "explain": "`CONCAT` uneix textos i `LOWER` els passa a minúscules. El patró `LIKE 'IT%'` inclou tant l'`IT Manager` com els `IT Staff`."
+    },
+    {
+     "text": "Rebaixa un 20% el preu (`UnitPrice`) de totes les pistes de tipus `Protected MPEG-4 video file` (taula `MediaType`), arrodonint a 2 decimals amb `ROUND`. Busca el `MediaTypeId` pel nom.",
+     "sql": "UPDATE `Track` SET `UnitPrice` = ROUND(`UnitPrice` * 0.8, 2) WHERE `MediaTypeId` = (SELECT `MediaTypeId` FROM `MediaType` WHERE `Name` = 'Protected MPEG-4 video file')",
+     "explain": "El filtre és pel tipus de fitxer, no pel preu: hi ha vídeos i pistes de 1.99 que no coincideixen exactament. 1.99 × 0.8 = 1.592, que arrodonit queda 1.59."
+    },
+    {
+     "text": "Puja 0.20 el preu (`UnitPrice`) de totes les pistes de l'artista `Led Zeppelin`. Fes un `UPDATE` multitaula amb `JOIN` entre `Track`, `Album` i `Artist`.",
+     "sql": "UPDATE `Track` t JOIN `Album` al ON al.`AlbumId` = t.`AlbumId` JOIN `Artist` ar ON ar.`ArtistId` = al.`ArtistId` SET t.`UnitPrice` = t.`UnitPrice` + 0.20 WHERE ar.`Name` = 'Led Zeppelin'",
+     "explain": "A l'`UPDATE` multitaula de MySQL, les taules s'uneixen abans del `SET` i el `WHERE` pot filtrar per columnes de qualsevol d'elles; només es modifiquen les columnes que apareixen al `SET`. Filtrar pel títol de l'àlbum deixaria fora àlbums com `IV` o `Coda`."
+    },
+    {
+     "text": "Les pistes del gènere `Classical` passen a tenir preu per trams de durada (`Milliseconds`): menys de 180000 ms (3 minuts), 0.79; de 180000 a menys de 360000 ms, 0.99; 360000 ms (6 minuts) o més, 1.49. Fes-ho amb un sol `UPDATE` i `CASE`.",
+     "sql": "UPDATE `Track` SET `UnitPrice` = CASE WHEN `Milliseconds` < 180000 THEN 0.79 WHEN `Milliseconds` < 360000 THEN 0.99 ELSE 1.49 END WHERE `GenreId` = (SELECT `GenreId` FROM `Genre` WHERE `Name` = 'Classical')",
+     "explain": "El `CASE` avalua les condicions en ordre i es queda amb la primera certa, per això el segon tram només cal escriure'l com a `< 360000`. Totes les pistes clàssiques reben un preu, també les que ja valien 0.99."
+    },
+    {
+     "text": "Les 5 pistes més llargues (`Milliseconds`) del gènere `Rock` passen a costar 1.49. Si hi ha empat de durada, tria primer les de `TrackId` més petit. Fes servir `UPDATE ... ORDER BY ... LIMIT`.",
+     "sql": "UPDATE `Track` SET `UnitPrice` = 1.49 WHERE `GenreId` = (SELECT `GenreId` FROM `Genre` WHERE `Name` = 'Rock') ORDER BY `Milliseconds` DESC, `TrackId` LIMIT 5",
+     "explain": "L'`UPDATE` d'una sola taula admet `ORDER BY` i `LIMIT`; el multitaula no, i per això l'alternativa fa el `LIMIT` dins d'una taula derivada. El desempat per clau primària garanteix un resultat únic."
+    },
+    {
+     "text": "Normalitza el país `USA` a `United States`, tant a la columna `Country` dels clients com a la `BillingCountry` de totes les factures d'aquests clients, amb un sol `UPDATE` multitaula.",
+     "sql": "UPDATE `Customer` c JOIN `Invoice` i ON i.`CustomerId` = c.`CustomerId` SET c.`Country` = 'United States', i.`BillingCountry` = 'United States' WHERE c.`Country` = 'USA'",
+     "explain": "Un `UPDATE` multitaula pot modificar columnes de més d'una taula alhora: n'hi ha prou de posar-les totes al `SET`. Cada fila es modifica una sola vegada encara que surti en diverses combinacions del `JOIN`."
+    },
+    {
+     "text": "Les pistes de l'àlbum `Ten` que duren més que la durada mitjana de les pistes del mateix àlbum passen a costar 1.29. Parany: en MySQL, `WHERE Milliseconds > (SELECT AVG(Milliseconds) FROM Track WHERE ...)` dona l'error 1093 (no es pot llegir de la mateixa taula que s'actualitza); la solució portable és calcular la mitjana dins d'una taula derivada (`SELECT ... FROM (SELECT AVG(...) ...) AS m`), que es materialitza abans de modificar res.",
+     "sql": "UPDATE `Track` SET `UnitPrice` = 1.29 WHERE `AlbumId` = (SELECT `AlbumId` FROM `Album` WHERE `Title` = 'Ten') AND `Milliseconds` > (SELECT m.mitjana FROM (SELECT AVG(t2.`Milliseconds`) AS mitjana FROM `Track` t2 JOIN `Album` a2 ON a2.`AlbumId` = t2.`AlbumId` WHERE a2.`Title` = 'Ten') AS m)",
+     "explain": "La taula derivada obliga el servidor a calcular la mitjana (291442.8 ms) abans de començar a modificar files, i així el resultat no depèn de l'ordre en què s'actualitzen. MariaDB 10.3+ accepta també la subconsulta directa, però MySQL no. Comparar amb la mitjana de tot el catàleg canvia quines pistes es toquen."
+    },
+    {
+     "text": "Els clients sense empresa (`Company` nul) que han gastat en total més de 45 (suma de `Invoice`.`Total` de totes les seves factures) passen a tenir com a representant (`SupportRepId`) l'empleada `Jane Peacock`. Busca el seu `EmployeeId` pel nom i calcula la despesa amb una taula derivada amb `GROUP BY`.",
+     "sql": "UPDATE `Customer` c JOIN (SELECT `CustomerId`, SUM(`Total`) AS gastat FROM `Invoice` GROUP BY `CustomerId`) AS d ON d.`CustomerId` = c.`CustomerId` SET c.`SupportRepId` = (SELECT `EmployeeId` FROM `Employee` WHERE `FirstName` = 'Jane' AND `LastName` = 'Peacock') WHERE c.`Company` IS NULL AND d.gastat > 45",
+     "explain": "Una taula derivada amb `GROUP BY` dona la despesa per client i s'uneix a `Customer` com si fos una taula més. També es pot fer amb una subconsulta correlacionada al `WHERE`. Cal `IS NULL`, perquè `Company = NULL` mai és cert."
+    },
+    {
+     "text": "Recalcula el `Total` de totes les factures dels clients de França (`Customer`.`Country` = `France`) a partir de les seves línies (`UnitPrice` × `Quantity`), aplicant un 10% de descompte a les línies de pistes de tipus `Protected MPEG-4 video file`. Arrodoneix només el total final a 2 decimals (no cada línia).",
+     "sql": "UPDATE `Invoice` i JOIN `Customer` c ON c.`CustomerId` = i.`CustomerId` SET i.`Total` = (SELECT ROUND(SUM(CASE WHEN m.`Name` = 'Protected MPEG-4 video file' THEN l.`UnitPrice` * l.`Quantity` * 0.9 ELSE l.`UnitPrice` * l.`Quantity` END), 2) FROM `InvoiceLine` l JOIN `Track` t ON t.`TrackId` = l.`TrackId` JOIN `MediaType` m ON m.`MediaTypeId` = t.`MediaTypeId` WHERE l.`InvoiceId` = i.`InvoiceId`) WHERE c.`Country` = 'France'",
+     "explain": "La subconsulta correlacionada (`WHERE l.InvoiceId = i.InvoiceId`) calcula un total diferent per a cada factura. El descompte només afecta les línies de vídeo: aplicar el 10% a tot el total de les factures que en tenen alguna dona un altre resultat."
+    }
+   ]
+  },
+  {
+   "name": "Chinook — DELETE",
+   "type": "sqldelete",
+   "intro": "La botiga fa neteja: llistes de reproducció, artistes sense obra, línies de factura i personal. Totes les claus foranes de Chinook són NO ACTION: no es pot esborrar una fila que tingui fills (un artista amb àlbums, una pista que és en alguna llista o factura, una factura amb línies...). Si una sentència n'hi inclou cap, falla sencera, per això sovint cal esborrar només el que no té dependències (`NOT EXISTS`, `NOT IN`, `LEFT JOIN ... IS NULL`) o esborrar files de les taules filles (`PlaylistTrack`, `InvoiceLine`). Cada pregunta és un sol `DELETE` i parteix de la base de dades original.",
+   "questions": [
+    {
+     "text": "De la llista de reproducció `Classical 101 - Deep Cuts`, treu les pistes amb `TrackId` entre 3490 i 3495 (tots dos inclosos). Busca el `PlaylistId` pel nom.",
+     "sql": "DELETE FROM `PlaylistTrack` WHERE `PlaylistId` = (SELECT `PlaylistId` FROM `Playlist` WHERE `Name` = 'Classical 101 - Deep Cuts') AND `TrackId` BETWEEN 3490 AND 3495",
+     "explain": "`BETWEEN a AND b` inclou els dos extrems. Sense el filtre de llista s'esborrarien també les mateixes pistes d'altres llistes (`Classical`, `Music`...)."
+    },
+    {
+     "text": "Esborra de `Artist` tots els artistes que són col·laboracions de Santana, és a dir, els que tenen un nom que comença per `Santana Feat.` (cap d'ells té àlbums). L'artista `Santana` sol no s'ha d'esborrar.",
+     "sql": "DELETE FROM `Artist` WHERE `Name` LIKE 'Santana Feat.%'",
+     "explain": "`LIKE` amb `%` busca un prefix. Amb `'Santana%'` també s'intentaria esborrar `Santana`, que té àlbums, i la sentència fallaria per la clau forana d'`Album`."
+    },
+    {
+     "text": "Esborra els artistes que tenen el caràcter `&` al nom i que no tenen cap àlbum. Els que sí que en tenen s'han de quedar (amb les claus foranes NO ACTION, intentar esborrar-los faria fallar tota la sentència).",
+     "sql": "DELETE FROM `Artist` WHERE `Name` LIKE '%&%' AND NOT EXISTS (SELECT 1 FROM `Album` al WHERE al.`ArtistId` = `Artist`.`ArtistId`)",
+     "explain": "`NOT EXISTS` (o `NOT IN` sobre una columna sense nuls com `Album.ArtistId`) deixa només els artistes sense fills. Se n'esborren 14."
+    },
+    {
+     "text": "Esborra les 3 línies més cares (`UnitPrice`) de la factura amb `InvoiceId` 89. Si hi ha empat de preu, esborra primer les de `InvoiceLineId` més petit. Fes servir `DELETE ... ORDER BY ... LIMIT`.",
+     "sql": "DELETE FROM `InvoiceLine` WHERE `InvoiceId` = 89 ORDER BY `UnitPrice` DESC, `InvoiceLineId` LIMIT 3",
+     "explain": "Cinc línies empaten a 1.99, de manera que sense el desempat per clau primària el resultat no seria únic. `InvoiceLine` no té fills, per això es pot esborrar lliurement."
+    },
+    {
+     "text": "De la llista de reproducció amb `PlaylistId` 5 (`90’s Music`), treu totes les pistes dels gèneres `World`, `Opera` i `Rock And Roll`. Fes un `DELETE` multitaula amb `JOIN` entre `PlaylistTrack`, `Track` i `Genre`.",
+     "sql": "DELETE pt FROM `PlaylistTrack` pt JOIN `Track` t ON t.`TrackId` = pt.`TrackId` JOIN `Genre` g ON g.`GenreId` = t.`GenreId` WHERE pt.`PlaylistId` = 5 AND g.`Name` IN ('World', 'Opera', 'Rock And Roll')",
+     "explain": "Al `DELETE` multitaula, el nom (o àlies) que hi ha entre `DELETE` i `FROM` indica de quina taula s'esborra; les altres només serveixen per filtrar. Se'n treuen 15 files."
+    },
+    {
+     "text": "De la llista `Grunge`, treu les pistes que no s'han venut mai (que no apareixen en cap línia de factura, `InvoiceLine`).",
+     "sql": "DELETE FROM `PlaylistTrack` WHERE `PlaylistId` = (SELECT `PlaylistId` FROM `Playlist` WHERE `Name` = 'Grunge') AND NOT EXISTS (SELECT 1 FROM `InvoiceLine` l WHERE l.`TrackId` = `PlaylistTrack`.`TrackId`)",
+     "explain": "`NOT EXISTS` correlacionat o `LEFT JOIN ... IS NULL` són les dues maneres típiques de trobar files sense parella. De les 15 pistes de la llista se n'esborren 8."
+    },
+    {
+     "text": "Esborra les línies de factura (`InvoiceLine`) de pistes de tipus `Protected MPEG-4 video file` que pertanyen a factures de l'any 2013 (`InvoiceDate`). Fes un `DELETE` multitaula amb `JOIN`.",
+     "sql": "DELETE l FROM `InvoiceLine` l JOIN `Invoice` i ON i.`InvoiceId` = l.`InvoiceId` JOIN `Track` t ON t.`TrackId` = l.`TrackId` JOIN `MediaType` m ON m.`MediaTypeId` = t.`MediaTypeId` WHERE m.`Name` = 'Protected MPEG-4 video file' AND YEAR(i.`InvoiceDate`) = 2013",
+     "explain": "El filtre combina dues taules pare (`Invoice` per l'any i `Track`/`MediaType` pel tipus). Un rang de dates ha de cobrir fins al 31 de desembre: amb `'2013-12-01'` com a final es perden factures de desembre."
+    },
+    {
+     "text": "Esborra els empleats que no tenen ningú al seu càrrec (cap empleat els té a `ReportsTo`) i que no són representants de cap client (cap client els té a `SupportRepId`). Parany: amb `NOT IN (SELECT ReportsTo FROM Employee)` no s'esborra res, perquè la columna conté un `NULL` (el director general) i `x NOT IN (..., NULL)` mai és cert; fes servir `NOT EXISTS` o filtra els nuls.",
+     "sql": "DELETE FROM `Employee` WHERE NOT EXISTS (SELECT 1 FROM `Employee` sub WHERE sub.`ReportsTo` = `Employee`.`EmployeeId`) AND NOT EXISTS (SELECT 1 FROM `Customer` c WHERE c.`SupportRepId` = `Employee`.`EmployeeId`)",
+     "explain": "Només els dos empleats d'`IT Staff` (Robert King i Laura Callahan) no tenen cap dependència. El `NULL` de `ReportsTo` fa que `NOT IN` doni sempre desconegut; `NOT EXISTS` no té aquest problema."
+    },
+    {
+     "text": "Hi ha llistes de reproducció repetides (amb el mateix `Name` que una altra de `PlaylistId` més petit). Esborra les repetides que estan buides (sense cap fila a `PlaylistTrack`); les repetides que tenen pistes s'han de quedar, i l'original (la de `PlaylistId` més petit) també.",
+     "sql": "DELETE p FROM `Playlist` p JOIN `Playlist` orig ON orig.`Name` = p.`Name` AND orig.`PlaylistId` < p.`PlaylistId` WHERE NOT EXISTS (SELECT 1 FROM `PlaylistTrack` pt WHERE pt.`PlaylistId` = p.`PlaylistId`)",
+     "explain": "L'autounió (`Playlist` amb ella mateixa) troba per a cada llista si n'hi ha una altra amb el mateix nom i id més petit. Se n'esborren dues: `Audiobooks` (6) i `Movies` (7); `Music` (8) i `TV Shows` (10) són repetides però tenen pistes."
+    },
+    {
+     "text": "Esborra totes les línies de factura (`InvoiceLine`) de la factura més recent (`InvoiceDate` més gran) de cada client del Brasil (`Customer`.`Country` = `Brazil`).",
+     "sql": "DELETE l FROM `InvoiceLine` l JOIN `Invoice` i ON i.`InvoiceId` = l.`InvoiceId` JOIN `Customer` c ON c.`CustomerId` = i.`CustomerId` WHERE c.`Country` = 'Brazil' AND i.`InvoiceDate` = (SELECT MAX(i2.`InvoiceDate`) FROM `Invoice` i2 WHERE i2.`CustomerId` = i.`CustomerId`)",
+     "explain": "La subconsulta correlacionada calcula la data màxima de cada client per separat (`i2.CustomerId = i.CustomerId`); el `MAX` de tot el país només trobaria la factura d'un client. Se n'esborren 39 línies de 5 factures."
+    }
+   ]
+  }
+ ]
+}

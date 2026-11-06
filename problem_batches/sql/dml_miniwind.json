@@ -1,0 +1,179 @@
+{
+ "database": "miniwind",
+ "engine": "mysql",
+ "code_prefix": "sqldmlminiwind",
+ "label": "Miniwind (botiga d'aliments a l'engròs: clients, empleats, productes, comandes i factures)",
+ "problems": [
+  {
+   "name": "Miniwind — INSERT avançat",
+   "type": "sqlinsert",
+   "intro": "`INSERT` més enllà de la llista de valors fixos: subconsultes dins de `VALUES` per buscar claus foranes pel nom, `INSERT ... SELECT` (amb `JOIN`, `GROUP BY` i `HAVING`) per crear diverses files a partir de les dades existents, i les variants de MySQL per gestionar claus duplicades: `INSERT IGNORE`, `REPLACE` i `INSERT ... ON DUPLICATE KEY UPDATE`. Quan no s'indica l'`id`, la base de dades n'assigna un de nou (el corrector l'accepta sigui quin sigui).",
+   "questions": [
+    {
+     "text": "Afegeix una línia a `order_details` per a la comanda 80: el producte és `Northwind Traders Chai` (busca'n l'`id` pel nom a `products`), la quantitat (`quantity`) és 12, el preu unitari (`unit_price`) és el preu de catàleg actual (`list_price`) d'aquest producte, i l'estat de la línia (`status_id`) és el que a `order_details_status` es diu `On Order`. No indiquis `id`, `discount` ni `inventory_id` (queden amb el seu valor per defecte).",
+     "sql": "INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`, `status_id`) VALUES (80, (SELECT `id` FROM `products` WHERE `product_name` = 'Northwind Traders Chai'), 12, (SELECT `list_price` FROM `products` WHERE `product_name` = 'Northwind Traders Chai'), (SELECT `id` FROM `order_details_status` WHERE `status_name` = 'On Order'))",
+     "explain": "Dins de `VALUES` hi pot anar una subconsulta escalar (entre parèntesis) a cada posició: així no cal saber de memòria que el Chai és el producte 1, que val 18 o que `On Order` és l'estat 4. Com que no s'indica `id`, MariaDB n'assigna un de nou amb `AUTO_INCREMENT`."
+    },
+    {
+     "text": "Crea una comanda nova a `orders` per al client de l'empresa (`company`) `Hudson-Lesch`, atesa per l'empleada `Thelma Jirusek` (`first_name` i `last_name`), amb data de comanda (`order_date`) `2006-07-01 00:00:00`, ciutat d'enviament (`ship_city`) igual a la ciutat del client i estat (`status_id`) el que a `orders_status` es diu `New`. Els `id` s'han de buscar pel nom; la resta de columnes queden amb el valor per defecte.",
+     "sql": "INSERT INTO `orders` (`employee_id`, `customer_id`, `order_date`, `ship_city`, `status_id`) SELECT e.`id`, c.`id`, '2006-07-01 00:00:00', c.`city`, s.`id` FROM `employees` e CROSS JOIN `customers` c CROSS JOIN `orders_status` s WHERE e.`first_name` = 'Thelma' AND e.`last_name` = 'Jirusek' AND c.`company` = 'Hudson-Lesch' AND s.`status_name` = 'New'",
+     "explain": "`INSERT ... SELECT` insereix una fila per cada fila que torni el `SELECT`. Aquí cada taula aporta exactament una fila (cada filtre és únic), així que el producte cartesià de les tres en dona una: l'empleada 8, el client 7 amb ciutat `Indianapolis` i l'estat 0."
+    },
+    {
+     "text": "Afegeix a la comanda 80 una línia a `order_details` per a cada producte de la categoria (`category`) `Soups`, amb quantitat (`quantity`) 5, preu unitari (`unit_price`) igual al `list_price` de cada producte i estat de línia (`status_id`) 4. No indiquis `id`, `discount` ni `inventory_id`.",
+     "sql": "INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`, `status_id`) SELECT 80, `id`, 5, `list_price`, 4 FROM `products` WHERE `category` = 'Soups'",
+     "explain": "Amb `INSERT ... SELECT` es creen tantes files com en torni el `SELECT`: aquí 3 (els productes 41, 98 i 99). Les columnes del `SELECT` s'emparellen per posició amb la llista de columnes de l'`INSERT`; els valors fixos (80, 5, 4) es repeteixen a totes les files."
+    },
+    {
+     "text": "Vols afegir a `orders_status` els estats (2, 'Enviada'), (4, 'Cancel·lada') i (5, 'Retornada'), però l'estat 2 ja existeix i s'ha de conservar tal com està. Fes-ho amb una sola sentència que no falli per la clau duplicada i que insereixi els que no existeixen.",
+     "sql": "INSERT IGNORE INTO `orders_status` (`id`, `status_name`) VALUES (2, 'Enviada'), (4, 'Cancel·lada'), (5, 'Retornada')",
+     "explain": "Un `INSERT` normal s'aturaria amb l'error de clau primària duplicada (1062) a la primera fila i no inseriria res. `INSERT IGNORE` converteix aquest error en un avís: salta la fila conflictiva (l'estat 2 continua dient-se `Shipped`) i insereix la resta."
+    },
+    {
+     "text": "Substitueix completament el producte amb `id` 99 de `products` per aquesta fila nova: `id` 99, `product_code` `NWTSO-99`, `product_name` `Northwind Traders Chicken Soup`, `list_price` 2.25 i `category` `Soups`. Totes les altres columnes de la fila han de quedar amb el seu valor per defecte (no s'han de conservar les antigues).",
+     "sql": "REPLACE INTO `products` (`id`, `product_code`, `product_name`, `list_price`, `category`) VALUES (99, 'NWTSO-99', 'Northwind Traders Chicken Soup', 2.25, 'Soups')",
+     "explain": "`REPLACE` és un `INSERT` que, si ja hi ha una fila amb la mateixa clau, primer l'esborra i després insereix la nova. Per això les columnes que no s'indiquen (`supplier_ids`, `standard_cost`, `reorder_level`, `target_level`, ...) no es conserven: passen al valor per defecte (`NULL` o 0). Funciona perquè el producte 99 no surt a cap línia de comanda; amb un producte referenciat per `order_details` l'esborrat fallaria per la clau forana."
+    },
+    {
+     "text": "Ha arribat una tarifa nova. Amb una sola sentència, per a cada fila: si el producte ja existeix, canvia-li NOMÉS el `list_price`; si no existeix, crea'l. Les files són (`id`, `product_code`, `product_name`, `list_price`, `category`): (1, 'NWTB-1', 'Northwind Traders Chai', 19.5, 'Beverages'), (3, 'NWTCO-3', 'Northwind Traders Syrup', 10.75, 'Condiments') i (100, 'NWTB-100', 'Northwind Traders Kombucha', 6.5, 'Beverages').",
+     "sql": "INSERT INTO `products` (`id`, `product_code`, `product_name`, `list_price`, `category`) VALUES (1, 'NWTB-1', 'Northwind Traders Chai', 19.5, 'Beverages'), (3, 'NWTCO-3', 'Northwind Traders Syrup', 10.75, 'Condiments'), (100, 'NWTB-100', 'Northwind Traders Kombucha', 6.5, 'Beverages') ON DUPLICATE KEY UPDATE `list_price` = VALUES(`list_price`)",
+     "explain": "`ON DUPLICATE KEY UPDATE` fa un `UPDATE` de la fila existent quan la clau ja hi és, i un `INSERT` quan no. `VALUES(columna)` vol dir «el valor que intentava inserir aquesta fila». Aquí `REPLACE` no serviria: esborraria el Chai i el Syrup (que tenen línies de comanda, i la clau forana ho impediria) i a més en perdria el cost i la resta de columnes."
+    },
+    {
+     "text": "Crea una comanda nova a `orders` per a cada client de l'estat (`state_province`) `IN`, atesa per l'empleat amb `id` 5, amb `order_date` `2006-07-03 00:00:00`, `status_id` 0 i les dades d'enviament copiades del client: `ship_name` = nom i cognom separats per un espai (per exemple `Joni Dyott`), `ship_address` = `address`, `ship_city` = `city`, `ship_state_province` = `state_province`, `ship_zip_postal_code` = `zip_postal_code` i `ship_country_region` = `country_region`. La resta de columnes, per defecte.",
+     "sql": "INSERT INTO `orders` (`employee_id`, `customer_id`, `order_date`, `ship_name`, `ship_address`, `ship_city`, `ship_state_province`, `ship_zip_postal_code`, `ship_country_region`, `status_id`) SELECT 5, `id`, '2006-07-03 00:00:00', CONCAT(`first_name`, ' ', `last_name`), `address`, `city`, `state_province`, `zip_postal_code`, `country_region`, 0 FROM `customers` WHERE `state_province` = 'IN'",
+     "explain": "Es generen 3 comandes (clients 7, 27 i 29). Amb `INSERT ... SELECT` es poden calcular els valors a partir de la taula d'origen: `CONCAT` construeix el `ship_name` i la resta de columnes es copien una a una, en el mateix ordre que la llista de l'`INSERT`."
+    },
+    {
+     "text": "Copia a la comanda 61 totes les línies de la comanda 58: mateix producte i mateixa quantitat, però amb preu unitari (`unit_price`) igual al `list_price` actual del producte rebaixat un 5% i arrodonit a 2 decimals, `discount` 0 i estat de línia (`status_id`) el que a `order_details_status` es diu `On Order`. No indiquis `id` ni `inventory_id`.",
+     "sql": "INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`, `discount`, `status_id`) SELECT 61, od.`product_id`, od.`quantity`, ROUND(p.`list_price` * 0.95, 2), 0, s.`id` FROM `order_details` od JOIN `products` p ON p.`id` = od.`product_id` JOIN `order_details_status` s ON s.`status_name` = 'On Order' WHERE od.`order_id` = 58",
+     "explain": "Es pot fer `INSERT ... SELECT` llegint de la mateixa taula on s'insereix: MariaDB primer llegeix les 2 línies de la comanda 58 i després les insereix. El `JOIN` amb `products` dona el preu de catàleg (81 i 7, que queden en 76.95 i 6.65) i el de `order_details_status` dona l'estat sense escriure el número."
+    },
+    {
+     "text": "La comanda 81 serà una comanda de reposició. Afegeix-hi una línia a `order_details` per a cada producte de la categoria `Beverages` que s'hagi venut en comandes en estat `Closed` (nom a `orders_status`), amb quantitat (`quantity`) igual al total d'unitats venudes d'aquest producte en comandes `Closed`, preu unitari (`unit_price`) igual al `standard_cost` del producte i `status_id` 4. No indiquis `id`, `discount` ni `inventory_id`.",
+     "sql": "INSERT INTO `order_details` (`order_id`, `product_id`, `quantity`, `unit_price`, `status_id`) SELECT 81, p.`id`, SUM(od.`quantity`), p.`standard_cost`, 4 FROM `products` p JOIN `order_details` od ON od.`product_id` = p.`id` JOIN `orders` o ON o.`id` = od.`order_id` JOIN `orders_status` s ON s.`id` = o.`status_id` WHERE p.`category` = 'Beverages' AND s.`status_name` = 'Closed' GROUP BY p.`id`, p.`standard_cost`",
+     "explain": "El `SELECT` agrupa per producte i suma les quantitats de les línies de comandes tancades: surten 4 files (Chai 15, Beer 487, Coffee 325, Green Tea 200). Les comandes en estat `New` (com la 41 o la 44) no compten, per això cal el `JOIN` fins a `orders_status`."
+    },
+    {
+     "text": "Crea una factura a `invoices` per a cada comanda en estat `New` (nom a `orders_status`) que encara no tingui factura i l'import de les línies de la qual sigui més gran que 0. Cada factura: `order_id` = la comanda, `invoice_date` `2006-07-01 00:00:00`, `due_date` `2006-07-31 00:00:00`, `tax` 0, `shipping` = `shipping_fee` de la comanda, i `amount_due` = suma de `quantity * unit_price * (1 - discount)` de les seves línies, arrodonida a 2 decimals, més el `shipping_fee`.",
+     "sql": "INSERT INTO `invoices` (`order_id`, `invoice_date`, `due_date`, `tax`, `shipping`, `amount_due`) SELECT o.`id`, '2006-07-01 00:00:00', '2006-07-31 00:00:00', 0, o.`shipping_fee`, ROUND(SUM(od.`quantity` * od.`unit_price` * (1 - od.`discount`)), 2) + o.`shipping_fee` FROM `orders` o JOIN `orders_status` s ON s.`id` = o.`status_id` JOIN `order_details` od ON od.`order_id` = o.`id` WHERE s.`status_name` = 'New' AND NOT EXISTS (SELECT 1 FROM `invoices` i WHERE i.`order_id` = o.`id`) GROUP BY o.`id`, o.`shipping_fee` HAVING SUM(od.`quantity` * od.`unit_price` * (1 - od.`discount`)) > 0",
+     "explain": "Combina `JOIN`, `GROUP BY`, `HAVING` i `NOT EXISTS`: el `NOT EXISTS` descarta les comandes que ja tenen factura, el `JOIN` amb `order_details` deixa fora les que no tenen línies i el `HAVING` treu la 81 (les seves línies sumen 0). Queden 4 factures: comandes 41, 43, 44 i 80."
+    }
+   ]
+  },
+  {
+   "name": "Miniwind — UPDATE amb JOIN i subconsultes",
+   "type": "sqlupdate",
+   "intro": "`UPDATE` amb càlculs: dates (`DATE_ADD`), textos (`CONCAT`, `SUBSTRING`), arrodoniments (`ROUND`), trams amb `CASE`, `UPDATE` multitaula amb `JOIN` (fins i tot modificant dues taules alhora), subconsultes correlacionades, `ORDER BY ... LIMIT` i taules derivades per evitar els paranys de MySQL/MariaDB quan la subconsulta llegeix la mateixa taula o porta `LIMIT`.",
+   "questions": [
+    {
+     "text": "Les comandes de març de 2006 (`order_date`) que encara no tenen data d'enviament (`shipped_date` és `NULL`) s'han enviat set dies després de la data de comanda. Posa'ls `shipped_date` = `order_date` + 7 dies i `status_id` 2.",
+     "sql": "UPDATE `orders` SET `shipped_date` = DATE_ADD(`order_date`, INTERVAL 7 DAY), `status_id` = 2 WHERE `shipped_date` IS NULL AND `order_date` >= '2006-03-01' AND `order_date` < '2006-04-01'",
+     "explain": "Afecta les comandes 41, 43 i 44. `DATE_ADD(data, INTERVAL 7 DAY)` suma dies a una data. El rang de dates s'escriu amb `>=` el primer dia i `<` el primer dia del mes següent, així no es perd cap hora del darrer dia; amb `NULL` s'ha de fer servir `IS NULL` (mai `= NULL`)."
+    },
+    {
+     "text": "Als productes de la categoria `Beverages`, treu del `product_name` el prefix `Northwind Traders ` (amb l'espai) i afegeix al final el text ` (beguda)`. Per exemple, `Northwind Traders Chai` ha de quedar `Chai (beguda)`.",
+     "sql": "UPDATE `products` SET `product_name` = CONCAT(SUBSTRING(`product_name`, 19), ' (beguda)') WHERE `category` = 'Beverages'",
+     "explain": "`SUBSTRING(text, 19)` agafa el text a partir del caràcter 19 (el prefix `Northwind Traders ` en té 18) i `CONCAT` hi enganxa el sufix. Afecta 5 productes. També es pot fer amb `REPLACE(product_name, 'Northwind Traders ', '')`."
+    },
+    {
+     "text": "Puja un 7% el preu de catàleg (`list_price`) dels productes de la categoria `Canned Fruit & Vegetables`, arrodonint el resultat a 2 decimals.",
+     "sql": "UPDATE `products` SET `list_price` = ROUND(`list_price` * 1.07, 2) WHERE `category` = 'Canned Fruit & Vegetables'",
+     "explain": "Afecta 8 productes. Sense `ROUND`, la columna `DECIMAL(19,4)` guardaria 4 decimals (1.3 * 1.07 = 1.3910 en lloc d'1.39) i el resultat no coincidiria."
+    },
+    {
+     "text": "Els productes que no tenen quantitat mínima de reposició (`minimum_reorder_quantity` és `NULL`) n'han de tenir una segons el preu (`list_price`): menys de 2 → 50; de 2 a menys de 5 → 20; 5 o més → 10. Els altres productes no es toquen.",
+     "sql": "UPDATE `products` SET `minimum_reorder_quantity` = CASE WHEN `list_price` < 2 THEN 50 WHEN `list_price` < 5 THEN 20 ELSE 10 END WHERE `minimum_reorder_quantity` IS NULL",
+     "explain": "`CASE` avalua les condicions en ordre i es queda amb la primera certa, per això el segon tram només necessita `< 5`. Cal vigilar els límits: els productes de 2.00 (91 i 95) van al tram de 20 i el de 5.00 (97) al de 10. Afecta 15 productes."
+    },
+    {
+     "text": "Posa un descompte (`discount`) de 0.1 a totes les línies de comanda (`order_details`) de productes de la categoria `Beverages` que pertanyen a comandes ateses per l'empleat de cognom `Jurek`.",
+     "sql": "UPDATE `order_details` od JOIN `orders` o ON o.`id` = od.`order_id` JOIN `employees` e ON e.`id` = o.`employee_id` JOIN `products` p ON p.`id` = od.`product_id` SET od.`discount` = 0.1 WHERE e.`last_name` = 'Jurek' AND p.`category` = 'Beverages'",
+     "explain": "Un `UPDATE` multitaula uneix les taules com un `SELECT` i modifica només les columnes del `SET`. Afecta 6 línies (42, 47, 48, 49, 50 i 76). Les taules `orders`, `employees` i `products` només serveixen per filtrar i no canvien."
+    },
+    {
+     "text": "Per a les comandes pagades en efectiu (`payment_type` `Cash`) que tenen factura, amb UNA sola sentència: a la factura (`invoices`) posa `due_date` = el dia de `invoice_date` (a les 00:00:00) més 15 dies i `tax` = el 10% del `shipping_fee` de la comanda, arrodonit a 2 decimals; i a la comanda (`orders`) canvia `payment_type` a `Efectiu`.",
+     "sql": "UPDATE `orders` o JOIN `invoices` i ON i.`order_id` = o.`id` SET i.`due_date` = DATE_ADD(DATE(i.`invoice_date`), INTERVAL 15 DAY), i.`tax` = ROUND(o.`shipping_fee` * 0.1, 2), o.`payment_type` = 'Efectiu' WHERE o.`payment_type` = 'Cash'",
+     "explain": "Un `UPDATE` multitaula pot modificar columnes de més d'una taula alhora. Afecta les comandes 36, 50, 63 i 76 i les seves 4 factures. `DATE(...)` treu l'hora de la factura abans de sumar els 15 dies."
+    },
+    {
+     "text": "Recalcula l'import (`amount_due`) de les factures emeses el març de 2006 (`invoice_date`): ha de ser la suma de `quantity * unit_price * (1 - discount)` de les línies de la seva comanda més el `shipping_fee` de la comanda, tot arrodonit a 2 decimals.",
+     "sql": "UPDATE `invoices` i SET i.`amount_due` = ROUND((SELECT SUM(od.`quantity` * od.`unit_price` * (1 - od.`discount`)) FROM `order_details` od WHERE od.`order_id` = i.`order_id`) + (SELECT o.`shipping_fee` FROM `orders` o WHERE o.`id` = i.`order_id`), 2) WHERE i.`invoice_date` >= '2006-03-01' AND i.`invoice_date` < '2006-04-01'",
+     "explain": "Les subconsultes són correlacionades: fan servir `i.order_id` de la fila de factura que s'està actualitzant, de manera que cada factura rep el total de la seva comanda. Afecta les 11 factures de març (de la 5 a la 15)."
+    },
+    {
+     "text": "Rebaixa 50 el cost d'enviament (`shipping_fee`) de les 3 comandes en estat `Closed` (nom a `orders_status`) amb el `shipping_fee` més alt. Si hi ha empat de `shipping_fee`, té prioritat la comanda amb `id` més petit.",
+     "sql": "UPDATE `orders` SET `shipping_fee` = `shipping_fee` - 50 WHERE `status_id` = (SELECT `id` FROM `orders_status` WHERE `status_name` = 'Closed') ORDER BY `shipping_fee` DESC, `id` LIMIT 3",
+     "explain": "`UPDATE ... ORDER BY ... LIMIT` (només en `UPDATE` d'una taula) modifica les primeres files segons l'ordre. Hi ha empats (300: comandes 47 i 74; 200: 30, 55 i 78), per això cal `id` com a segon criteri: es modifiquen la 47, la 74 i la 30. La 57 també té 200, però està en estat `New`."
+    },
+    {
+     "text": "Puja un 5% (arrodonit a 2 decimals) el `list_price` dels 3 productes amb més unitats venudes (suma de `quantity` de totes les línies de `order_details`); en cas d'empat, el de `product_id` més petit. Compte: si poses `LIMIT` dins d'un `IN (SELECT ...)`, MariaDB ho rebutja; fes servir una taula derivada.",
+     "sql": "UPDATE `products` p JOIN (SELECT `product_id`, SUM(`quantity`) AS total FROM `order_details` GROUP BY `product_id` ORDER BY total DESC, `product_id` LIMIT 3) t ON t.`product_id` = p.`id` SET p.`list_price` = ROUND(p.`list_price` * 1.05, 2)",
+     "explain": "Parany: `WHERE id IN (SELECT ... LIMIT 3)` dona l'error 1235 («This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'»). La solució és calcular el top 3 en una taula derivada (`(SELECT ...) t`) i fer-hi `JOIN`, o embolcallar-la: `IN (SELECT product_id FROM (SELECT ... LIMIT 3) t)`. Aquí el problema no és el 1093 de MySQL (MariaDB 10.5 sí que deixa llegir la mateixa taula en un `UPDATE` d'una taula), sinó el `LIMIT`. Es modifiquen el Coffee (650 unitats), la Beer (487) i la Clam Chowder (290)."
+    },
+    {
+     "text": "Rebaixa un 10% (arrodonit a 2 decimals) el `list_price` dels productes que valen més del doble del preu mitjà (`list_price`) de la seva pròpia categoria. La mitjana s'ha de calcular amb els preus d'abans del canvi.",
+     "sql": "UPDATE `products` p JOIN (SELECT `category`, AVG(`list_price`) AS mitjana FROM `products` GROUP BY `category`) t ON t.`category` = p.`category` SET p.`list_price` = ROUND(p.`list_price` * 0.9, 2) WHERE p.`list_price` > 2 * t.mitjana",
+     "explain": "La taula derivada calcula una sola vegada la mitjana de cada categoria i després es fa `JOIN` amb `products`. En MySQL, una subconsulta que llegeix `products` dins d'un `UPDATE products` dona l'error 1093 («You can't specify target table ... for update in FROM clause»), i la taula derivada n'és la solució clàssica; MariaDB 10.5 sí que accepta la subconsulta correlacionada directa. Afecta 4 productes: 17 (39 → 35.10), 41 (9.65 → 8.69), 43 (46 → 41.40) i 51 (53 → 47.70)."
+    }
+   ]
+  },
+  {
+   "name": "Miniwind — DELETE",
+   "type": "sqldelete",
+   "intro": "`DELETE` amb filtres per patró i per rangs de dates, `NOT IN` i `NOT EXISTS`, `DELETE` multitaula amb `JOIN` i `LEFT JOIN`, `ORDER BY ... LIMIT` i taules derivades. Totes les claus foranes de Miniwind són `NO ACTION`: no es pot esborrar una fila de la qual depèn una altra (un client amb comandes, una comanda amb línies o factura, un producte venut...), així que cal esborrar només el que no té dependències.",
+   "questions": [
+    {
+     "text": "Esborra de `customers` els clients el nom d'empresa (`company`) dels quals acaba en `and Sons`.",
+     "sql": "DELETE FROM `customers` WHERE `company` LIKE '%and Sons'",
+     "explain": "`LIKE '%and Sons'` vol dir «qualsevol cosa i, al final, `and Sons`». Esborra els clients 23 i 24, que no tenen comandes; si en tinguessin, la clau forana `orders → customers` impediria esborrar-los."
+    },
+    {
+     "text": "Esborra de `invoices` les factures emeses (`invoice_date`) el 24 de març de 2006 entre les 10:55 (incloses) i les 11:00 (excloses).",
+     "sql": "DELETE FROM `invoices` WHERE `invoice_date` >= '2006-03-24 10:55:00' AND `invoice_date` < '2006-03-24 11:00:00'",
+     "explain": "Les dates amb hora es comparen com a text ordenable `AAAA-MM-DD hh:mm:ss`. Amb `>=` i `<` el rang és mig obert i no cal pensar en segons. Esborra les factures 8, 9, 10 i 11."
+    },
+    {
+     "text": "Esborra les línies de comanda (`order_details`) de les comandes 41, 43 i 44 que tenen una quantitat (`quantity`) entre 20 i 30, tots dos inclosos.",
+     "sql": "DELETE FROM `order_details` WHERE `order_id` IN (41, 43, 44) AND `quantity` BETWEEN 20 AND 30",
+     "explain": "`IN` substitueix una cadena de `OR` i `BETWEEN` inclou els dos extrems. Esborra 4 línies: la 46 (20 unitats) i la 48, 49 i 50 (25 unitats cadascuna)."
+    },
+    {
+     "text": "Esborra els productes de la categoria `Canned Fruit & Vegetables` que no apareixen a cap línia de comanda (`order_details`). Fes-ho amb `NOT IN`.",
+     "sql": "DELETE FROM `products` WHERE `category` = 'Canned Fruit & Vegetables' AND `id` NOT IN (SELECT `product_id` FROM `order_details` WHERE `product_id` IS NOT NULL)",
+     "explain": "Esborra els productes 88 a 94 (el 17 sí que s'ha venut i es queda). Parany de `NOT IN`: si la subconsulta tornés algun `NULL`, la condició no seria mai certa i no s'esborraria res; per això és prudent afegir `WHERE product_id IS NOT NULL` (aquí no n'hi ha cap, però la columna ho permet)."
+    },
+    {
+     "text": "Esborra els clients dels estats (`state_province`) `CA` i `NY` que no tenen cap comanda a `orders`. Fes-ho amb `NOT EXISTS`.",
+     "sql": "DELETE FROM `customers` WHERE `state_province` IN ('CA', 'NY') AND NOT EXISTS (SELECT 1 FROM `orders` o WHERE o.`customer_id` = `customers`.`id`)",
+     "explain": "`NOT EXISTS` amb una subconsulta correlacionada pregunta, per a cada client, si hi ha alguna comanda seva. Esborra 5 clients (2, 16, 19, 23 i 24); el 12 i el 28 (de Califòrnia) tenen comandes i es queden. Sense aquest filtre, la clau forana faria fallar l'esborrat."
+    },
+    {
+     "text": "Esborra les línies de comanda (`order_details`) en estat `Allocated` (nom a `order_details_status`) de les comandes del client de l'empresa `Lueilwitz, Homenick and Quigley`. Fes-ho amb un `DELETE` multitaula amb `JOIN`.",
+     "sql": "DELETE od FROM `order_details` od JOIN `orders` o ON o.`id` = od.`order_id` JOIN `customers` c ON c.`id` = o.`customer_id` JOIN `order_details_status` s ON s.`id` = od.`status_id` WHERE c.`company` = 'Lueilwitz, Homenick and Quigley' AND s.`status_name` = 'Allocated'",
+     "explain": "En un `DELETE` multitaula, el nom que va just després de `DELETE` (`od`) indica de quina taula s'esborra; les altres només serveixen per filtrar. El client 1 té les comandes 44 i 71: s'esborren les 3 línies de la 44 (la 77, de la comanda 71, està en estat `Invoiced`)."
+    },
+    {
+     "text": "De les línies de comanda en estat `Allocated` (nom a `order_details_status`), esborra les 2 d'import més petit (`quantity * unit_price`). En cas d'empat, primer la d'`id` més petit.",
+     "sql": "DELETE FROM `order_details` WHERE `status_id` = (SELECT `id` FROM `order_details_status` WHERE `status_name` = 'Allocated') ORDER BY `quantity` * `unit_price`, `id` LIMIT 2",
+     "explain": "`DELETE ... ORDER BY ... LIMIT` (només en `DELETE` d'una taula) esborra les primeres files segons l'ordre indicat. Les línies `Allocated` són 7; les dues més petites són la 46 (20 × 3.50 = 70) i la 50 (25 × 2.99 = 74.75). L'`id` final garanteix un resultat únic si hi hagués empats."
+    },
+    {
+     "text": "Esborra les comandes (`orders`) en estat `New` (nom a `orders_status`) que no tenen cap línia a `order_details` ni cap factura a `invoices`.",
+     "sql": "DELETE FROM `orders` WHERE `status_id` = (SELECT `id` FROM `orders_status` WHERE `status_name` = 'New') AND NOT EXISTS (SELECT 1 FROM `order_details` od WHERE od.`order_id` = `orders`.`id`) AND NOT EXISTS (SELECT 1 FROM `invoices` i WHERE i.`order_id` = `orders`.`id`)",
+     "explain": "Abans d'esborrar una fila referenciada per claus foranes (`NO ACTION`) cal assegurar que no en depèn res. Dos `NOT EXISTS` comproven les dues taules filles. S'esborren 8 comandes: 57, 59, 61, 62, 64, 65, 66 i 68. Les comandes `New` amb línies (41, 43, 44, 80, 81) es queden."
+    },
+    {
+     "text": "Esborra els productes de les categories `Soups` i `Cereal` que no s'han venut mai (no surten a `order_details`). Fes-ho amb un `DELETE` multitaula amb `LEFT JOIN`.",
+     "sql": "DELETE p FROM `products` p LEFT JOIN `order_details` od ON od.`product_id` = p.`id` WHERE od.`id` IS NULL AND p.`category` IN ('Soups', 'Cereal')",
+     "explain": "El `LEFT JOIN` conserva tots els productes; els que no tenen cap línia hi surten amb les columnes d'`od` a `NULL`, i `od.id IS NULL` els selecciona. S'esborren els productes 82, 97, 98 i 99; la Clam Chowder (41) es queda perquè té vendes."
+    },
+    {
+     "text": "A cada comanda en estat `Closed` (nom a `orders_status`) que té més d'una línia, esborra la línia d'import més petit (`quantity * unit_price`). Pista: si fas un `DELETE` multitaula que també llegeix `order_details` en una subconsulta, MariaDB dona l'error 1093; calcula el mínim de cada comanda en una taula derivada.",
+     "sql": "DELETE od FROM `order_details` od JOIN `orders` o ON o.`id` = od.`order_id` JOIN `orders_status` s ON s.`id` = o.`status_id` JOIN (SELECT `order_id`, MIN(`quantity` * `unit_price`) AS minim FROM `order_details` GROUP BY `order_id` HAVING COUNT(*) > 1) t ON t.`order_id` = od.`order_id` WHERE s.`status_name` = 'Closed' AND od.`quantity` * od.`unit_price` = t.minim",
+     "explain": "Parany: `DELETE od FROM order_details od JOIN ... WHERE ... = (SELECT MIN(...) FROM order_details ...)` dona l'error 1093 («Table 'od' is specified twice, both as a target for 'DELETE' and as a separate source for data»), perquè no es pot llegir la taula de la qual s'esborra. Una taula derivada `(SELECT ... GROUP BY order_id) t` es materialitza abans d'esborrar i ho evita. S'esborren 9 línies (28, 31, 32, 51, 54, 57, 61, 83 i 85). La comanda 81 (dues línies d'import 0) no és `Closed`."
+    }
+   ]
+  }
+ ]
+}

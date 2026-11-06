@@ -1,0 +1,149 @@
+{
+ "database": "hotel",
+ "engine": "mysql",
+ "code_prefix": "sqldmlhotel",
+ "label": "Hotel (reserves, estades, habitacions, temporades i preus)",
+ "problems": [
+  {
+   "name": "Hotel — INSERT avançat",
+   "type": "sqlinsert",
+   "intro": "Arriba el tancament de la temporada 2023 i l'hotel es prepara per a la següent: noves instal·lacions, habitacions, temporades i tarifes, hostes i clients nous, entrades d'avui i alguna reserva especial. Practiques `INSERT` de diverses files, `INSERT ... SELECT` amb `JOIN` i `GROUP BY`, valors calculats amb subconsultes (claus foranes buscades pel nom, `MAX()`...), `INSERT IGNORE`, `INSERT ... ON DUPLICATE KEY UPDATE` i `REPLACE`. Cada pregunta s'executa per separat sobre la base de dades original (els canvis d'una pregunta no es veuen a la següent). Quan l'enunciat no dona l'identificador d'una fila nova (columna `AUTO_INCREMENT`), deixa que el posi la base de dades: es compara com a \"fila nova\", sigui quin sigui el número. Recorda que `REPLACE` esborra la fila antiga i n'insereix una de nova: si la fila té files filles amb una clau forana sense `ON DELETE CASCADE`, falla.",
+   "questions": [
+    {
+     "text": "L'hotel ofereix tres instal·lacions noves. Afegeix a `Facilities` les files amb nom (`Name`) `Minibar`, `Balcony` i `Safe`, amb una sola sentència `INSERT` (l'`Id` el posa la base de dades).",
+     "sql": "INSERT INTO Facilities (Name) VALUES ('Minibar'), ('Balcony'), ('Safe')"
+    },
+    {
+     "text": "S'han habilitat dues habitacions noves: una del tipus `Suite` i una del tipus `Room for 6 with private bathroom`, totes dues buides (`Empty` = 1). Afegeix-les a `Rooms` buscant el `RoomTypeId` pel nom del tipus a `RoomTypes` (no escriguis els identificadors a mà); el `RoomNumber` el posa la base de dades.",
+     "sql": "INSERT INTO Rooms (RoomTypeId, Empty) SELECT Id, 1 FROM RoomTypes WHERE Name IN ('Suite', 'Room for 6 with private bathroom')"
+    },
+    {
+     "text": "Cal donar d'alta la temporada següent a l'última que hi ha a `Seasons`. Afegeix-hi una temporada anomenada `Spring 2025` el dia d'inici (`StartingDay`) de la qual sigui exactament 3 mesos després del `StartingDay` més recent de la taula. Calcula la data amb `MAX()` i `DATE_ADD` dins de la mateixa sentència.",
+     "sql": "INSERT INTO Seasons (StartingDay, Name) SELECT DATE_ADD(MAX(StartingDay), INTERVAL 3 MONTH), 'Spring 2025' FROM Seasons"
+    },
+    {
+     "text": "Registra a `Hosts` aquests tres hostes: (`DocType` `Passport`, `DocNumber` `PA1029384`, `FirstName` `LUCY`, `LastName` `MORGAN`, `Nationality` `English`), (`National ID`, `Y2345678Z`, `JORDI`, `PUIG SALA`, `Spanish`) i (`National ID`, `67588708B`, `SANTIAGO`, `LAGE GRADO`, `Spanish`). El `DocNumber` és únic: si ja existeix un hoste amb aquest document, aquella fila s'ha de descartar sense modificar l'hoste existent, i les altres s'han d'inserir igualment.",
+     "sql": "INSERT IGNORE INTO Hosts (DocType, DocNumber, FirstName, LastName, Nationality) VALUES ('Passport', 'PA1029384', 'LUCY', 'MORGAN', 'English'), ('National ID', 'Y2345678Z', 'JORDI', 'PUIG SALA', 'Spanish'), ('National ID', '67588708B', 'SANTIAGO', 'LAGE GRADO', 'Spanish')"
+    },
+    {
+     "text": "Tots els tipus d'habitació (`RoomTypes`) amb capacitat (`Capacity`) de 3 o més han de tenir les instal·lacions `Flat-screen TV` i `Sofa` a `RoomTypeFacilities`. Alguns ja en tenen alguna: només s'han d'afegir les parelles que faltin. Fes-ho amb un sol `INSERT ... SELECT` que combini `RoomTypes` i `Facilities` buscant les instal·lacions pel nom (per exemple amb `INSERT IGNORE`, que descarta les files que repetirien la clau primària).",
+     "sql": "INSERT IGNORE INTO RoomTypeFacilities (RoomTypeId, FacilityId) SELECT r.Id, f.Id FROM RoomTypes r CROSS JOIN Facilities f WHERE r.Capacity >= 3 AND f.Name IN ('Flat-screen TV', 'Sofa')"
+    },
+    {
+     "text": "S'insonoritzen les habitacions dels tipus més habituals. Afegeix la instal·lació `Soundproofing` (busca-la pel nom a `Facilities`) a cada tipus d'habitació que tingui almenys 4 habitacions a `Rooms`. Agrupa les habitacions per `RoomTypeId` i filtra amb `HAVING`.",
+     "sql": "INSERT INTO RoomTypeFacilities (RoomTypeId, FacilityId) SELECT r.RoomTypeId, (SELECT Id FROM Facilities WHERE Name = 'Soundproofing') FROM Rooms r GROUP BY r.RoomTypeId HAVING COUNT(*) >= 4"
+    },
+    {
+     "text": "Arriben dues altes de clients a `Customers`: (`Email` `andrea_estevezbaragano@fastcompany.com`, `FirstName` `Andrea`, `LastName` `Estévez Baragaño`, `Nationality` `Spanish`, `PhoneNumber` `+34600111222`) i (`nuria_puigvert@ies-exemple.cat`, `NURIA`, `PUIGVERT SOLA`, `Spanish`, `+34611222333`). L'`Email` és únic. Si ja hi ha un client amb aquest email, **només** se li ha d'actualitzar el telèfon (`PhoneNumber`) amb el nou valor; la resta de les seves columnes es queden com estaven. Si no existeix, s'insereix el client nou. Fes-ho amb un sol `INSERT ... ON DUPLICATE KEY UPDATE` (amb `REPLACE` no funcionaria: esborraria el client, que té reserves).",
+     "sql": "INSERT INTO Customers (Email, FirstName, LastName, Nationality, PhoneNumber) VALUES ('andrea_estevezbaragano@fastcompany.com', 'Andrea', 'Estévez Baragaño', 'Spanish', '+34600111222'), ('nuria_puigvert@ies-exemple.cat', 'NURIA', 'PUIGVERT SOLA', 'Spanish', '+34611222333') ON DUPLICATE KEY UPDATE PhoneNumber = VALUES(PhoneNumber)"
+    },
+    {
+     "text": "Es revisen les tarifes de 2024: per a cada tipus d'habitació i cada estació, el preu (`Price`) de `PriceSeasons` de la temporada de 2024 ha de passar a ser el de la mateixa estació de 2023 incrementat un 5%, `ROUND(preu_2023 * 1.05, 2)`. Les temporades s'identifiquen pel nom (`Seasons.Name`): `Winter 2023` correspon a `Winter 2024`, `Spring 2023` a `Spring 2024`, etc. Les files de 2024 ja existeixen, però s'ha de fer amb un `INSERT ... SELECT` que sobreescrigui el preu: amb `ON DUPLICATE KEY UPDATE` o amb `REPLACE` (aquí `REPLACE` sí que funciona: `PriceSeasons` no té files filles).",
+     "sql": "INSERT INTO PriceSeasons (RoomTypeId, SeasonId, Price) SELECT p.RoomTypeId, s24.Id, ROUND(p.Price * 1.05, 2) FROM PriceSeasons p JOIN Seasons s23 ON s23.Id = p.SeasonId JOIN Seasons s24 ON s24.Name = REPLACE(s23.Name, '2023', '2024') WHERE s23.Name LIKE '% 2023' ON DUPLICATE KEY UPDATE Price = VALUES(Price)"
+    },
+    {
+     "text": "Avui (13 de novembre de 2023) entren els clients de totes les reserves (`Bookings`) en estat `Reserved` amb `CheckIn` el `2023-11-13`. Registra'n les estades a `Stays`: `CheckIn` el de la reserva, `RoomNumber` l'habitació assignada a la reserva al calendari (`BookingCalendar.AssignedRoom`) per al dia d'entrada, `CheckOut`, `PaymentType` i `PaymentDateTime` a `NULL` (encara no han marxat ni pagat), `TotalPrice` el preu de la reserva (`Bookings.Price`) i `BookingId` l'`Id` de la reserva. L'`Id` de l'estada el posa la base de dades.",
+     "sql": "INSERT INTO Stays (CheckIn, RoomNumber, CheckOut, TotalPrice, PaymentType, BookingId, PaymentDateTime) SELECT b.CheckIn, k.AssignedRoom, NULL, b.Price, NULL, b.Id, NULL FROM Bookings b JOIN BookingCalendar k ON k.BookingId = b.Id AND k.BookedDate = b.CheckIn WHERE b.State = 'Reserved' AND b.CheckIn = '2023-11-13'"
+    },
+    {
+     "text": "L'hotel regala una estada al client més fidel: el `CustomerId` amb més reserves a `Bookings` (de qualsevol estat; en cas d'empat, el de `CustomerId` més petit). Crea-li una reserva a `Bookings` amb: `ReservationDateTime` `2023-11-13 09:00:00`, tipus d'habitació `Suite` (busca'n l'`Id` pel nom), `CheckIn` `2024-03-25`, `CheckOut` `2024-03-28`, `State` `Reserved`, `NHosts` 2 i `Price` = nombre de nits × preu de la `Suite` a `PriceSeasons` en la temporada vigent el dia d'entrada (la de `StartingDay` més recent que no sigui posterior al `2024-03-25`) × 0.8 (un 20% de descompte), arrodonit amb `ROUND(..., 2)`. Calcula-ho tot dins de la sentència (nits amb `DATEDIFF`); l'`Id` de la reserva el posa la base de dades.",
+     "sql": "INSERT INTO Bookings (ReservationDateTime, CustomerId, RoomTypeId, CheckIn, CheckOut, Price, State, NHosts) SELECT '2023-11-13 09:00:00', (SELECT CustomerId FROM Bookings GROUP BY CustomerId ORDER BY COUNT(*) DESC, CustomerId LIMIT 1), r.Id, '2024-03-25', '2024-03-28', ROUND(DATEDIFF('2024-03-28', '2024-03-25') * p.Price * 0.8, 2), 'Reserved', 2 FROM RoomTypes r JOIN PriceSeasons p ON p.RoomTypeId = r.Id WHERE r.Name = 'Suite' AND p.SeasonId = (SELECT Id FROM Seasons WHERE StartingDay <= '2024-03-25' ORDER BY StartingDay DESC, Id DESC LIMIT 1)"
+    }
+   ]
+  },
+  {
+   "name": "Hotel — UPDATE amb JOIN i subconsultes",
+   "type": "sqlupdate",
+   "intro": "Som al matí del 13 de novembre de 2023 i cal posar la base de dades al dia: retocar noms, ajustar tarifes per temporades, tancar estades, aplicar descomptes i corregir dades incoherents. Practiques `UPDATE` multitaula amb `JOIN` (sintaxi de MySQL: `UPDATE t1 JOIN t2 ON ... SET ...`), subconsultes correlacionades, `CASE` amb trams, `ORDER BY ... LIMIT`, funcions de data (`DATE_ADD`, `DATEDIFF`, `TIMESTAMP`...), de text (`CONCAT`, `REPLACE`, `UPPER`...) i `ROUND`. Cada pregunta s'executa per separat sobre la base de dades original. Els imports s'arrodoneixen sempre amb `ROUND(..., 2)` tal com indica cada enunciat.",
+   "questions": [
+    {
+     "text": "Es volen escurçar els noms dels tipus d'habitació: a `RoomTypes`, substitueix la paraula `bathroom` per `bath` dins del nom (`Name`) de tots els tipus que la contenen (per exemple `Double room with private bathroom` passa a `Double room with private bath`). Fes servir la funció de text `REPLACE`.",
+     "sql": "UPDATE RoomTypes SET Name = REPLACE(Name, 'bathroom', 'bath') WHERE Name LIKE '%bathroom%'"
+    },
+    {
+     "text": "Les temporades que comencen l'any 2020 queden arxivades: a `Seasons`, afegeix el text ` (archived)` (amb un espai al davant) al final del nom (`Name`) de les temporades el `StartingDay` de les quals és de l'any 2020. Fes servir `CONCAT` i `YEAR`.",
+     "sql": "UPDATE Seasons SET Name = CONCAT(Name, ' (archived)') WHERE YEAR(StartingDay) = 2020"
+    },
+    {
+     "text": "Les reserves futures llargues tenen descompte: a `Bookings`, per a les reserves en estat `Reserved` amb `CheckIn` a partir del `2023-11-13` (inclòs) i una durada de 7 nits o més (`DATEDIFF(CheckOut, CheckIn)`), posa el preu (`Price`) a `ROUND(Price * 0.93, 2)`.",
+     "sql": "UPDATE Bookings SET Price = ROUND(Price * 0.93, 2) WHERE State = 'Reserved' AND CheckIn >= '2023-11-13' AND DATEDIFF(CheckOut, CheckIn) >= 7"
+    },
+    {
+     "text": "L'estiu de 2024 s'apuja un 3% el preu de les habitacions amb bany privat. A `PriceSeasons`, posa `Price` a `ROUND(Price * 1.03, 2)` de les files de la temporada anomenada `Summer 2024` dels tipus d'habitació que tenen la instal·lació `Private bathroom` (segons `RoomTypeFacilities`). Fes-ho amb un `UPDATE` multitaula amb `JOIN` (temporades i instal·lacions buscades pel nom).",
+     "sql": "UPDATE PriceSeasons p JOIN Seasons s ON s.Id = p.SeasonId JOIN RoomTypeFacilities rf ON rf.RoomTypeId = p.RoomTypeId JOIN Facilities f ON f.Id = rf.FacilityId SET p.Price = ROUND(p.Price * 1.03, 2) WHERE s.Name = 'Summer 2024' AND f.Name = 'Private bathroom'"
+    },
+    {
+     "text": "Promoció d'hivern per trams de capacitat: a `PriceSeasons`, per a la temporada `Winter 2024`, el preu de cada tipus d'habitació (`Price`) es multiplica per 0.90 si la capacitat del tipus (`RoomTypes.Capacity`) és 1, per 0.95 si és 2 o 3, i per 0.85 si és 4 o més. El resultat s'arrodoneix amb `ROUND(..., 2)`. Fes-ho amb un sol `UPDATE` que faci servir `CASE`.",
+     "sql": "UPDATE PriceSeasons p JOIN RoomTypes r ON r.Id = p.RoomTypeId JOIN Seasons s ON s.Id = p.SeasonId SET p.Price = ROUND(p.Price * CASE WHEN r.Capacity = 1 THEN 0.90 WHEN r.Capacity <= 3 THEN 0.95 ELSE 0.85 END, 2) WHERE s.Name = 'Winter 2024'"
+    },
+    {
+     "text": "Hi ha estades obertes (`Stays.CheckOut` és `NULL`) la reserva de les quals acaba (`Bookings.CheckOut`) el `2023-11-14` o abans. Tanca-les: posa a l'estada `CheckOut` = el `CheckOut` de la seva reserva, `PaymentType` = `Card` i `PaymentDateTime` = el dia de sortida a les `11:00:00` (calcula-ho, per exemple, amb `TIMESTAMP(data, '11:00:00')` o `DATE_ADD(data, INTERVAL 11 HOUR)`). Fes-ho amb un `UPDATE` multitaula `Stays JOIN Bookings`.",
+     "sql": "UPDATE Stays s JOIN Bookings b ON b.Id = s.BookingId SET s.CheckOut = b.CheckOut, s.PaymentType = 'Card', s.PaymentDateTime = TIMESTAMP(b.CheckOut, '11:00:00') WHERE s.CheckOut IS NULL AND b.CheckOut <= '2023-11-14'"
+    },
+    {
+     "text": "Hi ha massa reserves de la `Suite` per a les properes setmanes. A `Bookings`, passa a estat `Cancelled` les 3 reserves en estat `Reserved` del tipus d'habitació `Suite` (busca l'`Id` pel nom amb una subconsulta) que tenen el `CheckIn` més tardà; en cas d'empat de `CheckIn`, primer les d'`Id` més gran. Fes servir `ORDER BY ... LIMIT`. Atenció: MySQL no admet `ORDER BY` ni `LIMIT` en un `UPDATE` multitaula (amb `JOIN`), per això el tipus s'ha de buscar amb una subconsulta.",
+     "sql": "UPDATE Bookings SET State = 'Cancelled' WHERE State = 'Reserved' AND RoomTypeId = (SELECT Id FROM RoomTypes WHERE Name = 'Suite') ORDER BY CheckIn DESC, Id DESC LIMIT 3"
+    },
+    {
+     "text": "El nombre d'hostes (`NHosts`) d'algunes reserves no coincideix amb els hostes realment registrats. Per a cada reserva de `Bookings` amb `CheckIn` de l'any 2023 que tingui almenys un hoste registrat a `StayHosts` (a través de la seva estada a `Stays`), posa `NHosts` igual al nombre d'hostes registrats a les seves estades. Les reserves sense cap hoste registrat no es toquen. Fes-ho amb una subconsulta correlacionada.",
+     "sql": "UPDATE Bookings b SET b.NHosts = (SELECT COUNT(*) FROM Stays s JOIN StayHosts sh ON sh.StayId = s.Id WHERE s.BookingId = b.Id) WHERE b.CheckIn BETWEEN '2023-01-01' AND '2023-12-31' AND EXISTS (SELECT 1 FROM Stays s JOIN StayHosts sh ON sh.StayId = s.Id WHERE s.BookingId = b.Id)"
+    },
+    {
+     "text": "Les tarifes de 2024 més cares baixen: a `PriceSeasons`, les files de les temporades amb nom acabat en `2024` que tinguin un preu superior a la mitjana de **tots** els preus de les temporades de 2024 (calculada abans del canvi) passen a `ROUND(Price * 0.95, 2)`. Parany: a MySQL, `UPDATE PriceSeasons ... WHERE Price > (SELECT AVG(Price) FROM PriceSeasons ...)` dona l'error 1093 (no es pot llegir de la taula que s'està modificant); la solució portable és posar la subconsulta dins d'una taula derivada (`SELECT ... FROM (SELECT AVG(...) ...) AS t`), que es calcula una sola vegada abans de modificar res. MariaDB també accepta la subconsulta directa.",
+     "sql": "UPDATE PriceSeasons SET Price = ROUND(Price * 0.95, 2) WHERE SeasonId IN (SELECT Id FROM Seasons WHERE Name LIKE '% 2024') AND Price > (SELECT m FROM (SELECT AVG(p.Price) AS m FROM PriceSeasons p JOIN Seasons s ON s.Id = p.SeasonId WHERE s.Name LIKE '% 2024') AS t)"
+    },
+    {
+     "text": "Descompte de fidelitat per als clients que són ara a l'hotel: per a cada estada oberta (`Stays.CheckOut` és `NULL`) d'un client que té 2 o més reserves a `Bookings` (de qualsevol estat), aplica un 5% de descompte **alhora** al `TotalPrice` de l'estada i al `Price` de la seva reserva: tots dos passen a `ROUND(valor * 0.95, 2)`. Fes-ho amb un sol `UPDATE` multitaula que modifiqui les dues taules (el recompte de reserves per client, amb una taula derivada amb `GROUP BY`).",
+     "sql": "UPDATE Stays s JOIN Bookings b ON b.Id = s.BookingId JOIN (SELECT CustomerId, COUNT(*) AS n FROM Bookings GROUP BY CustomerId) c ON c.CustomerId = b.CustomerId SET s.TotalPrice = ROUND(s.TotalPrice * 0.95, 2), b.Price = ROUND(b.Price * 0.95, 2) WHERE s.CheckOut IS NULL AND c.n >= 2"
+    }
+   ]
+  },
+  {
+   "name": "Hotel — DELETE",
+   "type": "sqldelete",
+   "intro": "Fem neteja a la base de dades de l'hotel: temporades antigues, tarifes que ja no s'apliquen, clients que no han reservat mai, reserves cancel·lades i reserves futures anul·lades. Practiques `DELETE` amb rangs i patrons, `NOT IN` / `NOT EXISTS`, `DELETE` multitaula (`DELETE t FROM t JOIN ...`) i `ORDER BY ... LIMIT`. Vigila les claus foranes: `BookingCalendar`, `PriceSeasons` i `RoomTypeFacilities` tenen `ON DELETE CASCADE` (en esborrar el pare s'esborren soles les files filles), mentre que `Bookings`, `Rooms`, `Stays` i `StayHosts` impedeixen esborrar el pare si té fills (`NO ACTION`): una sentència que intenti esborrar-ne un falla sencera. Cada pregunta s'executa per separat sobre la base de dades original.",
+   "questions": [
+    {
+     "text": "Esborra de `Seasons` les temporades el `StartingDay` de les quals és de l'any 2020 (entre l'1 de gener i el 31 de desembre de 2020, tots dos inclosos). Com que `PriceSeasons` té `ON DELETE CASCADE` cap a `Seasons`, també desapareixeran soles les tarifes d'aquestes temporades.",
+     "sql": "DELETE FROM Seasons WHERE StartingDay BETWEEN '2020-01-01' AND '2020-12-31'"
+    },
+    {
+     "text": "L'hotel deixa de publicar tarifes d'hivern per a les habitacions amb bany compartit. Esborra de `PriceSeasons` les files de les temporades el nom de les quals comença per `Winter` i dels tipus d'habitació el nom dels quals conté `shared bathroom`. Només s'han d'esborrar tarifes: ni temporades ni tipus d'habitació.",
+     "sql": "DELETE FROM PriceSeasons WHERE SeasonId IN (SELECT Id FROM Seasons WHERE Name LIKE 'Winter%') AND RoomTypeId IN (SELECT Id FROM RoomTypes WHERE Name LIKE '%shared bathroom%')"
+    },
+    {
+     "text": "Esborra de `Customers` els clients de nacionalitat (`Nationality`) `French` que no han fet mai cap reserva (no apareixen a `Bookings`). Fes-ho amb `NOT EXISTS` o `NOT IN`.",
+     "sql": "DELETE FROM Customers WHERE Nationality = 'French' AND NOT EXISTS (SELECT 1 FROM Bookings b WHERE b.CustomerId = Customers.Id)"
+    },
+    {
+     "text": "Esborra de `Bookings` les 5 reserves en estat `Cancelled` que es van fer primer (`ReservationDateTime` més antic; en cas d'empat, primer l'`Id` més petit). Fes servir `ORDER BY ... LIMIT`. (Les reserves cancel·lades no tenen estades ni calendari, així que l'esborrat no topa amb cap clau forana.)",
+     "sql": "DELETE FROM Bookings WHERE State = 'Cancelled' ORDER BY ReservationDateTime, Id LIMIT 5"
+    },
+    {
+     "text": "S'han de tornar a registrar els hostes de les estades a habitacions del tipus `Suite` amb `CheckIn` del gener de 2021. Esborra de `StayHosts` els registres d'aquestes estades amb un `DELETE` multitaula (`DELETE sh FROM StayHosts sh JOIN Stays ... JOIN Rooms ... JOIN RoomTypes ...`). Les estades i els hostes no s'esborren.",
+     "sql": "DELETE sh FROM StayHosts sh JOIN Stays s ON s.Id = sh.StayId JOIN Rooms r ON r.RoomNumber = s.RoomNumber JOIN RoomTypes t ON t.Id = r.RoomTypeId WHERE t.Name = 'Suite' AND s.CheckIn >= '2021-01-01' AND s.CheckIn < '2021-02-01'"
+    },
+    {
+     "text": "L'hotel tancarà per obres a partir de l'1 de febrer de 2024 i anul·la les reserves afectades. Esborra de `Bookings` les reserves en estat `Reserved` amb `CheckIn` el `2024-02-01` o més tard. Pensa què passarà amb les seves files de `BookingCalendar`: com que la clau forana té `ON DELETE CASCADE`, s'esborraran soles amb la reserva (i per això la sentència no falla).",
+     "sql": "DELETE FROM Bookings WHERE State = 'Reserved' AND CheckIn >= '2024-02-01'"
+    },
+    {
+     "text": "Esborra de `RoomTypes` els tipus d'habitació que no tenen cap habitació a `Rooms` i cap reserva a `Bookings` (amb `NO ACTION`, un tipus amb habitacions o reserves faria fallar la sentència sencera; per això s'han de filtrar). Reflexiona: quines files de `PriceSeasons` i `RoomTypeFacilities` desapareixen també, i per què?",
+     "sql": "DELETE FROM RoomTypes WHERE NOT EXISTS (SELECT 1 FROM Rooms r WHERE r.RoomTypeId = RoomTypes.Id) AND NOT EXISTS (SELECT 1 FROM Bookings b WHERE b.RoomTypeId = RoomTypes.Id)"
+    },
+    {
+     "text": "Esborra de `Bookings` les reserves en estat `Cancelled` fetes (`ReservationDateTime`) abans de l'1 d'abril de 2021 per clients de nacionalitat `English`. Fes-ho amb un `DELETE` multitaula: `DELETE b FROM Bookings b JOIN Customers c ON ...` (els clients no s'esborren).",
+     "sql": "DELETE b FROM Bookings b JOIN Customers c ON c.Id = b.CustomerId WHERE c.Nationality = 'English' AND b.State = 'Cancelled' AND b.ReservationDateTime < '2021-04-01'"
+    },
+    {
+     "text": "Es retiren les tarifes de 2024 més barates: esborra de `PriceSeasons` les files de les temporades que comencen l'any 2024 (`Seasons.StartingDay`) el preu de les quals és inferior a la mitjana de **tots** els preus del mateix tipus d'habitació (de totes les temporades de tots els anys, calculada abans d'esborrar res). Fes-ho amb un `DELETE` multitaula contra una taula derivada amb `GROUP BY RoomTypeId`.",
+     "sql": "DELETE p FROM PriceSeasons p JOIN Seasons s ON s.Id = p.SeasonId JOIN (SELECT RoomTypeId, AVG(Price) AS m FROM PriceSeasons GROUP BY RoomTypeId) t ON t.RoomTypeId = p.RoomTypeId WHERE YEAR(s.StartingDay) = 2024 AND p.Price < t.m"
+    },
+    {
+     "text": "Esborra de `Facilities` les instal·lacions que només té un únic tipus d'habitació a `RoomTypeFacilities` (exactament un). Calcula-les amb `GROUP BY` i `HAVING` en una subconsulta. Reflexiona: què passa amb les files de `RoomTypeFacilities` que les referenciaven?",
+     "sql": "DELETE FROM Facilities WHERE Id IN (SELECT FacilityId FROM RoomTypeFacilities GROUP BY FacilityId HAVING COUNT(*) = 1)"
+    }
+   ]
+  }
+ ]
+}
