@@ -1,0 +1,210 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JOEL\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Problemes"
+msgstr "题目"
+
+msgid "Enviaments"
+msgstr "提交"
+
+msgid "Usuaris"
+msgstr "用户"
+
+msgid "Concursos"
+msgstr "比赛"
+
+msgid "Sobre i Guies"
+msgstr "关于与指南"
+
+msgid "Categories"
+msgstr "分类"
+
+msgid "Respostes"
+msgstr "评测结果"
+
+msgid "Consells"
+msgstr "小贴士"
+
+msgid "Guia Alumnes"
+msgstr "学生指南"
+
+msgid "Guia Professors"
+msgstr "教师指南"
+
+msgid "Altres Guies"
+msgstr "其他指南"
+
+msgid "Crear Problemes"
+msgstr "创建题目"
+
+msgid "Crear Temes"
+msgstr "创建主题"
+
+msgid "Guia DBeaver"
+msgstr "DBeaver 指南"
+
+msgid "Crear Achievements"
+msgstr "创建 Achievement"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Gacha"
+msgstr "Gacha"
+
+msgid "Algoritmes Voraços"
+msgstr "贪心算法"
+
+msgid "Algorítmia"
+msgstr "算法"
+
+msgid "Arbres"
+msgstr "树"
+
+msgid "Arrays/Llistes"
+msgstr "数组/列表"
+
+msgid "BD - Mongo"
+msgstr "数据库 - Mongo"
+
+msgid "BFS/DFS"
+msgstr "BFS/DFS"
+
+msgid "Bucles simples"
+msgstr "简单循环"
+
+msgid "Cerca Binària"
+msgstr "二分查找"
+
+msgid "Combinatòria"
+msgstr "组合数学"
+
+msgid "Diccionaris"
+msgstr "字典"
+
+msgid "Estructures de Dades"
+msgstr "数据结构"
+
+msgid "Extracció de Dígits"
+msgstr "数位提取"
+
+msgid "Fitxers avançats"
+msgstr "文件进阶"
+
+msgid "Fitxers de text"
+msgstr "文本文件"
+
+msgid "Força Bruta"
+msgstr "暴力搜索"
+
+msgid "Geometria"
+msgstr "几何"
+
+msgid "Grafs"
+msgstr "图论"
+
+msgid "Hash"
+msgstr "哈希"
+
+msgid "Jocs"
+msgstr "游戏"
+
+msgid "Matemàtiques"
+msgstr "数学"
+
+msgid "Matemàtiques Avançades"
+msgstr "高等数学"
+
+msgid "Matemàtiques simples"
+msgstr "简单数学"
+
+msgid "Matrius"
+msgstr "矩阵"
+
+msgid "Optimització"
+msgstr "优化"
+
+msgid "Ordenació"
+msgstr "排序"
+
+msgid "Pensar!"
+msgstr "动脑筋！"
+
+msgid "Piles/cues"
+msgstr "栈/队列"
+
+msgid "PostgreSQL - Consultes avançades"
+msgstr "PostgreSQL - 高级查询"
+
+msgid "PostgreSQL - Funcions"
+msgstr "PostgreSQL - 函数"
+
+msgid "PostgreSQL - Procediments"
+msgstr "PostgreSQL - 存储过程"
+
+msgid "PostgreSQL - Tipus, arrays i JSON"
+msgstr "PostgreSQL - 类型、数组与 JSON"
+
+msgid "PostgreSQL - Triggers"
+msgstr "PostgreSQL - 触发器"
+
+msgid "Programació Dinàmica"
+msgstr "动态规划"
+
+msgid "Recursivitat"
+msgstr "递归"
+
+msgid "Sense Bucles"
+msgstr "不用循环"
+
+msgid "Sense Ifs"
+msgstr "不用 if"
+
+msgid "Sense Scanner"
+msgstr "不用 Scanner"
+
+msgid "Sortida amb format"
+msgstr "格式化输出"
+
+msgid "SQL - Deletes"
+msgstr "SQL - 删除 (DELETE)"
+
+msgid "SQL - Inserts"
+msgstr "SQL - 插入 (INSERT)"
+
+msgid "SQL - Selects: agregacions bàsiques"
+msgstr "SQL - 查询：基础聚合"
+
+msgid "SQL - Selects: agrupacions"
+msgstr "SQL - 查询：分组"
+
+msgid "SQL - Selects: bàsics"
+msgstr "SQL - 查询：基础"
+
+msgid "SQL - Selects: joins bàsics"
+msgstr "SQL - 查询：基础连接"
+
+msgid "SQL - Selects: joins complexos"
+msgstr "SQL - 查询：复杂连接"
+
+msgid "SQL - Selects: mesclats"
+msgstr "SQL - 查询：综合"
+
+msgid "SQL - Selects: subconsultes"
+msgstr "SQL - 查询：子查询"
+
+msgid "SQL - Updates"
+msgstr "SQL - 更新 (UPDATE)"
+
+msgid "Strings"
+msgstr "字符串"
+
+msgid "Timelimit!"
+msgstr "限时！"

@@ -1,42 +1,144 @@
 {% extends "base.html" %}
 
 {% block media %}
-    {% block user_media %}{% endblock %}
-
     <style>
-        .user-gravatar {
-            display: block;
-            padding-right: 15px;
-            width: 135px;
+        .gacha-section {
+            margin: 0 0 24px;
         }
 
-        .user-gravatar img {
-            width: 135px;
-            height: 135px;
-            display: block;
-            border-radius: 6px;
+        .gacha-section h3 {
+            margin: 0 0 10px;
         }
 
-        .page-title {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: -ms-flexbox;
+        .gacha-howto {
+            margin: 0;
+            padding-left: 1.3em;
+            line-height: 1.7;
+        }
+
+        .gacha-tiers {
+            width: 100%;
+            max-width: 640px;
+            border-collapse: collapse;
+        }
+
+        .gacha-tiers td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border_gray);
+            vertical-align: middle;
+        }
+
+        .gacha-tiers td.num {
+            text-align: right;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .gacha-tier-badge {
+            display: inline-block;
+            min-width: 120px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        }
+
+        .gacha-tier-1 { background: #27ae60; }
+        .gacha-tier-2 { background: #2e86c1; }
+        .gacha-tier-3 { background: #8e44ad; }
+        .gacha-tier-4 { background: #e67e22; }
+        .gacha-tier-5 {
+            background: linear-gradient(90deg, #ff0040, #ff8c00, #e6c300, #22c55e, #0ea5e9, #8b5cf6);
+            background-size: 200% auto;
+            animation: rainbow-name-shift 3s linear infinite;
+        }
+
+        .gacha-progress {
+            display: inline-block;
+            width: 140px;
+            height: 10px;
+            margin-right: 8px;
+            border-radius: 5px;
+            background: var(--border_gray);
+            overflow: hidden;
+            vertical-align: middle;
+        }
+
+        .gacha-progress span {
+            display: block;
+            height: 100%;
+        }
+
+        .gacha-recent {
             display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
+
+        .gacha-recent a {
+            display: block;
+            width: 96px;
+            height: 96px;
+            border-radius: 10px;
+            border: 4px solid var(--border_gray);
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.15s;
+        }
+
+        .gacha-recent a:hover {
+            transform: scale(1.08);
+        }
+
+        .gacha-recent a.q1 { border-color: #27ae60; }
+        .gacha-recent a.q2 { border-color: #2e86c1; }
+        .gacha-recent a.q3 { border-color: #8e44ad; }
+        .gacha-recent a.q4 { border-color: #e67e22; }
+        .gacha-recent a.q5 { border-color: #ff0040; box-shadow: 0 0 10px #f1c40f; }
     </style>
 {% endblock %}
 
-{% block js_media %}
-    {% block user_js_media %}{% endblock %}
-{% endblock %}
-
 {% block body %}
+    {% include "gacha/roll-box.html" %}
 
-    {% set gpoints = user.points - user.gacha_points %}
-    <p>{{_('Punts Disponibles')}}: {{gpoints|floatformat(2)}}</p>
-    <form action="{{ url('gacha_go') }}" method="post"
-                          class="contest-join-pseudotab unselectable button">
-                        {% csrf_token %}
-                        <input type="submit" value="{{ _('Use %(points)s GachaPoints', points=request.profile.gacha_roll_cost) }}">
-    </form>
+    <div class="gacha-section">
+        <h3>{{ _('Com aconsegueixo GachaPoints?') }}</h3>
+        <ul class="gacha-howto">
+            <li>{{ _('Cada punt que guanyes resolent problemes (de programació o de bases de dades) és un GachaPoint.') }}</li>
+            <li>{{ _('El primer problema nou que resols cada dia et dona %(points)s GachaPoints de regal.', points=daily_bonus) }}</li>
+            <li>{{ _("Si et surt un sticker repetit, et tornem el %(percent)s%% del que t'ha costat la tirada.", percent=refund_percent) }}</li>
+        </ul>
+    </div>
+
+    <div class="gacha-section">
+        <h3>{{ _('Probabilitats i la teva col·lecció') }}</h3>
+        <table class="gacha-tiers">
+            {% for tier in gacha_tiers %}
+                <tr>
+                    <td><span class="gacha-tier-badge gacha-tier-{{ tier.quality }}">{{ tier.label|capitalize }}</span></td>
+                    <td class="num">{{ tier.percent|floatformat(1) }}%</td>
+                    <td>
+                        <span class="gacha-progress"><span class="gacha-tier-{{ tier.quality }}"
+                              style="width: {{ (100 * tier.owned / tier.total) if tier.total else 0 }}%"></span></span>
+                        {{ _('%(owned)s de %(total)s', owned=tier.owned, total=tier.total) }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+        <p class="gacha-box-note">{{ _("Els superllegendaris es sortegen a part, i mai no et sortirà un que ja tinguis.") }}</p>
+    </div>
+
+    {% if recent_pulls %}
+        <div class="gacha-section">
+            <h3>{{ _('Les teves últimes tirades') }}</h3>
+            <div class="gacha-recent">
+                {% for pull in recent_pulls %}
+                    <a href="{{ url('gacha_result', result=pull.id, repe=0) }}" class="q{{ pull.achievement.quality }}"
+                       title="{{ pull.achievement.name }}" style="background-image: url('{{ pull.achievement.get_image_url() }}')"></a>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}

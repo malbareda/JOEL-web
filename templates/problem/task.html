@@ -56,10 +56,12 @@
 
 {% block info_float %}
     
-    <div><a href="{{ url('admin:judge_problemtask_change', thistask.id) }}">{{ _('Edit Task') }}</a></div>
+    {% if perms.judge.change_problemtask %}
+        <div><a href="{{ url('admin:judge_problemtask_change', thistask.id) }}">{{ _('Edit Task') }}</a></div>
+    {% endif %}
 
     <div><a href="{{ url('task_solve_status', thistask.name) }}">{{ _('Solve Status') }}</a></div>
-    {% if perms.judge.clone_problem %}
+    {% if perms.judge.add_problemtask %}
     <div>
         <a href="{{ url('task_clone', thistask.name) }}">{{ _('Clone task') }}</a>
     </div>
@@ -97,7 +99,7 @@
 
     <br>
         <div>
-        {{ thistask.about|markdown('contest', MATH_ENGINE)|reference|str|safe }}
+        {{ about|markdown('contest', MATH_ENGINE)|reference|str|safe }}
        </div>
         <table class="solvedtable table">
             <thead>

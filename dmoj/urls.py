@@ -14,9 +14,9 @@ from martor.views import markdown_search_user
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import BlogPostSitemap, ContestSitemap, HomePageSitemap, OrganizationSitemap, ProblemSitemap, \
     SolutionSitemap, UrlSitemap, UserSitemap
-from judge.views import TitledTemplateView, api, blog, comment, contests, institution, language, license, mailgun, \
-    organization, preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, \
-    ticket, two_factor, user, widgets
+from judge.views import TitledTemplateView, api, blog, comment, contests, helpchat, institution, language, license, \
+    mailgun, organization, preview, problem, problem_manage, ranked_submission, register, stats, status, submission, \
+    tasks, ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
     problem_data_file, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -129,6 +129,7 @@ urlpatterns = [
         url(r'^/editorial$', problem.ProblemSolution.as_view(), name='problem_editorial'),
         url(r'^/guide$', problem.ProblemGuide.as_view(), name='problem_guide'),
         url(r'^/database$', problem.ProblemDatabaseSchema.as_view(), name='problem_database_schema'),
+        url(r'^/database/download$', problem.ProblemDatabaseDownload.as_view(), name='problem_database_download'),
         url(r'^/raw$', problem.ProblemRaw.as_view(), name='problem_raw'),
         url(r'^/pdf$', problem.ProblemPdfView.as_view(), name='problem_pdf'),
         url(r'^/pdf/(?P<language>[a-z-]+)$', problem.ProblemPdfView.as_view(), name='problem_pdf'),
@@ -136,6 +137,9 @@ urlpatterns = [
         url(r'^/submit$', problem.ProblemSubmit.as_view(), name='problem_submit'),
         url(r'^/resubmit/(?P<submission>\d+)$', problem.ProblemSubmit.as_view(), name='problem_submit'),
         url(r'^/solvestatus/', problem.SolveStatus.as_view(), name='solve_status'),
+        url(r'^/chat$', helpchat.help_chat, name='help_chat'),
+        url(r'^/chat/send$', helpchat.help_chat_send, name='help_chat_send'),
+        url(r'^/chat/reply/(?P<message>\d+)$', helpchat.help_chat_reply, name='help_chat_reply'),
 
         url(r'^/rank/', paged_list_view(ranked_submission.RankedSubmissions, 'ranked_submissions')),
         url(r'^/rankvote/', paged_list_view(ranked_submission.RankedVoteSubmissions, 'rankedvote_submissions')),
@@ -182,6 +186,8 @@ urlpatterns = [
         url(r'^submission/flag/(?P<case>\d+)', include([
         url(r'^$', submission.flag_submission, name='submission_flag'),
     ])),
+    url(r'^submission/superhint/(?P<case>\d+)$', submission.request_superhint, name='submission_superhint'),
+    url(r'^submission/superhint/status/(?P<superhint>\d+)$', submission.superhint_status, name='superhint_status'),
 
 
     url(r'^users/', include([
@@ -288,6 +294,12 @@ urlpatterns = [
         url(r'^/edit$', organization.EditOrganization.as_view(), name='edit_organization'),
         url(r'^/kick$', organization.KickUserWidgetView.as_view(), name='organization_user_kick'),
         url(r'^/stats$', problem.ProblemsByOrganization.as_view(), name='problems_by_org'),
+
+        # "Spin the wheel": random problem of a task + random student of the team, and GachaPoints for them.
+        url(r'^/wheel$', organization.OrganizationWheel.as_view(), name='organization_wheel'),
+        url(r'^/wheel/task/(?P<task>[^/]+)$', organization.OrganizationWheelTask.as_view(),
+            name='organization_wheel_task'),
+        url(r'^/wheel/grant$', organization.OrganizationWheelGrant.as_view(), name='organization_wheel_grant'),
 
         url(r'^/request$', organization.RequestJoinOrganization.as_view(), name='request_organization'),
         url(r'^/request/(?P<rpk>\d+)$', organization.OrganizationRequestDetail.as_view(),

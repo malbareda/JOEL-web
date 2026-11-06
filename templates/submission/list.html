@@ -94,7 +94,7 @@
 
                 $('#equip').select2({
                     multiple: 1,
-                    placeholder: '{{ _('Filter by Equip...')|escapejs }}',
+                    placeholder: '{{ _('Filter by team...')|escapejs }}',
                     matcher: idAndTextMatcher,
                 }).css({'visibility': 'visible'});
 
@@ -362,7 +362,7 @@
                                 </select>
                             </div>
                             <div class="filter-form-group">
-                                <label for="equip"><i>{{ _('Equip') }}</i></label><br>
+                                <label for="equip"><i>{{ _('Team') }}</i></label><br>
                                 <select id="equip" name="equip" multiple>
                                     {% for code, name in all_equips %}
                                         <option {% if code in selected_equips %}selected{% endif %}

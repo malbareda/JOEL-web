@@ -68,3 +68,12 @@
         display: none;
     }
 }
+
+// Screenshots in the static guides (/static/guides/), so they do not blend into the page.
+img[src^="/static/guides/"]:not([src*="punts-formula"]) {
+    max-width: 100%;
+    border: 1px solid var(--border_gray);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    margin: 0.5em 0 1em;
+}

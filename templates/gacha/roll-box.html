@@ -1,0 +1,120 @@
+{# The points counter and the roll button, shared by the gacha page and the result page.
+   Needs gacha_roll_box_context() (judge/views/user.py). On a duplicate result the counter starts with
+   the refund taken off and counts it back up (countUpRefund in gacharesult.html); the real value is
+   in data-value. #}
+<style>
+    .gacha-box {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px 32px;
+        padding: 18px 24px;
+        margin: 0 0 20px;
+        border: 1px solid var(--border_gray);
+        border-radius: 12px;
+        background: var(--background-white);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .gacha-box-label {
+        font-size: 0.95em;
+        opacity: 0.75;
+    }
+
+    .gacha-box-value {
+        font-size: 2.4em;
+        font-weight: 900;
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+
+    .gacha-box-value .unit {
+        font-size: 0.45em;
+        font-weight: bold;
+        opacity: 0.7;
+        margin-left: 4px;
+    }
+
+    #gacha-points-wrap {
+        position: relative;
+        display: inline-block;
+    }
+
+    .gacha-box form {
+        text-align: center;
+    }
+
+    .gacha-roll-btn {
+        font-size: 1.35em;
+        font-weight: 900;
+        padding: 12px 34px;
+        border: none;
+        border-radius: 999px;
+        color: #fff;
+        cursor: pointer;
+        background: linear-gradient(135deg, #ff6b6b, #f39c12, #f1c40f);
+        background-size: 200% 200%;
+        box-shadow: 0 4px 0 #b9770e, 0 6px 16px rgba(243, 156, 18, 0.45);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        animation: gacha-roll-glow 2.4s ease-in-out infinite;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+
+    .gacha-roll-btn:hover {
+        transform: translateY(-2px) scale(1.03);
+    }
+
+    .gacha-roll-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #b9770e, 0 2px 8px rgba(243, 156, 18, 0.45);
+    }
+
+    .gacha-roll-btn .cost {
+        display: block;
+        font-size: 0.55em;
+        font-weight: bold;
+        opacity: 0.9;
+    }
+
+    .gacha-roll-btn[disabled] {
+        cursor: not-allowed;
+        background: #95a5a6;
+        box-shadow: none;
+        animation: none;
+        transform: none;
+    }
+
+    @keyframes gacha-roll-glow {
+        0%, 100% { background-position: 0% 50%; }
+        50%      { background-position: 100% 50%; }
+    }
+
+    .gacha-box-note {
+        margin-top: 8px;
+        font-size: 0.9em;
+        opacity: 0.8;
+    }
+</style>
+<div class="gacha-box">
+    <div>
+        <div class="gacha-box-label">{{ _('GachaPoints disponibles') }}</div>
+        <div class="gacha-box-value">
+            <span id="gacha-points-wrap"><span id="gacha-points" data-value="{{ gacha_available }}"
+                  data-refund="{{ refund_points or 0 }}">{{ (gacha_available - (refund_points or 0))|floatformat(2) }}</span></span><span class="unit">GP</span>
+        </div>
+    </div>
+    <form action="{{ url('gacha_go') }}" method="post" class="unselectable"
+          onsubmit="var b = this.querySelector('button'); b.disabled = true; b.firstChild.textContent = '🎲 …';">
+        {% csrf_token %}
+        <button type="submit" class="gacha-roll-btn"{% if not gacha_can_roll %} disabled{% endif %}>🎲 {{ _('Tirar') }}<span class="cost">{{ _('%(points)s GachaPoints', points=gacha_cost) }}</span></button>
+        {% if gacha_can_roll %}
+            <div class="gacha-box-note">{{ _('Cada tirada costa %(points)s GachaPoints.', points=gacha_cost) }}</div>
+        {% else %}
+            <div class="gacha-box-note">
+                {{ _('Et falten %(points)s GachaPoints.', points=gacha_missing|floatformat(2)) }}
+                <a href="{{ url('problem_list') }}">{{ _('Resol problemes per aconseguir-ne!') }}</a>
+            </div>
+        {% endif %}
+    </form>
+</div>

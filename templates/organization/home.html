@@ -51,6 +51,12 @@
         </div>
     {% endif %}
 
+    {% if can_wheel %}
+        <div>
+            <a href="{{ url('organization_wheel', organization.id, organization.slug) }}">🎡 {{ _('Roda de la pissarra') }}</a>
+        </div>
+    {% endif %}
+
     <div>
         <a href="{{ organization.get_users_url() }}">{{ _('View members') }}</a>
     </div>

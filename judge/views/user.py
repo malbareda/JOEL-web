@@ -31,6 +31,7 @@ from django.views.generic import DetailView, FormView, ListView, TemplateView, V
 from reversion import revisions
 
 from judge.forms import CustomAuthenticationForm, DownloadDataForm, ProfileForm, newsletter_id
+from judge.gacha_pity import NORMAL_TIER_CHANCES, pick_normal_quality, superlegendary_chance
 from judge.models import Profile, Rating, Submission, Achievement, AchievementObtained
 from judge.performance_points import get_pp_breakdown
 from judge.ratings import rating_class, rating_progress
@@ -64,6 +65,18 @@ class UserMixin(object):
         return super(UserMixin, self).render_to_response(context, **response_kwargs)
 
 
+def gacha_roll_box_context(profile):
+    """What templates/gacha/roll-box.html (the points counter and the roll button) needs."""
+    available = profile.available_gacha_points
+    cost = profile.gacha_roll_cost
+    return {
+        'gacha_available': available,
+        'gacha_cost': cost,
+        'gacha_can_roll': available >= cost,
+        'gacha_missing': max(0, cost - available),
+    }
+
+
 class GachaMain(TitleMixin, UserMixin, DetailView):
     template_name = 'gacha/gachamain.html'
 
@@ -83,7 +96,7 @@ class GachaMain(TitleMixin, UserMixin, DetailView):
                                    self.kwargs.get(self.slug_url_kwarg, None))
 
     def get_title(self):
-        return (_('Gacha for %s') % self.object.user.username)
+        return _('Gacha')
 
     # TODO: the same code exists in problem.py, maybe move to problems.py?
     @cached_property
@@ -102,26 +115,35 @@ class GachaMain(TitleMixin, UserMixin, DetailView):
         else:
             return user_completed_ids(self.profile) if self.profile is not None else ()
 
+    # Chance of each normal tier in GachaGo.gacha_roll, before the separate superlegendary draw. These are the
+    # base odds, which is what the page lists (see judge/gacha_pity.py).
+    GACHA_TIER_CHANCES = NORMAL_TIER_CHANCES
+
     def get_context_data(self, **kwargs):
         context = super(GachaMain, self).get_context_data(**kwargs)
+        profile = self.request.profile
+        context.update(gacha_roll_box_context(profile))
 
-        context['hide_solved'] = int(self.hide_solved)
-        context['authored'] = self.object.authored_problems.filter(is_public=True, is_organization_private=False) \
-                                  .order_by('code')
-        rating = self.object.ratings.order_by('-contest__end_time')[:1]
-        context['rating'] = rating[0] if rating else None
+        # Odds and how much of each rarity this user already has (stickers and icons only: the
+        # internal GachaPoints-bonus entries aren't collectible).
+        owned = dict(AchievementObtained.objects.filter(user=profile).values('achievement__quality')
+                     .annotate(n=Count('achievement', distinct=True)).values_list('achievement__quality', 'n'))
+        totals = dict(Achievement.objects.exclude(category=Achievement.CATEGORY_GACHA_POINTS_BONUS)
+                      .values('quality').annotate(n=Count('id')).values_list('quality', 'n'))
+        normal = 1 - Achievement.SUPERLEGENDARY_CHANCE
+        rows = [(quality, chance * normal) for quality, chance in self.GACHA_TIER_CHANCES]
+        rows.append((Achievement.QUALITY_SUPERLEGENDARY, Achievement.SUPERLEGENDARY_CHANCE))
+        labels = dict(Achievement.QUALITY_CHOICES)
+        context['gacha_tiers'] = [{
+            'quality': quality, 'label': labels[quality], 'percent': chance * 100,
+            'owned': owned.get(quality, 0), 'total': totals.get(quality, 0),
+        } for quality, chance in rows]
 
-        context['rank'] = Profile.objects.filter(
-            is_unlisted=False, performance_points__gt=self.object.performance_points,
-        ).count() + 1
-
-        if rating:
-            context['rating_rank'] = Profile.objects.filter(
-                is_unlisted=False, rating__gt=self.object.rating,
-            ).count() + 1
-            context['rated_users'] = Profile.objects.filter(is_unlisted=False, rating__isnull=False).count()
-        context.update(self.object.ratings.aggregate(min_rating=Min('rating'), max_rating=Max('rating'),
-                                                     contests=Count('contest')))
+        context['recent_pulls'] = (AchievementObtained.objects.filter(user=profile)
+                                   .exclude(achievement__category=Achievement.CATEGORY_GACHA_POINTS_BONUS)
+                                   .select_related('achievement').order_by('-id')[:8])
+        context['daily_bonus'] = profile.daily_solve_bonus_points
+        context['refund_percent'] = int(round(profile.duplicate_refund_ratio * 100))
         return context
 
     def get(self, request, *args, **kwargs):
@@ -132,6 +154,10 @@ class GachaMain(TitleMixin, UserMixin, DetailView):
 class GachaGo(TitleMixin, UserMixin, DetailView):
     template_name = 'gacha/gachago.html'
 
+    def get(self, request, *args, **kwargs):
+        # Only POST rolls; opening /gacha/go/ directly just goes to the gacha page.
+        return HttpResponseRedirect(reverse('gacha_main'))
+
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         return self.gacha_roll(request)
@@ -141,28 +167,31 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
 
 
         cost = profile.gacha_roll_cost
-        gpoints = profile.points - profile.gacha_points
+        gpoints = profile.available_gacha_points
         if gpoints < cost:
             return generic_message(request, _('You don\'t have enough points'),
                                    _('You need %(points)s GachaPoints in order to make a gacha roll') % {'points': cost})
         profile.gacha_points+=cost
-        rand = random.random()
-        if rand <0.65:
-            items = Achievement.objects.filter(quality=1)
-        elif rand<0.85:
-            items = Achievement.objects.filter(quality=2)
-        elif rand<0.95:
-            items = Achievement.objects.filter(quality=3)
-        else:
-            items = Achievement.objects.filter(quality=4)
+
+        # Superlegendary: its own chance, checked before the normal tiers, and only ever one the user doesn't own
+        # yet. Someone who already has all of them just gets a plain normal roll. The chance grows with every roll
+        # that isn't a superlegendary ("bad luck protection", hidden on purpose: see judge/gacha_pity.py).
+        missing = list(Achievement.objects.filter(quality=Achievement.QUALITY_SUPERLEGENDARY)
+                       .exclude(users__user=profile))
+        streak = profile.gacha_pity
+        selach = None
+        if missing and random.random() < superlegendary_chance(streak):
+            selach = random.choice(missing)
+
+        if selach is None:
+            items = Achievement.objects.filter(quality=pick_normal_quality(streak if missing else None))
+
+            pesos = []
+            for individualItem in items:
+                pesos.append(individualItem.rarity)
 
 
-        pesos = []
-        for individualItem in items:
-            pesos.append(individualItem.rarity)
-
-
-        selach = random.choices(items,pesos)[0]
+            selach = random.choices(items,pesos)[0]
  #       selach = random.choice(items)
 
         #TREURE EL FILTRE EL IF I L'ELSE.
@@ -187,6 +216,13 @@ class GachaGo(TitleMixin, UserMixin, DetailView):
         elif repetits.count() > 1:
             profile.gacha_points-=cost*profile.duplicate_refund_ratio
             repetit = 1
+
+        # Streak of rolls without a superlegendary. It only counts while one can still be obtained: someone who
+        # owns them all stays at 0 and gets the plain odds.
+        if selach.quality == Achievement.QUALITY_SUPERLEGENDARY:
+            profile.gacha_pity = 0
+        elif missing:
+            profile.gacha_pity = streak + 1
 
         profile.save()
 
@@ -314,11 +350,23 @@ class GachaResult(TitleMixin, UserMixin, DetailView):
         context['achpic'] = ach.achievement.get_image_url()
         context['achid'] = achid
         context['achcat'] = ach.achievement.category
-        context['achq'] = ach.achievement.quality
+        # The reveal (colours, sounds, particles, banner lines) is built for tiers 1-4; a
+        # superlegendary plays the legendary one, plus the mega fanfare they all have.
+        context['achq'] = min(ach.achievement.quality, Achievement.QUALITY_LEGENDARY)
         context['achdesc'] = ach.achievement.desc
         context['repetit'] = repetit
         context['mega_fanfare'] = ach.achievement.mega_fanfare
+        context['superlegendary'] = ach.achievement.quality == Achievement.QUALITY_SUPERLEGENDARY
         context['refund_percent'] = int(round(ach.user.duplicate_refund_ratio * 100))
+        # What a duplicate gave back (same formula as GachaGo.gacha_roll), for the counter animation --
+        # only when it's your own pull, since the counter shows *your* points.
+        own = ach.user_id == self.request.profile.id
+        context['refund_points'] = (ach.user.gacha_roll_cost * ach.user.duplicate_refund_ratio
+                                    if own and repetit == 1 else 0)
+        context.update(gacha_roll_box_context(self.request.profile))
+        context['achquality_label'] = ach.achievement.get_quality_display()
+        context['achcategory_label'] = ach.achievement.get_category_display()
+        context['achquality_real'] = ach.achievement.quality
 
         return context
 

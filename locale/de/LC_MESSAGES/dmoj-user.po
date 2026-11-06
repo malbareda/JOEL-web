@@ -1,0 +1,210 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JOEL\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Problemes"
+msgstr "Probleme"
+
+msgid "Enviaments"
+msgstr "Einreichungen"
+
+msgid "Usuaris"
+msgstr "Benutzer"
+
+msgid "Concursos"
+msgstr "Wettbewerbe"
+
+msgid "Sobre i Guies"
+msgstr "Info & Anleitungen"
+
+msgid "Categories"
+msgstr "Kategorien"
+
+msgid "Respostes"
+msgstr "Urteile"
+
+msgid "Consells"
+msgstr "Tipps"
+
+msgid "Guia Alumnes"
+msgstr "Schülerleitfaden"
+
+msgid "Guia Professors"
+msgstr "Lehrerleitfaden"
+
+msgid "Altres Guies"
+msgstr "Weitere Anleitungen"
+
+msgid "Crear Problemes"
+msgstr "Aufgaben erstellen"
+
+msgid "Crear Temes"
+msgstr "Themes erstellen"
+
+msgid "Guia DBeaver"
+msgstr "DBeaver-Anleitung"
+
+msgid "Crear Achievements"
+msgstr "Achievements erstellen"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Gacha"
+msgstr "Gacha"
+
+msgid "Algoritmes Voraços"
+msgstr "Greedy-Algorithmen"
+
+msgid "Algorítmia"
+msgstr "Algorithmik"
+
+msgid "Arbres"
+msgstr "Bäume"
+
+msgid "Arrays/Llistes"
+msgstr "Arrays/Listen"
+
+msgid "BD - Mongo"
+msgstr "DB - Mongo"
+
+msgid "BFS/DFS"
+msgstr "BFS/DFS"
+
+msgid "Bucles simples"
+msgstr "Einfache Schleifen"
+
+msgid "Cerca Binària"
+msgstr "Binäre Suche"
+
+msgid "Combinatòria"
+msgstr "Kombinatorik"
+
+msgid "Diccionaris"
+msgstr "Dictionaries"
+
+msgid "Estructures de Dades"
+msgstr "Datenstrukturen"
+
+msgid "Extracció de Dígits"
+msgstr "Ziffern extrahieren"
+
+msgid "Fitxers avançats"
+msgstr "Dateien (fortgeschritten)"
+
+msgid "Fitxers de text"
+msgstr "Textdateien"
+
+msgid "Força Bruta"
+msgstr "Brute Force"
+
+msgid "Geometria"
+msgstr "Geometrie"
+
+msgid "Grafs"
+msgstr "Graphen"
+
+msgid "Hash"
+msgstr "Hash"
+
+msgid "Jocs"
+msgstr "Spiele"
+
+msgid "Matemàtiques"
+msgstr "Mathematik"
+
+msgid "Matemàtiques Avançades"
+msgstr "Fortgeschrittene Mathematik"
+
+msgid "Matemàtiques simples"
+msgstr "Einfache Mathematik"
+
+msgid "Matrius"
+msgstr "Matrizen"
+
+msgid "Optimització"
+msgstr "Optimierung"
+
+msgid "Ordenació"
+msgstr "Sortieren"
+
+msgid "Pensar!"
+msgstr "Nachdenken!"
+
+msgid "Piles/cues"
+msgstr "Stacks/Queues"
+
+msgid "PostgreSQL - Consultes avançades"
+msgstr "PostgreSQL - Fortgeschrittene Abfragen"
+
+msgid "PostgreSQL - Funcions"
+msgstr "PostgreSQL - Funktionen"
+
+msgid "PostgreSQL - Procediments"
+msgstr "PostgreSQL - Prozeduren"
+
+msgid "PostgreSQL - Tipus, arrays i JSON"
+msgstr "PostgreSQL - Typen, Arrays und JSON"
+
+msgid "PostgreSQL - Triggers"
+msgstr "PostgreSQL - Trigger"
+
+msgid "Programació Dinàmica"
+msgstr "Dynamische Programmierung"
+
+msgid "Recursivitat"
+msgstr "Rekursion"
+
+msgid "Sense Bucles"
+msgstr "Ohne Schleifen"
+
+msgid "Sense Ifs"
+msgstr "Ohne Ifs"
+
+msgid "Sense Scanner"
+msgstr "Ohne Scanner"
+
+msgid "Sortida amb format"
+msgstr "Formatierte Ausgabe"
+
+msgid "SQL - Deletes"
+msgstr "SQL - Deletes"
+
+msgid "SQL - Inserts"
+msgstr "SQL - Inserts"
+
+msgid "SQL - Selects: agregacions bàsiques"
+msgstr "SQL - Selects: einfache Aggregationen"
+
+msgid "SQL - Selects: agrupacions"
+msgstr "SQL - Selects: Gruppierungen"
+
+msgid "SQL - Selects: bàsics"
+msgstr "SQL - Selects: Grundlagen"
+
+msgid "SQL - Selects: joins bàsics"
+msgstr "SQL - Selects: einfache Joins"
+
+msgid "SQL - Selects: joins complexos"
+msgstr "SQL - Selects: komplexe Joins"
+
+msgid "SQL - Selects: mesclats"
+msgstr "SQL - Selects: gemischt"
+
+msgid "SQL - Selects: subconsultes"
+msgstr "SQL - Selects: Unterabfragen"
+
+msgid "SQL - Updates"
+msgstr "SQL - Updates"
+
+msgid "Strings"
+msgstr "Strings"
+
+msgid "Timelimit!"
+msgstr "Timelimit!"

@@ -8,7 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
 from django.db import transaction
-from django.db.models import Case, IntegerField, Min, Prefetch, Q, Sum, When
+from django.db.models import Case, Count, IntegerField, Min, Prefetch, Q, Sum, When
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -25,12 +25,15 @@ from django.views.generic import DetailView, ListView
 
 from judge import event_poster as event
 from judge.highlight_code import highlight_code
-from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionVote, SubmissionTestCase, Organization
+from judge.models import Contest, Language, Problem, ProblemTranslation, Profile, Submission, SubmissionVote, SubmissionTestCase, Organization, \
+    SuperHint
+from judge.tasks import request_superhint as request_superhint_task
 from judge.utils.hints import parse_generic_teacher, parse_linecount_all, parse_linecount_single, parse_rstripped
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.problems import get_result_data, user_completed_ids, user_editable_ids, user_tester_ids
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
 from judge.utils.sandbox import is_sandbox_feedback
+from judge.utils import superhints as superhint_service
 from judge.utils.views import DiggPaginatorMixin, TitleMixin
 
 
@@ -170,6 +173,14 @@ def build_case_hint(case, submission, checker, caseformat, user_can_evaluate):
     return {'student': student, 'teacher': teacher}
 
 
+def can_request_superhint(submission, case, prior_reveals):
+    """Whether `case` is one where a superhint makes sense (the allowance is checked separately): the case
+    failed, and the student already saw its classic hint, on this submission or on an earlier one."""
+    return (case.status not in ('AC', 'SC') and bool(case.extended_feedback) and
+            superhint_service.verdict_of(submission, case) is not None and
+            (case.flag or case.case in prior_reveals))
+
+
 class SubmissionStatus(SubmissionDetailBase):
     template_name = 'submission/status.html'
 
@@ -189,6 +200,7 @@ class SubmissionStatus(SubmissionDetailBase):
         context['sandbox_violation'] = any(case.status == 'SEC' and is_sandbox_feedback(case.feedback) for case in cases)
         context['usedhints'] = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
         context['allowed_hints'] = 0
+        context['superhints_enabled'] = False
 
         votes = SubmissionVote.objects.filter(submission_id=submission.id).aggregate(
             yay=Sum(Case(When(score=1, then=1), When(score=10, then=10), default=0, output_field=IntegerField())),
@@ -200,6 +212,8 @@ class SubmissionStatus(SubmissionDetailBase):
         for case in cases:
             case.hint = None
             case.hint_reference = None
+            case.superhint_list = []
+            case.can_superhint = False
 
         try:
             data_files = submission.problem.data_files
@@ -225,6 +239,20 @@ class SubmissionStatus(SubmissionDetailBase):
             for case in cases:
                 case.hint = build_case_hint(case, submission, data_files.checker, data_files.caseformat, user_can_evaluate)
                 case.hint_reference = None if case.flag else prior_reveals.get(case.case)
+
+            # Superhints: AI hints, only on a case whose classic hint the student has already seen.
+            context['superhints_allowed'] = data_files.superhint_limit
+            context['superhints_used'] = SuperHint.used_by(submission.user, submission.problem).count()
+            context['superhints_enabled'] = superhint_service.is_configured() and context['superhints_allowed'] > 0
+            context['superhint_viewer_is_teacher'] = user_can_evaluate
+            by_case = {}
+            for superhint in submission.superhints.exclude(status=SuperHint.ERROR).order_by('id'):
+                superhint.give_up_if_stale()
+                if superhint.status != SuperHint.ERROR:
+                    by_case.setdefault(superhint.case_id, []).append(superhint)
+            for case in cases:
+                case.superhint_list = by_case.get(case.id, [])
+                case.can_superhint = can_request_superhint(submission, case, prior_reveals)
 
         context['time_limit'] = submission.problem.time_limit
         try:
@@ -351,8 +379,135 @@ def flag_submission(request, case):
     )
     if _is_ajax(request):
         html = render_to_string('submission/hint-fragment.html', {'case': testcase, 'hint': hint}, request=request)
-        return JsonResponse({'success': True, 'html': html, 'case_id': testcase.id})
+        button, used = superhint_button(request, submission, testcase)
+        hints_used = Submission.objects.filter(problem=submission.problem, user=submission.user, flag=True).count()
+        return JsonResponse({'success': True, 'html': html, 'case_id': testcase.id, 'superhint_button': button,
+                             'superhints_used': used, 'hints_used': hints_used})
     return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
+
+
+def superhint_button(request, submission, testcase):
+    """The superhint button for `testcase` and the student's count of used superhints, for the AJAX answers
+    that change whether it shows (a classic hint just revealed, a superhint just answered), so no reload is needed.
+    The button is None when it should not show."""
+    try:
+        limit = submission.problem.data_files.superhint_limit
+    except ObjectDoesNotExist:
+        return None, None
+    used = SuperHint.used_by(submission.user, submission.problem).count()
+    if not superhint_service.is_configured() or limit <= 0:
+        return None, None
+    prior_reveals = set(
+        SubmissionTestCase.objects
+        .filter(submission__problem=submission.problem, submission__user=submission.user, flag=True,
+                case=testcase.case)
+        .values_list('case', flat=True),
+    )
+    if (request.profile != submission.user or used >= limit or
+            testcase.superhints.filter(status=SuperHint.PENDING,
+                                       created__gte=timezone.now() - SuperHint.STALE_AFTER).exists() or
+            not can_request_superhint(submission, testcase, prior_reveals)):
+        return None, used
+    return render_to_string('submission/superhint-button.html', {
+        'case': testcase, 'superhints_used': used, 'superhints_allowed': limit,
+    }, request=request), used
+
+
+def _render_superhint(request, superhint, problem):
+    return render_to_string('submission/superhint-fragment.html', {
+        'superhint': superhint,
+        'superhint_viewer_is_teacher': problem.is_evaluable_by(request.user),
+    }, request=request)
+
+
+@require_POST
+@login_required
+def request_superhint(request, case):
+    testcase = get_object_or_404(
+        SubmissionTestCase.objects.select_related('submission__problem__data_files', 'submission__user'),
+        id=int(case),
+    )
+    submission = testcase.submission
+    if request.profile != submission.user:
+        raise PermissionDenied()
+
+    error = None
+    if not superhint_service.is_configured():
+        error = _('Les superpistes no estan disponibles ara mateix.')
+    else:
+        prior_reveals = set(
+            SubmissionTestCase.objects
+            .filter(submission__problem=submission.problem, submission__user=submission.user, flag=True,
+                    case=testcase.case)
+            .values_list('case', flat=True),
+        )
+        if not can_request_superhint(submission, testcase, prior_reveals):
+            error = _('Primer has de demanar la pista normal d\'aquest cas.')
+
+    if error is None:
+        with transaction.atomic():
+            # Lock the student's profile row: the allowance is per problem, across all their submissions.
+            Profile.objects.select_for_update().get(id=submission.user_id)
+            if testcase.superhints.filter(status=SuperHint.PENDING,
+                                          created__gte=timezone.now() - SuperHint.STALE_AFTER).exists():
+                error = _('Ja s\'està preparant una superpista per a aquest cas.')
+            elif SuperHint.used_by(submission.user, submission.problem).count() >= \
+                    submission.problem.data_files.superhint_limit:
+                error = _('Ja no et queden superpistes per a aquest problema.')
+            else:
+                superhint = SuperHint.objects.create(
+                    submission=submission, case=testcase, language=(request.LANGUAGE_CODE or 'ca')[:10],
+                )
+                transaction.on_commit(lambda: request_superhint_task.delay(superhint.id))
+
+    if error:
+        if _is_ajax(request):
+            return JsonResponse({'success': False, 'error': str(error)}, status=400)
+        return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
+    if _is_ajax(request):
+        return JsonResponse({'success': True, 'poll_url': reverse('superhint_status', args=(superhint.id,)),
+                             'html': _render_superhint(request, superhint, submission.problem),
+                             'superhints_used': SuperHint.used_by(submission.user, submission.problem).count()})
+    return HttpResponseRedirect(reverse('submission_status', args=(submission.id,)))
+
+
+@login_required
+def superhint_status(request, superhint):
+    superhint = get_object_or_404(SuperHint.objects.select_related('submission__problem'), id=int(superhint))
+    problem = superhint.submission.problem
+    if request.profile != superhint.submission.user and not problem.is_evaluable_by(request.user):
+        raise PermissionDenied()
+    superhint.give_up_if_stale()
+    button, used = (None, None)
+    if superhint.status != SuperHint.PENDING and superhint.case is not None:
+        button, used = superhint_button(request, superhint.submission, superhint.case)
+    return JsonResponse({
+        'status': superhint.status,
+        'html': _render_superhint(request, superhint, problem),
+        'case_id': superhint.case_id,
+        'superhint_button': button,
+        'superhints_used': used,
+    })
+
+
+def superhint_counts(user, submissions):
+    """{submission id: superhints answered} for those of `submissions` that have any, restricted to problems `user`
+    can evaluate (teachers): the mark on the submission lists is for them only."""
+    if not user.is_authenticated:
+        return {}
+    by_id = {submission.id: submission for submission in submissions}
+    counts = dict(
+        SuperHint.objects.filter(submission_id__in=list(by_id), status=SuperHint.OK)
+        .values('submission_id').annotate(count=Count('id')).values_list('submission_id', 'count'),
+    )
+    evaluable = {}
+    for submission_id in list(counts):
+        problem = by_id[submission_id].problem
+        if problem.id not in evaluable:
+            evaluable[problem.id] = problem.is_evaluable_by(user)
+        if not evaluable[problem.id]:
+            del counts[submission_id]
+    return counts
 
 
 def filter_submissions_by_visible_problems(queryset, user):
@@ -462,6 +617,7 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
         context['completed_problem_ids'] = user_completed_ids(self.request.profile) if authenticated else []
         context['editable_problem_ids'] = user_editable_ids(self.request.profile) if authenticated else []
         context['tester_problem_ids'] = user_tester_ids(self.request.profile) if authenticated else []
+        context['superhint_counts'] = superhint_counts(self.request.user, context['submissions'])
 
         context['all_languages'] = Language.objects.all().values_list('key', 'name')
         context['selected_languages'] = self.selected_languages
@@ -662,6 +818,7 @@ def single_submission(request):
         'completed_problem_ids': user_completed_ids(request.profile) if authenticated else [],
         'editable_problem_ids': user_editable_ids(request.profile) if authenticated else [],
         'tester_problem_ids': user_tester_ids(request.profile) if authenticated else [],
+        'superhint_counts': superhint_counts(request.user, [submission]),
         'show_problem': show_problem,
         'problem_name': show_problem and submission.problem.translated_name(request.LANGUAGE_CODE),
         'profile_id': request.profile.id if authenticated else 0,

@@ -5,6 +5,7 @@ from django.contrib.flatpages.models import FlatPage
 
 from judge.admin.comments import CommentAdmin
 from judge.admin.contest import ContestAdmin, ContestParticipationAdmin, ContestTagAdmin
+from judge.admin.helpchat import HelpChatMessageAdmin
 from judge.admin.institution import InstitutionAdmin
 from judge.admin.interface import BlogPostAdmin, FlatPageAdmin, LicenseAdmin, LogEntryAdmin, NavigationBarAdmin
 from judge.admin.organization import OrganizationAdmin, OrganizationRequestAdmin
@@ -14,11 +15,12 @@ from judge.admin.runtime import JudgeAdmin, LanguageAdmin
 from judge.admin.submission import SubmissionAdmin
 from judge.admin.taxon import ProblemGroupAdmin, ProblemTypeAdmin, ProblemTaskAdmin
 from judge.admin.ticket import TicketAdmin
-from judge.admin.achievement import AchievementAdmin
+from judge.admin.achievement import AchievementAdmin, GachaPointGrantAdmin
 from judge.admin.user import RestrictedUserAdmin
 from judge.models import BlogPost, Comment, CommentLock, Contest, ContestParticipation, \
     ContestTag, Institution, Judge, Language, License, MiscConfig, NavigationBar, Organization, \
-    OrganizationRequest, Problem, ProblemGroup, ProblemTask, ProblemType, Profile, Submission, Ticket, Achievement
+    OrganizationRequest, Problem, ProblemGroup, ProblemTask, ProblemType, Profile, Submission, Ticket, Achievement, \
+    HelpChatMessage, GachaPointGrant
 
 admin.site.register(BlogPost, BlogPostAdmin)
 admin.site.register(Comment, CommentAdmin)
@@ -28,6 +30,7 @@ admin.site.register(ContestParticipation, ContestParticipationAdmin)
 admin.site.register(ContestTag, ContestTagAdmin)
 admin.site.unregister(FlatPage)
 admin.site.register(FlatPage, FlatPageAdmin)
+admin.site.register(HelpChatMessage, HelpChatMessageAdmin)
 admin.site.register(Institution, InstitutionAdmin)
 admin.site.register(Judge, JudgeAdmin)
 admin.site.register(Language, LanguageAdmin)
@@ -45,5 +48,6 @@ admin.site.register(Profile, ProfileAdmin)
 admin.site.register(Submission, SubmissionAdmin)
 admin.site.register(Ticket, TicketAdmin)
 admin.site.register(Achievement, AchievementAdmin)
+admin.site.register(GachaPointGrant, GachaPointGrantAdmin)
 admin.site.unregister(User)
 admin.site.register(User, RestrictedUserAdmin)

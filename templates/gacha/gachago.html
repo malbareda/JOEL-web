@@ -32,7 +32,7 @@
 
 {% block body %}
 
-    {% set gpoints = user.points - user.gacha_points %}
+    {% set gpoints = user.available_gacha_points %}
     <p>{{_('Punts Disponibles')}}: {{gpoints|floatformat(2)}}</p>
     <form action="{{ url('gacha_go') }}" method="post"
                           class="contest-join-pseudotab unselectable button">

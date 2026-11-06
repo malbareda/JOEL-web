@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from django.urls import reverse_lazy
 
-from judge.models import Problem
+from judge.models import Problem, ProblemTaskTranslation
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminHeavySelect2Widget, AdminMartorWidget
 
 
@@ -39,9 +39,22 @@ class ProblemTaskForm(ModelForm):
         }
 
 
+class ProblemTaskTranslationForm(ModelForm):
+    class Meta:
+        widgets = {'about': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('organization_preview')})}
+
+
+class ProblemTaskTranslationInline(admin.StackedInline):
+    model = ProblemTaskTranslation
+    fields = ('language', 'about')
+    form = ProblemTaskTranslationForm
+    extra = 0
+
+
 class ProblemTaskAdmin(admin.ModelAdmin):
     fields = ('name', 'full_name', 'problems', 'authors', 'about')
     form = ProblemTaskForm
+    inlines = [ProblemTaskTranslationInline]
 
    
 

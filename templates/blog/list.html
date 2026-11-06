@@ -221,6 +221,20 @@
                     </span>
                 </div>
             </div>
+            {% if request.user.is_superuser and translation_stats %}
+                <div class="blog-sidebox sidebox">
+                    <h3>{{ _('Traduccions dels problemes') }} <i class="fa fa-language"></i></h3>
+                    <div class="sidebox-content">
+                        <ul class="translation-stats">
+                            <li>{{ _('Problemes públics') }}: <b>{{ translation_stats.public }}</b></li>
+                            <li>{{ _('Amb traducció al castellà') }}:
+                                <b>{{ translation_stats.spanish }}</b> ({{ translation_stats.spanish_percent }}%)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+
             {% if perms.judge.test_site and own_open_tickets %}
                 <div class="blog-sidebox sidebox">
                     <h3>{{ _('My open tickets') }} <i class="fa fa-question-circle"></i></h3>

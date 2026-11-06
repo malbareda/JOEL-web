@@ -22,4 +22,38 @@
             {% include "status/judge-status-table.html" %}
         </table>
     </div>
+
+    <h3 class="status-section-title"><i class="fa fa-magic"></i> {{ _('Services') }}</h3>
+    <div class="h-scrollable-table">
+        <table id="service-status" class="table">
+            <tr>
+                <th>{{ _('Service') }}</th>
+                <th>{{ _('State') }}</th>
+                <th>{{ _('Ping') }}</th>
+                <th>{{ _('Last 24 hours') }}</th>
+                <th>{{ _('Last superhint') }}</th>
+            </tr>
+            {% set sh = superhint_status %}
+            <tr>
+                <td>{{ _('Superhints (AI server)') }}</td>
+                <td>
+                    {% if sh.state == 'ok' %}
+                        <i style="color:#44AD41" class="fa fa-check-circle"></i> {{ _('Connected') }}
+                    {% elif sh.state == 'down' %}
+                        <i style="color:#DE2121" class="fa fa-minus-circle"></i> {{ _('Unreachable') }}
+                    {% else %}
+                        <i style="color:#888" class="fa fa-power-off"></i> {{ _('Not configured') }}
+                    {% endif %}
+                    {% if sh.error %}<br><small><code>{{ sh.error }}</code></small>{% endif %}
+                </td>
+                <td>{% if sh.ping_ms %}{{ sh.ping_ms|floatformat(0) }} ms{% else %}{{ _('N/A') }}{% endif %}</td>
+                <td>
+                    {% if sh.state != 'off' %}
+                        {{ _('%(ok)d given, %(error)d failed', ok=sh.day_ok, error=sh.day_error) }}
+                    {% else %}{{ _('N/A') }}{% endif %}
+                </td>
+                <td>{% if sh.last_ok %}{{ relative_time(sh.last_ok) }}{% else %}{{ _('N/A') }}{% endif %}</td>
+            </tr>
+        </table>
+    </div>
 {% endblock %}

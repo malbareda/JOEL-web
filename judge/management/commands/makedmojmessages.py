@@ -115,6 +115,8 @@ msgstr ""
 
     def process_files(self, file_list):
         with io.open(os.path.join(self.default_locale_path, 'dmoj-user.pot'), 'w', encoding='utf-8') as potfile:
+            # msguniq refuses a .pot without a header that declares the charset.
+            potfile.write('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n')
             if self.verbosity > 1:
                 self.stdout.write('processing navigation bar')
             for label in NavigationBar.objects.values_list('label', flat=True):

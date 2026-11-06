@@ -56,9 +56,13 @@ def rescore_problem(self, problem_id):
     with Progress(self, submissions.values('user_id').distinct().count(), stage=_('Recalculating user points')) as p:
         users = 0
         profiles = Profile.objects.filter(id__in=submissions.values_list('user_id', flat=True).distinct())
+        # SQL problems count towards a separate total (Profile.sql_points), not towards calculate_points().
+        is_sql = problem.group_id is not None and problem.group.name == 'sql'
         for profile in profiles.iterator():
             profile._updating_stats_only = True
             profile.calculate_points()
+            if is_sql:
+                profile.calculate_sql_points()
             cache.delete('user_complete:%d' % profile.id)
             cache.delete('user_attempted:%d' % profile.id)
             users += 1

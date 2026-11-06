@@ -132,7 +132,7 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
         for profile in queryset:
             profile.calculate_points()
             count += 1
-        self.message_user(request, ungettext('%d user have scores recalculated.',
+        self.message_user(request, ungettext('%d user has scores recalculated.',
                                              '%d users have scores recalculated.',
                                              count) % count)
     recalculate_points.short_description = _('Recalculate scores')

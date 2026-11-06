@@ -164,7 +164,7 @@ class CommentVotesAjax(PermissionRequiredMixin, CommentMixin, DetailView):
 
 @require_POST
 def comment_hide(request):
-    if not request.user.has_perm('judge.change_comment'):
+    if not request.user.is_authenticated:
         raise PermissionDenied()
     try:
         comment_id = int(request.POST['id'])
@@ -172,5 +172,11 @@ def comment_hide(request):
         return HttpResponseBadRequest()
 
     comment = get_object_or_404(Comment, id=comment_id)
+    if not request.user.has_perm('judge.change_comment'):
+        # Un alumne només pot amagar el seu propi comentari, i només si ningú l'ha respost.
+        profile = request.profile
+        if (comment.author != profile or profile.mute or comment.hidden or
+                comment.get_descendants().filter(hidden=False).exists()):
+            raise PermissionDenied()
     comment.get_descendants(include_self=True).update(hidden=True)
     return HttpResponse('ok')

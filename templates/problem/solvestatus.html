@@ -67,7 +67,6 @@
 
     {% if request.profile %}
 <h2>{{ _('My Organizations') }}</h2>
-{{has_submissions }}
 {% for org, users in orgs_with_users.items() %}
     <h3>{{ org }}</h3>
     <table class="solvedtable table">

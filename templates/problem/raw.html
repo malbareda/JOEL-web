@@ -79,6 +79,8 @@
 </div>
 <hr style="clear: both;">
 <div class="content-description printing">
+    {# The PDF is rendered as a file on disk: the picture needs an absolute URL and fixed (no min()) sizes. #}
+    {% if problem.image %}<img src="{{ urljoin(url, problem.image.url) }}" alt="" style="float:right; max-width:300px; max-height:300px; margin:0 0 10px 20px;">{% endif %}
     {{ description|markdown(problem.markdown_style, 'tex' if math_engine == 'jax' else math_engine)|reference|absolutify(url)|str|safe }}
 </div>
 {% if math_engine == 'jax' %}

@@ -36,13 +36,15 @@
 }
 
 :root[data-theme=theme-wmt] {
+    --nav-text: #E8F5E9;
+    --nav-active-text: #0E2216;
     --global-white: #E8F5E9;
     --global-black: #1E2A24;
     --global-gray: #4A7046;
     --global-text: #E8F5E9;
     --text-black: #E8F5E9;
     --text-white: #1B3A28;
-    --text-nav: #6D4C71;
+    --text-nav: #C5E1A5;
     --global-link: #5B8F67;
     --global-link-hover: #4A7D5A;
     --announcement_red: #6E3846;
@@ -66,6 +68,7 @@
   }
   
   :root[data-theme=theme-atomdark] {
+    --nav-active-text: #1e2127;
     --global-white: #282c34;
     --global-black: #1e2127;
     --global-gray: #3e4451;
@@ -112,7 +115,7 @@
     --title_blue:#e77b15;
     --title_hover:#ec8209;
     --button_blue:#ec8209;
-    --button_grad:#orange;
+    --button_grad: orange;
     --border_gray: #ccc;
     --border_black: #000;
     --border_dark_gray: #555;
@@ -156,6 +159,8 @@
   }
   
   :root[data-theme=theme-DTpurple] {
+    --nav-text: #EDE7F6;
+    --nav-active-text: #1e1e1e;
     --global-white: #f4f4f4;
     --global-black: #2a2a2a;
     --global-gray: #9a9a9a;
@@ -186,6 +191,7 @@
     }
   
     :root[data-theme=theme-BUBIMan] {
+    --nav-active-bg: #1c62d6;
       --global-white: #ffffff;
      --global-black: #000000;
      --global-gray: #7f8c8d;
@@ -216,7 +222,7 @@
   }
   
   :root[data-theme=theme-oldcandy] {
-      --global-white: a2d2ff;
+      --global-white: #a2d2ff;
       --global-black: black;
       --global-gray: gray;
       --global-text: black;
@@ -245,7 +251,7 @@
   }
   
   :root[data-theme=theme-candy] {
-    --global-white: a2d2ff;
+    --global-white: #a2d2ff;
     --global-black: black;
     --global-gray: gray;
     --global-text: black;
@@ -283,6 +289,13 @@
     --text-black: black;
     --text-white: #FFF;
     --text-nav: white;
+    // Text in the top navigation bar (links, dropdowns, user links). Same as --text-white unless a
+    // theme needs it different: --text-white is also the text of buttons and table headers, which
+    // sit on other backgrounds.
+    --nav-text: var(--text-white);
+    --nav-active-text: var(--nav-text);
+    --nav-active-bg: var(--highlight_blue);
+    --nav-hover-bg: var(--background_dark_gray);
 
 
     
@@ -315,6 +328,13 @@
     --background_input: #fafafa;
     --background_table_pyjama:#f7f7f7;
 
+}
+
+// The default look (no theme chosen): white menu text on these was hard to read (active 4.3:1,
+// hover on #aaa 2.3:1), so the menu gets darker blues of its own. Themes keep theirs.
+:root:not([data-theme]) {
+    --nav-active-bg: #2471a3;
+    --nav-hover-bg: #065d86;
 }
 
 @-ms-viewport {
@@ -495,7 +515,7 @@ header {
     }
 
     a {
-        color:var(--background-white);
+        color: var(--nav-text);
     }
 
     li {
@@ -521,7 +541,7 @@ header {
             }
 
             & > span {
-                color: #eee;
+                color: var(--nav-text);
                 vertical-align: middle;
                 display: inline;
                 margin-top: 11px;
@@ -572,7 +592,7 @@ nav {
 
         li {
             display: inline-block;
-            color: var(--text-white);
+            color: var(--nav-text);
             text-transform: uppercase;
             position: relative;
 
@@ -591,23 +611,23 @@ nav {
                 display: inline-block;
                 text-decoration: none;
                 vertical-align: middle;
-                color: var(--text-white);
+                color: var(--nav-text);
                 padding: 13px 7px;
                 height: 18px;
 
                 &:link {
-                    color:var(--text-white);
+                    color:var(--nav-text);
                 }
 
                 &:hover {
                     color: var(--text-nav);
-                    background: var(--background_dark_gray);/* rgba(255, 255, 255, 0.25);*/
+                    background: var(--nav-hover-bg);/* rgba(255, 255, 255, 0.25);*/
                     margin: 0;
                 }
 
                 &.active {
-                    color:var(--text-white);
-                    background: var(--highlight_blue);
+                    color:var(--nav-active-text);
+                    background: var(--nav-active-bg);
                 }
 
                 .nav-expand {
@@ -620,7 +640,7 @@ nav {
                 position: absolute;
                 left: 5px;
                 display: none;
-                color: var(--text-white);
+                color: var(--nav-text);
                 background: var(--widget_black);
                 margin: 0 !important;
                 box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
@@ -928,7 +948,7 @@ math {
         display: block;
         line-height: 26px;
         font-size: 2em;
-        color: var(--text-white);
+        color: var(--nav-text);
         padding: 0 0.25em;
         margin: 4px 0.25em;
         white-space: nowrap;
@@ -1021,6 +1041,19 @@ math {
 
             ul {
                 left: 0 !important;
+            }
+
+            // A submenu inside a submenu (e.g. "Altres Guies" inside "Sobre i Guies") opens to the
+            // side of its item instead of on top of the items below it, and its item gets a "›".
+            ul li ul {
+                left: 100% !important;
+                top: 0;
+            }
+
+            ul li a .nav-expand {
+                display: inline-block;
+                float: right;
+                margin-left: 10px;
             }
         }
     }

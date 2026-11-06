@@ -19,15 +19,15 @@ else:
 
 
 # Checkers that turn a problem into a "database problem" (categorization, separate ranking,
-# multi-question submission form, schema explorer) -- SQL/SQLite, Mongo/mongomock and MySQL/MariaDB.
-DATABASE_CHECKERS = ('sql', 'mongo', 'mysql')
+# multi-question submission form, schema explorer) -- SQL/SQLite, Mongo/mongomock, MySQL/MariaDB and PostgreSQL.
+DATABASE_CHECKERS = ('sql', 'mongo', 'mysql', 'postgres')
 
 # A database name on the MariaDB grading server ("mysql" checker), as stored in the problem's checker_args.
 MYSQL_DATABASE_NAME_RE = re.compile(r'^[A-Za-z0-9_]{1,64}$')
 
 # Statements graded by the judge's "mysqlwrite" checker instead of "mysql". Teachers only ever choose "mysql":
 # each question goes to one or the other depending on its reference statement.
-MYSQL_WRITE_STATEMENTS = ('INSERT', 'UPDATE', 'DELETE')
+MYSQL_WRITE_STATEMENTS = ('INSERT', 'REPLACE', 'UPDATE', 'DELETE')
 
 
 def sql_statement_keyword(sql):
@@ -199,14 +199,17 @@ class ProblemDataCompiler(object):
             raise ProblemDataError(_('How did you corrupt the Mongo database path?'))
         return db_path[1]
 
-    def _get_mysql_database(self):
-        """Returns the MariaDB database name stored in the problem's checker_args ({"database": ...}),
-        or raises ProblemDataError if it is missing or not a plain database name."""
+    def _get_mysql_database(self, engine='MySQL'):
+        """Returns the database name stored in the problem's checker_args ({"database": ...}) for the MySQL or
+        PostgreSQL checker, or raises ProblemDataError if it is missing or not a plain database name."""
         try:
             database = json.loads(self.data.checker_args or '{}').get('database')
         except (ValueError, AttributeError):
             database = None
         if not database or not MYSQL_DATABASE_NAME_RE.match(str(database)):
+            if engine == 'PostgreSQL':
+                raise ProblemDataError(_('PostgreSQL checker requires a database. '
+                                         'Please choose one in the "PostgreSQL database" field.'))
             raise ProblemDataError(_('MySQL checker requires a database. '
                                      'Please choose one in the "MySQL database" field.'))
         return database
@@ -263,6 +266,21 @@ class ProblemDataCompiler(object):
                 write = case is not self.data and self._reference_keyword(case) in MYSQL_WRITE_STATEMENTS
                 return {
                     'name': 'mysqlwrite' if write else 'mysql',
+                    'args': args,
+                }
+            if checker_name == 'postgres':
+                # One checker for every kind of question: it picks query / write / routine from the reference.
+                args = {'database': self._get_mysql_database('PostgreSQL')}
+                if case.checker_args and case is not self.data:
+                    try:
+                        args.update(json.loads(case.checker_args))
+                    except ValueError:
+                        pass
+                    args['database'] = self._get_mysql_database('PostgreSQL')
+                if question_index is not None:
+                    args['question_index'] = question_index
+                return {
+                    'name': 'postgres',
                     'args': args,
                 }
             if case.checker_args:

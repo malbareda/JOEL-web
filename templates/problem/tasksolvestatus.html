@@ -65,141 +65,44 @@
 
 
     {% if request.profile %}
-    <h2>{{_('My Organizations')}}</h2>
-    <br>
-    {% for org in request.profile.organizations.all() %}
-        <h3> {{org}} </h3>
-        <div>
+    <h2>{{ _('My Organizations') }}</h2>
+    {% for org, users in orgs_with_users.items() %}
+        <h3>{{ org }}</h3>
         <table class="solvedtable table">
             <thead>
             <tr>
-                <th class="header flag">{{ _('Flag') }}</th>
-                <th class="header username">{{ _('Username') }}</th>
-                <th class="header username">{{ _('Organization') }}</th>
-                <th class="problems">
-                    {{ _('Status') }}
-                </th>
+                <th>{{ _('Flag') }}</th>
+                <th>{{ _('Username') }}</th>
+                <th>{{ _('Organization') }}</th>
+                <th>{{ _('Status') }}</th>
             </tr>
             </thead>
-
             <tbody>
-            
-            {% for user in all_users %}
-            {% if org in user.organizations.all() %}
-                <tr id="user-{{ user.user.username }}" >
-                    
-                    {% with orgs=user.organizations.all() %}
-                    {% if orgs and orgs[0].logo_override_image %}
-
+            {% for entry in users %}
+                <tr>
+                    {% with orgs=entry.profile.organizations.all() %}
                     <td>
-                    <img src="{{orgs[0].get_image_url()}}" alt="flag" width="90" height="40"> 
-                    
+                        {% if orgs and orgs[0].logo_override_image %}
+                            <img src="{{ orgs[0].get_image_url() }}" alt="flag" width="90" height="40">
+                        {% endif %}
                     </td>
-                    {% else %}
-                    <td></td>
-                    {% endif %}
-                    <td class="user-name">{{ link_user(user) }} {% block user_data scoped %}{% endblock %}</td>
-                    
-                        
-                            <td >
-                                {% for org in orgs -%}
-                                    <a href="{{ org.get_absolute_url() }}">{{ org.name }}</a>
-                                    {%- if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </td>
+                    <td class="user-name">{{ link_user(entry.profile) }}</td>
+                    <td>
+                        {% for o in orgs -%}
+                            <a href="{{ o.get_absolute_url() }}">{{ o.name }}</a>
+                            {%- if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </td>
                     {% endwith %}
-                    {% block point scoped %}
-                        
-                            {% if view.get_percent_completed_problems(user) == 100  %}
-                            <td style="background-color:green;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% elif view.get_percent_completed_problems(user) > 0  %}
-                            <td style="background-color:orange;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% else %}
-                            <td style="background-color:white;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% endif %}
-                        </td>
-
-                        
-                    {% endblock %}
+                    <td style="background-color: {% if entry.percent == 100 %}green{% elif entry.percent > 0 %}orange{% else %}white{% endif %};">
+                        <span>{{ entry.percent }}%</span>
+                    </td>
                 </tr>
-            {% endif %}
             {% endfor %}
             </tbody>
         </table>
-
-        </div>
     {% endfor %}
     {% endif %}
-
-    <h2>{{_('All Users')}}</h2>
-    <br>
-        <div>
-        <table class="solvedtable table">
-            <thead>
-            <tr>
-                <th class="header flag">{{ _('Flag') }}</th>
-                <th class="header username">{{ _('Username') }}</th>
-                <th class="header username">{{ _('Organization') }}</th>
-                <th class="problems">
-                    {{ _('Status') }}
-                </th>
-            </tr>
-            </thead>
-
-            <tbody>
-            
-            {% for user in all_users %}
-                <tr id="user-{{ user.user.username }}" >
-                    
-                    {% with orgs=user.organizations.all() %}
-                    {% if orgs and orgs[0].logo_override_image %}
-                    <td>
-                    
-                    <img src="{{orgs[0].get_image_url()}}" alt="flag" width="90" height="40"> 
-                    
-                    </td>
-                    {% else %}
-                    <td></td>
-                    {% endif %}
-                    <td class="user-name">{{ link_user(user) }}  </td>
-                    
-                        
-                            <td >
-                                {% for org in orgs -%}
-                                    <a href="{{ org.get_absolute_url() }}">{{ org.name }}</a>
-                                    {%- if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </td>
-                    {% endwith %}
-                        
-                            {% if view.get_percent_completed_problems(user) == 100  %}
-                            <td style="background-color:green;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% elif view.get_percent_completed_problems(user) > 0  %}
-                            <td style="background-color:orange;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% else %}
-                            <td style="background-color:white;">
-                            <span>{{view.get_percent_completed_problems(user)}}%</span>
-                            </td>
-                            {% endif %}
-                        </td>
-
-                        
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-
-        </div>
 {% endblock %}
 
 

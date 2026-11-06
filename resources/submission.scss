@@ -10,6 +10,16 @@
 
 .submissions-status-table {
     border-spacing: 0;
+
+    // A wide hint below a case makes the table wider; keep the case columns tight and let the last one take the
+    // extra space instead of spreading it between them.
+    .case-row > td {
+        white-space: nowrap;
+    }
+
+    .case-row > td:last-child {
+        width: 100%;
+    }
 }
 
 .submission-row {
@@ -188,6 +198,11 @@ label[for="language"], label[for="status"] {
     color: #555;
 }
 
+.submission-superhint {
+    color: #8e44ad;
+    margin-left: 0.3em;
+}
+
 .source-ln {
     color: gray;
     border-right: 1px solid gray;
@@ -257,10 +272,6 @@ label[for="language"], label[for="status"] {
     .case-row td:nth-child(3) {
         padding-right: 0;
         text-align: right;
-    }
-
-    .case-row td:nth-child(3) span {
-        float: right;
     }
 
     .case-row td:nth-child(4) {
@@ -342,6 +353,41 @@ label[for="language"], label[for="status"] {
     }
 
     .hint-teacher {
+        opacity: 0.92;
+    }
+
+    .superhint-request-btn {
+        margin-top: 0.8em;
+    }
+
+    .superhint-card {
+        margin-top: 0.8em;
+        padding: 1em 1.2em;
+        border: 1px solid var(--border_gray);
+        border-left: 4px solid #8e44ad;
+        border-radius: 6px;
+        background: var(--background_light_gray);
+        color: var(--global-text);
+
+        > strong {
+            display: block;
+            margin-bottom: 0.5em;
+            font-size: 1.05em;
+        }
+
+        p {
+            margin: 0.3em 0;
+        }
+    }
+
+    .superhint-text {
+        white-space: pre-wrap;
+    }
+
+    .superhint-teacher {
+        margin-top: 1em;
+        padding-top: 0.8em;
+        border-top: 1px solid var(--border_gray);
         opacity: 0.92;
     }
 

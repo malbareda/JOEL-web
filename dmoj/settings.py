@@ -119,6 +119,25 @@ DMOJ_NEWSLETTER_ID_ON_REGISTER = None
 
 BAD_MAIL_PROVIDERS = ()
 BAD_MAIL_PROVIDER_REGEX = ()
+
+# Mail domains of the spam farms that registered thousands of accounts (none of them ever solved a problem). They are
+# kept apart from BAD_MAIL_PROVIDERS because local_settings.py replaces that one. A domain matches if it equals an
+# entry or is a subdomain of one; the regexes are matched from the start of the domain (re.match). `.us` is blocked
+# whole: out of 3700+ users with submissions, none has such an address, and the farms keep making new ones.
+SPAM_MAIL_DOMAINS = (
+    'acoxs.com', 'adsprite.com', 'afterdo.com', 'aganseo.com', 'apdtax.com', 'aratrin.com', 'asitrai.com',
+    'atomicmail.io', 'base-jump.at', 'bevriz.com', 'bravs.org', 'bwmyga.com', 'cadebek.com', 'davclassrooms.org',
+    'doefy.com', 'emalupe.com', 'gmeenramy.com', 'goldlicai.com', 'hidingpost.com', 'lingeringp.com', 'lnovic.com',
+    'madrasah.kemenag.go.id', 'mailbox.in.ua', 'maxxspace.com', 'mylossless.com', 'necub.com', 'ozsaip.com',
+    'pingmx.com', 'practivox.net', 'proschools.it.com', 'rehearsalk.com', 'rickystar.com', 'ruutukf.com',
+    'tokmail.net', 'uberip.com', 'web-library.net', 'xintaitong.com', 'youngestsd.com', 'yzcalo.com',
+)
+SPAM_MAIL_DOMAIN_REGEX = (r'(alaz|azh|aazh)[a-z]*\.(org|com)$', r'.*\.us$')
+
+# Countries whose addresses cannot open the registration page (judge/utils/geoblock.py). In the last days 141 of 155 spam
+# accounts came from Bangladesh (113) and Vietnam (28), and not one of the 3700+ users with submissions is from there
+# or from the rest of south-east Asia. Empty the tuple to turn it off; after adding a country run `manage.py update_geoblock`.
+REGISTRATION_BLOCKED_COUNTRIES = ('BD', 'VN', 'TH', 'ID', 'PH', 'MY', 'KH', 'LA', 'MM', 'BN', 'TL', 'SG')
 NOFOLLOW_EXCLUDED = set()
 
 TIMEZONE_BG = None
@@ -469,6 +488,10 @@ MARTOR_MARKDOWN_BASE_MENTION_URL = '/user/'
 
 # Directory under MEDIA_ROOT to use to store image uploaded through martor.
 MARTOR_UPLOAD_MEDIA_DIR = 'martor'
+
+# Django 2.2 leaves this unset, so uploads bigger than FILE_UPLOAD_MAX_MEMORY_SIZE (2.5 MB) keep the
+# 0600 permissions of their temporary file and nginx (www-data) answers 403 for them.
+FILE_UPLOAD_PERMISSIONS = 0o644
 MARTOR_UPLOAD_SAFE_EXTS = {'.jpg', '.png', '.gif'}
 
 # Database
@@ -490,6 +513,16 @@ BRIDGED_DJANGO_ADDRESS = [('localhost', 9998)]
 BRIDGED_DJANGO_CONNECT = None
 
 # Event Server configuration
+# joel-pistes (superhints). The key goes in local_settings.py; without it the superhint button does not show.
+JOEL_PISTES_URL = 'https://sabia.ies-sabadell.cat/joel/v1/pista'
+JOEL_PISTES_KEY = None
+JOEL_PISTES_TIMEOUT = 60
+# Help chat ("No sé ni per on començar"): same service and key, POST /xat. Empty means JOEL_PISTES_URL with /pista
+# replaced by /xat. Student messages allowed per problem, and the longest message, in characters.
+JOEL_XAT_URL = None
+HELP_CHAT_MAX_MESSAGES = 20
+HELP_CHAT_MAX_LENGTH = 1000
+
 EVENT_DAEMON_USE = False
 EVENT_DAEMON_POST = 'ws://localhost:9997/'
 EVENT_DAEMON_GET = 'ws://localhost:9996/'
@@ -570,3 +603,8 @@ try:
         exec(f.read(), globals())
 except IOError:
     pass
+
+# reCAPTCHA on the registration form (judge/utils/recaptcha.py only builds the field when RECAPTCHA_PRIVATE_KEY is set).
+# Put RECAPTCHA_PUBLIC_KEY and RECAPTCHA_PRIVATE_KEY (reCAPTCHA v2 "checkbox" keys) in local_settings.py to turn it on.
+if 'RECAPTCHA_PRIVATE_KEY' in globals():
+    INSTALLED_APPS += ('snowpenguin.django.recaptcha2',)

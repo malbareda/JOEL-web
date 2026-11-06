@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.validators import RegexValidator
 from django.db import models, transaction
-from django.db.models import Max, OuterRef, Subquery
+from django.db.models import Max, OuterRef, Subquery, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
@@ -44,11 +44,17 @@ class Achievement(models.Model):
     QUALITY_RARE = 2
     QUALITY_EPIC = 3
     QUALITY_LEGENDARY = 4
+    # Rolled separately from the four normal tiers, with its own fixed chance, so adding more
+    # legendaries never makes these rarer -- and never as a duplicate (see GachaGo.gacha_roll).
+    # Admin-only: students with limited admin access can't pick it (AchievementAdmin).
+    QUALITY_SUPERLEGENDARY = 5
+    SUPERLEGENDARY_CHANCE = 1 / 500
     QUALITY_CHOICES = (
         (QUALITY_COMMON, _('common')),
         (QUALITY_RARE, _('rare')),
         (QUALITY_EPIC, _('epic')),
         (QUALITY_LEGENDARY, _('legendary')),
+        (QUALITY_SUPERLEGENDARY, _('superlegendary')),
     )
 
     CATEGORY_GACHA_POINTS_BONUS = -1
@@ -73,7 +79,7 @@ class Achievement(models.Model):
     desc = models.TextField(verbose_name=_('achievement description'))
     rarity = models.FloatField(verbose_name=_('rarity'), default=1, help_text=_('raresa del Achievement. Una raresa de 1 significa que té una probabilitat normal en apareixer. Una de 2 significa que té el doble de probabilitats que la resta dintre de la seva categoria de qualitat,etc'))
     quality = models.IntegerField(verbose_name=_('achievement quality'), default=1, choices=QUALITY_CHOICES,
-                                  help_text=_('Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari'))
+                                  help_text=_('Qualitat del achievement. 1 es comú, 2 rar, 3 epic, 4 llegendari, 5 superllegendari'))
     category = models.IntegerField(verbose_name=_('achievement category'), default=1, choices=CATEGORY_CHOICES,
                                    help_text=('Categoria del Achievement. 1 es sticker. 2 icona, 3 color d\'usuari, 4 tema i 5 font'))
     logo_override_image = models.ImageField(verbose_name=_('achievement image'), upload_to='achievements/',
@@ -290,6 +296,9 @@ class Profile(models.Model):
     points = models.FloatField(default=0, db_index=True)
     performance_points = models.FloatField(default=0, db_index=True)
     gacha_points = models.FloatField(default=0, db_index=True, help_text=_('Els punts gacha que ha gastat un usuari. No els punts que te. Els punts disponibles es calculen dinamicament entre la resta dels seus punts totals i aquest valor. Per donar gachapoints a un alumne, restar aquest valor. Permet negatius'))
+    # Gacha rolls in a row without a superlegendary, for a user who can still get one. Drives the hidden
+    # "bad luck protection" (see judge/gacha_pity.py). Not in any admin form on purpose.
+    gacha_pity = models.PositiveIntegerField(default=0, verbose_name='gacha pity streak')
     last_daily_solve_bonus_date = models.DateField(
         null=True, blank=True, verbose_name=_('last daily solve bonus date'),
         help_text=_("Madrid calendar date (Europe/Madrid) on which this user last collected the "
@@ -394,6 +403,12 @@ class Profile(models.Model):
     @property
     def has_extra_hint(self):
         return self._has_perk('extra_hint')
+
+    @property
+    def available_gacha_points(self):
+        """GachaPoints this user can spend: everything earned by solving problems -- programming (`points`) and
+        database problems, which are counted apart (`sql_points`) -- minus what has been spent (`gacha_points`)."""
+        return self.points + self.sql_points - self.gacha_points
 
     @property
     def daily_solve_bonus_points(self):
@@ -627,6 +642,46 @@ class AchievementObtained(models.Model):
     dateObtained = models.DateTimeField(verbose_name=_('Date when the Achievement was obtained'), default=now)
     achievement = models.ForeignKey(Achievement, verbose_name=_('achievement'), related_name='users', on_delete=models.CASCADE)
     user = models.ForeignKey(Profile, verbose_name=_('user'), related_name='achievementsobtained', on_delete=models.CASCADE)
+
+
+class GachaPointGrant(models.Model):
+    """One teacher handing GachaPoints to one student of a team, from the team's "wheel" page.
+
+    Each row is both the audit log and what enforces the daily cap: a teacher may hand out at most
+    DAILY_LIMIT_PER_STUDENT points per student per Madrid calendar day (the same day boundary as the
+    daily solve bonus, see Profile.madrid_today) -- superusers are exempt. The points themselves are
+    given by *subtracting* them from the student's `Profile.gacha_points` (that column counts what a
+    user has SPENT), which is done together with creating the row, in one transaction."""
+    DAILY_LIMIT_PER_STUDENT = 5
+    MAX_PER_GRANT = 5
+
+    giver = models.ForeignKey(Profile, verbose_name=_('teacher'), related_name='gacha_grants_given',
+                              on_delete=models.CASCADE)
+    receiver = models.ForeignKey(Profile, verbose_name=_('student'), related_name='gacha_grants_received',
+                                 on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name='gacha_grants',
+                                     null=True, blank=True, on_delete=models.SET_NULL)
+    points = models.PositiveSmallIntegerField(verbose_name=_('GachaPoints given'))
+    day = models.DateField(verbose_name=_('day (Madrid time)'))
+    created = models.DateTimeField(verbose_name=_('date and time'), auto_now_add=True)
+
+    @classmethod
+    def given_today(cls, giver, receiver_ids=None):
+        """{receiver id: points `giver` has already handed that receiver today}, only for receivers with some."""
+        grants = cls.objects.filter(giver=giver, day=Profile.madrid_today())
+        if receiver_ids is not None:
+            grants = grants.filter(receiver_id__in=receiver_ids)
+        # order_by(): Meta.ordering would otherwise be added to the GROUP BY (Django < 3.1) and split the sums
+        return dict(grants.order_by().values_list('receiver_id').annotate(total=Sum('points')))
+
+    def __str__(self):
+        return '%s -> %s: %d' % (self.giver_id, self.receiver_id, self.points)
+
+    class Meta:
+        indexes = [models.Index(fields=['giver', 'receiver', 'day'])]
+        ordering = ['-created']
+        verbose_name = _('GachaPoints grant')
+        verbose_name_plural = _('GachaPoints grants')
 
 
 class WebAuthnCredential(models.Model):

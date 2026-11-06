@@ -6,6 +6,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.core.cache import cache
 from django.utils.functional import SimpleLazyObject, new_method_proxy
 
+from judge.flatpage_permissions import hidden_flatpage_paths
 from judge.utils.caniuse import CanIUse, SUPPORT
 from .models import MiscConfig, NavigationBar, Profile
 
@@ -60,7 +61,10 @@ def general_info(request):
     path = request.get_full_path()
     return {
         'nav_tab': FixedSimpleLazyObject(partial(__nav_tab, request.path)),
-        'nav_bar': NavigationBar.objects.all(),
+        # Menu entries pointing at a flat page restricted by permission (judge/flatpage_permissions.py)
+        # are only listed for people who may open it. `mptt_tree` builds the dropdowns from this very
+        # queryset (cached children), so leaving a node out hides it from its parent menu too.
+        'nav_bar': NavigationBar.objects.exclude(path__in=hidden_flatpage_paths(request.user)),
         'LOGIN_RETURN_PATH': '' if path.startswith('/accounts/') else path,
         'perms': PermWrapper(request.user),
         'HAS_WEBAUTHN': bool(settings.WEBAUTHN_RP_ID),

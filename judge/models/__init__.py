@@ -8,14 +8,16 @@ from judge.models.interface import BlogPost, BlogPostTranslation, FlatPageTransl
     NavigationBar, validate_regex
 from judge.models.message import PrivateMessage, PrivateMessageThread
 from judge.models.problem import Guide, GuideTranslation, LanguageLimit, License, Problem, ProblemClarification, \
-    ProblemGroup, ProblemTask, ProblemTranslation, ProblemType, Solution, TranslatedProblemForeignKeyQuerySet, \
-    TranslatedProblemQuerySet
+    ProblemGroup, ProblemTask, ProblemTaskTranslation, ProblemTranslation, ProblemType, Solution, \
+    TranslatedProblemForeignKeyQuerySet, TranslatedProblemQuerySet
 from judge.models.problem_data import CHECKERS, ProblemData, ProblemTestCase, problem_data_storage, \
     problem_directory_file
 from judge.models.profile import Institution, Organization, OrganizationRequest, Profile, WebAuthnCredential, \
-    Achievement, AchievementObtained
+    Achievement, AchievementObtained, GachaPointGrant
 from judge.models.runtime import Judge, Language, RuntimeVersion
-from judge.models.submission import SUBMISSION_RESULT, Submission, SubmissionSource, SubmissionTestCase, SubmissionVote
+from judge.models.helpchat import HelpChatMessage
+from judge.models.submission import SUBMISSION_RESULT, Submission, SubmissionSource, SubmissionTestCase, SubmissionVote, \
+    SuperHint
 from judge.models.ticket import Ticket, TicketMessage
 
 revisions.register(Profile, exclude=['points', 'last_access', 'ip', 'rating'])

@@ -1,13 +1,16 @@
+import io
 import json
 import logging
 import os
 import re
 import shutil
 import sqlite3
+from collections import defaultdict
 from datetime import timedelta
 from operator import itemgetter
 from random import randrange
 
+import psycopg2
 import pymysql
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -15,7 +18,7 @@ from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
 from django.db.utils import ProgrammingError
-from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.urls import reverse
@@ -36,7 +39,7 @@ from judge.models import ContestSubmission, Guide, GuideTranslation, Institution
 from judge.pdf_problems import DefaultPdfMaker, HAS_PDF
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
-from judge.utils import mysql_grader
+from judge.utils import helpchat, mysql_grader, pg_grader
 from judge.utils.problem_data import DATABASE_CHECKERS
 from judge.utils.problems import contest_attempted_ids, contest_completed_ids, hot_problems, user_attempted_ids, \
     user_completed_ids
@@ -249,24 +252,27 @@ class ProblemDatabaseSchema(ProblemMixin, TitleMixin, TemplateResponseMixin, Sin
 
             context = self.get_context_data(object=self.object)
             context['db_kind'] = 'sql'
+            context['download_format'] = _database_download_format(data)
             context['tables'] = tables
             context['er_diagram'] = _build_er_diagram(tables, relationships)
             return self.render_to_response(context)
 
-        if data.checker == 'mysql':
-            try:
-                database = json.loads(data.checker_args or '{}').get('database')
-            except (ValueError, AttributeError):
-                database = None
+        if data.checker in ('mysql', 'postgres'):
+            database = _problem_database_name(data)
             if not database:
                 raise Http404()
             try:
-                tables, relationships = mysql_grader.get_schema(database)
-            except (mysql_grader.GraderUnavailable, pymysql.MySQLError):
+                if data.checker == 'postgres':
+                    tables, relationships = pg_grader.get_schema(database)
+                else:
+                    tables, relationships = mysql_grader.get_schema(database)
+            except (mysql_grader.GraderUnavailable, pymysql.MySQLError, pg_grader.GraderUnavailable,
+                    psycopg2.Error):
                 raise Http404()
 
             context = self.get_context_data(object=self.object)
             context['db_kind'] = 'sql'
+            context['download_format'] = _database_download_format(data)
             context['tables'] = tables
             context['er_diagram'] = _build_er_diagram(tables, relationships)
             return self.render_to_response(context)
@@ -290,10 +296,95 @@ class ProblemDatabaseSchema(ProblemMixin, TitleMixin, TemplateResponseMixin, Sin
 
             context = self.get_context_data(object=self.object)
             context['db_kind'] = 'mongo'
+            context['download_format'] = _database_download_format(data)
             context['collections'] = collections
             return self.render_to_response(context)
 
         raise Http404()
+
+
+# Databases whose schema is public but whose rows are not handed out as a file: they hold personal data (real names,
+# e-mails and passwords of an institute's users), which a submission can only read piece by piece.
+DATABASE_DOWNLOAD_EXCLUDED = {name.lower() for name in
+                              getattr(settings, 'JOEL_DATABASE_DOWNLOAD_EXCLUDED', ('ies23g',))}
+
+
+def _problem_database_name(data):
+    """The database on the grading server a mysql/postgres problem's data points at, or None."""
+    try:
+        return json.loads(data.checker_args or '{}').get('database')
+    except (ValueError, AttributeError):
+        return None
+
+
+def _database_download(data):
+    """How a problem's database can be downloaded, as (format, database), or None if it can't. The format is
+    'sqlite' or 'mongo' (the problem's own file, served as it is) or 'mysql' or 'postgres' (a dump of `database` on the
+    grading server)."""
+    if data.checker == 'sql' and data.sql_db:
+        return 'sqlite', None
+    if data.checker == 'mongo' and data.mongo_db:
+        return 'mongo', None
+    if data.checker in ('mysql', 'postgres'):
+        database = _problem_database_name(data)
+        if database and database.lower() not in DATABASE_DOWNLOAD_EXCLUDED:
+            return data.checker, database
+    return None
+
+
+def _database_download_format(data):
+    download = _database_download(data)
+    return download[0] if download else None
+
+
+class ProblemDatabaseDownload(LoginRequiredMixin, ProblemMixin, SingleObjectMixin, View):
+    """The database of a problem as a file, so that students can try their queries on their own computer: the
+    SQLite or JSON file itself, or a dump of the MariaDB/PostgreSQL database."""
+    logger = logging.getLogger('judge.problem.database')
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        try:
+            data = self.object.data_files
+        except ObjectDoesNotExist:
+            raise Http404()
+
+        download = _database_download(data)
+        if download is None:
+            raise Http404()
+        kind, database = download
+
+        if kind == 'sqlite':
+            return self.file_response(data.sql_db, 'application/vnd.sqlite3')
+        if kind == 'mongo':
+            return self.file_response(data.mongo_db, 'application/json')
+
+        grader = pg_grader if kind == 'postgres' else mysql_grader
+        # The dump runs with the administrator's privileges: only databases the problem may use are dumped.
+        if kind == 'postgres':
+            allowed = pg_grader.is_postgres_database(database)
+        else:
+            allowed = (database == mysql_grader.problem_database(self.object.code) or
+                       mysql_grader.is_mysql_database(database))
+        if not allowed:
+            raise Http404()
+        try:
+            content = grader.dump_database(database)
+        except grader.DumpError as e:
+            self.logger.error('Could not dump database %s for problem %s: %s', database, self.object.code, e)
+            return generic_message(request, _('Could not download the database'),
+                                   _('The database could not be exported right now. Try again in a few minutes.'),
+                                   status=503)
+        return FileResponse(io.BytesIO(content), as_attachment=True, filename='%s.sql' % database,
+                            content_type='application/sql; charset=utf-8')
+
+    def file_response(self, field, content_type):
+        try:
+            handle = open(field.path, 'rb')
+        except OSError:
+            raise Http404()
+        return FileResponse(handle, as_attachment=True, filename=os.path.basename(field.name),
+                            content_type=content_type)
 
 
 def _quote_identifier(name):
@@ -427,6 +518,12 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
 
         can_edit = self.object.is_editable_by(user)
         context['can_edit_problem'] = can_edit
+        # Help chat ("No sé ni per on començar"): only for logged-in students outside a contest; editors get the
+        # link to the conversations whenever the problem has it turned on.
+        chat_on_problem = helpchat.is_enabled(self.object)
+        context['help_chat_on_problem'] = can_edit and chat_on_problem
+        context['help_chat_enabled'] = authed and not self.in_contest and chat_on_problem
+        context['help_chat_max_length'] = helpchat.max_message_length()
         if user.is_authenticated:
             tickets = self.object.tickets
             if not can_edit:
@@ -447,7 +544,7 @@ class ProblemDetail(ProblemMixin, SolvedProblemMixin, CommentedDetailView):
             context['is_sql_problem'] = (
                 (data_files.checker == 'sql' and bool(data_files.sql_db)) or
                 (data_files.checker == 'mongo' and bool(data_files.mongo_db)) or
-                (data_files.checker == 'mysql' and bool(data_files.checker_args))
+                (data_files.checker in ('mysql', 'postgres') and bool(data_files.checker_args))
             )
         except ObjectDoesNotExist:
             context['is_sql_problem'] = False
@@ -495,6 +592,9 @@ class TaskDetail(TaskMixin, SolvedProblemMixin, CommentedDetailView):
         authed = user.is_authenticated
         context['title'] = self.object.full_name
         context['taskname'] = self.object.full_name
+        # The base `about` is in Catalan; use the translation for the interface language when there is one.
+        translation = self.object.translations.filter(language=self.request.LANGUAGE_CODE).first()
+        context['about'] = translation.about if translation is not None else self.object.about
         context['all_users'] = Profile.objects.all()
         context['tasks'] = ProblemTask.objects.all()
         context['completed_problem_ids'] = self.get_completed_problems()
@@ -724,26 +824,34 @@ class TaskSolveStatus(LoginRequiredMixin, TaskMixin, SolvedProblemMixin, Comment
         else:
             return user_attempted_ids(user) if user is not None else ()
 
-    def get_percent_completed_problems(self, user):
-        total = 0
-        cont = 0
-        for prob in self.object.problems.all():
-            total += 1
-            if prob.id in user_completed_ids(user):
-                cont+=1
-        print( user, int((cont*100)/total))
-        return int((cont*100)/total)
-
     def get_context_data(self, **kwargs):
         context = super(TaskSolveStatus, self).get_context_data(**kwargs)
-        user = self.request.user
-        authed = user.is_authenticated
-        
-        context['all_users'] = Profile.objects.all()
-        context['orgs'] = Organization.objects.all()
-        context['tasks'] = ProblemTask.objects.all()
+        profile = self.profile
+        if profile is None:
+            return context
 
+        # Only the viewer's own teams: going through every profile on the site took longer than harakiri.
+        user_orgs = list(profile.organizations.all())
+        members = list(Profile.objects.filter(organizations__in=user_orgs)
+                       .prefetch_related('organizations', 'user').distinct())
+        problems = list(self.object.problems.values_list('id', flat=True))
+        member_ids = [member.id for member in members]
 
+        # Solved means the same as user_completed_ids: an AC with the problem's full points.
+        solved = defaultdict(set)
+        for user_id, problem_id in Submission.objects.filter(
+                user_id__in=member_ids, problem_id__in=problems, result='AC', points=F('problem__points'),
+        ).values_list('user_id', 'problem_id').distinct():
+            solved[user_id].add(problem_id)
+
+        orgs_with_users = {org: [] for org in user_orgs}
+        for member in members:
+            percent = len(solved[member.id]) * 100 // len(problems) if problems else 0
+            entry = {'profile': member, 'percent': percent}
+            for org in member.organizations.all():
+                if org in orgs_with_users:
+                    orgs_with_users[org].append(entry)
+        context['orgs_with_users'] = orgs_with_users
         return context
 
 
@@ -1669,7 +1777,8 @@ class TaskClone(TaskMixin, PermissionRequiredMixin, TitleMixin, SingleObjectForm
     title = _('Clone task')
     template_name = 'problem/taskclone.html'
     form_class = TaskCloneForm
-    permission_required = 'judge.clone_problem'
+    # Cloning a task only creates a new task with the same problems, so it needs the same permission as creating one.
+    permission_required = 'judge.add_problemtask'
 
     def form_valid(self, form):
         task = self.object
@@ -1678,7 +1787,9 @@ class TaskClone(TaskMixin, PermissionRequiredMixin, TitleMixin, SingleObjectForm
         newTask.full_name = task.full_name+" clon"
         newTask.about = task.about
         newTask.save()
-        
+        for translation in task.translations.all():
+            newTask.translations.create(language=translation.language, about=translation.about)
+
         newTask.problems.set(task.problems.all())
         newTask.authors.add(self.request.profile)
         

@@ -55,6 +55,16 @@ class PostList(ListView):
         context['submission_count'] = lambda: Submission.objects.aggregate(max_id=Max('id'))['max_id']
         context['language_count'] = Language.objects.count
 
+        if self.request.user.is_superuser:
+            public_problems = Problem.get_public_problems()
+            public_count = public_problems.count()
+            spanish_count = public_problems.filter(translations__language='es').count()
+            context['translation_stats'] = {
+                'public': public_count,
+                'spanish': spanish_count,
+                'spanish_percent': round(100.0 * spanish_count / public_count) if public_count else 0,
+            }
+
         context['post_comment_counts'] = {
             int(page[2:]): count for page, count in
             Comment.objects

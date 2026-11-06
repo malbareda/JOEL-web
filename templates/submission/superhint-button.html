@@ -1,0 +1,6 @@
+<button type="button" class="button superhint-request-btn"
+        data-url="{{ url('submission_superhint', case.id) }}"
+        data-target="superhint-container-{{ case.id }}"
+        data-confirm="{{ _('La superpista la prepara la IA del JOEL a partir del teu codi: t\'explicarà on mirar, però no et donarà la solució. Només en tens %(left)s per a aquest problema i aquesta en gastarà una. Estàs segur?', left=superhints_allowed - superhints_used) }}">
+    <i class="fa fa-magic"></i> {{ _('Superpista!') }}
+</button>

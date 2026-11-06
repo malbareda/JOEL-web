@@ -1,10 +1,12 @@
 import hashlib
 import hmac
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
@@ -15,7 +17,7 @@ from judge.models.runtime import Language
 from judge.utils.submission_feedback import submission_feedback_file, submission_feedback_storage
 from judge.utils.unicode import utf8bytes
 
-__all__ = ['SUBMISSION_RESULT', 'Submission', 'SubmissionSource', 'SubmissionTestCase', 'SubmissionVote']
+__all__ = ['SUBMISSION_RESULT', 'Submission', 'SubmissionSource', 'SubmissionTestCase', 'SubmissionVote', 'SuperHint']
 
 SUBMISSION_RESULT = (
     ('AC', _('Accepted')),
@@ -203,7 +205,7 @@ class Submission(models.Model):
             ('rejudge_submission', _('Rejudge the submission')),
             ('rejudge_submission_lot', _('Rejudge a lot of submissions')),
             ('spam_submission', _('Submit without limit')),
-            ('view_all_submission', _('View all submission')),
+            ('view_all_submission', _('View all submissions')),
             ('resubmit_other', _("Resubmit others' submission")),
             ('lock_submission', _('Change lock status of submission')),
         )
@@ -270,3 +272,50 @@ class SubmissionTestCase(models.Model):
         unique_together = ('submission', 'case')
         verbose_name = _('submission test case')
         verbose_name_plural = _('submission test cases')
+
+
+class SuperHint(models.Model):
+    """A hint written by the joel-pistes AI service (see judge/utils/superhints.py), asked for on a test case
+    whose classic hint the student had already seen. Failed requests stay as ERROR rows and do not count."""
+    PENDING = 'P'
+    OK = 'OK'
+    ERROR = 'E'
+    STATUS = (
+        (PENDING, _('Pending')),
+        (OK, _('OK')),
+        (ERROR, _('Error')),
+    )
+
+    submission = models.ForeignKey(Submission, verbose_name=_('submission'), related_name='superhints',
+                                   on_delete=models.CASCADE)
+    case = models.ForeignKey(SubmissionTestCase, verbose_name=_('test case'), related_name='superhints',
+                             null=True, on_delete=models.SET_NULL)
+    status = models.CharField(max_length=2, verbose_name=_('status'), choices=STATUS, default=PENDING)
+    language = models.CharField(max_length=10, verbose_name=_('language'), default='ca')
+    level = models.IntegerField(verbose_name=_('level'), null=True, blank=True)
+    text = models.TextField(verbose_name=_('hint'), blank=True)
+    error_category = models.CharField(max_length=30, verbose_name=_('error category'), blank=True)
+    teacher_diagnosis = models.TextField(verbose_name=_('diagnosis for teachers'), blank=True)
+    revision = models.CharField(max_length=20, verbose_name=_('review result'), blank=True)
+    error = models.TextField(verbose_name=_('request error'), blank=True)
+    created = models.DateTimeField(verbose_name=_('created'), auto_now_add=True)
+
+    # A request still pending after this long is given up on (the service answers in 4-10 s, 60 s at most, plus
+    # retries), so a lost Celery task does not lock the case or use up the allowance.
+    STALE_AFTER = timedelta(minutes=3)
+
+    @classmethod
+    def used_by(cls, profile, problem):
+        """Superhints that count against `profile`'s allowance on `problem` (pending and successful ones)."""
+        return cls.objects.filter(submission__user=profile, submission__problem=problem).exclude(status=cls.ERROR) \
+            .exclude(status=cls.PENDING, created__lt=timezone.now() - cls.STALE_AFTER)
+
+    def give_up_if_stale(self):
+        if self.status == self.PENDING and self.created < timezone.now() - self.STALE_AFTER:
+            self.status = self.ERROR
+            self.error = 'timed out waiting for the Celery task'
+            self.save(update_fields=['status', 'error'])
+
+    class Meta:
+        verbose_name = _('superhint')
+        verbose_name_plural = _('superhints')

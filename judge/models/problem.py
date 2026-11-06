@@ -20,8 +20,8 @@ from judge.models.runtime import Language
 from judge.user_translations import gettext as user_gettext
 from judge.utils.raw_sql import RawSQLColumn, unique_together_left_join
 
-__all__ = ['ProblemGroup', 'ProblemType', 'ProblemTask', 'Problem', 'ProblemTranslation', 'ProblemClarification',
-           'License', 'Solution', 'Guide', 'GuideTranslation', 'TranslatedProblemQuerySet',
+__all__ = ['ProblemGroup', 'ProblemType', 'ProblemTask', 'ProblemTaskTranslation', 'Problem', 'ProblemTranslation',
+           'ProblemClarification', 'License', 'Solution', 'Guide', 'GuideTranslation', 'TranslatedProblemQuerySet',
            'TranslatedProblemForeignKeyQuerySet']
 
 
@@ -105,6 +105,11 @@ class Problem(models.Model):
                             help_text=_('The full name of the problem, '
                                         'as shown in the problem list.'))
     description = models.TextField(verbose_name=_('problem body'))
+    image = models.ImageField(verbose_name=_('problem image'), upload_to='problem-images/', max_length=150,
+                              blank=True, null=True,
+                              help_text=_('Optional. Shown floated to the right of the statement, in every language '
+                                          'and in the PDF, so there is no need to write an <img> tag in the text. '
+                                          'It is shrunk automatically when uploaded (at most 600 px).'))
     authors = models.ManyToManyField(Profile, verbose_name=_('creators'), blank=True, related_name='authored_problems',
                                      help_text=_('These users will be able to edit the problem, '
                                                  'and be listed as authors.'))
@@ -475,6 +480,17 @@ class ProblemTask(models.Model):
         ordering = ['full_name']
         verbose_name = _('task')
         verbose_name_plural = _('tasks')
+
+
+class ProblemTaskTranslation(models.Model):
+    task = models.ForeignKey(ProblemTask, verbose_name=_('task'), related_name='translations', on_delete=CASCADE)
+    language = models.CharField(verbose_name=_('language'), max_length=7, choices=settings.LANGUAGES)
+    about = models.TextField(verbose_name=_('translated task description'))
+
+    class Meta:
+        unique_together = ('task', 'language')
+        verbose_name = _('task translation')
+        verbose_name_plural = _('task translations')
 
 
 class ProblemTranslation(models.Model):

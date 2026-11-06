@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -14,7 +15,8 @@ from django.db import transaction
 
 from judge.models import Language, Problem, ProblemData, ProblemGroup, ProblemTestCase, ProblemType, Profile
 from judge.models.problem_data import problem_data_storage
-from judge.utils import mysql_grader
+from judge.utils import mysql_grader, pg_grader
+from judge.utils.judge_checkers import load_judge_checker
 from judge.utils.problem_data import MYSQL_WRITE_STATEMENTS, ProblemDataCompiler, get_sql_sample_database_path, \
     get_sql_sample_databases, sql_statement_keyword
 
@@ -104,8 +106,25 @@ def validate_mysql_write_question(database, sql, kind):
     return []
 
 
+def postgres_mode(sql):
+    """'query', 'write' or 'routine', the way the judge's postgres checker grades this reference."""
+    checker = load_judge_checker('postgres')
+    tests = checker._TEST_MARKER_RE.findall(sql)
+    statements = checker.split_statements(checker._TEST_MARKER_RE.sub('', sql).strip())
+    first = checker._keyword(statements[0]) if statements else ''
+    if first in checker._QUERY_KEYWORDS and len(statements) == 1 and not tests:
+        return 'query'
+    if first in checker._WRITE_KEYWORDS and len(statements) == 1 and not tests:
+        return 'write'
+    return 'routine'
+
+
 def statement_kind(info, sql):
-    """SELECT/INSERT/UPDATE (and DELETE with the mysql engine), or None for anything else."""
+    """SELECT/INSERT/UPDATE (and DELETE with the mysql engine), or None for anything else. With the postgres engine:
+    SELECT for queries, the statement's keyword for writes, ROUTINE for functions/procedures/triggers."""
+    if info['engine'] == 'postgres':
+        mode = postgres_mode(sql)
+        return {'query': 'SELECT', 'routine': 'ROUTINE'}.get(mode) or sql_statement_keyword(sql)
     if info['engine'] == 'mysql':
         keyword = sql_statement_keyword(sql)
         if keyword in MYSQL_WRITE_STATEMENTS:
@@ -115,6 +134,9 @@ def statement_kind(info, sql):
 
 def validate_question(info, sql):
     """Returns a list of problems with this reference query (empty if it is fine)."""
+    if info['engine'] == 'postgres':
+        errors, _mode = pg_grader.validate_reference(info['database'], sql, MAX_REFERENCE_ROWS)
+        return errors
     kind = statement_kind(info, sql)
     if info['engine'] == 'mysql' and kind in MYSQL_WRITE_STATEMENTS:
         return validate_mysql_write_question(info['database'], sql, kind)
@@ -160,7 +182,11 @@ def resolve(batch, n, prob):
     if not database:
         raise BatchError('problem #%d: no "database" (neither in the problem nor in the batch)' % n)
     engine = prob.get('engine') or batch.get('engine') or 'mysql'
-    if engine == 'mysql':
+    if engine == 'postgres':
+        db_path = None
+        if not pg_grader.is_postgres_database(database):
+            raise BatchError('problem #%d: database "%s" is not on the PostgreSQL grading server' % (n, database))
+    elif engine == 'mysql':
         db_path = None
         if not mysql_grader.is_mysql_database(database):
             raise BatchError('problem #%d: database "%s" is not on the MySQL grading server' % (n, database))
@@ -168,7 +194,7 @@ def resolve(batch, n, prob):
         raise BatchError('problem #%d: the SQLite engine is no longer used; use "engine": "mysql" and a database '
                          'of the MySQL grading server' % n)
     else:
-        raise BatchError('problem #%d: unknown engine "%s" (use "mysql")' % (n, engine))
+        raise BatchError('problem #%d: unknown engine "%s" (use "mysql" or "postgres")' % (n, engine))
     code = prob.get('code') or ('%s%02d' % (batch['code_prefix'], n) if batch.get('code_prefix') else None)
     if not code:
         raise BatchError('problem #%d: no "code" (and the batch has no "code_prefix")' % n)
@@ -215,7 +241,9 @@ def check_batch(batch):
 
 
 def make_description(info, prob):
-    if info['engine'] == 'mysql':
+    if info['engine'] == 'postgres':
+        table_names = [table['name'] for table in pg_grader.get_schema(info['database'])[0]]
+    elif info['engine'] == 'mysql':
         table_names = [table['name'] for table in mysql_grader.get_schema(info['database'])[0]]
     else:
         table_names = _list_tables(info['db_path'])
@@ -229,7 +257,19 @@ def make_description(info, prob):
     if info['engine'] == 'mysql':
         parts.append('Les consultes s\'executen sobre **MySQL** (MariaDB), així que pots fer servir la sintaxi i les '
                      'funcions de MySQL que fas servir a classe.')
+    if info['engine'] == 'postgres':
+        parts.append('Les consultes s\'executen sobre **PostgreSQL 17**: fes servir la sintaxi de PostgreSQL '
+                     '(i PL/pgSQL per a funcions, procediments i triggers).')
     kinds = {statement_kind(info, q['sql']) for q in prob['questions']}
+    if 'ROUTINE' in kinds:
+        parts.append('Cada pregunta es contesta amb el codi que es demana (funcions, procediments, triggers...), en '
+                     'el seu propi quadre de text. Per corregir-lo, el teu codi s\'instal·la sobre la base de dades '
+                     'original i s\'hi executen unes proves: es compara el que retorna cada prova (o l\'error que '
+                     'dona, si n\'ha de donar) i el contingut final de les taules amb el que fa la solució del '
+                     'professor. No cal que facis `DROP` del que crees: sempre es parteix de zero.')
+        kinds.discard('ROUTINE')
+        if not kinds:
+            return '\n\n'.join(parts)
     if kinds == {'SELECT'}:
         parts.append('Cada pregunta es contesta amb una consulta `SELECT` independent, en el seu propi quadre de '
                      'text. Es comparen el nombre de columnes i les files del resultat; els noms de les columnes i '
@@ -243,6 +283,35 @@ def make_description(info, prob):
                      'exactament els valors demanats (els números sense cometes i els textos entre cometes '
                      'simples).%s' % (word, '' if info['engine'] == 'mysql' else ' No es permet `DELETE`.'))
     return '\n\n'.join(parts)
+
+
+def question_weight(sql):
+    """How much work a question is: 1 for a plain SELECT, plus a bit for every JOIN, GROUP BY, HAVING, subquery,
+    UNION, window function, CASE, aggregate, and for writing statements (more for upserts)."""
+    s = ' '.join(re.sub(r'/\*.*?\*/|--[^\n]*', ' ', sql, flags=re.S).lower().split())
+    weight = 1.0 + min(len(re.findall(r'\bjoin\b', s)), 4) * 0.35 + min(len(re.findall(r'\(\s*select\b', s)), 3) * 0.5
+    for pattern, extra in ((r'\b(left|right)\s+(outer\s+)?join\b', 0.25), (r'\bgroup by\b', 0.4), (r'\bhaving\b', 0.3),
+                           (r'\bexists\b', 0.2), (r'\bunion\b', 0.3), (r'\bover\s*\(', 0.6), (r'\bcase\b', 0.25),
+                           (r'\b(count|sum|avg|min|max)\s*\(', 0.15)):
+        if re.search(pattern, s):
+            weight += extra
+    keyword = sql_statement_keyword(sql).lower()
+    if keyword in ('create', 'do'):  # a PL/pgSQL routine graded with tests
+        weight += 1.5 + 0.15 * len(re.findall(r'^\s*--@@TEST@@', sql, re.MULTILINE))
+    if keyword in ('insert', 'replace', 'update', 'delete'):
+        weight += 0.2
+        if re.search(r'on duplicate key|^replace|insert ignore', s):
+            weight += 0.3
+    return weight
+
+
+def suggested_points(questions):
+    """Points for a new problem, on the scale every database problem was given on 2026-10-23 (CANVIS #108): the sum
+    of its questions' weights maps 3 -> 1 point, 10 -> 2 points and 35 (the hardest problem then) -> 7 points,
+    rounded to half points, between 1 and 7."""
+    raw = sum(question_weight(q['sql']) for q in questions)
+    points = 1 + (raw - 3) / 7 if raw <= 10 else 2 + (raw - 10) * 5 / 25.1
+    return min(7.0, max(1.0, round(points * 2) / 2))
 
 
 def build_zip(questions):
@@ -272,7 +341,8 @@ def create_problem(batch, n, prob, author, group, language, replace):
         problem.group = group
         problem.time_limit = 2.0
         problem.memory_limit = 64000
-        problem.points = float(sum(q.get('points', 1) for q in questions))
+        if not existing:  # --replace keeps the points a problem already has (they are set by hand or by CANVIS #108)
+            problem.points = float(prob['points']) if prob.get('points') else suggested_points(questions)
         problem.partial = True
         if not existing:  # --replace keeps a problem that was already published public
             problem.is_public = False
@@ -283,11 +353,11 @@ def create_problem(batch, n, prob, author, group, language, replace):
         if not existing:  # --replace keeps whoever the problem's authors are now
             problem.authors.set([author])
 
-        checker = 'mysql' if info['engine'] == 'mysql' else 'sql'
+        checker = {'mysql': 'mysql', 'postgres': 'postgres'}.get(info['engine'], 'sql')
         data, _created = ProblemData.objects.get_or_create(problem=problem)
         data.checker = checker
         # The mysql checker finds its database in the problem's checker_args; the SQLite one uses the .db file.
-        data.checker_args = json.dumps({'database': info['database']}) if checker == 'mysql' else ''
+        data.checker_args = json.dumps({'database': info['database']}) if checker in ('mysql', 'postgres') else ''
         data.save()
         if data.zipfile:
             data.zipfile.delete(save=False)

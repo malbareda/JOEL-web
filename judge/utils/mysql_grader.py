@@ -16,6 +16,7 @@ them), and the instance's administrator (the `ubuntu` OS user over the socket), 
 """
 import re
 import secrets
+import subprocess
 
 import pymysql
 from django.conf import settings
@@ -32,8 +33,15 @@ LOADER_CONFIG = getattr(settings, 'JOEL_MYSQL_LOADER_CNF', '/home/ubuntu/.secret
 ADMIN_SOCKET = getattr(settings, 'JOEL_MYSQL_SOCKET', '/home/ubuntu/mariadb-grader/run/mysqld.sock')
 ADMIN_USER = getattr(settings, 'JOEL_MYSQL_ADMIN_USER', 'ubuntu')
 
+# The judge's checkers run every statement with the session clock fixed at this moment (2026-01-01 00:00:00 UTC);
+# validating a reference here must see the same NOW(), CURDATE() and automatic timestamps.
+FIXED_TIMESTAMP = 1767225600
+
 # Teachers' dumps are loaded while the problem data form is being saved, so they must fit in the request.
 MAX_DUMP_BYTES = getattr(settings, 'JOEL_MYSQL_MAX_DUMP_BYTES', 10 * 1024 * 1024)
+
+DUMP_TIMEOUT = getattr(settings, 'JOEL_DUMP_TIMEOUT', 60)
+DUMP_LINE_BYTES = getattr(settings, 'JOEL_DUMP_LINE_BYTES', 16384)
 
 _SYSTEM_DATABASES = ('information_schema', 'mysql', 'performance_schema', 'sys')
 
@@ -145,6 +153,7 @@ def run_query(database, sql, max_rows=None):
     conn = connect(database)
     try:
         with conn.cursor() as cursor:
+            cursor.execute('SET timestamp = %d' % FIXED_TIMESTAMP)
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = cursor.fetchall() if max_rows is None else cursor.fetchmany(max_rows + 1)
@@ -162,6 +171,13 @@ _DATABASE_LINE_RE = re.compile(r'^\s*(?:/\*!\d+\s*)?(?:(?:CREATE|DROP)\s+(?:DATA
 # DEFINER=`user`@`host` clauses need SUPER to load as another user; without one the object is owned by the loader.
 _DEFINER_RE = re.compile(r"DEFINER\s*=\s*(?:`[^`]*`|'[^']*'|[\w.$-]+)\s*@\s*(?:`[^`]*`|'[^']*'|[\w.%-]+)",
                          re.IGNORECASE)
+# A conditional comment that holds nothing but a DEFINER clause, as mariadb-dump writes it before a trigger's body:
+# /*!50017 DEFINER=`root`@`localhost`*/. It has to go whole: the command-line client can't read an empty one.
+_DEFINER_COMMENT_RE = re.compile(r'/\*!\d+\s*' + _DEFINER_RE.pattern + r'\s*\*/ ?', re.IGNORECASE)
+# A single-statement trigger body can be stored with its own ';' (SET NEW.created = NOW();), which mariadb-dump then
+# writes inside the conditional comment (... NOW(); */;;). The client reads what follows the ';' as a statement of its
+# own and stops the load, so that ';' goes.
+_TRIGGER_BODY_END_RE = re.compile(r';([ \t]*\*/;;)$', re.MULTILINE)
 # The first line newer mariadb-dump versions write (10.11.8+): a client-side command that older clients reject.
 _SANDBOX_LINE_RE = re.compile(r'^/\*M!999999\\- enable the sandbox mode \*/[^\n]*\n?')
 _DELIMITER_RE = re.compile(r'^\s*DELIMITER\s+(\S+)\s*$', re.IGNORECASE)
@@ -282,6 +298,29 @@ def load_dump(text, database, admin=False):
             conn.close()
 
 
+def dump_database(database):
+    """Returns a `mariadb-dump` of `database` as bytes, for students to load into an empty database of their own.
+    Runs as the instance's administrator: the grading user has no SHOW VIEW, so it cannot dump views. The DEFINER
+    clauses are dropped (the users they name don't exist on the student's server), as when loading a dump, and so is
+    the stray ';' some trigger bodies carry. The INSERTs are cut at DUMP_LINE_BYTES (by default they are 1 MB long
+    lines, which freeze DBeaver's editor when the student opens the file) and binary columns are written in hex
+    (raw bytes inside a text file get mangled when a GUI client reads it as UTF-8: Sakila's staff.picture arrived
+    longer than it was). Raises DumpError if the dump can't be made."""
+    _check_name(database)
+    command = ['mariadb-dump', '--protocol=socket', '--socket=%s' % ADMIN_SOCKET, '--user=%s' % ADMIN_USER,
+               '--default-character-set=utf8mb4', '--single-transaction', '--skip-add-locks', '--routines',
+               '--triggers', '--no-tablespaces', '--hex-blob', '--net-buffer-length=%d' % DUMP_LINE_BYTES, database]
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=DUMP_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise DumpError(str(e))
+    if result.returncode:
+        raise DumpError(result.stderr.decode('utf-8', 'replace').strip())
+    text = result.stdout.decode('utf-8', 'replace')
+    text = _TRIGGER_BODY_END_RE.sub(r'\1', _DEFINER_COMMENT_RE.sub('', _SANDBOX_LINE_RE.sub('', text)))
+    return _DEFINER_RE.sub('', text).encode('utf-8')
+
+
 def owner_user(database):
     """The locked user that owns a loaded database's views, triggers and routines (MariaDB allows 80 characters)."""
     return 'own_%s' % database
@@ -335,6 +374,7 @@ def run_write(database, sql):
     conn = _writer_connect(writable_database(database))
     try:
         with conn.cursor() as cursor:
+            cursor.execute('SET timestamp = %d' % FIXED_TIMESTAMP)
             before = _dump_tables(cursor, writable_database(database))
             cursor.execute(sql)
             after = _dump_tables(cursor, writable_database(database))

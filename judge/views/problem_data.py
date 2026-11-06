@@ -22,8 +22,10 @@ from django.views.generic import DetailView
 
 from judge.highlight_code import highlight_code
 from judge.models import Problem, ProblemData, ProblemTestCase, Submission, problem_data_storage
+from judge.models.problem_data import CHECKERS
 from judge.utils import mysql_grader
 from judge.utils.mysql_grader import get_mysql_databases
+from judge.utils.pg_grader import get_postgres_databases
 from judge.utils.problem_data import ProblemDataCompiler, get_mongo_sample_database_path, \
     get_mongo_sample_databases
 from judge.utils.unicode import utf8text
@@ -70,6 +72,17 @@ class ProblemDataForm(ModelForm):
             required=False, label=_('MySQL database'), initial=current_database,
             choices=[('', _('(cap seleccionada)'))] + mysql_choices,
         )
+        postgres_choices = [(name, '%s -- %s' % (label, description) if description else label)
+                            for name, label, description in get_postgres_databases()]
+        if (self.instance.checker == 'postgres' and current_database and
+                current_database not in dict(postgres_choices)):
+            postgres_choices.append((current_database,
+                                     _('%s (not available on the grading server)') % current_database))
+        self.fields['postgres_database'] = ChoiceField(
+            required=False, label=_('PostgreSQL database'),
+            initial=current_database if self.instance.checker == 'postgres' else '',
+            choices=[('', _('(cap seleccionada)'))] + postgres_choices,
+        )
 
     def clean_zipfile(self):
         if hasattr(self, 'zip_valid') and not self.zip_valid:
@@ -100,6 +113,14 @@ class ProblemDataForm(ModelForm):
         if checker == 'mongo' and not mongo_db and not mongo_template and not self.instance.mongo_db:
             raise ValidationError(_('Mongo checker requires a database file. Please upload a .json '
                                     'file or choose an example database.'))
+        # MySQL and PostgreSQL problems are separate blocks: their references are written for one dialect, so an
+        # existing problem can't be switched from one engine to the other.
+        if self.instance.pk and {self.instance.checker, checker} == {'mysql', 'postgres'}:
+            raise ValidationError(_('This problem is graded with %(old)s and cannot be switched to %(new)s: '
+                                    'its solutions are written for that dialect. Create a new problem instead.') %
+                                  {'old': dict(CHECKERS)[self.instance.checker], 'new': dict(CHECKERS)[checker]})
+        if checker == 'postgres' and not cleaned_data.get('postgres_database'):
+            raise ValidationError(_('PostgreSQL checker requires a database. Please choose one.'))
         if checker == 'mysql':
             mysql_dump = cleaned_data.get('mysql_dump')
             new_dump = isinstance(mysql_dump, UploadedFile)
@@ -124,7 +145,7 @@ class ProblemDataForm(ModelForm):
     class Meta:
         model = ProblemData
         fields = ['zipfile', 'generator', 'output_limit', 'output_prefix', 'checker', 'caseformat',
-                  'allowed_tips', 'checker_args', 'mongo_db', 'mysql_dump']
+                  'allowed_tips', 'allowed_superhints', 'help_chat', 'checker_args', 'mongo_db', 'mysql_dump']
         widgets = {
             'checker_args': HiddenInput,
         }
@@ -273,6 +294,9 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
                         except mysql_grader.GraderUnavailable:
                             pass
                 data.checker_args = json.dumps({'database': database})
+                data.save(update_fields=['checker_args'])
+            if data.checker == 'postgres':
+                data.checker_args = json.dumps({'database': data_form.cleaned_data['postgres_database']})
                 data.save(update_fields=['checker_args'])
             mongo_template = data_form.cleaned_data.get('mongo_template')
             if mongo_template and not self.request.FILES.get('problem-data-mongo_db'):

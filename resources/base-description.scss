@@ -90,7 +90,7 @@
         background-color: var(--background_light_gray);
         border-radius: $widget_border_radius;
         font-size: 0.95em;
-        color: #444;
+        color: var(--text-black);
     }
 
     pre {

@@ -2,6 +2,7 @@ from operator import attrgetter
 
 from django import forms
 from django.contrib import admin
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.forms import ModelForm
 from django.urls import reverse_lazy
@@ -10,8 +11,9 @@ from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _, ungettext
 from reversion.admin import VersionAdmin
 
-from judge.models import Guide, GuideTranslation, LanguageLimit, Problem, ProblemClarification, ProblemTranslation, \
-    Profile, Solution
+from judge.models import Guide, GuideTranslation, LanguageLimit, Problem, ProblemClarification, ProblemData, \
+    ProblemTranslation, Profile, Solution
+from judge.utils.problem_image import shrink_problem_image
 from judge.utils.views import NoBatchDeleteMixin
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminMartorWidget, AdminSelect2MultipleWidget, \
     AdminSelect2Widget, CheckboxSelectMultipleWithSelectAll
@@ -29,6 +31,12 @@ class ProblemForm(ModelForm):
         self.fields['change_message'].widget.attrs.update({
             'placeholder': gettext('Describe the changes you made (optional)'),
         })
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if isinstance(image, UploadedFile):     # a new upload; the stored file / "clear" are left alone
+            return shrink_problem_image(image)
+        return image
 
     class Meta:
         widgets = {
@@ -148,7 +156,7 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
         (None, {
             'fields': (
                 'code', 'name', 'is_public', 'is_manually_managed', 'date', 'authors', 'curators', 'testers',
-                'is_organization_private', 'organizations', 'is_full_markup', 'description', 'license',
+                'is_organization_private', 'organizations', 'is_full_markup', 'image', 'description', 'license',
             ),
         }),
         (_('Social Media'), {'classes': ('collapse',), 'fields': ('og_image', 'summary')}),
@@ -183,6 +191,10 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
 
         func, name, desc = self.get_action('update_publish_date')
         actions[name] = (func, name, desc)
+
+        for action in ('enable_help_chat', 'disable_help_chat'):
+            func, name, desc = self.get_action(action)
+            actions[name] = (func, name, desc)
 
         return actions
 
@@ -239,6 +251,26 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
                                              count) % count)
 
     make_private.short_description = _('Mark problems as private')
+
+    def _set_help_chat(self, request, queryset, value):
+        # The setting lives in ProblemData, so problems with no test data cannot have it.
+        updated = ProblemData.objects.filter(problem__in=queryset).update(help_chat=value)
+        skipped = queryset.count() - updated
+        message = gettext('Xat d\'ajuda %(state)s a %(count)d problemes.') % {
+            'state': gettext('activat') if value else gettext('desactivat'), 'count': updated}
+        if skipped > 0:
+            message += ' ' + gettext('%d s\'han saltat perquè no tenen dades de prova.') % skipped
+        self.message_user(request, message)
+
+    def enable_help_chat(self, request, queryset):
+        self._set_help_chat(request, queryset, True)
+
+    enable_help_chat.short_description = _('Activa el xat d\'ajuda (No sé ni per on començar)')
+
+    def disable_help_chat(self, request, queryset):
+        self._set_help_chat(request, queryset, False)
+
+    disable_help_chat.short_description = _('Desactiva el xat d\'ajuda')
 
     def get_queryset(self, request):
         return Problem.get_editable_problems(request.user).prefetch_related('authors__user').distinct()

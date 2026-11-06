@@ -1,0 +1,1155 @@
+{% extends "base.html" %}
+
+{# Roda de la pissarra: tria un problema d'una tasca i un alumne de l'equip, i deixa premiar-lo amb GachaPoints.
+   Tot el JS i el CSS van dins de {% raw %} perquè no hi ha cap Jinja a dins: les dades i els textos del JS arriben
+   pel bloc JSON `wheel-config` (vegeu OrganizationWheel.get_context_data). #}
+
+{# Capçalera pròpia (a sota): la roda ocupa tota la pàgina, no cal el títol per defecte. #}
+{% block title_row %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block media %}
+{% raw %}
+<style>
+    #wheel-app {
+        font-family: "Comic Neue", "Comic Sans MS", "Chalkboard SE", "Marker Felt", cursive, sans-serif;
+        color: var(--global-text, inherit);
+    }
+    #wheel-app * { box-sizing: border-box; }
+    /* El web dona estil a TOTS els <button> (resources/widgets.scss): display:block, color blanc !important, fons blau i
+       :hover blau. Aquí es neutralitza: inline-block, i cada botó fixa el seu color amb !important (l'únic que guanya a
+       l'!important del web) i el seu propi :hover. */
+    #wheel-app button { font-family: inherit; display: inline-block; line-height: 1.2; letter-spacing: normal; text-decoration: none !important; }
+
+    /* ---------- capçalera ---------- */
+    .wheel-hero { text-align: center; margin: 4px 0 16px; }
+    .wheel-hero h1 {
+        margin: 0; font-size: clamp(28px, 5.5vw, 52px); font-weight: 900; line-height: 1.1;
+        color: transparent; -webkit-background-clip: text; background-clip: text;
+        background-image: linear-gradient(90deg, #ff4d6d, #ffb703, #06d6a0, #4cc9f0, #9b5de5, #ff4d6d);
+        background-size: 300% 100%; animation: wheel-rainbow 6s linear infinite;
+    }
+    .wheel-hero .wheel-org { font-size: 18px; opacity: .8; margin-top: 2px; }
+    .wheel-hero .wheel-back { font-size: 14px; }
+
+    /* ---------- panell de control ---------- */
+    .wheel-panel {
+        border: 3px dashed rgba(128, 128, 128, .5); border-radius: 16px; padding: 14px 16px; margin-bottom: 16px;
+        background: rgba(128, 128, 128, .08);
+    }
+    .wheel-row { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; }
+    .wheel-row + .wheel-row { margin-top: 12px; }
+    .wheel-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 320px; min-width: 0; }
+    .wheel-field label, .wheel-label { font-weight: 800; font-size: 15px; }
+    #wheel-task {
+        width: 100%; font: inherit; font-size: 17px; padding: 9px 12px; border-radius: 10px;
+        border: 3px solid #9b5de5; background: #fff; color: #1b1035;
+    }
+    .wheel-status { font-size: 14px; min-height: 20px; opacity: .9; }
+    .wheel-status.error { color: #e0245e; font-weight: 800; opacity: 1; }
+    .wheel-check { display: inline-flex; gap: 8px; align-items: center; font-weight: 800; cursor: pointer; }
+    .wheel-check input { width: 20px; height: 20px; }
+    .wheel-small-btn {
+        font-size: 14px; font-weight: 800; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+        border: 2px solid #9b5de5; background: transparent; color: inherit !important;
+    }
+    .wheel-small-btn:hover { background: #9b5de5; color: #fff !important; }
+    .wheel-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; max-height: 190px; overflow-y: auto; padding: 4px; }
+    .wheel-chip {
+        font-size: 15px; font-weight: 800; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+        border: 3px solid #06b6a0; background: #06d6a0; color: #04332a !important; transition: transform .1s;
+    }
+    .wheel-chip:hover { transform: scale(1.07) rotate(-2deg); background: #06d6a0; }
+    .wheel-chip.off:hover { background: transparent; }
+    .wheel-chip.off { background: transparent; color: inherit !important; border-color: rgba(128, 128, 128, .6); text-decoration: line-through; opacity: .6; }
+    .wheel-chip.done::before { content: "✔ "; }
+    #wheel-app .wheel-chip.off { text-decoration: line-through !important; }
+
+    /* ---------- l'escenari ---------- */
+    .wheel-stage {
+        position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+        gap: 10px 26px; padding: 22px 12px 26px; border-radius: 26px; overflow: hidden;
+        background:
+            radial-gradient(circle at 15% 12%, rgba(155, 93, 229, .8) 0, transparent 42%),
+            radial-gradient(circle at 88% 85%, rgba(255, 61, 113, .65) 0, transparent 40%),
+            linear-gradient(160deg, #1c0b3d, #2d1065 55%, #12082b);
+        border: 5px solid #ffd23f; box-shadow: 0 10px 0 #0c0420, 0 20px 40px rgba(0, 0, 0, .35);
+    }
+    /* --shake / --shake-dur / --rumble els posa el JS segons el nivell over-the-top */
+    .wheel-stage.shake, #wheel-app.quake { animation: wheel-shake var(--shake-dur, .6s) linear; }
+    #wheel-stage.rumble { animation: wheel-rumble .09s linear infinite; }
+    .wheel-deco { position: absolute; font-size: 34px; opacity: .5; pointer-events: none; animation: wheel-float 7s ease-in-out infinite; }
+    .wheel-deco.d1 { left: 3%; top: 8%; } .wheel-deco.d2 { right: 4%; top: 6%; animation-delay: -2s; }
+    .wheel-deco.d3 { left: 5%; bottom: 14%; animation-delay: -4s; } .wheel-deco.d4 { right: 6%; bottom: 12%; animation-delay: -1s; }
+    .wheel-deco.d5 { left: 46%; top: 2%; animation-delay: -3s; } .wheel-deco.d6 { left: 48%; bottom: 4%; animation-delay: -5s; }
+
+    .wheel-box { text-align: center; flex: 0 1 460px; min-width: 0; position: relative; z-index: 1; }
+    .wheel-box h2 { color: #fff; font-size: 26px; font-weight: 900; line-height: 1.2; margin: 0 0 16px; text-shadow: 0 3px 0 rgba(0, 0, 0, .45); }
+    .wheel-box canvas {
+        display: block; margin: 0 auto; width: min(86vw, 440px); height: min(86vw, 440px);
+        filter: drop-shadow(0 9px 0 rgba(0, 0, 0, .35));
+    }
+    .wheel-box .wheel-small-btn { margin-top: 8px; color: #fff !important; border-color: #ffd23f; }
+    .wheel-box .wheel-small-btn:hover { background: #ffd23f; color: #2d1065 !important; }
+    .wheel-box .wheel-small-btn:disabled { opacity: .4; cursor: not-allowed; background: transparent; color: #fff !important; }
+
+    .wheel-go { flex: 1 1 100%; text-align: center; position: relative; z-index: 1; padding-top: 8px; }
+    .spin-btn {
+        font-size: clamp(30px, 6vw, 56px); font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+        color: #3b1d00 !important; padding: 12px 56px; border-radius: 999px; border: 5px solid #fff; cursor: pointer;
+        background: linear-gradient(#ffe45e, #ffa400); box-shadow: 0 9px 0 #b35f00, 0 16px 28px rgba(0, 0, 0, .4);
+        animation: spin-pulse 1.2s ease-in-out infinite; transition: transform .08s, box-shadow .08s;
+    }
+    .spin-btn:hover { transform: scale(1.06) rotate(-1.5deg); background: linear-gradient(#ffe45e, #ffa400); }
+    .spin-btn:active { transform: translateY(7px); box-shadow: 0 2px 0 #b35f00, 0 6px 12px rgba(0, 0, 0, .4); }
+    .spin-btn:disabled { animation: none; filter: grayscale(.7); cursor: not-allowed; opacity: .85; }
+    .wheel-bubble {
+        display: inline-block; min-height: 40px; margin-top: 16px; padding: 6px 18px; border-radius: 18px;
+        background: #fff; color: #1b1035; font-weight: 800; font-size: 18px; max-width: 92%; visibility: hidden;
+    }
+    .wheel-bubble.show { visibility: visible; animation: bubble-pop .25s ease-out; }
+
+    /* ---------- el guanyador ---------- */
+    .wheel-winner {
+        margin: 24px auto 8px; max-width: 800px; text-align: center; border-radius: 24px; padding: 22px 18px;
+        color: #fff; background: linear-gradient(160deg, #2b0f5e, #4a1a8a); border: 5px solid #ffd23f;
+        box-shadow: 0 9px 0 #0c0420, 0 0 44px rgba(255, 210, 63, .5);
+        animation: win-pop .6s cubic-bezier(.2, 1.6, .4, 1) both;
+    }
+    .wheel-winner[hidden] { display: none; }
+    .win-badge {
+        display: inline-block; background: #ff3d71; padding: 4px 20px; border-radius: 999px; font-weight: 900;
+        letter-spacing: 1px; text-transform: uppercase; animation: wiggle 1s ease-in-out infinite;
+    }
+    .win-student {
+        margin: 10px 0 2px; font-size: clamp(36px, 9vw, 78px); font-weight: 900; line-height: 1.1; word-break: break-word;
+        color: transparent; -webkit-background-clip: text; background-clip: text;
+        background-image: linear-gradient(90deg, #ff4d6d, #ffd23f, #06d6a0, #4cc9f0, #c77dff, #ff4d6d);
+        background-size: 300% 100%; animation: wheel-rainbow 3s linear infinite;
+    }
+    .win-solves { font-size: 20px; opacity: .85; }
+    .win-problem { margin: 4px 0 8px; font-size: clamp(22px, 4.8vw, 40px); font-weight: 800; color: #7ff0ff; word-break: break-word; }
+    .win-open {
+        display: inline-block; margin: 2px 0 6px; padding: 6px 18px; border-radius: 999px; font-weight: 800;
+        background: #7ff0ff; color: #08333a !important; text-decoration: none;
+    }
+    .win-open:hover { background: #fff; }
+    .win-quip { margin-top: 8px; font-style: italic; font-size: 18px; opacity: .92; }
+    .reward { margin-top: 18px; padding-top: 14px; border-top: 3px dashed rgba(255, 255, 255, .35); }
+    .reward-ask { font-size: 22px; font-weight: 900; }
+    .reward-info { font-size: 15px; opacity: .85; margin: 4px 0 8px; }
+    .reward-btn {
+        font-size: 24px; font-weight: 900; min-width: 64px; padding: 6px 16px; margin: 4px; border-radius: 16px;
+        border: 3px solid #fff; background: linear-gradient(#7cf29a, #1fb35c); color: #053b1c !important; cursor: pointer;
+        box-shadow: 0 5px 0 #0d6b34; transition: transform .08s;
+    }
+    .reward-btn:hover:not(:disabled) { transform: translateY(-3px) rotate(-2deg); background: linear-gradient(#7cf29a, #1fb35c); }
+    .reward-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 #0d6b34; }
+    .reward-btn:disabled { filter: grayscale(1); opacity: .45; cursor: not-allowed; }
+    .reward-btn.skip, .reward-btn.skip:hover:not(:disabled) { background: transparent; color: #fff !important; box-shadow: none; border-color: rgba(255, 255, 255, .5); font-size: 16px; }
+    .reward-msg { min-height: 26px; margin-top: 6px; font-weight: 800; font-size: 18px; color: #ffe45e; }
+    .reward-msg.error { color: #ff8fa8; }
+
+    /* ---------- slider over-the-top ---------- */
+    .wheel-ot { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center; color: #fff; --ot: .5; }
+    .wheel-ot label { font-weight: 900; font-size: 18px; }
+    #wheel-ot-range {
+        -webkit-appearance: none; appearance: none; width: min(60vw, 300px); height: 14px; border-radius: 999px;
+        border: 3px solid #fff; cursor: pointer; padding: 0; margin: 0;
+        background: linear-gradient(90deg, #4cc9f0, #06d6a0 30%, #ffd23f 55%, #ff8c00 75%, #ff3d71 90%, #c77dff);
+    }
+    #wheel-ot-range::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%; border: 3px solid #7a4a00;
+        background: radial-gradient(circle at 35% 30%, #fff7b0, #f0a500); box-shadow: 0 3px 0 rgba(0, 0, 0, .4);
+    }
+    #wheel-ot-range::-moz-range-thumb {
+        width: 24px; height: 24px; border-radius: 50%; border: 3px solid #7a4a00;
+        background: radial-gradient(circle at 35% 30%, #fff7b0, #f0a500); box-shadow: 0 3px 0 rgba(0, 0, 0, .4);
+    }
+    #wheel-ot-name { min-width: 150px; text-align: left; font-weight: 900; font-size: calc(15px + 14px * var(--ot)); }
+    .wheel-ot.max { animation: wiggle .5s ease-in-out infinite; }
+    .wheel-ot.max #wheel-ot-name {
+        color: transparent; -webkit-background-clip: text; background-clip: text; background-size: 300% 100%;
+        background-image: linear-gradient(90deg, #ff4d6d, #ffd23f, #06d6a0, #4cc9f0, #c77dff, #ff4d6d); animation: wheel-rainbow 1.2s linear infinite;
+    }
+    /* el resplendor és un pseudo-element que només canvia d'opacitat (barat); animar box-shadow repintaria cada fotograma */
+    .wheel-winner { position: relative; }
+    .wheel-winner.ot-hi::after { content: ''; position: absolute; left: -6px; top: -6px; right: -6px; bottom: -6px; border-radius: 30px; pointer-events: none; box-shadow: 0 0 110px 22px rgba(255, 61, 113, .85); will-change: opacity; animation: win-glow .9s ease-in-out infinite alternate; }
+
+    /* ---------- efectes de pantalla completa (a #wheel-fx, FORA de #wheel-app: un ancestre amb transform trenca el position:fixed) ---------- */
+    #wheel-fx { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9990; overflow: hidden; }
+    #wheel-fx > * { position: absolute; }
+    #wheel-flash { left: 0; top: 0; width: 100%; height: 100%; background: #fff; opacity: 0; }
+    #wheel-flash.go { animation: fx-flash .9s ease-out; }
+    @keyframes fx-flash { 0% { opacity: 0; } 18% { opacity: var(--fa, .4); } 100% { opacity: 0; } }
+    #wheel-rays {
+        left: 50%; top: 50%; width: 125vmax; height: 125vmax; margin: -62.5vmax 0 0 -62.5vmax; opacity: 0; will-change: transform, opacity;   /* 125vmax: cobreix la diagonal de qualsevol pantalla */
+        background: repeating-conic-gradient(rgba(255, 226, 120, .75) 0 7deg, transparent 7deg 18deg);
+    }
+    #wheel-rays.rainbow { background: repeating-conic-gradient(#ff4d6d 0 6deg, transparent 6deg 12deg, #ffd23f 12deg 18deg, transparent 18deg 24deg, #06d6a0 24deg 30deg, transparent 30deg 36deg, #4cc9f0 36deg 42deg, transparent 42deg 48deg, #c77dff 48deg 54deg, transparent 54deg 60deg); }
+    #wheel-rays.go { animation: fx-rays 6s linear forwards; }
+    @keyframes fx-rays { 0% { opacity: 0; transform: rotate(0); } 10% { opacity: .3; } 85% { opacity: .3; } 100% { opacity: 0; transform: rotate(120deg); } }
+    /* onada d'arc de Sant Martí: només s'anima l'opacitat i un transform (res no es repinta; res de mix-blend-mode) */
+    #wheel-wash { left: 0; top: 0; width: 100%; height: 100%; opacity: 0; overflow: hidden; will-change: opacity; }
+    #wheel-wash::before {
+        content: ''; position: absolute; left: 0; top: 0; width: 400%; height: 100%; will-change: transform;
+        background: linear-gradient(90deg, #ff0040, #ff8c00, #ffee00, #22c55e, #0ea5e9, #8b5cf6, #ff0040);
+    }
+    #wheel-wash.go { animation: fx-wash 7s linear forwards; }
+    #wheel-wash.go::before { animation: fx-wash-move 7s linear forwards; }
+    @keyframes fx-wash { 0% { opacity: 0; } 10% { opacity: .38; } 85% { opacity: .38; } 100% { opacity: 0; } }
+    @keyframes fx-wash-move { from { transform: translateX(0); } to { transform: translateX(-75%); } }
+    #wheel-ducks { left: 0; top: 0; width: 100%; height: 100%; }
+    #wheel-ducks img.duck { position: absolute; left: -8%; width: 56px; will-change: transform; animation: fx-duck linear forwards; }
+    #wheel-ducks img.duck.giant { width: 170px; }
+    @keyframes fx-duck { from { transform: translateX(0) scaleX(-1); } to { transform: translateX(120vw) scaleX(-1); } }
+    #wheel-trumpets { left: 0; top: 0; width: 100%; height: 100%; }
+    .fx-trumpet { position: absolute; bottom: 6%; font-size: clamp(70px, 14vw, 170px); line-height: 1; animation: fx-trumpet 4.6s ease-in-out forwards; }
+    .fx-trumpet.l { left: 1vw; --mir: -1; --from: -40vw; }
+    .fx-trumpet.r { right: 1vw; --mir: 1; --from: 40vw; }
+    @keyframes fx-trumpet {
+        0% { transform: translateX(var(--from)) scaleX(var(--mir)); } 14% { transform: translateX(0) scaleX(var(--mir)) rotate(-8deg); }
+        22%, 78% { transform: translateX(0) scaleX(var(--mir)) rotate(0); } 100% { transform: translateX(var(--from)) scaleX(var(--mir)); }
+    }
+    .fx-note { position: absolute; bottom: 20%; font-size: clamp(28px, 5vw, 60px); color: #ffe45e; text-shadow: 0 2px 0 rgba(0, 0, 0, .5); animation: fx-note 2s ease-out forwards; }
+    @keyframes fx-note { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--dx, 0), -48vh) rotate(40deg); opacity: 0; } }
+    #wheel-mega { left: 0; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; }
+    #wheel-mega.go { animation: fx-mega 3.8s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+    #wheel-mega .mega-name, #wheel-mega .mega-sub {
+        max-width: 92vw; word-break: break-word; font-weight: 900; color: transparent; -webkit-background-clip: text; background-clip: text; background-size: 300% 100%;
+        background-image: linear-gradient(90deg, #ff4d6d, #ffd23f, #06d6a0, #4cc9f0, #c77dff, #ff4d6d);   /* sense animar el degradat: repintar text gegant amb background-clip cada fotograma és car */
+        -webkit-text-stroke: 3px rgba(20, 5, 50, .9); paint-order: stroke fill; text-shadow: 0 10px 40px rgba(0, 0, 0, .6);
+    }
+    #wheel-mega .mega-name { font-size: clamp(54px, 15vw, 200px); line-height: 1; }
+    #wheel-mega .mega-sub { font-size: clamp(30px, 7vw, 90px); margin-top: 10px; }
+    @keyframes fx-mega {
+        0% { transform: scale(.1) rotate(-20deg); opacity: 0; } 16% { transform: scale(1.18) rotate(3deg); opacity: 1; } 28% { transform: scale(1) rotate(0); }
+        80% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; }
+    }
+    #wheel-confetti { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; }
+    .wheel-mute { position: absolute; right: 10px; top: 8px; z-index: 2; font-size: 20px; line-height: 1; padding: 6px 9px; }
+
+    @keyframes wheel-rainbow { to { background-position: 300% 0; } }
+    @keyframes spin-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    @keyframes wheel-float { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-16px) rotate(10deg); } }
+    @keyframes win-pop { 0% { transform: scale(.2) rotate(-12deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+    @keyframes wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg) scale(1.06); } }
+    @keyframes bubble-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes wheel-shake {
+        0%, 100% { transform: translate(0, 0); }
+        10% { transform: translate(calc(-7px * var(--shake, 1)), calc(3px * var(--shake, 1))) rotate(calc(-.4deg * var(--shake, 1))); }
+        30% { transform: translate(calc(6px * var(--shake, 1)), calc(-4px * var(--shake, 1))) rotate(calc(.4deg * var(--shake, 1))); }
+        50% { transform: translate(calc(-5px * var(--shake, 1)), calc(4px * var(--shake, 1))); }
+        70% { transform: translate(calc(5px * var(--shake, 1)), calc(-2px * var(--shake, 1))) rotate(calc(.3deg * var(--shake, 1))); }
+        90% { transform: translate(calc(-2px * var(--shake, 1)), calc(1px * var(--shake, 1))); }
+    }
+    @keyframes wheel-rumble {
+        0%, 100% { transform: translate(0, 0); }
+        25% { transform: translate(calc(-2px * var(--rumble, 1)), calc(1px * var(--rumble, 1))); }
+        50% { transform: translate(calc(2px * var(--rumble, 1)), calc(-1px * var(--rumble, 1))); }
+        75% { transform: translate(calc(-1px * var(--rumble, 1)), calc(-2px * var(--rumble, 1))); }
+    }
+    @keyframes win-glow { from { opacity: .1; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+        .wheel-hero h1, .win-student, .win-badge, .spin-btn, .wheel-deco { animation: none; }
+    }
+</style>
+{% endraw %}
+{% endblock %}
+
+{% block body %}
+<div id="wheel-app" data-duck="{{ static('icons/duck.svg') }}">
+    {% csrf_token %}
+
+    <div class="wheel-hero">
+        <h1>🎡 {{ _('La Roda de la Pissarra') }} 🎤</h1>
+        <div class="wheel-org">{{ organization.name }}</div>
+        <a class="wheel-back" href="{{ organization.get_absolute_url() }}">← {{ _("Torna a l'equip") }}</a>
+    </div>
+
+    <div class="wheel-panel">
+        <div class="wheel-row">
+            <div class="wheel-field">
+                <label for="wheel-task">🧩 {{ _('Tasca') }}</label>
+                <input id="wheel-task" type="text" list="wheel-tasks" autocomplete="off"
+                       placeholder="{{ _('Escriu per cercar una tasca...') }}">
+                <datalist id="wheel-tasks"></datalist>
+                <div class="wheel-status" id="wheel-task-status" role="status"></div>
+            </div>
+            <div>
+                <label class="wheel-check"><input type="checkbox" id="wheel-norepeat" checked> {{ _('No repetir alumnes') }}</label>
+            </div>
+        </div>
+        <div class="wheel-row">
+            <div class="wheel-field" style="flex-basis:100%">
+                <span class="wheel-label">🙋 {{ _('Alumnes a la roda') }}
+                    <span id="wheel-student-count" style="font-weight:400"></span>
+                    <button type="button" class="wheel-small-btn" id="wheel-all">{{ _('Marcar-los tots') }}</button>
+                </span>
+                <span style="font-size:13px;opacity:.8">{{ _("Toca un alumne per treure'l de la roda (o tornar-lo a posar).") }}</span>
+                <div class="wheel-chips" id="wheel-chips"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wheel-stage" id="wheel-stage">
+        <span class="wheel-deco d1">⭐</span><span class="wheel-deco d2">🐍</span><span class="wheel-deco d3">☕</span>
+        <span class="wheel-deco d4">💻</span><span class="wheel-deco d5">🎓</span><span class="wheel-deco d6">🍕</span>
+        <button type="button" class="wheel-small-btn wheel-mute" id="wheel-mute" style="color:#fff;border-color:#ffd23f">🔊</button>
+
+        <div class="wheel-box">
+            <h2>🧩 {{ _('Problema') }}</h2>
+            <canvas id="wheel-problem" aria-hidden="true"></canvas>
+            <button type="button" class="wheel-small-btn" id="spin-problem">↻ {{ _('Només el problema') }}</button>
+        </div>
+        <div class="wheel-box">
+            <h2>🙋 {{ _('Alumne') }}</h2>
+            <canvas id="wheel-student" aria-hidden="true"></canvas>
+            <button type="button" class="wheel-small-btn" id="spin-student">↻ {{ _("Només l'alumne") }}</button>
+        </div>
+
+        <div class="wheel-go">
+            <button type="button" class="spin-btn" id="wheel-spin">🎰 {{ _('Gira!') }}</button>
+            <div><span class="wheel-bubble" id="wheel-bubble" aria-live="polite"></span></div>
+            <div class="wheel-ot" id="wheel-ot">
+                <label for="wheel-ot-range">🎪 {{ _('Over-the-top') }}</label>
+                <input type="range" id="wheel-ot-range" min="0" max="10" step="1" value="5">
+                <span id="wheel-ot-name" aria-hidden="true"></span>
+                <button type="button" class="wheel-small-btn" id="wheel-ot-test" title="{{ _('Prova els efectes sense girar la roda') }}">🎉 {{ _('Prova') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="wheel-winner" id="wheel-winner" hidden aria-live="polite">
+        <span class="win-badge">🎤 {{ _('A la pissarra!') }}</span>
+        <div class="win-student" id="win-student"></div>
+        <div id="win-problem-box">
+            <div class="win-solves" id="win-solves"></div>
+            <div class="win-problem" id="win-problem"></div>
+            <a class="win-open" id="win-open" href="#" target="_blank" rel="noopener">{{ _('Obre el problema') }} ↗</a>
+        </div>
+        <div class="win-quip" id="win-quip"></div>
+        <div class="reward" id="wheel-reward">
+            <div class="reward-ask" id="reward-ask"></div>
+            <div class="reward-info" id="reward-info"></div>
+            <div id="reward-buttons"></div>
+            <div class="reward-msg" id="reward-msg" role="status"></div>
+        </div>
+    </div>
+
+</div>
+
+{# Fora de #wheel-app (vegeu el CSS de #wheel-fx). #}
+<canvas id="wheel-confetti" aria-hidden="true"></canvas>
+<div id="wheel-fx" aria-hidden="true">
+    <div id="wheel-wash"></div>
+    <div id="wheel-rays"></div>
+    <div id="wheel-ducks"></div>
+    <div id="wheel-trumpets"></div>
+    <div id="wheel-mega"><div class="mega-name" id="mega-name"></div><div class="mega-sub" id="mega-sub"></div></div>
+    <div id="wheel-flash"></div>
+</div>
+
+{{ wheel_config }}
+
+{% raw %}
+<script>
+(function () {
+    'use strict';
+
+    var CFG = JSON.parse(document.getElementById('wheel-config').textContent);
+    var T = CFG.i18n;
+    var TAU = Math.PI * 2;
+    var FONT = '"Comic Neue","Comic Sans MS","Chalkboard SE","Marker Felt",cursive,sans-serif';
+    var PALETTE = ['#ff4d6d', '#ffb703', '#06d6a0', '#4cc9f0', '#9b5de5', '#f15bb5', '#fb8500', '#52b788', '#118ab2', '#ef476f'];
+    var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function $(id) { return document.getElementById(id); }
+    function fmt(str, vars) { return str.replace(/\{(\w+)\}/g, function (m, k) { return vars.hasOwnProperty(k) ? vars[k] : m; }); }
+    // Uniform random number in [0, 1); the wheel's result is decided here, before the animation starts.
+    function rnd() {
+        if (window.crypto && window.crypto.getRandomValues) {
+            var a = new Uint32Array(1);
+            window.crypto.getRandomValues(a);
+            return a[0] / 4294967296;
+        }
+        return Math.random();
+    }
+    function randInt(n) { return Math.floor(rnd() * n); }
+    function pick(list, not) {
+        if (list.length < 2) return list[0];
+        var v;
+        do { v = list[randInt(list.length)]; } while (v === not);
+        return v;
+    }
+    function clip(text, max) { return text.length > max ? text.slice(0, max - 1) + '…' : text; }
+
+    /* ======================= so (WebAudio, sense fitxers) ======================= */
+    var muted = false;
+    try { muted = window.localStorage.getItem('wheel-muted') === '1'; } catch (e) { /* sense localStorage: igual */ }
+    var actx = null;
+    function audio() {
+        if (muted) return null;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!actx) { try { actx = new AC(); } catch (e) { return null; } }
+        if (actx.state === 'suspended' && actx.resume) actx.resume();
+        return actx;
+    }
+    function tone(freq, dur, type, vol, delay, slideTo) {
+        var c = audio();
+        if (!c) return;
+        var t0 = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+        o.type = type || 'square';
+        o.frequency.setValueAtTime(freq, t0);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(vol || 0.08, t0 + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t0); o.stop(t0 + dur + 0.03);
+    }
+    var lastTick = 0;
+    function sndTick() {
+        var now = Date.now();
+        if (now - lastTick < 45) return;
+        lastTick = now;
+        tone(480 + rnd() * 160, 0.05, 'triangle', 0.09);
+    }
+    function sndWhoosh() {
+        var c = audio();
+        if (!c) return;
+        var len = Math.floor(c.sampleRate * 0.9), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0), i;
+        for (i = 0; i < len; i++) d[i] = (rnd() * 2 - 1) * (1 - i / len);
+        var src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime;
+        src.buffer = buf; f.type = 'bandpass'; f.Q.value = 1.2;
+        f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(2600, t0 + 0.8);
+        g.gain.value = 0.22;
+        src.connect(f); f.connect(g); g.connect(c.destination); src.start(t0);
+    }
+    function sndDing() { tone(1175, 0.35, 'sine', 0.12); tone(1568, 0.5, 'sine', 0.09, 0.06); }
+    function sndFanfare() {
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) { tone(f, 0.22, 'triangle', 0.14, i * 0.12); });
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (f) { tone(f, 0.9, 'sawtooth', 0.04, 0.5); });
+    }
+    function sndHonk() { tone(233, 0.2, 'sawtooth', 0.11, 0.55, 180); tone(311, 0.45, 'sawtooth', 0.11, 0.8, 250); }
+    function sndCoin() { tone(988, 0.08, 'square', 0.07, 0); tone(1319, 0.4, 'square', 0.07, 0.08); }
+    // «over-the-top»: redoble de tambor (programat amb el rellotge d'àudio) amb un bum al final, sirena i botzina
+    function sndDrumroll(startMs, lenMs) {
+        var n = Math.floor(lenMs / 55), i;
+        for (i = 0; i < n; i++) tone(150 + i * 2, 0.05, 'triangle', 0.035 + 0.1 * (i / n), startMs / 1000 + i * 0.055);
+        tone(90, 0.6, 'sine', 0.22, (startMs + lenMs) / 1000, 55);
+    }
+    function sndSiren() { for (var i = 0; i < 4; i++) tone(560, 0.3, 'sawtooth', 0.05, i * 0.32, 980); }
+    function sndHorn() { [311, 392, 466].forEach(function (f) { tone(f, 0.9, 'sawtooth', 0.06, 0); }); }
+    function sndPop() { tone(220 + rnd() * 260, 0.09, 'square', 0.025, 0, 70); }
+    // sons de l'epíleg
+    function sndBoing() { tone(160, 0.28, 'sine', 0.16, 0, 560); tone(560, 0.3, 'sine', 0.12, 0.26, 190); }
+    function sndWah() { [[311, 0], [294, 0.2], [277, 0.4]].forEach(function (n) { tone(n[0], 0.2, 'sawtooth', 0.07, n[1], n[0] * 0.94); }); tone(262, 0.3, 'sawtooth', 0.07, 0.6, 150); }
+    function sndLurch() { tone(180, 0.2, 'square', 0.08, 0, 1100); }
+    function sndRewind() { tone(1500, 0.9, 'sawtooth', 0.035, 0, 250); for (var i = 0; i < 8; i++) tone(1200 - i * 100, 0.05, 'square', 0.03, i * 0.1); }
+    function sndHeartbeat(n) { for (var i = 0; i < n; i++) { tone(75, 0.12, 'sine', 0.25, i * 0.55); tone(65, 0.12, 'sine', 0.2, i * 0.55 + 0.16); } }
+    function sndError() { tone(262, 0.28, 'sawtooth', 0.09, 0, 196); tone(196, 0.5, 'sawtooth', 0.09, 0.3, 150); }
+
+    /* ======================= confeti ======================= */
+    var ccv = $('wheel-confetti'), cctx = ccv.getContext('2d'), parts = [], lastC = 0;
+    var CONFETTI_EMOJI = ['🎉', '⭐', '🍕', '🐢', '🔥', '💥', '🦆', '🎊'];
+    var emojiP = 0.16;           // probabilitat que una partícula sigui un emoji (puja amb el nivell over-the-top)
+    function sizeConfetti() { ccv.width = window.innerWidth; ccv.height = window.innerHeight; }
+    // Dibuixar un emoji amb fillText a cada fotograma és car (i hi pot haver centenars): es dibuixa un cop en un canvas petit i després es reutilitza.
+    var sprites = {};
+    function sprite(glyph) {
+        if (!sprites[glyph]) {
+            var c = document.createElement('canvas'), g = c.getContext('2d');
+            c.width = c.height = 64;
+            g.font = '48px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, 32, 34);
+            sprites[glyph] = c;
+        }
+        return sprites[glyph];
+    }
+    var MAX_PARTS = 1800;      // límit de partícules vives: més enllà no es veu res més i només frena
+    function burst(x, y, count, power, coins) {
+        count = Math.min(Math.round(count * (reduceMotion ? 0.25 : 1)), Math.max(0, MAX_PARTS - parts.length));
+        for (var i = 0; i < count; i++) {
+            var ang = -Math.PI / 2 + (rnd() - 0.5) * 1.6, sp = power * (0.45 + rnd() * 0.65);
+            parts.push({
+                x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, rot: rnd() * TAU, vr: (rnd() - 0.5) * 12,
+                size: coins ? 14 + rnd() * 8 : 8 + rnd() * 9, color: PALETTE[randInt(PALETTE.length)],
+                glyph: coins ? '🪙' : (rnd() < emojiP ? CONFETTI_EMOJI[randInt(CONFETTI_EMOJI.length)] : null),
+                life: 3.2 + rnd() * 1.4
+            });
+        }
+    }
+    function rain(count) {
+        count = Math.min(Math.round(count * (reduceMotion ? 0.25 : 1)), Math.max(0, MAX_PARTS - parts.length));
+        for (var i = 0; i < count; i++) {
+            parts.push({
+                x: rnd() * ccv.width, y: -20 - rnd() * 200, vx: (rnd() - 0.5) * 80, vy: 80 + rnd() * 200, rot: rnd() * TAU,
+                vr: (rnd() - 0.5) * 10, size: 8 + rnd() * 9, color: PALETTE[randInt(PALETTE.length)],
+                glyph: rnd() < 0.12 ? CONFETTI_EMOJI[randInt(CONFETTI_EMOJI.length)] : null, life: 4
+            });
+        }
+    }
+    function stepConfetti(now) {
+        var dt = Math.min(0.05, (now - lastC) / 1000);
+        lastC = now;
+        if (!parts.length) return;
+        cctx.setTransform(1, 0, 0, 1, 0, 0);
+        cctx.clearRect(0, 0, ccv.width, ccv.height);
+        var alive = [];
+        parts.forEach(function (p) {
+            p.vy += 760 * (p.g === undefined ? 1 : p.g) * dt; p.vx *= 0.995; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.life -= dt;
+            if (p.life <= 0 || p.y > ccv.height + 40) return;
+            alive.push(p);
+            cctx.globalAlpha = Math.min(1, p.life);
+            if (!p.rot && !p.vr) {                                    // espurnes: quadradets sense girar (camí ràpid)
+                cctx.fillStyle = p.color; cctx.fillRect(p.x, p.y, p.size, p.size);
+                return;
+            }
+            var cs = Math.cos(p.rot), sn = Math.sin(p.rot);
+            cctx.setTransform(cs, sn, -sn, cs, p.x, p.y);
+            if (p.glyph) {
+                var d = p.size * 2.2;
+                cctx.drawImage(sprite(p.glyph), -d / 2, -d / 2, d, d);
+            } else {
+                cctx.fillStyle = p.color; cctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.6);
+            }
+            cctx.setTransform(1, 0, 0, 1, 0, 0);
+        });
+        cctx.globalAlpha = 1;
+        parts = alive;
+        if (!parts.length) cctx.clearRect(0, 0, ccv.width, ccv.height);
+    }
+
+    /* @finale-start */
+    /* ======================= epíleg de la tirada («finale») ======================= */
+    // Mentre la roda gira, el guanyador ja està decidit. L'epíleg només decideix COM s'hi arriba: el camí acaba SEMPRE exactament al guanyador
+    // (vegeu pathAngle), però abans pot passar-s'hi de llarg, quedar-se curt, tremolar, fer una falsa parada, rebobinar... Des del nivell 6 i amb
+    // més probabilitat de caos com més alt és el nivell. És tot dades pures (sense DOM ni so) perquè es pugui provar a part.
+    var EASE = {
+        io: function (u) { return 0.5 - 0.5 * Math.cos(Math.PI * u); },
+        out: function (u) { return 1 - Math.pow(1 - u, 3); },
+        snap: function (u) { return 1 - Math.pow(1 - u, 6); }          // arrenca de cop i frena en sec
+    };
+    // Desplaçaments en SEGMENTS respecte del guanyador: + = més enllà (en el sentit del gir), − = curt. r = funció aleatòria [0,1).
+    function makeFinale(L, r) {
+        if (L < 6) return null;
+        var k = (L - 6) / 4;                                           // 0 al nivell 6, 1 al 10
+        var table = [['none', 0.35 - 0.30 * k], ['settle', 0.30 - 0.14 * k], ['creep', 0.18], ['wobble', 0.09 + 0.16 * k],
+                     ['fake', 0.05 + 0.15 * k], ['rewind', 0.03 + 0.12 * k]];
+        var total = 0, i, type = 'none', x;
+        for (i = 0; i < table.length; i++) total += table[i][1];
+        x = r() * total;
+        for (i = 0; i < table.length; i++) { if (x < table[i][1]) { type = table[i][0]; break; } x -= table[i][1]; }
+        var amp = (0.35 + 0.65 * r()) * (1 + 1.2 * k);                 // de vegades poc, de vegades molt
+        var big = 1 + 0.6 * k;
+        if (type === 'settle') {         // es passa una mica i torna enrere
+            return { type: type, o0: 0.5 * amp, segs: [{ o: 0, ms: 450 + 350 * r(), ease: 'io', ev: 'boing' }] };
+        }
+        if (type === 'creep') {          // s'atura CURT, tensió, i s'arrossega ENDAVANT fins al guanyador
+            return { type: type, o0: -(0.35 + 0.5 * r()) * big, segs: [{ hold: true, ms: 300 + 300 * r(), ev: 'tension' }, { o: 0, ms: 1300 + 900 * r(), ease: 'io' }] };
+        }
+        if (type === 'wobble') {         // molla: s'hi passa, torna, s'hi torna a passar... cada cop menys
+            var seq = [-0.62, 0.4, -0.24, 0.12], cnt = 3 + Math.floor(r() * 3), o0 = 0.9 * amp, segs = [], j;
+            for (j = 0; j < cnt - 1; j++) segs.push({ o: o0 * seq[j], ms: 380 - j * 40, ease: 'io', ev: j === 0 ? 'boing' : undefined });
+            segs.push({ o: 0, ms: 380 - (cnt - 1) * 40, ease: 'io' });
+            return { type: type, o0: o0, segs: segs };
+        }
+        if (type === 'fake') {           // falsa parada: s'atura curt, silenci incòmode, i ARRENCA endavant passant-se una mica
+            return { type: type, o0: -(0.6 + 0.8 * r()) * big, segs: [{ hold: true, ms: 650 + 350 * r(), ev: 'wah' }, { o: 0.5 * amp, ms: 260, ease: 'snap', ev: 'lurch' }, { o: 0, ms: 520, ease: 'io' }] };
+        }
+        if (type === 'rewind') {         // s'ha passat molt i ho rebobina
+            return { type: type, o0: (1.2 + 1.8 * r()) * big, segs: [{ hold: true, ms: 300, ev: 'rewind' }, { o: 0, ms: 900 + 500 * r(), ease: 'io' }] };
+        }
+        return null;                      // 'none': s'atura sense més
+    }
+    // Converteix un epíleg (en segments) en un camí en radians per a una roda de n segments; els desplaçaments es limiten a ±1,3 rad.
+    function buildPath(fin, n, from, delta, dur) {
+        var arc = TAU / n, a = { from: from, delta: delta, dur: dur, o0: 0, segs: [], total: dur, type: 'none' };
+        function cap(o) { return Math.max(-1.3, Math.min(1.3, o * arc)); }
+        if (!fin) return a;
+        a.type = fin.type; a.o0 = cap(fin.o0);
+        var prevO = a.o0;
+        fin.segs.forEach(function (sg) {
+            var o = sg.hold ? prevO : cap(sg.o), ms = sg.ms;
+            // L'arrencada («snap») té la velocitat inicial = 6 × distància / durada: en rodes de 2-3 segments la distància arriba a 2,6 rad i
+            // quedaria un salt sec. Es limita la velocitat màxima a 0,03 rad/ms (≈ 29 rad/s), allargant el tram si cal.
+            if (sg.ease === 'snap') ms = Math.max(ms, 6 * Math.abs(o - prevO) / 0.03);
+            a.segs.push({ o: sg.hold ? 0 : o, ms: ms, ease: sg.ease, hold: !!sg.hold, ev: sg.ev });
+            a.total += ms; prevO = o;
+        });
+        return a;
+    }
+    // Angle de la roda `el` ms després de començar. Fase 1: gir amb frenada suau fins a (guanyador + o0). Fase 2: l'epíleg, tram a tram.
+    // A partir de a.total sempre és exactament from + delta (el guanyador).
+    function pathAngle(a, el) {
+        var F = a.from + a.delta;
+        if (el >= a.total) return F;
+        if (el < a.dur) return a.from + (a.delta + a.o0) * (1 - Math.pow(1 - el / a.dur, 3));
+        var t = el - a.dur, prev = a.o0, i, sg;
+        for (i = 0; i < a.segs.length; i++) {
+            sg = a.segs[i];
+            if (t < sg.ms) return F + (sg.hold ? prev : prev + (sg.o - prev) * EASE[sg.ease](t / sg.ms));
+            t -= sg.ms;
+            if (!sg.hold) prev = sg.o;
+        }
+        return F;
+    }
+    /* @finale-end */
+
+    /* ======================= la roda (canvas) ======================= */
+    function Wheel(canvas) {
+        this.canvas = canvas; this.ctx = canvas.getContext('2d');
+        this.items = [];              // [{label}]
+        this.angle = rnd() * TAU;     // 0 = les 3 en punt; el punter és a dalt (-PI/2)
+        this.flap = 0;                // deflexió del punter (rad)
+        this.anim = null;             // {from, delta, start, dur, lastIdx, target, done}
+        this.winner = -1; this.glowUntil = 0;
+        this.face = '🤪'; this.emptyText = '';
+        this.lastDraw = -1e9;         // -1e9: dibuixa de seguida, sense esperar el primer refresc
+        this.hueUntil = 0;            // fins quan els colors de la roda giren pel cercle cromàtic (nivells 7+)
+        this.fit();
+    }
+    Wheel.prototype.fit = function () {
+        var css = this.canvas.clientWidth || 400, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        this.size = css; this.dpr = dpr;
+        this.canvas.width = Math.round(css * dpr); this.canvas.height = Math.round(css * dpr);
+        this.lastDraw = -1e9;
+    };
+    Wheel.prototype.setItems = function (items) { this.items = items; this.winner = -1; this.glowUntil = 0; this.lastDraw = -1e9; };
+    // Posició (en segments) que hi ha sota el punter: la part entera és l'índex, la fracció és com de lluny som del segment següent.
+    Wheel.prototype.pos = function () {
+        var n = this.items.length;
+        if (!n) return 0;
+        return ((((-Math.PI / 2 - this.angle) % TAU) + TAU) % TAU) / (TAU / n);
+    };
+    // fin: epíleg opcional (makeFinale). El resultat ja està decidit; l'epíleg és només teatre.
+    Wheel.prototype.spinTo = function (target, turns, dur, onDone, fin) {
+        var n = this.items.length, arc = TAU / n, f = 0.14 + rnd() * 0.72;     // mai just a la vora d'un segment
+        var want = -Math.PI / 2 - (target + f) * arc;
+        var delta = ((((want - this.angle) % TAU) + TAU) % TAU) + TAU * turns;
+        this.winner = -1; this.glowUntil = 0; this.face = '😵';
+        var a = buildPath(fin, n, this.angle, delta, dur);
+        a.start = performance.now(); a.lastIdx = Math.floor(this.pos()); a.target = target; a.done = onDone; a.seg = -1; a.lastAngle = this.angle;
+        this.anim = a;
+    };
+    // Retorna true si cal seguir pintant a 60 fps.
+    Wheel.prototype.update = function (now) {
+        var a = this.anim, busy = false;
+        if (a) {
+            var el = now - a.start;
+            this.angle = pathAngle(a, el);
+            var p = this.pos(), idx = Math.floor(p), frac = p - idx, mv = this.angle - a.lastAngle;
+            a.lastAngle = this.angle;
+            if (idx !== a.lastIdx) { a.lastIdx = idx; sndTick(); }
+            if (el >= a.dur && a.segs.length) {                                    // esdeveniments de l'epíleg (so, cara, frase) en entrar a cada tram
+                var tt = el - a.dur, si = 0, acc = 0;
+                while (si < a.segs.length && tt >= acc + a.segs[si].ms) { acc += a.segs[si].ms; si++; }
+                if (si !== a.seg) { a.seg = si; if (si < a.segs.length && a.segs[si].ev) finaleEvent(a.segs[si].ev, this, a.type); }
+            }
+            // el punter és empès per la clavilla que s'hi acosta (endavant) o per la que se'n va (si la roda va enrere) i salta quan la passa
+            var push = mv >= 0 ? (frac < 0.24 ? (0.24 - frac) / 0.24 : 0) : (frac > 0.76 ? -(frac - 0.76) / 0.24 : 0);
+            this.flap = -push * 0.55;
+            busy = true;
+            if (el >= a.total) {
+                this.anim = null; this.angle = a.from + a.delta; this.winner = a.target; this.glowUntil = now + 3600; this.face = '🤩';
+                if (a.done) a.done();
+            }
+        } else {
+            this.flap *= 0.8;
+            if (Math.abs(this.flap) < 0.002) this.flap = 0; else busy = true;
+            if (now < this.glowUntil || now < this.hueUntil) busy = true;
+        }
+        if (busy || now - this.lastDraw > 330) { this.draw(now); this.lastDraw = now; }
+        return busy;
+    };
+    var PALETTE_HSL = PALETTE.map(function (hex) {
+        var r = parseInt(hex.substr(1, 2), 16) / 255, g = parseInt(hex.substr(3, 2), 16) / 255, b = parseInt(hex.substr(5, 2), 16) / 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn, h = 0, sat = 0;
+        if (d) {
+            sat = d / (1 - Math.abs(2 * l - 1));
+            h = mx === r ? ((g - b) / d) % 6 : (mx === g ? (b - r) / d + 2 : (r - g) / d + 4);
+            h = (h * 60 + 360) % 360;
+        }
+        return [h, Math.round(sat * 100), Math.round(l * 100)];
+    });
+    Wheel.prototype.color = function (i, n, now) {
+        var c = i % PALETTE.length;
+        if (n > 1 && i === n - 1 && c === 0) c = 5;       // l'últim no pot ser igual que el primer
+        if (now < this.hueUntil) { var hsl = PALETTE_HSL[c]; return 'hsl(' + Math.round(hsl[0] + now / 6) % 360 + ',' + hsl[1] + '%,' + hsl[2] + '%)'; }
+        return PALETTE[c];
+    };
+    Wheel.prototype.draw = function (now) {
+        var ctx = this.ctx, S = this.size, n = this.items.length, arc = TAU / Math.max(n, 1);
+        var cx = S / 2, cy = S / 2 + S * 0.035, R = S * 0.42, rimR = R + S * 0.05, i;
+        ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        ctx.clearRect(0, 0, S, S);
+
+        // marc daurat amb bombetes
+        var g = ctx.createRadialGradient(cx, cy, R, cx, cy, rimR);
+        g.addColorStop(0, '#ffe27a'); g.addColorStop(1, '#d98e04');
+        ctx.beginPath(); ctx.arc(cx, cy, rimR, 0, TAU); ctx.fillStyle = g; ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#7a4a00'; ctx.stroke();
+        var bulbs = 22, rate = this.anim ? 90 : 380;
+        for (i = 0; i < bulbs; i++) {
+            var ba = (i / bulbs) * TAU, on = ((i + Math.floor(now / rate)) % 2) === 0;
+            ctx.beginPath();
+            ctx.arc(cx + Math.cos(ba) * (R + S * 0.025), cy + Math.sin(ba) * (R + S * 0.025), S * 0.0125, 0, TAU);
+            if (on) { ctx.shadowColor = '#fff7b0'; ctx.shadowBlur = S * 0.03; ctx.fillStyle = '#fffde0'; }
+            else { ctx.shadowBlur = 0; ctx.fillStyle = '#b8860b'; }
+            ctx.fill(); ctx.shadowBlur = 0;
+        }
+
+        if (!n) {
+            ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fillStyle = '#4a3f78'; ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = 'bold ' + (S * 0.055) + 'px ' + FONT;
+            var words = this.emptyText.split(' '), line = '', lines = [];
+            words.forEach(function (w) {
+                if (ctx.measureText(line + ' ' + w).width > R * 1.3 && line) { lines.push(line); line = w; } else { line = line ? line + ' ' + w : w; }
+            });
+            lines.push(line);
+            lines.forEach(function (l, k) { ctx.fillText(l, cx, cy + S * 0.2 + (k - (lines.length - 1) / 2) * S * 0.07); });
+        } else {
+            for (i = 0; i < n; i++) {
+                var a0 = this.angle + i * arc;
+                ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, a0, a0 + arc); ctx.closePath();
+                ctx.fillStyle = this.color(i, n, now); ctx.fill();
+                ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+                if (i === this.winner && now < this.glowUntil) {
+                    ctx.fillStyle = 'rgba(255,255,255,' + (0.25 + 0.3 * Math.sin(now / 110)) + ')'; ctx.fill();
+                }
+            }
+            for (i = 0; i < n; i++) {
+                var mid = this.angle + i * arc + arc / 2, label = clip(this.items[i].label, 26);
+                var fs = Math.max(8, Math.min(S * 0.058, R * 0.78 * arc * 0.62));
+                ctx.save(); ctx.translate(cx, cy); ctx.rotate(mid);
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold ' + fs + 'px ' + FONT;
+                var w = ctx.measureText(label).width, maxW = R * 0.64;
+                if (w > maxW) { fs = Math.max(7, fs * maxW / w); ctx.font = 'bold ' + fs + 'px ' + FONT; }
+                ctx.lineJoin = 'round'; ctx.lineWidth = fs * 0.3; ctx.strokeStyle = 'rgba(20,5,50,.85)';
+                ctx.strokeText(label, R - S * 0.04, 0);
+                ctx.fillStyle = '#fff'; ctx.fillText(label, R - S * 0.04, 0);
+                ctx.restore();
+            }
+            if (n > 1) {
+                for (i = 0; i < n; i++) {                                   // clavilles
+                    var pa = this.angle + i * arc;
+                    ctx.beginPath(); ctx.arc(cx + Math.cos(pa) * R, cy + Math.sin(pa) * R, S * 0.0115, 0, TAU);
+                    ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#3a2200'; ctx.stroke();
+                }
+            }
+        }
+
+        // centre amb cara
+        var hr = S * 0.085, hg = ctx.createRadialGradient(cx - hr * .3, cy - hr * .3, hr * .1, cx, cy, hr);
+        hg.addColorStop(0, '#fff3b0'); hg.addColorStop(1, '#f0a500');
+        ctx.beginPath(); ctx.arc(cx, cy, hr, 0, TAU); ctx.fillStyle = hg; ctx.fill();
+        ctx.lineWidth = 4; ctx.strokeStyle = '#7a4a00'; ctx.stroke();
+        ctx.font = (hr * 1.25) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000'; ctx.fillText(this.face, cx, cy + hr * 0.06);
+
+        // punter amb ulls (mira marejat mentre gira)
+        var pr = S * 0.05, tip = S * 0.125, spinning = !!this.anim;
+        ctx.save(); ctx.translate(cx, cy - R - S * 0.062); ctx.rotate(this.flap);
+        ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.fillStyle = '#e8173c';
+        ctx.beginPath(); ctx.moveTo(-pr * 0.9, pr * 0.3); ctx.lineTo(0, tip); ctx.lineTo(pr * 0.9, pr * 0.3); ctx.closePath();
+        ctx.stroke(); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.stroke(); ctx.fill();
+        [-1, 1].forEach(function (s) {
+            ctx.beginPath(); ctx.arc(s * pr * 0.4, -pr * 0.12, pr * 0.36, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
+            var ox = spinning ? Math.cos(now / 80 + s) * pr * 0.14 : Math.max(-1, Math.min(1, -this.flap * 2)) * pr * 0.14,
+                oy = spinning ? Math.sin(now / 80 + s) * pr * 0.14 : pr * 0.1;
+            ctx.beginPath(); ctx.arc(s * pr * 0.4 + ox, -pr * 0.12 + oy, pr * 0.17, 0, TAU); ctx.fillStyle = '#111'; ctx.fill();
+        }, this);
+        ctx.beginPath();
+        if (spinning) { ctx.ellipse(0, pr * 0.5, pr * 0.2, pr * 0.26, 0, 0, TAU); ctx.fillStyle = '#4a0010'; ctx.fill(); }
+        else { ctx.arc(0, pr * 0.28, pr * 0.3, 0.15 * Math.PI, 0.85 * Math.PI); ctx.lineWidth = 3; ctx.strokeStyle = '#4a0010'; ctx.stroke(); }
+        ctx.restore();
+    };
+
+    /* ======================= over-the-top ======================= */
+    // Nivell 0..10 (slider). El 5 és l'aspecte «de sèrie»; per sobre s'hi van afegint efectes fins al 10, que és el superllegendari del gacha.
+    var level = 5, DUCK = $('wheel-app').getAttribute('data-duck') || '';
+    try { var savedLevel = parseInt(window.localStorage.getItem('wheel-ot'), 10); if (savedLevel >= 0 && savedLevel <= 10) level = savedLevel; } catch (e) { /* sense localStorage: igual */ }
+    // Si el Python que serveix la pàgina és més antic que la plantilla (mig d'un desplegament) els textos del slider poden faltar: no ha de petar res.
+    function otName(i) { return (T.otNames && T.otNames[i]) || String(i); }
+    function lv() { return reduceMotion ? Math.min(level, 2) : level; }      // amb «reduir moviment» mai passa de «Discret»
+    function later(fn, ms) { return window.setTimeout(fn, ms); }
+    // Governador: si l'ordinador va just (fotogrames de més de ~45 ms de mitjana), els efectes que es van generant (ànecs, focs, notes, onades) deixen de generar-se.
+    var frameMs = 16, lastFrame = 0;
+    function slowPc() { return frameMs > 45; }
+    function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+    function fxShake(L) {
+        var target = L >= 9 ? $('wheel-app') : $('wheel-stage'), cls = L >= 9 ? 'quake' : 'shake', secs = 0.5 + 0.12 * L;
+        target.style.setProperty('--shake', (L / 5).toFixed(2)); target.style.setProperty('--shake-dur', secs.toFixed(2) + 's');
+        restart(target, cls); later(function () { target.classList.remove(cls); }, secs * 1000 + 100);
+    }
+    function fxFlash(alpha) { var f = $('wheel-flash'); f.style.setProperty('--fa', alpha); restart(f, 'go'); }
+    function fxRays(rainbow) { var r = $('wheel-rays'); r.classList.toggle('rainbow', !!rainbow); restart(r, 'go'); }
+    function fxHue(L) { var until = performance.now() + 3000 + (L - 7) * 1500; wheels.forEach(function (w) { w.hueUntil = until; }); }
+    function fxDucks(L) {
+        var box = $('wheel-ducks'), per = Math.ceil((L - 6) / 2), every = Math.max(200, 380 - per * 60), giantP = 0.06 + 0.03 * per;
+        if (!DUCK) return;
+        function spawn() {
+            if (slowPc() || box.children.length > 40) return;
+            var d = document.createElement('img'), giant = rnd() < giantP, dur = (giant ? 8 : 3.5) + rnd() * 3.5;
+            d.className = 'duck' + (giant ? ' giant' : ''); d.src = DUCK; d.alt = '';
+            d.style.top = (4 + rnd() * 88) + '%'; d.style.animationDuration = dur + 's';
+            box.appendChild(d); later(function () { d.remove(); }, dur * 1000 + 200);
+        }
+        var timer = setInterval(function () { for (var i = 0; i < per; i++) spawn(); }, every);
+        spawn(); later(function () { clearInterval(timer); }, 2000 + (L - 6) * 3000);
+    }
+    var FW_COLORS = ['#ff0040', '#ff8c00', '#ffee00', '#22c55e', '#0ea5e9', '#8b5cf6', '#ffffff'];
+    function fxFireworks(L) {
+        function pop() {
+            if (parts.length > MAX_PARTS - 300 || slowPc()) return;
+            var x = ccv.width * (0.1 + rnd() * 0.8), y = ccv.height * (0.08 + rnd() * 0.5), c = FW_COLORS[randInt(FW_COLORS.length)];
+            for (var i = 0; i < 70; i++) {
+                var a = rnd() * TAU, sp = 120 + rnd() * 380;
+                parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: 0, vr: 0, size: 3, color: rnd() < 0.25 ? '#fff' : c, glyph: null, life: 0.9 + rnd() * 0.5, g: 0.3 });
+            }
+            sndPop();
+        }
+        var timer = setInterval(pop, 240);
+        pop(); later(function () { clearInterval(timer); }, 1500 + (L - 7) * 2200);
+    }
+    function fxTrumpets() {
+        var box = $('wheel-trumpets');
+        box.textContent = '';
+        ['l', 'r'].forEach(function (side) {
+            var t = document.createElement('div');
+            t.className = 'fx-trumpet ' + side; t.textContent = '🎺'; box.appendChild(t);
+            var notes = setInterval(function () {
+                if (slowPc()) return;
+                var n = document.createElement('span');
+                n.className = 'fx-note'; n.textContent = pick(['♪', '♫', '♬', '🎶']);
+                n.style.left = side === 'l' ? '15vw' : '80vw';
+                n.style.setProperty('--dx', (side === 'l' ? 1 : -1) * (6 + rnd() * 30) + 'vw');
+                box.appendChild(n); later(function () { n.remove(); }, 2100);
+            }, 210);
+            later(function () { clearInterval(notes); }, 3600);
+        });
+        later(function () { box.textContent = ''; }, 5200);
+    }
+    function fxMega(L, name) {
+        $('mega-name').textContent = name + '!!!';
+        $('mega-sub').textContent = L >= 10 ? otName(10) + ' 🦆🌈' : (T.otLegend || '');
+        restart($('wheel-mega'), 'go');
+    }
+    // L = nivell. Cada «if» afegeix efectes a tots els nivells superiors (el 10 ho porta tot).
+    function celebrate(L, name) {
+        if (L < 1) return;
+        emojiP = 0.16 + 0.06 * Math.max(0, L - 5);
+        var w = window.innerWidth, h = window.innerHeight, n = 18 * L, power = 800 + 60 * L;
+        sndFanfare();
+        if (L >= 2) sndHonk();
+        burst(w * 0.12, h, n, power); burst(w * 0.88, h, n, power);
+        rain(14 * L);
+        if (L >= 3) fxShake(L);
+        if (L >= 6) { fxFlash(Math.min(0.4, 0.2 + 0.025 * L)); fxRays(L >= 8); }
+        if (L >= 7) { fxHue(L); fxDucks(L); }
+        if (L >= 8) {
+            fxFireworks(L); fxTrumpets();
+            restart($('wheel-wash'), 'go');
+            later(sndFanfare, 1300);
+        }
+        if (L >= 9) { fxMega(L, name); sndSiren(); later(function () { fxFlash(0.35); }, 700); }
+        if (L >= 10) {
+            sndHorn();
+            [1400, 2800].forEach(function (ms) {
+                later(function () { if (!slowPc()) { burst(w * 0.12, h, n, power); burst(w * 0.88, h, n, power); } sndFanfare(); sndHorn(); fxFlash(0.4); }, ms);
+            });
+        }
+    }
+    var otRange = $('wheel-ot-range'), otBox = $('wheel-ot');
+    function paintOt() {
+        otRange.value = level;
+        $('wheel-ot-name').textContent = otName(level);
+        otRange.setAttribute('aria-valuetext', otName(level));
+        otBox.style.setProperty('--ot', level / 10);
+        otBox.classList.toggle('max', level === 10);
+    }
+    otRange.addEventListener('input', function () {
+        level = parseInt(otRange.value, 10);
+        try { window.localStorage.setItem('wheel-ot', String(level)); } catch (e) { /* res */ }
+        paintOt(); tone(300 + level * 60, 0.06, 'triangle', 0.06);
+    });
+
+    /* ======================= estat i interfície ======================= */
+    var problemWheel = new Wheel($('wheel-problem')), studentWheel = new Wheel($('wheel-student'));
+    problemWheel.emptyText = T.pickTask; studentWheel.emptyText = T.noStudents;
+    var wheels = [problemWheel, studentWheel];
+
+    var students = CFG.students.map(function (s) { return { id: s.id, name: s.name, given: s.given, on: true, done: false }; });
+    var problems = [];
+    var picked = { student: null, problem: null };
+    var busy = false, taskToken = 0, bubbleTimer = null;
+
+    function setStatus(text, isError) {
+        var el = $('wheel-task-status');
+        el.textContent = text || ''; el.className = 'wheel-status' + (isError ? ' error' : '');
+    }
+    function activeStudents() { return students.filter(function (s) { return s.on; }); }
+    function refreshStudentWheel() {
+        studentWheel.setItems(activeStudents().map(function (s) { return { label: s.name, ref: s }; }));
+    }
+    // Només pinta els alumnes. La roda es refresca en tocar-ne un o en començar la tirada següent (no en parar:
+    // així el guanyador es queda a la roda, ressaltat, mentre es mostra).
+    function paintChips() {
+        var box = $('wheel-chips');
+        box.textContent = '';
+        students.forEach(function (s) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'wheel-chip' + (s.on ? '' : ' off') + (s.done ? ' done' : '');
+            b.textContent = s.name;
+            b.setAttribute('aria-pressed', s.on ? 'true' : 'false');
+            b.addEventListener('click', function () {
+                if (busy) return;
+                s.on = !s.on; s.done = false;
+                paintChips(); refreshStudentWheel();
+            });
+            box.appendChild(b);
+        });
+        $('wheel-student-count').textContent = fmt(T.studentsOn, { n: activeStudents().length });
+    }
+    function setBusy(v) {
+        busy = v;
+        ['wheel-spin', 'spin-problem', 'spin-student'].forEach(function (id) { $(id).disabled = v; });
+    }
+
+    // ---- tasques (datalist) i els seus problemes
+    var taskByValue = {};
+    (function fillTasks() {
+        var dl = $('wheel-tasks');
+        CFG.tasks.forEach(function (t) {
+            var value = t.name + ' (' + t.code + ')';
+            taskByValue[value] = t;
+            var o = document.createElement('option');
+            o.value = value; dl.appendChild(o);
+        });
+    })();
+    function loadTask(t) {
+        var token = ++taskToken;
+        setStatus(T.loading, false);
+        problemWheel.emptyText = T.loading; problemWheel.setItems([]);
+        problems = [];
+        fetch(CFG.taskUrl.replace('__code__', encodeURIComponent(t.code)), {
+            credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) {
+            if (!r.ok) throw new Error('http ' + r.status);
+            return r.json();
+        }).then(function (data) {
+            if (token !== taskToken) return;                  // l'usuari ja n'ha triat una altra
+            problems = data.problems || [];
+            problemWheel.emptyText = T.taskEmpty;
+            problemWheel.setItems(problems.map(function (p) { return { label: p.name, ref: p }; }));
+            setStatus(problems.length ? fmt(T.taskLoaded, { count: problems.length }) : T.taskEmpty, !problems.length);
+        }).catch(function () {
+            if (token !== taskToken) return;
+            problemWheel.emptyText = T.taskError;
+            setStatus(T.taskError, true);
+        });
+    }
+    function onTaskInput() {
+        var t = taskByValue[$('wheel-task').value];
+        if (t) { loadTask(t); return; }
+        taskToken++;
+        problems = []; problemWheel.emptyText = T.pickTask; problemWheel.setItems([]);
+        setStatus($('wheel-task').value ? T.taskUnknown : '', !!$('wheel-task').value);
+    }
+
+    // ---- girar
+    function showBubble(on) {
+        var el = $('wheel-bubble');
+        clearInterval(bubbleTimer);
+        if (!on) { el.className = 'wheel-bubble'; return; }
+        var last = null;
+        function next() {
+            last = pick(T.spinLines, last);
+            el.textContent = last; el.className = 'wheel-bubble'; void el.offsetWidth; el.className = 'wheel-bubble show';
+        }
+        next();
+        bubbleTimer = setInterval(next, 1500);
+    }
+    function say(list) {                       // una frase a la bafarada (si el servidor encara no en té, no passa res)
+        if (!list || !list.length) return;
+        clearInterval(bubbleTimer);
+        var el = $('wheel-bubble');
+        el.textContent = pick(list); el.className = 'wheel-bubble'; void el.offsetWidth; el.className = 'wheel-bubble show';
+    }
+    function finaleEvent(ev, w, type) {
+        if (ev === 'boing') { sndBoing(); w.face = '🤪'; if (type === 'wobble') say(T.finaleWobble); }
+        else if (ev === 'tension') { sndHeartbeat(3); w.face = '😬'; say(T.finaleCreep); }
+        else if (ev === 'wah') { sndWah(); w.face = '🤨'; say(T.finaleFake); }
+        else if (ev === 'lurch') { sndLurch(); w.face = '😱'; }
+        else if (ev === 'rewind') { sndRewind(); w.face = '🙃'; say(T.finaleRewind); }
+    }
+    function toast(text) {
+        var el = $('wheel-bubble');
+        clearInterval(bubbleTimer);
+        el.textContent = text; el.className = 'wheel-bubble show';
+    }
+    function spin(which) {
+        if (busy) return;
+        var doProblem = which !== 'student', doStudent = which !== 'problem';
+        if (doStudent) {
+            refreshStudentWheel();
+            if (!studentWheel.items.length) {
+                toast(students.some(function (s) { return s.done; }) ? T.everyoneDone : T.needStudents);
+                return;
+            }
+        }
+        if (doProblem && !problemWheel.items.length) {
+            if (which === 'problem') { toast(T.pickTask); return; }
+            doProblem = false;                                // «Gira!» sense tasca: només es tria alumne
+        }
+        setBusy(true);
+        sndWhoosh(); showBubble(true);
+        $('wheel-stage').classList.remove('shake');
+        var L = lv();                                                          // nivell over-the-top d'aquesta tirada
+        var mult = L <= 5 ? 0.8 + 0.04 * L : 1 + 0.12 * (L - 5);
+        var pending = 0, solo = !(doProblem && doStudent), chosenProblem = null, chosenStudent = null;
+        function oneDone() { if (--pending === 0) finish(doProblem, doStudent, chosenProblem, chosenStudent, L); }
+        if (L >= 6) sndDrumroll(Math.max(0, (doStudent ? (solo ? 5200 : 6400) : (solo ? 5200 : 4200)) * mult - 1500), 1400);
+        if (L >= 7) { var rs = $('wheel-stage'); rs.style.setProperty('--rumble', L - 6); rs.classList.add('rumble'); }
+        if (doProblem) {
+            pending++;
+            var pi = randInt(problemWheel.items.length);
+            chosenProblem = problemWheel.items[pi].ref;
+            problemWheel.spinTo(pi, 5 + randInt(3), (solo ? 5200 : 4200) * mult, function () { sndDing(); oneDone(); }, makeFinale(L, rnd));
+        }
+        if (doStudent) {
+            pending++;
+            var si = randInt(studentWheel.items.length);
+            chosenStudent = studentWheel.items[si].ref;
+            studentWheel.spinTo(si, 6 + randInt(3), (solo ? 5200 : 6400) * mult, oneDone, makeFinale(L, rnd));
+        }
+    }
+    function finish(didProblem, didStudent, problem, student, L) {
+        showBubble(false);
+        $('wheel-stage').classList.remove('rumble');
+        if (didProblem) picked.problem = problem;
+        else if (didStudent && !problemWheel.items.length) picked.problem = null;
+        if (didStudent) {
+            picked.student = student;
+            if ($('wheel-norepeat').checked) { student.on = false; student.done = true; paintChips(); }
+        }
+        showWinner(didStudent, L);
+        setBusy(false);
+    }
+
+    // ---- guanyador i premi
+    function showWinner(newStudent, L) {
+        var box = $('wheel-winner'), s = picked.student, p = picked.problem;
+        if (!s && !p) return;
+        $('win-student').style.display = s ? '' : 'none';
+        $('win-student').textContent = s ? s.name : '';
+        $('win-problem-box').style.display = p ? '' : 'none';
+        if (p) {
+            $('win-solves').textContent = T.solves;
+            $('win-problem').textContent = p.name;
+            $('win-open').href = p.url;
+        }
+        $('win-quip').textContent = pick(T.winLines);
+        box.hidden = false;
+        box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+        if (newStudent) { $('reward-msg').textContent = ''; $('reward-msg').className = 'reward-msg'; }
+        renderReward();
+        box.classList.toggle('ot-hi', L >= 7);
+        celebrate(L, s ? s.name : p.name);
+        box.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    }
+    function leftFor(s) { return CFG.unlimited ? Infinity : Math.max(0, CFG.limit - s.given); }
+    function renderReward() {
+        var s = picked.student, box = $('reward-buttons'), left = s ? leftFor(s) : 0;
+        box.textContent = '';
+        $('wheel-reward').style.display = s ? '' : 'none';
+        if (!s) return;
+        $('reward-ask').textContent = fmt(T.rewardAsk, { student: s.name });
+        $('reward-info').textContent = CFG.unlimited ? T.rewardUnlimited
+            : (left > 0 ? fmt(T.rewardGiven, { given: s.given, limit: CFG.limit }) : T.rewardNone);
+        for (var n = 1; n <= CFG.maxPerGrant; n++) {
+            (function (n) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'reward-btn'; b.textContent = fmt(T.rewardGive, { n: n });
+                b.disabled = n > left;
+                b.addEventListener('click', function (ev) { grant(n, ev); });
+                box.appendChild(b);
+            })(n);
+        }
+        var skip = document.createElement('button');
+        skip.type = 'button'; skip.className = 'reward-btn skip'; skip.textContent = T.rewardSkip;
+        skip.addEventListener('click', function () { $('wheel-reward').style.display = 'none'; });
+        box.appendChild(skip);
+    }
+    var granting = false;
+    function csrfToken() { var i = document.querySelector('#wheel-app input[name=csrfmiddlewaretoken]'); return i ? i.value : ''; }
+    function grant(n, ev) {
+        var s = picked.student, msg = $('reward-msg');
+        if (!s || granting) return;
+        granting = true;
+        Array.prototype.forEach.call($('reward-buttons').querySelectorAll('button'), function (b) { b.disabled = true; });
+        var body = new URLSearchParams();
+        body.set('student', s.id); body.set('amount', n);
+        var x = ev && ev.clientX, y = ev && ev.clientY;
+        fetch(CFG.grantUrl, {
+            method: 'POST', credentials: 'same-origin', body: body,
+            headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+        }).then(function (res) {
+            if (res.ok && res.d.ok) {
+                s.given = res.d.given;
+                msg.textContent = fmt(T.rewardDone, { n: n, student: s.name }); msg.className = 'reward-msg';
+                sndCoin(); if (x != null) burst(x, y, 40, 650, true);
+            } else {
+                if (typeof res.d.given === 'number') s.given = res.d.given;
+                msg.textContent = res.d.error || T.rewardError; msg.className = 'reward-msg error'; sndError();
+            }
+        }).catch(function () {
+            msg.textContent = T.rewardError; msg.className = 'reward-msg error'; sndError();
+        }).then(function () { granting = false; renderReward(); });
+    }
+
+    // ---- connexions
+    $('wheel-task').addEventListener('input', onTaskInput);
+    $('wheel-task').addEventListener('change', onTaskInput);
+    $('wheel-spin').addEventListener('click', function () { spin('both'); });
+    $('spin-problem').addEventListener('click', function () { spin('problem'); });
+    $('spin-student').addEventListener('click', function () { spin('student'); });
+    $('wheel-all').addEventListener('click', function () {
+        if (busy) return;
+        students.forEach(function (s) { s.on = true; s.done = false; });
+        paintChips(); refreshStudentWheel();
+    });
+    function paintMute() { var b = $('wheel-mute'); b.textContent = muted ? '🔇' : '🔊'; b.title = muted ? T.muted : T.unmuted; }
+    $('wheel-mute').addEventListener('click', function () {
+        muted = !muted;
+        try { window.localStorage.setItem('wheel-muted', muted ? '1' : '0'); } catch (e) { /* res */ }
+        paintMute();
+    });
+    window.addEventListener('resize', function () { wheels.forEach(function (w) { w.fit(); }); sizeConfetti(); });
+
+    $('wheel-ot-test').addEventListener('click', function () {                 // prova els efectes sense girar la roda
+        if (busy) return;
+        var who = picked.student || (students.length ? students[randInt(students.length)] : null);
+        celebrate(lv(), who ? who.name : 'JOEL');
+    });
+    paintMute(); sizeConfetti(); paintChips(); refreshStudentWheel(); paintOt();
+    $('wheel-winner').hidden = true;
+    (function loop(now) {
+        if (lastFrame) frameMs = frameMs * 0.92 + Math.min(200, now - lastFrame) * 0.08;
+        lastFrame = now;
+        wheels.forEach(function (w) { w.update(now); });
+        stepConfetti(now);
+        window.requestAnimationFrame(loop);
+    })(performance.now());
+})();
+</script>
+{% endraw %}
+{% endblock %}

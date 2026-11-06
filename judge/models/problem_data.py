@@ -1,6 +1,7 @@
 import errno
 import json
 import logging
+import math
 import os
 
 from django.db import models
@@ -32,6 +33,7 @@ CHECKERS = (
     # checker, and DATABASE_CHECKERS still knows it, in case an old problem's data is restored.
     ('mongo', _('Mongo checker')),
     ('mysql', _('MySQL checker')),
+    ('postgres', _('PostgreSQL checker')),
 )
 
 CASEFORMAT = (
@@ -55,6 +57,13 @@ class ProblemData(models.Model):
     checker = models.CharField(max_length=10, verbose_name=_('checker'), choices=CHECKERS, default=CHECKERS[4][0], blank=True)
     caseformat = models.CharField(max_length=10, verbose_name=_('Format del Cas de Proves'), choices=CASEFORMAT, default=CASEFORMAT[0][0])
     allowed_tips = models.IntegerField(verbose_name=_('Number of allowed tips'), blank=True, default=1)
+    allowed_superhints = models.IntegerField(verbose_name=_('Superpistes permeses'), blank=True, null=True,
+                                             help_text=_('Pistes de la IA que es poden demanar després d\'una pista '
+                                                         'normal. Buit: la meitat de les pistes, arrodonida a l\'alça.'))
+    help_chat = models.BooleanField(verbose_name=_('Xat d\'ajuda'), default=False,
+                                    help_text=_('Mostra el botó "No sé ni per on començar", que obre un xat amb la IA '
+                                                'del JOEL per orientar l\'alumne. Pensat per als problemes molt '
+                                                'inicials; no surt dins d\'un concurs.'))
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('checker arguments as a JSON object'))
     sql_db = models.FileField(verbose_name=_('SQL database file'), storage=problem_data_storage, null=True, blank=True,
@@ -81,6 +90,14 @@ class ProblemData(models.Model):
         if base >= 1 and profile.has_extra_hint:
             return base + 1
         return base
+
+    @property
+    def superhint_limit(self):
+        """Superhints a student may ask for on this problem: `allowed_superhints`, or by default half the
+        problem's own hints (not counting the `extra_hint` perk), rounded up."""
+        if self.allowed_superhints is not None:
+            return max(self.allowed_superhints, 0)
+        return math.ceil((self.allowed_tips or 0) / 2)
 
     def save(self, *args, **kwargs):
         if self.zipfile != self.__original_zipfile:

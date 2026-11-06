@@ -1,4 +1,5 @@
 import json
+import re
 from operator import attrgetter, itemgetter
 
 import pyotp
@@ -40,6 +41,16 @@ def fix_unicode(string, unsafe=tuple('\u202a\u202b\u202d\u202e')):
     return string + (sum(k in unsafe for k in string) - string.count('\u202c')) * '\u202c'
 
 
+# Spammers register for the link in the profile description, so links in it are allowed from the first solved problem on.
+# Besides http(s):// and www., a bare name under the TLDs they use is a link too.
+_LINK_TLDS = 'com|net|org|io|vn|us|co|info|me|xyz|app|vip|club|bet|asia|win|live|site|online|top|tv|uk|ru|cn|in|id|ph|biz|pro|store|shop|link|one'
+_LINK_RE = re.compile(r'(?:https?://\S+|www\.\S+|\b[a-z0-9-]+\.(?:%s)\b\S*)' % _LINK_TLDS, re.I)
+
+
+def description_links(text):
+    return {match.group(0).lower().rstrip('.,;:)') for match in _LINK_RE.finditer(text or '')}
+
+
 class ProfileForm(ModelForm):
     if newsletter_id is not None:
         newsletter = forms.BooleanField(label=_('Subscribe to contest updates'), initial=False, required=False)
@@ -66,7 +77,21 @@ class ProfileForm(ModelForm):
                 attrs={'style': 'max-width:700px;min-width:700px;width:700px'},
             )
 
+    def _may_post_links(self):
+        user = self.user
+        if user is not None and (user.is_staff or user.is_superuser or user.has_perm('judge.edit_own_problem')):
+            return True
+        return Submission.objects.filter(user=self.instance, result='AC').exists()
+
     def clean(self):
+        # Only links that were not already in the description count, so an old description is never rejected on an
+        # unrelated edit. This is a general error, not a field one: the edit page only shows those.
+        about = self.cleaned_data.get('about') or ''
+        if description_links(about) - description_links(self.instance.about if self.instance.pk else ''):
+            if not self._may_post_links():
+                raise ValidationError(_('Encara no pots posar enllaços a la descripció del perfil. '
+                                        'Podràs fer-ho quan hagis resolt el teu primer problema.'))
+
         organizations = self.cleaned_data.get('organizations') or []
         max_orgs = settings.DMOJ_USER_MAX_ORGANIZATION_COUNT
 
@@ -78,6 +103,7 @@ class ProfileForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        self.user = user
         super(ProfileForm, self).__init__(*args, **kwargs)
         if not user.has_perm('judge.edit_all_organization'):
             self.fields['organizations'].queryset = Organization.objects.filter(

@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models, transaction
-from django.db.models import CASCADE, Q
+from django.db.models import CASCADE, Max, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -70,9 +70,9 @@ class Contest(models.Model):
                                                  'specified organizations.'))
     is_rated = models.BooleanField(verbose_name=_('contest rated'), help_text=_('Whether this contest can be rated.'),
                                    default=False)
-    is_primera = models.BooleanField(verbose_name=_('primera divisio'), help_text=_('Whether this contest is on Primera Divisió de la Lliga de FP de Programació.'),
+    is_primera = models.BooleanField(verbose_name=_('primera divisió'), help_text=_('Whether this contest is on Primera Divisió de la Lliga de FP de Programació.'),
                                    default=False)
-    is_segona = models.BooleanField(verbose_name=_('segona divisio'), help_text=_('Whether this contest is on Segona Divisió de la Lliga de FP de Programació.'),
+    is_segona = models.BooleanField(verbose_name=_('segona divisió'), help_text=_('Whether this contest is on Segona Divisió de la Lliga de FP de Programació.'),
                                    default=False)
     hide_scoreboard = models.BooleanField(verbose_name=_('hide scoreboard'),
                                           help_text=_('Whether the scoreboard should remain hidden for the duration '
@@ -383,13 +383,46 @@ class Contest(models.Model):
         for user in users_to_update:
             user.calculate_points_segona()
             user.calculate_points_primera()'''
-    def rate_lliga(self):
-        #raise Exception("I want to know the value of this: " + str("coseses"))
+    @staticmethod
+    def lliga_points():
+        """Punts de la lliga de cada usuari, calculats amb una sola consulta per divisio.
 
-        
-        for user in Profile.objects.all():
-            user.calculate_points_segona()
-            user.calculate_points_primera()
+        Retorna {'lliga_primera_points': {profile_id: punts}, 'lliga_segona_points': {...}}. Per a cada concurs
+        ACABAT marcat com a primera/segona divisio es compta la millor puntuacio de l'usuari (entre totes les seves
+        participacions en aquell concurs, igual que feien Profile.calculate_points_primera/segona) i se sumen.
+        Els usuaris sense cap concurs puntuat no surten al diccionari (= 0 punts)."""
+        now = timezone.now()
+        result = {}
+        for flag, field in (('is_primera', 'lliga_primera_points'), ('is_segona', 'lliga_segona_points')):
+            rows = (ContestParticipation.objects
+                    .filter(**{'contest__' + flag: True}, contest__end_time__lt=now)
+                    .values('user_id', 'contest_id').annotate(best=Max('score')))
+            totals = {}
+            for row in rows:
+                totals[row['user_id']] = totals.get(row['user_id'], 0) + row['best']
+            result[field] = totals
+        return result
+
+    def rate_lliga(self, dry_run=False):
+        """Recalcula els punts de la lliga de TOTS els perfils. Abans feia 2 consultes + 2 UPDATEs per perfil (~7.800
+        perfils) dins la mateixa peticio i uwsgi la matava pel harakiri de 30 s (502, i no es guardava res), de manera
+        que el rànquing de l'any anterior no s'esborrava mai. Ara son 2 consultes agregades + un bulk_update dels
+        perfils que realment canvien. Amb dry_run=True no es guarda res. Retorna quants perfils canvien."""
+        new_points = self.lliga_points()
+        fields = list(new_points)
+        changed = []
+        for profile in Profile.objects.only('id', *fields):
+            dirty = False
+            for field in fields:
+                new_value = float(new_points[field].get(profile.id, 0))
+                if getattr(profile, field) != new_value:
+                    setattr(profile, field, new_value)
+                    dirty = True
+            if dirty:
+                changed.append(profile)
+        if not dry_run and changed:
+            Profile.objects.bulk_update(changed, fields, batch_size=500)
+        return len(changed)
 
 
     class Meta:

@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from django.urls import reverse_lazy
 
-from judge.models import Achievement, Profile
+from judge.models import Achievement, GachaPointGrant, Profile
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminHeavySelect2Widget, AdminMartorWidget
 
 
@@ -56,6 +56,12 @@ class AchievementAdmin(admin.ModelAdmin):
                 choice for choice in Achievement.CATEGORY_CHOICES
                 if choice[0] in Achievement.STUDENT_CATEGORIES
             ]
+        if db_field.name == 'quality' and not request.user.is_superuser:
+            # Superlegendary is admin-only (validated server-side too, like category).
+            kwargs['choices'] = [
+                choice for choice in Achievement.QUALITY_CHOICES
+                if choice[0] != Achievement.QUALITY_SUPERLEGENDARY
+            ]
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
@@ -82,3 +88,18 @@ class AchievementAdmin(admin.ModelAdmin):
         if obj is not None:
             return self._owns(request, obj)
         return True
+
+
+class GachaPointGrantAdmin(admin.ModelAdmin):
+    """Read-only log of the GachaPoints teachers hand out from a team's wheel (see GachaPointGrant)."""
+    list_display = ('created', 'giver', 'receiver', 'points', 'organization', 'day')
+    list_filter = ('day', 'organization')
+    search_fields = ('giver__user__username', 'receiver__user__username')
+    list_select_related = ('giver__user', 'receiver__user', 'organization')
+    date_hierarchy = 'day'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

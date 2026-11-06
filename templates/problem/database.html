@@ -17,6 +17,20 @@
             font-size: 1.4em;
         }
 
+        .db-download {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5em 1em;
+            margin-bottom: 1.2em;
+        }
+
+        .db-download .db-download-hint {
+            flex: 1 1 18em;
+            color: var(--global-text);
+            opacity: 0.8;
+        }
+
         .db-table-block {
             margin-bottom: 1.5em;
         }
@@ -71,12 +85,36 @@
 {% endblock %}
 
 {% block body %}
+    {% set download %}
+        {% if download_format %}
+            <div class="db-download">
+                <a href="{{ url('problem_database_download', problem.code) }}" class="button">
+                    <i class="fa fa-download"></i> {{ _('Download the database') }}
+                </a>
+                <span class="db-download-hint">
+                    {% if download_format == 'sqlite' %}
+                        {{ _('SQLite file: open it with sqlite3 or any SQLite viewer to try your queries on your computer.') }}
+                    {% elif download_format == 'mysql' %}
+                        {{ _('SQL dump for MariaDB/MySQL: create an empty database on your computer and import the file into it.') }}
+                    {% elif download_format == 'postgres' %}
+                        {{ _('SQL dump for PostgreSQL: create an empty database on your computer and import the file into it.') }}
+                    {% elif download_format == 'mongo' %}
+                        {{ _('JSON file with the documents of every collection: import it into your own MongoDB to try your queries.') }}
+                    {% endif %}
+                    {% if download_format in ('mysql', 'postgres') %}
+                        <a href="/guiadbeaver/">{{ _('How to load it in DBeaver') }}</a>
+                    {% endif %}
+                </span>
+            </div>
+        {% endif %}
+    {% endset %}
     <div class="content-description">
         {% if db_kind == 'mongo' %}
             <div class="db-schema-banner">
                 <i class="fa fa-database"></i>
                 <span>{{ _('This is the schema of the database used by this problem — the collections you can query against. In MongoDB, documents in the same collection can have different fields; the example below only shows one document.') }}</span>
             </div>
+            {{ download }}
             {% for collection in collections %}
                 <div class="db-collection-block">
                     <h4>{{ collection.name }} ({{ collection.count }})</h4>
@@ -94,6 +132,7 @@
                 <i class="fa fa-database"></i>
                 <span>{{ _('This is the schema of the database used by this problem — the tables and columns you can query against.') }}</span>
             </div>
+            {{ download }}
             {% if er_diagram %}
                 <div class="db-er-diagram-block">
                     <h4>{{ _('Diagrama ER') }}</h4>

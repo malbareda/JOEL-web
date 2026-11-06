@@ -53,7 +53,10 @@
             <h3>{{ _('Pretest Execution Results') }}</h3>
         {% else %}
             <h3>{{ _('Execution Results') }}</h3>
-            <p>{{_('Hints Used/Allowed:')}} {{usedhints}}/{{allowed_hints}}</p>
+            <p>{{_('Hints Used/Allowed:')}} <span id="hints-used">{{ usedhints }}</span>/{{ allowed_hints }}</p>
+            {% if superhints_enabled %}
+                <p>{{ _('Superpistes usades/permeses:') }} <span id="superhints-used">{{ superhints_used }}</span>/{{ superhints_allowed }}</p>
+            {% endif %}
             
         {% endif %}
         <br>
@@ -136,7 +139,7 @@
                                     <a href="{{ url('submission_status', case.hint_reference) }}">{{ _('submission #%(id)s', id=case.hint_reference) }}</a>.
                                 </p>
                             {% endif %}
-                            {% if not submission.flag and usedhints|int < allowed_hints %}
+                            {% if request.profile == submission.user and not submission.flag and usedhints|int < allowed_hints %}
                                 <button type="button" class="button hint-request-btn"
                                         data-url="{{ url('submission_flag', case.id) }}"
                                         data-target="hint-container-{{ case.id }}"
@@ -148,6 +151,15 @@
                                 {% set hint = case.hint %}
                                 {% include "submission/hint-fragment.html" %}
                             </div>
+                            <div class="superhint-container" id="superhint-container-{{ case.id }}">
+                                {% for superhint in case.superhint_list %}
+                                    {% include "submission/superhint-fragment.html" %}
+                                {% endfor %}
+                            </div>
+                            {% if superhints_enabled and case.can_superhint and request.profile == submission.user
+                                  and superhints_used < superhints_allowed %}
+                                {% include "submission/superhint-button.html" %}
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -210,13 +222,70 @@
         $.post($btn.data('url')).done(function (data) {
             if (data.success) {
                 $('#' + $btn.data('target')).html(data.html);
-                $btn.remove();
+                addSuperhintButton(data.case_id, data.superhint_button, data.superhints_used);
+                $('#hints-used').text(data.hints_used);
+                // Only one case per submission can be revealed, so the other buttons would just get an error.
+                $('.hint-request-btn').remove();
             } else {
                 alert(data.error);
                 $btn.prop('disabled', false);
             }
         }).fail(function () {
             alert("{{ _('Something went wrong requesting the hint.') }}");
+            $btn.prop('disabled', false);
+        });
+    });
+
+    function addSuperhintButton(caseId, html, used) {
+        if (used !== null && used !== undefined) {
+            $('#superhints-used').text(used);
+        }
+        var $container = $('#superhint-container-' + caseId);
+        if (html && !$container.siblings('.superhint-request-btn').length) {
+            $container.after(html);
+        }
+    }
+
+    function pollSuperhint($card) {
+        var url = $card.data('poll');
+        if (!url || $card.data('polling')) {
+            return;
+        }
+        $card.data('polling', true);
+        setTimeout(function () {
+            $.getJSON(url).done(function (data) {
+                var $new = $(data.html);
+                $card.replaceWith($new);
+                if (data.status === 'P') {
+                    pollSuperhint($new);
+                } else {
+                    addSuperhintButton(data.case_id, data.superhint_button, data.superhints_used);
+                }
+            }).fail(function () {
+                $card.data('polling', false);
+            });
+        }, 3000);
+    }
+
+    $('.superhint-pending').each(function () {
+        pollSuperhint($(this));
+    });
+
+    $(document).off('click.superhintRequest').on('click.superhintRequest', '.superhint-request-btn', function () {
+        var $btn = $(this);
+        if (!confirm($btn.data('confirm'))) {
+            return;
+        }
+        $btn.prop('disabled', true);
+        $.post($btn.data('url')).done(function (data) {
+            var $card = $(data.html);
+            $('#' + $btn.data('target')).append($card);
+            $('#superhints-used').text(data.superhints_used);
+            $btn.remove();
+            pollSuperhint($card);
+        }).fail(function (xhr) {
+            var data = xhr.responseJSON;
+            alert(data && data.error ? data.error : "{{ _('Something went wrong requesting the hint.') }}");
             $btn.prop('disabled', false);
         });
     });

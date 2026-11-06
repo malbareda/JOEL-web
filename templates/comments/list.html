@@ -97,6 +97,9 @@
                                                class="hide-comment"><i class="fa fa-trash fa-fw"></i></a>
                                             <a href="{{ url('admin:judge_comment_change', node.id) }}"
                                                title="{{ _('Admin') }}"><i class="fa fa-cog fa-fw"></i></a>
+                                        {% elif can_edit and not node.get_children() %}
+                                            <a href="javascript:void(0)" title="{{ _('Hide') }}" data-id="{{ node.id }}"
+                                               class="hide-comment"><i class="fa fa-trash fa-fw"></i></a>
                                         {% endif %}
                                     {% endif %}
                             </span>

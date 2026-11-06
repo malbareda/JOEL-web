@@ -1,0 +1,18 @@
+<div class="superhint-card{% if superhint.status == 'P' %} superhint-pending{% endif %}" id="superhint-{{ superhint.id }}"
+     {% if superhint.status == 'P' %}data-poll="{{ url('superhint_status', superhint.id) }}"{% endif %}>
+    <strong><i class="fa fa-magic"></i> {{ _('Superpista') }}{% if superhint.level %} ({{ _('nivell %(level)s', level=superhint.level) }}){% endif %}</strong>
+    {% if superhint.status == 'P' %}
+        <p><span class="fa fa-spinner fa-pulse"></span> {{ _('El JOEL està mirant el teu codi... Pot trigar uns segons.') }}</p>
+    {% elif superhint.status == 'E' %}
+        <p>{{ _('No s\'ha pogut obtenir la superpista ara mateix. No s\'ha gastat: torna-ho a provar d\'aquí a una estona.') }}</p>
+    {% else %}
+        <p class="superhint-text">{{ superhint.text }}</p>
+        {% if superhint_viewer_is_teacher %}
+            <div class="superhint-teacher">
+                <strong>{{ _('Diagnosi per al professorat') }}</strong>
+                <p>{{ superhint.teacher_diagnosis }}</p>
+                <p class="hint-label">{{ _('Categoria') }}: {{ superhint.error_category }} &middot; {{ _('Revisió') }}: {{ superhint.revision }}</p>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

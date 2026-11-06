@@ -1,12 +1,16 @@
 from collections import defaultdict
+from datetime import timedelta
 from functools import partial
 
+from django.db.models import Count
 from django.shortcuts import render
+from django.utils import timezone
 from django.utils import six
 from django.utils.translation import gettext as _
 from packaging import version
 
-from judge.models import Judge, Language, RuntimeVersion
+from judge.models import Judge, Language, RuntimeVersion, SuperHint
+from judge.utils import superhints
 
 __all__ = ['status_all', 'status_table']
 
@@ -18,6 +22,20 @@ def get_judges(request):
         return False, Judge.objects.filter(online=True)
 
 
+def get_superhint_status(see_all):
+    status = dict(superhints.health())
+    if status['state'] != 'off':
+        recent = SuperHint.objects.filter(created__gte=timezone.now() - timedelta(days=1))
+        counts = dict(recent.values_list('status').annotate(n=Count('id')).order_by())
+        status['day_ok'] = counts.get(SuperHint.OK, 0)
+        status['day_error'] = counts.get(SuperHint.ERROR, 0)
+        last_ok = SuperHint.objects.filter(status=SuperHint.OK).order_by('-created').values_list('created', flat=True)
+        status['last_ok'] = last_ok.first()
+    if not see_all:
+        status.pop('error', None)
+    return status
+
+
 def status_all(request):
     see_all, judges = get_judges(request)
     return render(request, 'status/judge-status.html', {
@@ -25,6 +43,7 @@ def status_all(request):
         'judges': judges,
         'runtime_version_data': Judge.runtime_versions(),
         'see_all_judges': see_all,
+        'superhint_status': get_superhint_status(see_all),
     })
 
 

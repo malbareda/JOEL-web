@@ -1,0 +1,17 @@
+{% for m, rendered in chat_rows %}
+    {% if m.role == 'A' %}
+        <div class="helpchat-msg helpchat-me">{{ m.text }}</div>
+    {% elif m.status == 'P' %}
+        <div class="helpchat-msg helpchat-joel helpchat-pending" id="helpchat-msg-{{ m.id }}"
+             data-poll="{{ url('help_chat_reply', problem.code, m.id) }}">
+            <span class="fa fa-spinner fa-pulse"></span> {{ _('El JOEL està pensant...') }}
+        </div>
+    {% elif m.status == 'E' %}
+        <div class="helpchat-msg helpchat-joel helpchat-error" id="helpchat-msg-{{ m.id }}">
+            {{ _('No he pogut respondre ara mateix. Torna-ho a provar: no et gastarà cap missatge més.') }}
+            <button type="button" class="helpchat-retry">{{ _('Torna-ho a provar') }}</button>
+        </div>
+    {% else %}
+        <div class="helpchat-msg helpchat-joel" id="helpchat-msg-{{ m.id }}">{{ rendered }}</div>
+    {% endif %}
+{% endfor %}

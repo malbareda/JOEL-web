@@ -35,6 +35,10 @@
                     <i title="{{ submission.contest_object.name }}" class="fa fa-dot-circle-o"></i>
                 </a>
             {% endif %}
+            {% if superhint_counts and superhint_counts.get(submission.id) %}
+                <i class="fa fa-magic submission-superhint"
+                   title="{{ _('Superpistes demanades en aquest enviament: %(count)s', count=superhint_counts[submission.id]) }}"></i>
+            {% endif %}
         </div>
     </div>
 

@@ -74,6 +74,116 @@
             font-weight: bold;
             white-space: nowrap;
         }
+
+        .helpchat-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5em;
+            margin-top: 0.7em;
+            font-weight: bold;
+        }
+
+        .helpchat-panel {
+            position: fixed;
+            right: 1.2em;
+            bottom: 1.2em;
+            z-index: 1000;
+            width: 24em;
+            max-width: calc(100vw - 2.4em);
+            height: 32em;
+            max-height: 78vh;
+            display: none;
+            flex-direction: column;
+            background: var(--background-white);
+            color: var(--global-text);
+            border: 2px solid var(--highlight_blue);
+            border-radius: 8px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .helpchat-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5em 0.8em;
+            background: var(--highlight_blue);
+            border-radius: 5px 5px 0 0;
+        }
+
+        .helpchat-x {
+            background: none;
+            border: 0;
+            color: inherit;
+            font-size: 1.5em;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .helpchat-log {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 0.7em;
+        }
+
+        .helpchat-msg {
+            max-width: 88%;
+            margin-bottom: 0.6em;
+            padding: 0.5em 0.75em;
+            border-radius: 10px;
+            overflow-wrap: anywhere;
+            line-height: 1.4;
+        }
+
+        .helpchat-me {
+            margin-left: auto;
+            background: var(--highlight_blue);
+            white-space: pre-wrap;
+        }
+
+        .helpchat-joel {
+            margin-right: auto;
+            background: var(--background_light_gray);
+            border-left: 3px solid #8e44ad;
+        }
+
+        .helpchat-joel pre {
+            margin: 0.4em 0 0;
+            padding: 0.4em 0.6em;
+            overflow-x: auto;
+            background: var(--background_dark_gray);
+            border-radius: 4px;
+        }
+
+        .helpchat-joel code {
+            font-family: monospace;
+        }
+
+        .helpchat-note {
+            margin: 0 0.7em 0.4em;
+            color: #c0392b;
+            font-size: 0.9em;
+        }
+
+        .helpchat-form {
+            display: flex;
+            gap: 0.4em;
+            padding: 0.5em 0.7em 0.2em;
+        }
+
+        .helpchat-form textarea {
+            flex: 1 1 auto;
+            resize: none;
+            box-sizing: border-box;
+            color: var(--global-text);
+            background: var(--background_input, var(--background_gray));
+        }
+
+        .helpchat-foot {
+            padding: 0.1em 0.8em 0.5em;
+            font-size: 0.78em;
+            opacity: 0.8;
+        }
     </style>
 {% endblock %}
 
@@ -164,6 +274,12 @@
         </a>
     {% endif %}
 
+    {% if help_chat_enabled %}
+        <button type="button" id="helpchat-open" class="button full helpchat-button">
+            <i class="fa fa-comments"></i> {{ _('No sé ni per on començar') }}
+        </button>
+    {% endif %}
+
     <hr style="padding-bottom: 0.3em">
 
     {% if request.user.is_authenticated and has_submissions %}
@@ -192,6 +308,9 @@
         <div><a href="{{ url('admin:judge_problem_change', problem.id) }}">{{ _('Edit problem') }}</a></div>
         {% if not problem.is_manually_managed %}
             <div><a href="{{ url('problem_data', problem.code) }}">{{ _('Edit test data') }}</a></div>
+        {% endif %}
+        {% if help_chat_on_problem %}
+            <div><a href="{{ url('admin:judge_helpchatmessage_changelist') }}?problem__id__exact={{ problem.id }}">{{ _('Xats d\'ajuda') }}</a></div>
         {% endif %}
     {% elif request.user.is_authenticated and has_tickets %}
         <hr>
@@ -342,6 +461,8 @@
 
 {% block description %}
     {% cache 86400 'problem_html' problem.id MATH_ENGINE LANGUAGE_CODE %}
+        {# Optional picture uploaded in the admin ("problem image"): always floated right, same for every language. #}
+        {% if problem.image %}<img class="problem-image" src="{{ problem.image.url }}" alt="" style="float:right; max-width:min(300px, 45%); max-height:300px; height:auto; margin:0 0 10px 20px;">{% endif %}
         {{ description|markdown(problem.markdown_style, MATH_ENGINE)|reference|str|safe }}
     {% endcache %}
 
@@ -394,4 +515,155 @@
 {% block bodyend %}
     {{ super() }}
     {% include "comments/math.html" %}
+    {% if help_chat_enabled %}
+        <div id="helpchat-panel" class="helpchat-panel" role="dialog" aria-label="{{ _('Xat d\'ajuda') }}"
+             data-load-url="{{ url('help_chat', problem.code) }}"
+             data-send-url="{{ url('help_chat_send', problem.code) }}">
+            <div class="helpchat-head">
+                <strong><i class="fa fa-comments"></i> {{ _('Xat amb el JOEL') }}</strong>
+                <button type="button" id="helpchat-close" class="helpchat-x" aria-label="{{ _('Tanca') }}">&times;</button>
+            </div>
+            <div id="helpchat-log" class="helpchat-log" aria-live="polite">
+                <div class="helpchat-msg helpchat-joel">
+                    {{ _('Hola! Sóc el JOEL. Explica\'m què no entens del problema o què has provat i anem pas a pas. No et donaré la solució, però t\'ajudaré a trobar-la.') }}
+                </div>
+                <div id="helpchat-messages"></div>
+            </div>
+            <div id="helpchat-note" class="helpchat-note" style="display: none"></div>
+            <form id="helpchat-form" class="helpchat-form" autocomplete="off">
+                <textarea id="helpchat-text" rows="2" maxlength="{{ help_chat_max_length }}"
+                          placeholder="{{ _('Escriu aquí...') }}"></textarea>
+                <button type="submit" id="helpchat-send" class="button" title="{{ _('Envia') }}">
+                    <i class="fa fa-paper-plane"></i>
+                </button>
+            </form>
+            <div class="helpchat-foot">
+                {{ _('Missatges que et queden:') }} <span id="helpchat-left"></span>.
+                {{ _('El professorat pot veure aquesta conversa.') }}
+            </div>
+        </div>
+        <script>
+            $(function () {
+                var $panel = $('#helpchat-panel'), $log = $('#helpchat-log'), $msgs = $('#helpchat-messages'),
+                    $text = $('#helpchat-text'), $send = $('#helpchat-send'), $note = $('#helpchat-note'),
+                    loaded = false, sending = false, state = {left: 0, busy: false};
+
+                function scrollDown() {
+                    $log.scrollTop($log[0].scrollHeight);
+                }
+
+                function showNote(message) {
+                    if (message) {
+                        $note.text(message).show();
+                    } else {
+                        $note.hide();
+                    }
+                }
+
+                function applyState(data) {
+                    state = {left: data.left, busy: data.busy};
+                    $('#helpchat-left').text(data.left);
+                    var locked = sending || data.busy || data.left <= 0;
+                    $text.prop('disabled', locked);
+                    $send.prop('disabled', locked);
+                    if (data.left <= 0) {
+                        showNote({{ _('Ja has fet servir tots els missatges del xat en aquest problema.')|tojson }});
+                    }
+                }
+
+                function poll($card, tries) {
+                    var url = $card.data('poll');
+                    if (!url || $card.data('polling')) {
+                        return;
+                    }
+                    $card.data('polling', true);
+                    setTimeout(function () {
+                        $.getJSON(url).done(function (data) {
+                            var $new = $(data.html);
+                            $card.replaceWith($new);
+                            applyState(data);
+                            if (data.status === 'P') {
+                                poll($new, 0);
+                            }
+                            scrollDown();
+                        }).fail(function () {
+                            $card.data('polling', false);
+                            if ((tries || 0) < 5) {
+                                poll($card, (tries || 0) + 1);
+                            }
+                        });
+                    }, 3000);
+                }
+
+                function pollPending() {
+                    $msgs.find('.helpchat-pending').each(function () {
+                        poll($(this), 0);
+                    });
+                }
+
+                function load() {
+                    $.getJSON($panel.data('load-url')).done(function (data) {
+                        loaded = true;
+                        $msgs.html(data.html);
+                        applyState(data);
+                        pollPending();
+                        scrollDown();
+                    }).fail(function (xhr) {
+                        var data = xhr.responseJSON;
+                        showNote(data && data.error ? data.error : {{ _('No s\'ha pogut obrir el xat ara mateix.')|tojson }});
+                    });
+                }
+
+                function submit(message) {
+                    if (sending) {
+                        return;
+                    }
+                    sending = true;
+                    showNote('');
+                    $send.prop('disabled', true);
+                    $.post($panel.data('send-url'), {text: message}).done(function (data) {
+                        $msgs.find('.helpchat-error').remove();
+                        $msgs.append(data.html);
+                        $text.val('');
+                        sending = false;
+                        applyState(data);
+                        pollPending();
+                        scrollDown();
+                    }).fail(function (xhr) {
+                        var data = xhr.responseJSON;
+                        sending = false;
+                        applyState(state);
+                        showNote(data && data.error ? data.error : {{ _('No s\'ha pogut enviar el missatge.')|tojson }});
+                    });
+                }
+
+                $('#helpchat-open').on('click', function () {
+                    $panel.css('display', 'flex');
+                    if (!loaded) {
+                        load();
+                    }
+                    $text.focus();
+                });
+                $('#helpchat-close').on('click', function () {
+                    $panel.hide();
+                });
+                $('#helpchat-form').on('submit', function (e) {
+                    e.preventDefault();
+                    var message = $.trim($text.val());
+                    if (message) {
+                        submit(message);
+                    }
+                });
+                $text.on('keydown', function (e) {
+                    if (e.which === 13 && !e.shiftKey) {
+                        e.preventDefault();
+                        $('#helpchat-form').trigger('submit');
+                    }
+                });
+                $panel.on('click', '.helpchat-retry', function () {
+                    submit('');
+                });
+            });
+        </script>
+    {% endif %}
 {% endblock %}

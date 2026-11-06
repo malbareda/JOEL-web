@@ -138,6 +138,7 @@
                 $mongoTemplateRow.toggle(checkerVal === 'mongo');
                 $('#id_problem-data-mysql_database').closest('tr').toggle(checkerVal === 'mysql');
                 $('#id_problem-data-mysql_dump').closest('tr').toggle(checkerVal === 'mysql');
+                $('#id_problem-data-postgres_database').closest('tr').toggle(checkerVal === 'postgres');
             }
             $('#id_problem-data-checker').change(toggleSqlDbField);
             toggleSqlDbField();  // run on page load
