@@ -2474,6 +2474,7 @@ Aprofitar les BD que ja eren a `importacions/`, més sakila (la BD d'exemple ofi
 - Els 28 tenen AC d'`edgar` amb el jutge real i, per decisió de l'usuari, s'han publicat. Es veuen sense iniciar sessió.
 - Els lots són al repo (`problem_batches/sql/querytest_{sakila,valorantProMatches,futbol24,ies23g}.json`), i les notes de revisió a `aparcades/revisar_enunciats/`.
 - **A revisar:** en 4 preguntes de valorant i en unes 10 de sakila, l'enunciat original de QueryTest i la seva solució no coincidien. Per exemple, "el mapa més jugat" amb un `ORDER BY COUNT(*)` sense `DESC`. L'enunciat nou descriu el que fa el SQL, però potser l'error era del SQL. Estan detallades a les notes de revisió.
+- **Dades d'`ies23g` revisades (2026-10-22):** la taula `usuaris` té 188 persones amb noms, correus `@ies-sabadell.cat`, dates de naixement i una columna `password`. Com que els problemes `sqlies23qt*` són públics, es va consultar a l'usuari si eren dades reals. L'usuari confirma que els correus no tenen el format real del centre: són dades generades per a l'exercici. Els problemes es mantenen publicats.
 - **Encara sense BD:** ies26 (146 preguntes, i les 4 del test #209), ies (34), cinema (20), pilotador (19), noms (11, el dump està malmès) i "Múltiples taules" (9).
 - L'usuari va reiniciar els jutges i va fer `supervisorctl restart all` (21:06). Els dos jutges estan en línia, el web respon 200 i la instància de correcció continua en marxa. Prova amb el jutge real: un enviament a `zzmysqltest01` amb les 4 consultes de referència entre parèntesis ha donat **AC 4/4** (enviament 370882, NouJutge).
 - A petició de l'usuari, s'ha esborrat el problema de prova `zzmysqltest01`: era privat, només tenia 4 enviaments d'`edgar` i no era a cap concurs. `Problem.delete()` va esborrar 35 files (el problema, les seves dades, 4 casos, 4 enviaments amb els seus 16 resultats de cas...). El senyal `post_delete` de `ProblemData` va esborrar `p_zzmysqltest01` i `w_p_zzmysqltest01` de MariaDB, que és la primera comprovació real d'aquest senyal. La carpeta `/judge/zzmysqltest01/` (`data.zip`, `init.yml`, `northwind.sql`), que Django no esborra, s'ha esborrat a mà.
@@ -2510,6 +2511,1867 @@ Amb sessió d'administrador, el desplegable de checkers ofereix `standard`, `rst
 - Retirar el camp `sql_db` (una migració que esborra una columna; abans cal mirar-ne els valors).
 - Treure el codi SQLite que queda.
 - Esborrar els `.db` antics i les plantilles, amb còpia de seguretat abans.
+
+---
+
+### 107. 18 problemes nous d'INSERT/UPDATE/DELETE, REPLACE admès i rellotge fix a la correcció
+
+**Abans:**
+Hi havia 238 problemes SQL, però només 16 eren d'escriptura (112 preguntes), i més de la meitat molt bàsics: 31 UPDATE amb un WHERE simple i 29 INSERT d'una sola fila. No n'hi havia cap de DELETE. `REPLACE` era SEC a tot arreu. Les columnes que MySQL omple amb l'hora actual (`DEFAULT` / `ON UPDATE CURRENT_TIMESTAMP`, 15 a sakila) feien que un INSERT o UPDATE pogués donar WA si l'alumne i la referència s'executaven en segons diferents.
+
+**Decisió:**
+- **`REPLACE` admès a `mysqlwrite`** (repo del jutge, commit `5f1017d`): forma família amb INSERT. Una pregunta d'INSERT es pot respondre amb INSERT, REPLACE, `INSERT IGNORE` o `INSERT … ON DUPLICATE KEY UPDATE`, i a la inversa; decideix el contingut final. A les preguntes de SELECT continua sent SEC. `MYSQL_WRITE_STATEMENTS` (web) inclou `REPLACE` per a l'encaminament.
+- **Rellotge fix** (repo del jutge, commit `abf79bc`, i `mysql_grader.py` al web): cada sessió de correcció fa `SET timestamp = 1767225600` (2026-01-01 00:00:00 UTC). `NOW()`, `CURDATE()` i les columnes automàtiques donen el mateix valor a l'alumne i a la referència. De retruc, les 8 preguntes que depenien de la data d'avui ja no caduquen; s'ha comprovat que totes 8 continuen tenint resposta amb la data fixa.
+- **Tipus de problema nou:** `sqldelete` ("SQL - Deletes").
+- **18 problemes nous** (`sqldml<bd>01-03`, 3 per BD: INSERT avançat, UPDATE amb JOIN i subconsultes, i DELETE, de 10 preguntes cadascun, de menys a més difícils i amb un context a la introducció) sobre hotel, Chinook, sakila, northwind, miniwind i traders. Els van generar 6 subagents, un per BD. Inclouen:
+  - **INSERT:** `INSERT … SELECT` amb JOIN, GROUP BY i HAVING, claus foranes buscades pel nom, diverses files, `INSERT IGNORE`, `REPLACE` i `ON DUPLICATE KEY UPDATE`;
+  - **UPDATE:** UPDATE multitaula amb JOIN (també dues taules alhora), subconsultes correlacionades, CASE per trams, `ORDER BY … LIMIT` amb desempat per clau primària, i funcions de data i de text;
+  - **DELETE:** NOT IN / NOT EXISTS (incloent-hi el parany del NOT IN amb NULL), DELETE multitaula amb JOIN, `ORDER BY … LIMIT`, eliminació de duplicats, i esborrats que activen `ON DELETE CASCADE` (hotel) o `SET NULL` (sakila).
+
+  Verificació de cada una de les 180 preguntes amb el checker real: almenys una solució alternativa escrita diferent ha de donar AC i una d'incorrecta plausible ha de donar WA (a hotel, 47 alternatives i 53 incorrectes). La referència ha de canviar la BD, i tots els `LIMIT` desempaten per la clau primària. Quan una incorrecta coincidia amb la referència amb aquestes dades, se'n va canviar el llindar o la pregunta. Dry-run: 0 errors.
+- Lots al repo (`problem_batches/sql/dml_<bd>.json`) i notes de verificació, amb les alternatives i les incorrectes de cada pregunta, a `problem_batches/sql/dml_notes/`.
+
+**Observacions dels subagents:**
+- **Error 1093:** MariaDB 10.5 **accepta** un UPDATE o DELETE d'una sola taula amb una subconsulta sobre la mateixa taula, que MySQL rebutja amb l'error 1093. Les preguntes que el presenten com a parany diuen que és un problema de portabilitat a MySQL, i accepten les dues formes. Sí que fallen de veritat aquí un DELETE multitaula amb una subconsulta sobre una de les taules (1093) i `LIMIT` dins d'un `IN (SELECT …)` (1235).
+- **Valors que la normalització no cobreix:** a sakila, inserir a `film` sense `film_id` fa que el trigger copiï l'id real a `film_text`, que no té AUTO_INCREMENT i, per tant, no es normalitza. Per això aquella pregunta fixa l'id.
+- **Limitació de la comparació per l'estat final:** si la resposta es pot escriure amb els valors posats a mà en lloc de calcular-los amb subconsultes, també és correcta. El corrector no pot obligar a fer servir un mètode concret.
+
+**Resultat:**
+18 problemes amb 180 preguntes, totes encaminades a `mysqlwrite`. L'usuari va reiniciar els jutges i el web (22:03). S'ha enviat com a `edgar` (`--force`) la solució de 41 problemes (els 18 nous, els 16 d'escriptura que ja hi havia i els 7 amb preguntes que depenen de la data, perquè ara es corregeixen amb el rellotge fix): **41 de 41 AC**. Després, el `CHECKSUM TABLE` de les 14 còpies `w_*` continua coincidint amb el de les originals. Per decisió de l'usuari, els 18 problemes nous s'han publicat i es veuen sense iniciar sessió.
+
+---
+
+### 119. Nova qualitat "superllegendari" (1/500 per tirada, mai repetida, només admins)
+
+**Abans:** els 6 superachievements (els que tenen `mega_fanfare`: "Dret a Crear Achievements", "Descompte al Gacha", "Pista Extra",
+"Bonus diari doble", "Assegurança Antirepetits" i "RAINBOW") eren llegendaris normals (qualitat 4) amb raresa 0,1: 1 de cada 5.420 tirades
+cadascun, i cada llegendari nou que s'afegia els feia més rars. A més, podien sortir repetits.
+
+**Decisió:**
+- Nova qualitat `Achievement.QUALITY_SUPERLEGENDARY = 5` ("superllegendari"), amb la seva probabilitat fixa
+  `SUPERLEGENDARY_CHANCE = 1/500`. Migració `0162_achievement_superlegendary`: només canvia les opcions i el text d'ajuda del camp
+  `quality` (`sqlmigrate` confirma que no executa cap SQL), així que es va poder aplicar sense esperar la recàrrega.
+- `GachaGo.gacha_roll`: abans de triar el nivell normal, un primer sorteig amb probabilitat 1/500. Si toca, tria a l'atzar (uniforme, sense
+  tenir en compte la raresa) un superllegendari que l'usuari **encara no tingui**. Si ja els té tots, la tirada continua com una de normal. Mai
+  no pot sortir repetit. La resta de nivells queden igual (65/20/10/5%), aplicats al 99,8% restant.
+- `GachaResult`: la revelació (colors, sons, partícules, frases) està feta per a les qualitats 1-4. Un superllegendari es mostra com un
+  llegendari (`achq = min(qualitat, 4)`), més el mega fanfare que tenen tots.
+- `AchievementAdmin.formfield_for_choice_field`: els que no són superusuaris no veuen l'opció "superllegendari" i el servidor la rebutja,
+  igual que les categories restringides.
+- Traduccions: "superlegendary" (ca/es/de/en) i el text d'ajuda del camp, que ara inclou "5 superllegendari".
+
+**Per què:** petició explícita de l'usuari, perquè la probabilitat dels superachievements no baixi cada cop que s'afegeix un llegendari.
+
+**Resultat:** comprovat dins una transacció que es desfà (correu en memòria, cap canvi deixat). Amb els 6 moguts a qualitat 5 i el compte real
+`Jonny` (que ja té "Dret a Crear"), forçant el primer sorteig per sota d'1/500: les 5 primeres tirades donen els 5 que li falten, cap repetit i mai
+el 156. La sisena, quan ja els té tots, cau en un nivell normal. Una tirada normal no dona mai qualitat 5. La pàgina de resultat d'un
+superllegendari es genera com a llegendari amb mega fanfare. A l'admin, `admin` (superusuari) veu les opcions 1-5 i `jmiracle` (grup "Creador
+d'Achievements") només 1-4. Un `POST` de `jmiracle` amb `quality=5` no crea res, i amb `quality=4` sí. `msgfmt -c`, `compilemessages` i
+`manage.py check` nets.
+
+**Desplegament, en aquest ordre:** (1) l'usuari va recarregar uWSGI (workers de les 23:02, posteriors al canvi de codi de les 22:59); (2) després
+es van moure els 6 achievements amb `mega_fanfare` a qualitat 5 (ids 156, 266, 267, 283, 284, 285; abans tots eren 4). No es va fer abans de
+recarregar perquè, amb el codi vell, els achievements de qualitat 5 no haurien sortit mai a les tirades i la pàgina de resultat no els hauria
+sabut mostrar. Comprovat després en viu: `/user/Jonny` i `/users/` responen 200, la secció de superachievements de Jonny hi continua, la
+pàgina de resultat d'un "Dret a Crear" antic es genera bé (com a llegendari amb mega fanfare), i cap error nou a `/tmp/dasdas.log`.
+
+**Prova manual per a l'usuari:** a petició seva, s'ha creat a mà un `AchievementObtained` (id 85089) de "RAINBOW" (285) per al compte `marc`,
+per poder veure la revelació d'un superllegendari a `/gacha/result/85089-0`. No s'ha fet passar per la tirada: no s'han cobrat GachaPoints ni
+s'ha enviat el correu del mega fanfare. A partir d'aquí, `marc` té el nom d'arc de Sant Martí.
+
+---
+
+### 120. Les imatges pujades de més de 2,5 MB donaven 403
+
+**Abans:** les imatges dels superachievements generades amb Gemini (`.jfif`, 2,7-3 MB) donaven `403 Forbidden` a `/media/achievements/...`.
+Causa: Django 2.2 no defineix `FILE_UPLOAD_PERMISSIONS`. Les pujades de més de `FILE_UPLOAD_MAX_MEMORY_SIZE` (2,5 MB) es desen primer en un
+fitxer temporal i en conserven els permisos `0600`. nginx, que serveix `/media/` directament com a `www-data`, no les pot llegir. Les de
+menys de 2,5 MB (com la del "Descompte al Gacha", 2,4 MB) es desen amb els permisos per defecte (`0644`) i es veien bé.
+
+**Decisió:**
+- `chmod 644` dels 5 fitxers afectats. Són els únics de tot `/tmp/media` que no es podien llegir: 4 `Gemini_Generated_Image_*.jfif` de
+  superachievements i una còpia `_P7jInys` de la mateixa imatge.
+- `dmoj/settings.py`: `FILE_UPLOAD_PERMISSIONS = 0o644` (el valor per defecte a partir de Django 3.0), perquè les pujades grans futures no
+  tornin a quedar a `0600`.
+
+**Per què:** petició explícita de l'usuari (error en veure les imatges).
+
+**Resultat:** les 5 imatges responen 200 en viu. El canvi de configuració s'aplica a les pujades noves quan es recarregui uWSGI. Fins aleshores,
+una pujada de més de 2,5 MB tornaria a quedar a `0600` i caldria el mateix `chmod`.
+
+---
+
+### 121. Encara més fanfare al mega fanfare, i la carta ja no es pot girar abans d'hora
+
+**Abans:** el primer clic a la carta posava `gachaRevealed = true`, i qualsevol clic posterior (encara durant la càrrega) la girava i
+mostrava el resultat abans d'hora. El mega fanfare carregava 4,5 s (3,2 s del llegendari × 1,4).
+
+**Decisió** (`templates/gacha/gacharesult.html`, per a totes les tirades el punt 1 i només per al mega fanfare la resta):
+1. Nou `gachaSequenceDone`: mentre dura la seqüència (càrrega, gir, recompensa i, si n'hi ha, el gir de repetit) els clics a la carta no fan
+   res, i el cursor és de "carregant". Després es pot tornar a girar com abans.
+2. Càrrega de 8 s (`MEGA_CHARGE_MS`). Quan ha passat el temps d'un llegendari normal comença la fase estranya (`startMegaOverdrive`): la
+   pàgina s'enfosqueix, la carta tremola cada cop més fort (`--quake`), sona un batec que s'accelera i un xiulet que puja, i van sortint 10
+   missatges cutres, cada cop més grans, en posicions a l'atzar ("Hmm... això està trigant més del normal.", "No serà un...?", "AVISA ELS
+   TEUS AMICS!", "QUE ALGÚ AVISI EL PROFE!!!"...). Els textos són a `#gacha-lines [data-quality="mega-wait"]`, traduïbles. Al girar la
+   carta, la foscor i els missatges desapareixen.
+3. Recompensa més gran (`triggerMegaFanfare`): flaixos de colors, títol gegant d'arc de Sant Martí ("✨ SUPERLLEGENDARI ✨" si la qualitat és
+   5, "✨ MEGA FANFARE ✨" si no; la vista passa `superlegendary`), focs artificials per tota la pantalla durant 9 s, pluja d'emojis durant
+   10 s, el doble d'ànecs durant 20 s (alguns gegants), més esclats de partícules i dues pluges de confeti més.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** `node --check` net del JS generat. Comprovat amb captures en temps real de Chromium controlat per CDP (el mode de temps virtual
+no fa córrer les animacions CSS) sobre la pàgina generada del resultat 85089 de `marc`: un clic a 2,5 s no gira la carta, que només es gira a
+les ~9 s; la fase estranya i la recompensa es veuen. Un primer intent deixava els missatges petits per sobre del sticker després del gir
+(l'animació d'entrada mantenia l'opacitat); corregit amb una animació de sortida i traient-los de la pàgina. A partir d'aquí, l'usuari ho
+comprova a mà. Els 12 textos nous (10 missatges i 2 títols) traduïts després a es/en/de; comprovat amb `gettext` en castellà. **Pendent:** recarregar uWSGI.
+
+**Ànecs del logo:** a petició de l'usuari, els ànecs de la desfilada i de la pluja d'emojis ja no són l'emoji 🦆, sinó l'ànec de goma del logo
+de JOEL. Nou `resources/icons/duck.svg`: els 5 camins de l'ànec copiats tal qual de `logo.svg`, amb un `viewBox` ajustat a la seva mida
+(mesurada amb `getBBox()` a Chromium). Al logo mira cap a l'esquerra, i a la desfilada es gira perquè miri cap on va,
+dins la mateixa animació (`translateX(...) scaleX(-1)`). Un primer intent amb la propietat `scale: -1 1` a part girava també el
+desplaçament (s'aplica després del `transform`) i els ànecs sortien de seguida per l'esquerra; l'usuari ho va detectar. Publicat copiant només aquest fitxer a `/tmp/static/icons/` (respon 200,
+`image/svg+xml`), sense `collectstatic`, per no publicar alhora canvis d'estils d'altres sessions. JS generat net amb `node --check`.
+
+**Més lent:** a petició de l'usuari (els missatges passaven massa ràpid per adonar-se que no era un llegendari normal), `MEGA_CHARGE_MS`
+passa de 8 a 15 s. Nou `MEGA_FIRST_MSG_DELAY_MS` (1,5 s): passada la càrrega d'un llegendari normal, durant aquest temps només s'enfosqueix la
+pantalla i tremola la carta, sense missatges. Els 10 missatges es reparteixen entre aquest moment i 0,5 s abans del gir (~1 s entre cada un, abans
+~0,5 s). La carta es gira, doncs, als ~16 s del clic.
+
+**Pausa de suspens i dues fases:** a petició de l'usuari, la fase estranya es divideix en dues. Fase A (inquietud): foscor lleu (0,25),
+tremolor suau, batec lent (1 per segon) i un xiulet greu. Surt el primer missatge ("Hmm... això està trigant més del normal.") i ve una
+pausa de suspens (`MEGA_SUSPENSE_PAUSE_MS`, 2,5 s) en què la carta queda gairebé quieta. Fase B (descontrol), a partir del segon missatge: un cop
+sord, la pantalla s'enfosqueix ràpid (0,7 en 1,2 s), la tremolor puja fins al màxim (24 px) en el 60% de la fase, el batec s'accelera fins a
+4 per segon i el xiulet és agut. Els missatges continuen sortint un per segon (`MEGA_MSG_EVERY_MS`). La durada ja no és fixa (s'elimina
+`MEGA_CHARGE_MS`): `megaOverdriveMs()` la calcula a partir del nombre de missatges (14 s amb els 10 actuals; la carta es gira als ~18 s del
+clic). En sortir de la fase, es treuen les classes de foscor abans d'aplicar `.gone`, perquè `.show.deep` és més específica i, si no,
+la pantalla es quedaria fosca. JS generat net amb `node --check`; la part visual la comprova l'usuari.
+
+**Sense mareig, amb trompetes i més focs:** l'usuari va dir que, durant el fanfare, la pàgina "botava" i la barra lateral "ballava".
+- Mesurat amb Chromium (CDP): els ànecs no canvien la mida de la pàgina (contenidor fix que retalla). Els **raigs** sí: el quadrat de 950 px
+  que gira darrere la carta (`.gacha-wrapper::before`, `position: absolute`) feia oscil·lar l'alçada de la pàgina entre 888 i 1.084 px, i
+  la barra de desplaçament canviava contínuament. Passava a totes les tirades èpiques i llegendàries. Ara els raigs són en una capa pròpia fixa
+  i retallada (`#gacha-rays`), centrada a la carta des de JS (`positionRays`, també en fer scroll o canviar la mida). Mesurat després: alçada
+  fixa a 794 px. Els 94 px de diferència amb l'alçada inicial d'abans també eren del quadrat, que hi era invisible des del principi.
+- Treta la sacsejada de la carta en el moment de girar-se, només al mega fanfare. La tremolor de la càrrega es manté.
+- Pendent de confirmar amb l'usuari què "botava" i s'aturava amb els ànecs: no es reprodueix com a canvi de mida de la pàgina.
+- Afegit: dues trompetes gegants (🎺, la de l'esquerra girada) que entren pels costats i bufen notes musicals durant 12 s, amb una
+  fanfàrria de trompeta sintetitzada (`playTrumpetFanfare`). Focs artificials durant 14 s (abans 9), més seguits (cada 170 ms, abans 320) i
+  més grans, i canons de confeti a les dues cantonades inferiors durant 7 s. Cinc pluges de confeti (abans tres).
+- El confeti passa a ser un sol sistema compartit (`confettiPieces`): abans cada pluja tenia el seu bucle sobre el mateix llenç i, quan dues
+  coincidien, s'esborraven les peces l'una a l'altra. Ara cada peça cau fins que surt de la pantalla.
+JS generat net amb `node --check`.
+
+**La pàgina cau a trossos (fase B):** a petició de l'usuari. En començar la fase B (`startMegaCollapse`): cada 0,7 s apareix una esquerda
+nova dibuixada en un llenç fix (`#mega-cracks`, branques irregulars des d'un punt d'impacte, com un vidre), amb un so de cruixit sintetitzat
+(`playCrack`). Els trossos de la pàgina (elements del menú, `#user-links`, títol, textos i botó del voltant de la carta, peu de pàgina; mai la
+carta ni les capes del gacha) tremolen 0,35 s i cauen girant amb una transició de "gravetat", un darrere l'altre, de manera que tots han
+caigut ~1,5 s abans del gir. Mentre dura, `html.mega-collapse` (`overflow: hidden; scrollbar-gutter: stable`) impedeix l'scroll i manté
+quieta la barra de desplaçament, perquè els trossos que cauen per sota no allarguin la pàgina. En girar la carta (`endMegaCollapse`), tots
+els trossos tornen al seu lloc d'un bot, les esquerdes s'esvaeixen i, 1 s després, es treuen els estils i el bloqueig d'scroll. El distintiu
+del bonus diari queda fora perquè la seva pròpia animació anul·laria la caiguda. JS generat net amb `node --check`; la part visual la
+comprova l'usuari.
+
+---
+
+### 108. Nova puntuació dels 263 problemes de bases de dades (1 a 7 punts segons la dificultat)
+
+**Abans:**
+Cada problema de BD valia tants punts com preguntes tenia: el total dels 263 problemes era de 1.655 punts, i un problema de 16 preguntes fàcils en valia 16. L'usuari considera que això dona massa punts.
+
+**Decisió:**
+L'usuari va fixar l'escala: un problema de 3 preguntes fàcils = 1 punt, un de 10 preguntes fàcils = 2 punts, i el més difícil, uns 7 punts.
+- **Pes de cada pregunta**, calculat a partir de la seva consulta de referència: 1 punt base, més 0,35 per JOIN (fins a 4), 0,5 per subconsulta (fins a 3), 0,25 per LEFT/RIGHT JOIN, 0,4 per GROUP BY, 0,3 per HAVING, 0,2 per EXISTS, 0,3 per UNION, 0,6 per funció de finestra, 0,25 per CASE i 0,15 per funció d'agregació. Les escriptures sumen 0,2, i 0,3 més si són `ON DUPLICATE KEY`, `REPLACE` o `INSERT IGNORE`. A Mongo, una agregació suma 0,5 més 0,15 per operador.
+- **Dificultat del problema:** la suma dels pesos de les seves preguntes. Hi compten tant el nombre de preguntes com la complexitat de cadascuna.
+- **Escala per trams:** dificultat 3 → 1 punt, dificultat 10 → 2 punts, i d'aquí fins al màxim (35,1, `sqlsakilaqt01`) → 7 punts. S'arrodoneix a mig punt i el mínim és 1.
+- **Distribució resultant:** 84 problemes valen 1 punt, 39 valen 1,5, 32 valen 2, 21 valen 2,5, 18 valen 3, 18 valen 3,5, 27 valen 4, 11 valen 4,5 i 10 valen 5. Al capdamunt, `sqlsub05` val 5,5, `sqlvalorantqt06` val 6 i `sqlsakilaqt01` val 7. El total passa de 1.655 a 602 punts. L'usuari va revisar la llista sencera abans d'aplicar-la.
+
+**Aplicació:**
+- Còpia dels punts anteriors a `/home/ubuntu/backups/punts_problemes_bd_abans_20261023-000327.json`.
+- S'han canviat els punts de 259 problemes (4 ja tenien el valor nou) i s'ha executat `rescore_problem` per als 263. Aquesta tasca recalcula els punts de cada enviament (`casos encertats / casos totals × punts del problema`) i els totals dels alumnes.
+- **Error trobat i corregit:** `rescore_problem` (`judge/tasks/submission.py`) només cridava `calculate_points()`. Però en aquest fork els problemes del grup `sql` compten en un total a part, `Profile.sql_points`, que es calcula amb `calculate_sql_points()`, i aquest no es recalculava. Per tant, els rànquings de BD haurien conservat els punts inflats. Ara, si el problema és del grup `sql`, la tasca també crida `calculate_sql_points()`. A més, s'han recalculat a mà els punts SQL dels 11 usuaris amb enviaments (p. ex. `creina` passa de 37 a 12,8, `Elvin_Po_Ma` de 21 a 7,5); els problemes resolts de cadascú no canvien.
+- `create_db_problems`: amb `--replace` es conserven els punts que ja té el problema; abans es tornaven a posar com el nombre de preguntes. Els problemes nous reben els punts amb la mateixa escala (`suggested_points()`), tret que el lot indiqui `"points"` per al problema. Comprovat: amb els lots del repo, en 244 de 245 casos dona el mateix que s'ha aplicat; l'únic que no, queda just al límit de l'arrodoniment.
+
+**Per què:**
+Que els problemes de BD no inflin la classificació i que els punts reflecteixin la feina que demana cada problema.
+
+**Resultat:**
+Els 263 problemes tenen els punts nous, i tots els enviaments estan recalculats: els únics que no quadren amb `casos encertats / casos totals × punts` són 5 de `provasql2`, que no dona punts parcials, i per tant és correcte que valguin 0. Els punts SQL dels usuaris estan al dia. Cal reiniciar Celery (`supervisorctl restart all`) perquè la correcció de `rescore_problem` s'apliqui quan es canviïn punts des de l'administració.
+
+---
+
+### 109. Els problemes de bases de dades també donen GachaPoints
+
+**Abans:**
+Els alumnes s'havien queixat, molt insistentment, que resoldre problemes de BD no donava GachaPoints. El camp `Profile.gacha_points` guarda els punts **gastats**, i el saldo disponible es calculava com `points - gacha_points`, a quatre llocs: `judge/views/user.py` (la tirada) i les plantilles `gacha/gachamain.html`, `gachago.html` i `gacharesult.html`. Però en aquest fork `points` només compta els problemes de programació. Els del grup `sql`, que són tots els de BD (MySQL i Mongo), compten a part, a `sql_points`. Per tant, no sumaven mai al saldo del gacha. El bonus diari ("primer problema nou del dia") sí que funcionava amb els problemes de BD, perquè no mira el grup.
+
+**Decisió:**
+Nova propietat `Profile.available_gacha_points`, igual a `points + sql_points - gacha_points`. La fan servir la vista de la tirada i les tres plantilles; ja no queda cap càlcul del saldo a mà.
+
+**Per què:**
+Que la feina en problemes de BD també compti per al gacha, igual que la de programació.
+
+**Resultat:**
+Cada usuari amb punts de BD veu ara el saldo augmentat en els seus `sql_points`, ja amb la puntuació nova de l'entrada #108: `creina` passa de 3,4 a 16,2, `Elvin_Po_Ma` de 3,4 a 10,9, `admin` de 20 a 31, `jreyess` d'1,6 a 3,6, i uns quants més +1 o +1,5. `edgar`, el compte de les solucions de referència, rep +597. Com a `creina`, la pàgina `/gacha/` mostra "Punts Disponibles: 16,21". Cal recarregar el web.
+
+---
+
+### 122. Temes del gacha: menú, desplegables, menú d'usuari i codi en línia illegibles
+
+**Abans:** l'usuari va notar que, amb alguns temes del gacha, no es llegien els textos dels desplegables del menú ni el codi en línia del
+markdown (`` `codi` ``). Mesurat el contrast (WCAG, mínim recomanat 4,5) als 6 temes que poden sortir al gacha (dark, candy, wmt, atomdark,
+DTpurple, BUBIMan) amb Chromium (CDP) sobre `/about/codes/`:
+- **Codi en línia:** `resources/base-description.scss` tenia el text a `#444` fix, amb un fons que sí canvia amb el tema
+  (`--background_light_gray`). Contrast d'1,0 a 1,5 als temes foscos (dark, wmt, atomdark, DTpurple): invisible.
+- **Menú i desplegables** a wmt (2,08) i DTpurple (1,50): el text del menú (`--text-white`) era fosc sobre un fons de menú fosc
+  (`--widget_black`). Els desplegables fan servir els mateixos colors.
+- **Menú d'usuari** ("Iniciar sessió" / "Hola, …"): els enllaços tenien el color `--background-white` (el fons de la pàgina, no el text del
+  menú) i el nom, `#eee` fix. Al tema per defecte funcionava perquè tots dos són blancs, però a candy, wmt, atomdark i DTpurple el contrast
+  quedava entre 1,2 i 2,5.
+- **Altres:** botó actiu del menú a atomdark (2,36), color en passar-hi el ratolí a wmt (2,08), `--global-white: a2d2ff` sense `#` a candy i
+  oldcandy (valor no vàlid), i `--button_grad:#orange` a olddark. Aquests dos darrers temes no surten al gacha.
+
+**Decisió:**
+- Codi en línia: `color: var(--text-black)`.
+- Dues variables noves, només per al menú superior: `--nav-text` (per defecte `var(--text-white)`) i `--nav-active-text` (per defecte
+  `var(--nav-text)`). Tot el menú (enllaços, desplegables, icona del menú mòbil, menú d'usuari) les fa servir en lloc de `--text-white`,
+  `--background-white` o `#eee`. No s'ha canviat `--text-white` als temes perquè també és el text dels botons i de les capçaleres de taula,
+  que tenen altres fons. Al tema per defecte i als que ja funcionaven no canvia res.
+- Per tema: wmt (`--nav-text: #E8F5E9`, `--nav-active-text: #1B3A28`, `--text-nav: #C5E1A5` per al color en passar-hi el ratolí), DTpurple
+  (`--nav-text: #EDE7F6`, `--nav-active-text: #1e1e1e`), atomdark (`--nav-active-text: #1e2127`), candy/oldcandy (`--global-white: #a2d2ff`),
+  olddark (`--button_grad: orange`).
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** abans de canviar res, comprovat que `make_style.sh` sense canvis torna a generar exactament el mateix CSS. Després, el CSS
+generat només conté aquests canvis. Contrast mesurat amb el CSS nou: codi en línia 4,6-20 a tots els temes (abans 1,0-1,5 als foscos);
+menú/desplegables de wmt 5,3 i DTpurple 9,2; menú d'usuari 5,3-16 a tots; botó actiu d'atomdark 6,8. Queden per sota de 4,5, sense tocar: el
+botó actiu de wmt (4,29) i BUBIMan (3,98), i, al **tema per defecte** (no és del gacha), el botó actiu (4,30) i el color en passar el ratolí
+pel menú (blanc sobre `#aaa`, 2,32). Publicats `style.css`, `content-description.css` i `martor-description.css` copiant-los a `/tmp/static`.
+Sense `collectstatic`, però tampoc no hi havia cap altre canvi d'estils pendent. Django Compressor va regenerar el fitxer combinat sol
+(`output.48d027…` → `output.32e09d…`, que ja inclou les variables noves); no cal recarregar uWSGI.
+
+**Segona passada (petició de l'usuari: arreglar el que quedava just):** dues variables més per al menú, `--nav-active-bg` (per defecte
+`var(--highlight_blue)`) i `--nav-hover-bg` (per defecte `var(--background_dark_gray)`), que fan servir el botó actiu i el color en passar
+el ratolí en lloc de les variables generals. Al **tema per defecte** (sense atribut `data-theme`: 25.068 perfils amb `preferred_theme` buit o
+`NULL`), un bloc `:root:not([data-theme])` els dona blaus més foscos: actiu `#2471a3` (de 4,30 a 5,30) i ratolí `#065d86` (de 2,32 a 7,20).
+wmt: `--nav-active-text: #0E2216` (de 4,29 a 5,73). BUBIMan: `--nav-active-bg: #1c62d6` (de 3,98 a 5,57). Mesurat després: tots els
+textos del menú, del botó actiu i en passar-hi el ratolí, a tots els temes, per sobre de 4,5. Només ha canviat `style.css`; publicat igual
+(`output.32e09d…` → `output.688afe…`).
+
+---
+
+### 110. PostgreSQL per a un bloc de problemes propi (fase 1: servidor, rols, seguretat i BD de partida)
+
+**Abans:**
+Els professors fan amb PostgreSQL tota la part de funcions, procediments i triggers. L'usuari vol un bloc de problemes **només de Postgres**, igual que el de Mongo, amb el seu checker i les seves categories, i que els problemes que ja hi ha es quedin **només amb MySQL**. Al servidor no hi havia res de PostgreSQL, i l'usuari `ubuntu` ja no té `sudo`.
+
+**Decisió i passos:**
+- **Instal·lació (feta per l'usuari amb `sudo`):** PostgreSQL **17.5** de l'arxiu oficial `apt-archive.postgresql.org`, perquè el repositori normal ja no dona suport a Ubuntu 20.04. És una versió congelada, sense més actualitzacions de seguretat; s'accepta perquè només hi ha accés per socket local. L'alternativa d'Ubuntu, la PG 12, era massa antiga (no té `MERGE`, ni les funcions SQL/JSON noves). Es va configurar `listen_addresses = ''` (cap port TCP, només el socket `/var/run/postgresql`) i el rol `ubuntu` com a superusuari per peer, l'equivalent de l'administrador via socket de la instància MariaDB. És un servei systemd (`postgresql`, activat) amb les dades a `/var/lib/postgresql/17/main`.
+- **Connector:** `psycopg2-binary` 2.9.10 instal·lat al virtualenv compartit (`/home/ubuntu/dmojsite`), amb `libpq` 16 inclosa.
+- **Rols** (credencials a `/home/ubuntu/.secrets/joel_pg_{read,run,loader}.conf`, permisos 600):
+  - `joel_pg_read`: només `SELECT`, amb `default_transaction_read_only = on`.
+  - `joel_pg_run`: escriptures i rutines, sempre dins d'una transacció que es desfà. Té `SELECT/INSERT/UPDATE/DELETE/TRIGGER` sobre les taules, ús de les seqüències, i `CREATE`/`TEMPORARY` a la BD per crear l'esquema temporal de cada correcció. **No** té `TRUNCATE`, no és propietari de res (no pot fer `DROP`/`ALTER`) i no pot crear extensions no fiables.
+  - Tots dos amb `statement_timeout 5s`, `lock_timeout 3s`, `idle_in_transaction_session_timeout 30s` i un màxim de 10 connexions.
+  - `joel_pg_loader`: `CREATEDB`/`CREATEROLE` (a PG 17, això només dona control sobre els rols que ell mateix crea), per als dumps dels professors.
+  - Grup `joel_pg_owners`, per als futurs propietaris de les BD `p_<codi>`.
+- **Autenticació:** amb només `peer` pel socket, els jutges (que s'executen com a `ubuntu`) només podrien entrar com a superusuari. `SET ROLE` i `SET SESSION AUTHORIZATION` no serveixen, perquè l'alumne podria tornar enrere (`RESET ROLE`). Per això l'usuari va afegir al `pg_hba.conf`, abans de `local all all peer`, la línia `local all joel_pg_read,joel_pg_run,joel_pg_loader,+joel_pg_owners scram-sha-256`; ha quedat duplicada, sense cap efecte. Es va recarregar amb `pg_reload_conf()`.
+- **BD de sistema:** es treu `CONNECT` a `PUBLIC` a `postgres` i `template1`; només `joel_pg_loader` es pot connectar a `postgres`, per fer `CREATE DATABASE`.
+- **BD de partida** (versions oficials per a Postgres, revisades abans de carregar-les; com a administrador amb `psql`, perquè són de confiança, cosa que no es farà mai amb els dumps dels professors):
+  - `chinook` (lerocha/chinook-database, sense les línies `DROP/CREATE DATABASE` ni `\c`): 11 taules;
+  - `northwind` (pthom/northwind_psql): 14 taules;
+  - `pagila` (devrimgunduz/pagila, **etiqueta `pagila-v3.1.0`** del desembre de 2022): 22 taules (amb particions de `payment`), 7 vistes, 10 funcions i 15 triggers. La versió actual i les etiquetes v4.x fan servir `uuidv7()`, columnes virtuals i pgvector, que són de PostgreSQL 18. El primer intent amb la versió actual va deixar una BD `pagila` sense taules, que es va esborrar.
+  - A cada BD: `REVOKE ALL ... FROM PUBLIC`, `CONNECT` per als dos rols, `REVOKE CREATE ON SCHEMA public FROM PUBLIC` i els permisos de taula i seqüència que s'han dit.
+
+**Per què:**
+Base per al bloc de Postgres: funcions, procediments i triggers en PL/pgSQL, i el que només té Postgres. A Postgres fins i tot el DDL (`CREATE FUNCTION`, `CREATE TRIGGER`) es pot desfer amb `ROLLBACK`, i això fa molt més senzill corregir rutines.
+
+**Resultat (proves d'atac amb els dos rols):**
+- **Lectura:** no pot fer `INSERT` (ni treient-se el mode de només lectura, perquè no en té el permís), ni entrar a la BD `postgres`, ni fer `pg_read_file`, `COPY` a fitxer o a programa, `lo_import` o `SET ROLE`. `pg_sleep(8)` es talla als 5 s.
+- **Escriptures i rutines:** funciona el cicle complet d'un trigger dins d'una transacció (esquema temporal, funció PL/pgSQL, trigger sobre `public.language`, `INSERT`, i el trigger escriu al registre), i també el trigger `last_update` de Pagila. No pot fer `DROP`, `TRUNCATE`, `ALTER TABLE`, crear funcions `plpython3u` o l'extensió `dblink`, `ALTER SYSTEM`, `COPY TO PROGRAM` ni `SET ROLE`.
+- Després del `ROLLBACK` no en queda res (cap esquema, trigger ni dada) i no s'ha creat cap fitxer.
+- **Pendent per al checker:** bloquejar els `COMMIT` i altres sentències de control de transaccions al codi de l'alumne (separant les sentències tenint en compte els `$$ … $$`), i un rellotge propi que cancel·li la consulta, perquè `SET statement_timeout = 0` o `set_config()` es poden saltar el límit del rol.
+
+---
+
+### 111. Checker `postgres` al jutge (fase 2 del bloc de PostgreSQL)
+
+**Decisió:**
+Nou `checkers/postgres.py` (repo del jutge, commit `53299e1`), registrat a `checkers/__init__.py`. Un sol checker amb tres modes, que es trien a partir de la referència de cada pregunta:
+- **Consulta** (`SELECT`/`WITH`/`TABLE`/`VALUES`): amb `joel_pg_read`. Es compara el resultat amb les funcions de `sql.py` i es llegeix com a màxim una fila més de les esperades. Una escriptura, un `CREATE`, un `DO` o un `CALL` en una pregunta de consulta es marca SEC.
+- **Escriptura** (`INSERT`/`UPDATE`/`DELETE`/`MERGE`): amb `joel_pg_run`, dins d'una transacció que sempre es desfà. Es compara el contingut final de les taules de `public` que han canviat, detectades amb un hash md5 de cada taula calculat al servidor. Ha de coincidir el tipus de sentència, però `MERGE` s'accepta com a alternativa a qualsevol.
+- **Rutina** (la referència és un `CREATE FUNCTION/PROCEDURE/TRIGGER …` seguit de línies `--@@TEST@@ <sentència>`): el codi de l'alumne i el de referència s'executen cadascun en una transacció pròpia i en un **esquema temporal** (`s_<aleatori>`, primer al `search_path`), i després s'executen les proves del professor, cada una dins d'un `SAVEPOINT`. Es comparen el resultat de cada prova (les files, el nombre de files afectades, o el **SQLSTATE** si dona error; útil per a triggers que han de fer `RAISE EXCEPTION`) i l'estat final. La retroacció diu quina prova falla (p. ex. "Test 2 (`SELECT preu_amb_iva(0.99)`): Result sets differ"). Com que les proves són comentaris, l'enviament de la referència com a `edgar` funciona igual que ara.
+
+**Detalls resolts:**
+- **Separació de sentències** igual que la fa Postgres: cadenes `'…'` i `E'…'`, identificadors `"…"`, cossos `$tag$ … $tag$`, comentaris `--` i `/* */` niats.
+- **SEC** per a `COMMIT`, `ROLLBACK`, `BEGIN`, `SAVEPOINT`, `SET`, `RESET`, `COPY`, `LOCK`, `TRUNCATE`, `ALTER`, `DROP`, `GRANT`, `VACUUM`, `CREATE EXTENSION/SCHEMA/ROLE/DATABASE`… Els `DROP FUNCTION/PROCEDURE/TRIGGER/TABLE/VIEW/TYPE IF EXISTS` habituals abans d'un `CREATE` s'ignoren, perquè sempre es parteix de zero; si no, el `DROP TRIGGER` fallaria per falta de permisos.
+- **Vigilant:** un temporitzador cancel·la (`conn.cancel()`) qualsevol sentència que passi de 6 s. Cal perquè, des d'una funció, `set_config('statement_timeout', '0', true)` pot treure el límit del rol.
+- **Seqüències:** no es desfan amb `ROLLBACK`. Abans de cada execució es posen just després del màxim de la seva columna. Es detecten pel valor per defecte (`nextval('…')`), perquè a Pagila **cap** de les 20 seqüències està lligada (`OWNED BY`) a la columna i `pg_get_serial_sequence()` no les troba, i també per les columnes `IDENTITY`.
+- **Hora de la transacció:** a Postgres, `now()` és l'hora d'inici de la transacció, de manera que els triggers `last_update` de Pagila donaven valors diferents a l'alumne i a la referència, i un `UPDATE` idèntic donava WA. Els valors iguals al `now()`, `localtimestamp` o `current_date` de la transacció es comparen com a "ara".
+- **Concurrència:** `pg_advisory_xact_lock` per BD: les correccions d'escriptures i rutines d'una mateixa BD es fan d'una en una, i el bloqueig s'allibera sol amb el `ROLLBACK`. Si cal esperar més del `lock_timeout`, es torna a intentar.
+
+**Resultat (proves amb Pagila):**
+- **24 de 24** casos com s'esperava:
+  - consultes equivalents, `COUNT(*) FILTER (…)` i una consulta incorrecta;
+  - `UPDATE … FROM` contra `IN (subconsulta)`, `INSERT` amb `serial`, `MERGE` com a alternativa a `INSERT`, i una escriptura incorrecta;
+  - funció (la referència, una alternativa en `LANGUAGE sql` amb `DROP … IF EXISTS`, una sense arrodonir i una no definida);
+  - trigger (el que registra canvis i el que fa `RAISE`) i procediment.
+- **Atacs:** `COMMIT`, `SET`, `DROP`, `CREATE EXTENSION/SCHEMA` i `COPY` → SEC. `set_config` + `pg_sleep(30)` → tallat als 5,6 s. Un `DO` amb `COMMIT` → Postgres el rebutja. Un `EXECUTE 'DROP TABLE'` dins d'una funció → no té permís.
+- **Concurrència:** amb 3 correctors alhora, 18 de 18 AC.
+- Després de totes les proves la BD queda intacta: no queda cap esquema `s_*`, ni dades, ni funcions.
+- Cada pregunta d'escriptura o de rutina triga ~0,8–1 s (dues transaccions). Els jutges encara no carreguen el checker: cal reiniciar-los.
+
+---
+
+### 112. PostgreSQL a la web, i primera prova al jutge real (fase 3 del bloc de PostgreSQL)
+
+**Abans:**
+El jutge ja tenia el checker `postgres` (#111), però la web no el coneixia: no es podia triar a les dades del problema, la pàgina "Base de dades" només sabia mostrar esquemes de MariaDB, i `create_db_problems` només creava problemes MySQL.
+
+**Decisió i passos:**
+- **`judge/utils/judge_checkers.py` (nou):** `load_judge_checker(nom)` carrega un checker del paquet del jutge pel seu camí, amb mòduls buits en lloc de les dependències del jutge. Així la web valida les referències amb el mateix codi que corregirà (separació de sentències, mode, SEC), sense duplicar-lo.
+- **`judge/utils/pg_grader.py` (nou):** `get_postgres_databases()` (llista les BD de correcció, via l'administrador per peer), `get_schema()` (taules, columnes, claus, vistes i funcions per a la pàgina de l'esquema), `validate_reference()` (executa la referència amb el checker real i diu si dona error o SEC) i `POSTGRES_DATABASE_INFO` (descripció de `chinook`, `northwind` i `pagila`).
+- **Model:** `CHECKERS` afegeix `('postgres', 'PostgreSQL checker')`; migració **`0163_problemdata_postgres_checker`** (només canvia les opcions; aplicada). `DATABASE_CHECKERS` inclou `postgres` i `ProblemDataCompiler.make_checker` genera `name: postgres` amb la BD triada.
+- **Formulari de dades del problema** (`judge/views/problem_data.py`, `templates/problem/data.html`): camp nou "Base de dades PostgreSQL" que només es mostra amb aquest checker; es guarda a `checker_args`. **No es pot canviar un problema existent de MySQL a PostgreSQL ni al revés**, tal com es va decidir: els problemes actuals es queden a MySQL, i els de Postgres són un bloc a part.
+- **Pàgines del problema** (`judge/views/problem.py`): la vista de l'esquema i `is_sql_problem` reconeixen `postgres`, de manera que el problema surt al grup `sql`, suma a `sql_points` i al gacha, i té la pestanya "Base de dades".
+- **`create_db_problems`:** motor `postgres` (`postgres_mode()`; tipus de sentència `ROUTINE` per a `CREATE FUNCTION/PROCEDURE/TRIGGER` amb línies `--@@TEST@@`), validació amb `pg_grader`, enunciat adaptat (Postgres i, a les rutines, l'explicació de com es comproven), i pes de pregunta `question_weight` +1,5 per a `CREATE`/`DO` i +0,15 per prova.
+- Traduccions al català afegides i compilades.
+- **Problema de prova `zzpgtest01`** (privat, Pagila, 3 preguntes: consulta amb `FILTER`, `UPDATE … FROM` i trigger amb proves). Les pàgines del problema, enviament, base de dades i dades de prova es mostren bé.
+- L'usuari va reiniciar els jutges (11:29–11:30) i uwsgi (11:45).
+
+**Per què:**
+Perquè els professors puguin crear i corregir problemes de funcions, procediments i triggers a Postgres des de la web, amb la mateixa validació que farà el jutge.
+
+**Resultat (jutge real, EdgTest):**
+- La referència d'`edgar` a `zzpgtest01`: **AC**.
+- Un enviament parcialment incorrecte (consulta amb `CASE` en lloc de `FILTER`, `UPDATE` amb `IN`, i un trigger que registra els canvis però no impedeix els preus negatius): preguntes 1 i 2 **AC**, pregunta 3 **WA** amb la retroacció de la prova que falla (`Test 3 (UPDATE film SET rental_rate = -1 …)`), 1,0 de 1,5 punts.
+- Després, a `pagila` no queda cap esquema `s_*` ni cap trigger `t_log_preu`, i les dades són les originals (`film 1` = 0,99).
+- `zzpgtest01` encara existeix (privat); s'esborrarà quan l'usuari ho aprovi.
+
+---
+
+### 113. Primers 15 problemes de PostgreSQL (fase 4), i SQLSTATE a la retroacció del checker
+
+**Abans:**
+El bloc de PostgreSQL funcionava de punta a punta (#110–#112), però només hi havia el problema de prova `zzpgtest01`, i no hi havia cap categoria pròpia.
+
+**Decisió i passos:**
+- **Categories noves** (`ProblemType`): `pgadvquery` "PostgreSQL - Consultes avançades", `pgfunc` "PostgreSQL - Funcions", `pgproc` "PostgreSQL - Procediments", `pgtrigger` "PostgreSQL - Triggers" i `pgobjrel` "PostgreSQL - Tipus, arrays i JSON".
+- **Lots** (preparats per tres agents en paral·lel, un per BD, amb un encàrrec comú i l'eina `pg_try.py`, que prova respostes amb el checker real):
+  - `problem_batches/sql/pg_chinook.json`, `pg_northwind.json` i `pg_pagila.json`;
+  - per BD, 5 problemes (un per categoria) de 6 preguntes: **15 problemes i 90 preguntes**;
+  - notes a `problem_batches/sql/pg_notes/pg_<bd>.md`: per a cada pregunta, la referència, almenys una alternativa acceptada i almenys dues respostes incorrectes típiques, totes amb el veredicte i la retroacció reals del checker (en total ~98 alternatives acceptades i ~256 respostes incorrectes rebutjades).
+- **Creació:** `create_db_problems` sobre els tres lots: `sqlpgchinook01-05`, `sqlpgnorthwind01-05` i `sqlpgpagila01-05`, **privats**, grup `sql`, de 2,5 a 5 punts (`suggested_points`). El nom de `sqlpgnorthwind05` es va igualar amb els altres ("Tipus, arrays i JSON").
+- **Checker** (repo del jutge, commit `9b8b9a3`): quan una prova falla perquè la resposta de l'alumne i la de referència donen errors diferents, la retroacció deia "yours gives an error, the expected one gives an error". Ara diu els dos codis, p. ex. `yours gives an error (SQLSTATE P0001 raise_exception), the expected one gives an error (SQLSTATE 23514 check_violation)`. És el cas típic d'un `RAISE EXCEPTION` sense l'`ERRCODE` que demana l'enunciat. Cal reiniciar els jutges perquè l'agafin.
+
+**Per què:**
+Primer contingut real del bloc: funcions, procediments i triggers en PL/pgSQL, i el que és propi de Postgres (`FILTER`, `DISTINCT ON`, `LATERAL`, `ROLLUP`, CTE recursius, arrays, `jsonb`, `ENUM`/`DOMAIN`/tipus compostos).
+
+**Resultat:**
+- `--dry-run`: 0 errors als tres lots. Les 15 respostes de referència d'`edgar` al jutge real: **15 de 15 AC**.
+- Les pàgines del problema, enviament, base de dades i dades de prova es mostren bé (comprovat amb `sqlpgpagila04`).
+- Després de totes les proves, cap BD (`chinook`, `northwind`, `pagila`) té esquemes `s_*` ni funcions fora de `public`.
+- **Límits coneguts** (detallats a les notes):
+  - el checker compara resultats, no la tècnica: una solució sense `FOUND`, `LATERAL`, `jsonb_agg`, recursió, etc. s'accepta si dona el mateix;
+  - a Northwind els preus són `real`: els enunciats de diners demanen passar a `numeric`, i les proves inclouen comandes on es nota la diferència;
+  - dues preguntes de Northwind fan servir `current_date + 14`/`+ 28`: si la correcció de l'alumne i la de la referència cauen a banda i banda de la mitjanit, donaria WA (apuntat a `TODO.md`);
+  - a Pagila, `payment` només té particions de gener a juliol de 2022, i per això el procediment de devolucions rep la data com a paràmetre.
+
+---
+
+### 114. Superpistes: pistes de la IA del JOEL (servei joel-pistes de sabIA)
+
+**Abans:**
+El sistema de pistes només mostrava, als casos amb retroacció estesa (checkers `linecount` i `rstripped`), l'entrada que fallava i la
+resposta de l'alumne, amb un màxim de pistes per problema (`allowed_tips`). L'institut ha posat en marxa un servei de pistes amb IA
+(`https://sabia.ies-sabadell.cat/joel/v1`), amb el protocol a `importacions/PROTOCOL.md` i la clau a `importacions/joel-2026-10-23.txt`.
+
+**Decisió i passos:**
+- **Camp nou** `ProblemData.allowed_superhints` ("Superpistes permeses"), editable a la pàgina de dades de prova. Buit (per defecte) vol dir
+  `ceil(allowed_tips / 2)`; l'achievement d'una pista extra (`extra_hint`) **no** hi compta. Propietat `ProblemData.superhint_limit`.
+- **Model nou** `SuperHint` (migració `0164_superhints`): enviament, cas, estat (`P` pendent, `OK`, `E` error), idioma, i la resposta del
+  servei (`nivell`, `pista`, `categoria_error`, `diagnosi_professorat`, `revisio`) o l'error. El límit és **per alumne i problema**, sumant
+  tots els enviaments. Les peticions amb error **no gasten** superpista, i una que porti més de 3 minuts pendent es dona per perduda
+  (`STALE_AFTER`) i tampoc no gasta.
+- **Client del protocol** `judge/utils/superhints.py`: construeix la petició (enunciat, codi, llenguatge, veredicte, casos fallits del
+  `linecount`/`rstripped` —el que l'alumne ja ha vist, primer, fins a 5—, el missatge del compilador i la nota del cas quan no és un
+  percentatge, i les superpistes anteriors de l'alumne en aquell problema a `pistes_anteriors`, perquè el servei vagi un pas més enllà).
+  Reintents tal com diu el protocol: 429 fins a 3 vegades al cap de 5-10 s, 502/504 o error de connexió una vegada. *Timeout* 60 s.
+  L'idioma de la pista és el de la interfície de l'alumne.
+- **Tasca Celery** `request_superhint` (`judge/tasks/superhint.py`): la petició es fa en segon pla, perquè triga 4-10 s i no volem tenir
+  un worker d'uWSGI bloquejat.
+- **Vistes i URLs**: `POST /submission/superhint/<cas>` (només el propietari de l'enviament; bloqueja la fila del perfil per evitar
+  passar-se del límit amb dues peticions alhora; no deixa demanar-ne una altra mentre n'hi ha una de pendent en aquell cas) i
+  `GET /submission/superhint/status/<id>` (propietari o professorat del problema), que la pàgina consulta cada 3 s fins que hi ha resposta.
+- **Pàgina de l'enviament** (`status-testcases.html` i `superhint-fragment.html` nou): comptador "Superpistes usades/permeses", i botó
+  **Superpista!** amb confirmació que només surt en un cas fallat on l'alumne **ja ha vist la pista normal** (en aquest enviament o en un
+  d'anterior, el mateix cas), si li en queden. La superpista surt sota la pista normal. El professorat (qui pot avaluar el problema) hi
+  veu a més la `diagnosi_professorat`, la categoria de l'error i el resultat de la revisió; l'alumne no.
+- Configuració: `JOEL_PISTES_URL`, `JOEL_PISTES_KEY` i `JOEL_PISTES_TIMEOUT` a `settings.py` (clau buida per defecte: sense clau el botó no
+  surt); la clau real és a `dmoj/local_settings.py`, que no es puja al repositori.
+- Estils a `resources/submission.scss` (targeta amb vora lila), CSS regenerat amb `make_style.sh` (només hi canvien aquestes regles) i
+  copiat a `/tmp/static/style.css`. Traduccions noves a ca/es/en/de/zh_Hans, i `compilemessages`.
+
+**Per què:**
+Petició explícita de l'usuari: quan un alumne ja ha fet servir una pista i encara no se'n surt, una pista escrita a partir del seu codi,
+limitada perquè no substitueixi el treball de depurar.
+
+**Resultat:**
+- `GET /salut` del servei: `{"estat":"ok"}`. Una petició real amb un enviament WA de `radarvalentina` (Java): pista de nivell 1 en 8 s,
+  que apunta al límit de 10000 sense donar la solució, i diagnosi correcta per al professorat (`energia > 10000` en lloc de `>=`).
+- Prova del flux complet amb el client de Django dins d'una transacció desfeta (no ha quedat cap fila): el botó surt al cas amb la pista
+  vista; la 1a superpista dona nivell 1, la 2a nivell 2 (`regenerada`, no repeteix la primera), la 3a es rebutja ("Ja no et queden
+  superpistes", límit 2 = `ceil(3/2)`) i el botó desapareix (2/2); una segona petició mentre n'hi ha una de pendent es rebutja; un altre
+  alumne rep 403 a les dues URLs; el professorat veu la diagnosi; una pendent antiga no compta i passa a error en consultar-la.
+- La pàgina de dades de prova mostra el camp nou amb l'ajuda. `manage.py check` net, migració aplicada.
+- **Cal reiniciar uWSGI i Celery** (`sudo supervisorctl restart all`) perquè el web i els workers carreguin el codi nou; fins llavors el
+  botó no surt.
+
+---
+
+### 115. El botó de superpista surt sense recarregar la pàgina
+
+**Abans:**
+En demanar la pista normal (botó *Help!*, per AJAX), la pista es mostrava però el botó **Superpista!** no sortia fins que es recarregava la
+pàgina (F5). El mateix passava després de rebre una superpista: el botó per demanar-ne una altra (si en quedaven) i el comptador
+"Superpistes usades/permeses" no s'actualitzaven.
+
+**Decisió i passos:**
+- El botó és ara una plantilla pròpia, `templates/submission/superhint-button.html`, que fan servir tant la pàgina com les respostes AJAX.
+- Funció nova `superhint_button()` a `judge/views/submission.py`: decideix si el botó ha de sortir en aquell cas (mateixes condicions que a la
+  pàgina: propietari, pista normal vista, sense cap superpista pendent, i amb superpistes disponibles) i el renderitza.
+- `flag_submission` (la pista normal), `request_superhint` i `superhint_status` tornen ara també `superhint_button` i `superhints_used`, i
+  el JS de `status-testcases.html` hi afegeix el botó (si encara no hi és) i actualitza el comptador (`#superhints-used`).
+- uWSGI recarregat amb `uwsgi --reload` (sense `sudo`); Celery no cal reiniciar-lo perquè la tasca no ha canviat.
+
+**Per què:**
+Ho va detectar l'usuari provant-ho: calia fer F5 després de demanar la pista per veure el botó de superpista.
+
+**Resultat:**
+- Prova en una transacció desfeta (`senarsparells`): la resposta de *Help!* porta el botó (0 usades). Després d'una superpista, la consulta
+  d'estat torna el botó següent (1 usada), i després de la segona ja no (2 de 2). No ha quedat cap fila ni cap pista marcada.
+- La superpista real que va demanar l'usuari després del reinici (`8reines`, a través de Celery) va arribar bé: nivell 1, `aprovada`.
+- `manage.py check` net, i la web respon 200 després de la recàrrega.
+
+---
+
+### 116. Marca de superpista a les llistes d'enviaments (només professorat)
+
+**Abans:**
+A les llistes d'enviaments (totes, les d'un usuari, les d'un problema, i la fila que s'actualitza en viu) no es veia si un enviament havia
+fet servir superpistes; calia obrir-lo.
+
+**Decisió i passos:**
+- Funció nova `superhint_counts(user, submissions)` a `judge/views/submission.py`: per als enviaments de la pàgina, quantes superpistes
+  **amb resposta** (`OK`) tenen, però només per als problemes que qui mira pot avaluar (`Problem.is_evaluable_by`, el mateix criteri que
+  fa servir la diagnosi per al professorat). Una sola consulta agrupada per pàgina, i la comprovació de permís un cop per problema.
+- `SubmissionsListBase.get_context_data` (i per tant totes les llistes que en deriven) i `single_submission` passen `superhint_counts` a
+  `templates/submission/row.html`, que hi mostra una vareta (`fa-magic`, lila, classe `submission-superhint`) al costat de l'hora, amb el
+  text "Superpistes demanades en aquest enviament: N" en passar-hi el ratolí.
+- CSS regenerat (només hi canvia la regla nova) i copiat a `/tmp/static/style.css`; traducció a ca/es/en/de/zh_Hans; uWSGI recarregat.
+
+**Per què:**
+Petició de l'usuari: que el professorat pugui veure d'un cop d'ull on s'han fet servir superpistes, sense que ho vegi l'alumnat.
+
+**Resultat:**
+- Amb la superpista real de `8reines`: el professorat veu la marca a la llista de l'usuari, a la del problema i a la fila en viu; un alumne
+  qualsevol no la veu enlloc.
+- Amb una superpista creada dins d'una transacció desfeta a l'enviament d'un alumne sense permisos: el professorat veu 1 marca i l'alumne
+  mateix, 0. No ha quedat cap fila.
+- `manage.py check` net, i `/submissions/` respon 200 després de la recàrrega.
+
+---
+
+### 117. Publicació dels 15 problemes de PostgreSQL i esborrat del problema de prova
+
+**Decisió (amb el vistiplau de l'usuari):**
+- Publicats `sqlpgchinook01-05`, `sqlpgnorthwind01-05` i `sqlpgpagila01-05` (15 problemes, 90 preguntes), després de comprovar que tots tenen l'AC d'`edgar` amb la puntuació completa. Es posa `date` als que no en tenien.
+- Esborrat el problema de prova `zzpgtest01`: el problema, les seves 3 preguntes i els 2 enviaments de prova d'`edgar` (20 files en total, en cascada), i la carpeta de dades `/judge/zzpgtest01` (`data.zip` i `init.yml`). Es recalculen els punts d'`edgar`.
+- Abans, l'usuari havia reiniciat els jutges (23:09), que ja fan servir la retroacció amb els dos SQLSTATE (#113 de PostgreSQL).
+
+**Resultat:** les pàgines dels problemes nous es veuen sense iniciar sessió (200), i `zzpgtest01` ja no existeix (404).
+
+---
+
+### 118. Còpia de seguretat de la carpeta de problemes (`/judge`)
+
+**Decisió:** a petició de l'usuari, còpia sencera de `/judge` (dades de tots els problemes: `init.yml`, zips, dumps, generadors), 196 MB i 1.281 problemes.
+
+**Resultat:** `/home/ubuntu/backups/joel-problemes-judge-20261023-233229.tar.gz` (169 MB, permisos 600), amb el SHA-256 a `….tar.gz.sha256`. L'arxiu té les mateixes 3.875 entrades que la carpeta. Per restaurar-la: `tar -xzf <fitxer> -C /`.
+
+---
+
+### 123. "Sobre i Guies" amb un submenú "Altres Guies", i nova "Guia per a Crear Temes"
+
+**Abans:** totes les guies eren dins el desplegable "Sobre", barrejades amb Status, Consells, Categories i Respostes. No hi havia cap
+explicació de com crear un tema. A més, la plantilla del menú (`templates/base.html`) tenia `{% if not node.is_leaf_node %}` sense
+parèntesis. Un mètode sense cridar sempre és "cert", així que la fletxa `.nav-expand` dels elements amb submenú no es generava mai. Al mòbil
+és el botó que obre els submenús (`resources/common.js`), així que només s'obrien mantenint el dit premut.
+
+**Decisió:**
+- **Menú** (`NavigationBar`, canvis a la BD i `rebuild()` de l'arbre MPTT): Problemes · Enviaments · Usuaris · Concursos · **Sobre i Guies** ▾ ·
+  Gacha. "Sobre" passa a dir-se "Sobre i Guies". A dins: Categories, Respostes, Consells, Guia Alumnes, Guia Professors, **Altres Guies** ▸
+  i Status. "Altres Guies" és un element nou (`guies`, enllaç a `/creaproblemes/`, es marca com a actiu a `/creaproblemes/` i
+  `/createmes/`) amb un segon submenú: Crear Problemes (`GuiaProbl`, abans directament a Sobre) i el nou `GuiaTemes` ("Crear Temes").
+  Les etiquetes del menú no es tradueixen (el catàleg `dmoj-user` que fa servir `user_trans` no existeix), igual que les que ja hi havia.
+- **Primer intent descartat:** l'usuari s'havia explicat malament i, primer, les guies es van posar al primer nivell del menú (i, per fer-hi
+  cabre tot a 1.280 px, una regla que reduïa el marge dels botons). En aclarir-ho, es va tornar a l'estructura de dalt i es va treure la regla.
+- **Submenú dins d'un submenú** (`resources/base.scss`, només a l'ordinador): a partir del segon nivell, el submenú s'obre al costat
+  (`left: 100%; top: 0`) en lloc de tapar els elements de sota, i el seu element mostra la fletxa. Al mòbil ja s'obrien cap al costat.
+- **Plantilla:** `node.is_leaf_node()` amb parèntesis. Ara surten les fletxes de "Sobre i Guies" i "Altres Guies". A l'ordinador, la del
+  primer nivell continua amagada pel CSS de sempre.
+- **Nova pàgina** `/createmes/` (FlatPage id 9, "Guia per a Crear Temes", plantilla `flatpages/markdown.html`). Explica que un tema són tres
+  peces amb el mateix nom (bloc `:root[data-theme=theme-x]` a `resources/base.scss`, achievement de categoria tema, i la tria a Editar perfil
+  que posa `data-theme` a `<html>`). Inclou els passos (nom, colors, contrast, compilar i publicar, provar-lo des de la consola amb
+  `document.documentElement.dataset.theme`, i crear l'achievement), què pinta cada variable, i els errors reals de l'entrada #122 (falta de
+  `#`, `#orange`, text fosc sobre menú fosc). La descripció de cada variable surt d'extreure del CSS compilat quins selectors la fan servir.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** `/createmes/` respon 200 en viu. Comprovat en viu amb Chromium (CDP, passant el ratolí per "Sobre i Guies" i després per
+"Altres Guies"): el segon submenú s'obre al costat amb Crear Problemes i Crear Temes. `style.css` recompilat (només amb la regla del
+submenú) i publicat a `/tmp/static`. La plantilla generada té ara les 2 fletxes que toquen. **Pendent:** recarregar uWSGI perquè surtin
+les fletxes (canvi de plantilla).
+
+---
+
+## 2026-10-24
+
+### 124. Revisió de les pàgines estàtiques i les guies (amb captures), traduccions completes, estat de la IA a Status, i bugs trobats pel camí
+
+**Abans:**
+- **Status** (`/status/`) només mostrava els jutges. No hi havia manera de saber si el servei de superpistes (joel-pistes, `sabia.ies-sabadell.cat`, entrada #114) responia.
+- **Pàgines planes** (`django.contrib.flatpages`, 9 pàgines): moltes en castellà tot i que el lloc és en català (`/about/codes/`, `/about/categories/`, `/tips/`, `/guiaalumnes/` amb títol castellà), només "Sobre" tenia traduccions (ca/en/de). Contingut desactualitzat: enllaços al domini vell `joder.ga`, captures a imgur.com (algunes donen `429`), una frase amb "TODO" a "Sobre", la llista de jutges de fa anys, la llista de verificadors sense MySQL/PostgreSQL/Mongo, cap esment de superpistes, guies de problemes, tasques, instituts, bases de dades ni del veredicte SEC. `/about/normes/` (enllaçada des de "Sobre") era **buida**. Les imatges de la fórmula de punts eren a postimg.cc (extern).
+- **Traduccions**: `makemessages` no s'havia passat amb tot el codi actual. Pendents: ca 196 + 42 fuzzy, es 85 + 62, de 1278 + 19, zh_Hans 558 + 118, i a l'anglès les cadenes amb `msgid` en català. El menú ("Sobre i Guies", etc.) no es traduïa a cap idioma perquè el catàleg `dmoj-user` de `user_trans` no existia i la comanda `makedmojmessages` fallava (`.pot` sense capçalera). Moltes etiquetes de la interfície sortien en anglès en català ("Read the guide", "Tasks", "Filter Tasks", "Stats for", "View the database schema", "Solve status for"...), i hi havia traduccions catalanes errònies ("problem group" → "Equip del problema", "nom�s" corrupte, "Espectar", "Descalificar", "Tasa de AC"...).
+
+**Decisió:**
+
+1. **Status: estat del servidor de la IA.**
+   - `judge/utils/superhints.py`: nova `health()`, que fa `GET <base>/salut` (sense clau, `timeout=5`), mesura el ping, comprova `estat == 'ok'` i la `versio_protocol` (si no és la `'1'` que parla el JOEL, ho marca com a error), i guarda el resultat a la memòria cau de Django 60 s (`superhints:health`) per no consultar el servei a cada visita. Estats: `ok`, `down`, `off` (no configurat).
+   - `judge/views/status.py`: nova `get_superhint_status()` (estat + superpistes `OK`/`E` de les últimes 24 h + data de l'última correcta; el missatge d'error només el veu el personal) passada a `status_all`.
+   - `templates/status/judge-status.html`: secció nova "Serveis" sota la taula de jutges (servei, estat amb icona, ping, últimes 24 h, última superpista); `templates/status/media-css.html`: marge del títol.
+   - **Incident:** la plantilla es va publicar abans de recarregar uWSGI, i durant uns minuts `/status/` va donar 500 (`'superhint_status' is undefined`, ho va reportar l'usuari). Resolt amb `kill -HUP` al mestre d'uWSGI.
+
+2. **Comptes i dades de demostració per a les captures** (decisió de l'usuari: comptes demo, no noms reals): usuaris `demo_alumne`, `demo_alumna`, `demo_alumne3` i `demo_profe` (perfils 25334-25337, `is_unlisted=True`, llenguatge Python 3), equip tancat "Grup demo (guies)" (id 195, slug `grup-demo-guies`) a l'"Institut JOEL" (id 41) amb `demo_profe` d'administrador, 6 enviaments reals jutjats (371834-371839: AC, WA 80 %, IR...), una pista i una superpista reals demanades amb el flux de la web, i un problema **privat** `demoguia` (id 1396, autor `demo_profe`, 3 casos pujats amb l'editor de casos de prova real). En acabar: contrasenya inutilitzable, `is_staff=False` i cap grup als 4 comptes (no s'han esborrat perquè les captures i els enviaments en depenen). Els noms dels altres usuaris que surten en alguna pantalla se substitueixen per `alumneN` abans de capturar.
+
+3. **Captures** (Selenium 3.141 + `chromium-browser` headless, inici de sessió real pel formulari, idioma català; script a `~/shots/guies/shot.py` i tandes a `~/shots/guies/specs/`): 26 captures, retallades i reduïdes a 256 colors amb Pillow (802 KB en total), a `resources/guides/*.png` (dins el repo, servides a `/static/guides/`; copiades a `/tmp/static/guides/`). Les dues imatges de la fórmula de punts s'han descarregat de postimg.cc a `resources/guides/punts-formula-{base,bonus}.png`. Les captures es van refer un cop aplicades les traduccions perquè no hi sortís cap text en anglès. CSS nou a `resources/misc.scss`: vora, cantonades i ombra per a `img[src^="/static/guides/"]` (excepte les fórmules).
+
+4. **Contingut nou de les 9 pàgines** (contingut base en català, decisió de l'usuari; còpia de seguretat prèvia de `flatpages`, `flatpagetranslation` i `navigationbar` a `~/backups/flatpages_2026-10-23.json`):
+   - **Guia per a alumnes** (`/guiaalumnes/`, reescrita, 14 captures): trobar problemes (colors, pestanyes, filtres), enunciat, enviar (Python i Java), AC i bonus diari, WA i nota parcial, **pistes**, **superpistes** (límit, condicions, Status), guies d'introducció, tasques, problemes de BD (esquema, rànquing propi, SEC), perfil i gacha, comentaris.
+   - **Guia per a professors** (`/guiaprofes/`, reescrita, 9 captures): permisos, **instituts i equips** (inclou el rol de responsable d'institut, entrada #57/#59), membres, estadístiques, "Qui ho ha resolt", enviaments amb la marca de superpista, què veu el professorat en un enviament (casos fallits, diagnosi de la superpista), tasques (crear i clonar), concursos.
+   - **Guia per a crear problemes** (`/creaproblemes/`, revisada, 3 captures): enllaços `joder.ga` → relatius, verificadors actuals (inclosos MySQL/PostgreSQL/Mongo), superpistes permeses, noms de botons reals, guies (birret).
+   - **Respostes del jutge** (`/about/codes/`, al català): afegits CE, SC, AB i **SEC**, i l'ordre real de gravetat (`status_codes` de `judge_handler.py`).
+   - **Categories** (`/about/categories/`, al català): afegides Bases de Dades, Lliga de Programació FP, FiraFP i Problemes fets per Alumnes; tret "JODER" de la d'experimentals.
+   - **Normes de participació** (`/about/normes/`): **esborrany nou** (respecte, no publicar solucions, jugar net, notificar errors, moderació) per revisar per l'usuari.
+   - **Consells** (`/tips/`, al català, HTML trencat netejat): s'hi afegeixen `sys.stdin` per a Python i com fer servir el Fast I/O. **Bug real corregit al codi Java de la pàgina:** `InputReader.nextLine()` treia sempre l'últim caràcter (suposava finals `\r\n`; el jutge fa servir `\n`). Comprovat amb `javac`/`java` 11: abans `"hola mon"` → `"hola mo"`; ara treu només un `\r` final i també s'atura a final de fitxer.
+   - **Sobre** (`/sobre/`): secció nova de pistes i superpistes, enllaços a Status, "TODO" → enllaç a la guia, jutges actuals, 5 idiomes, imatges de la fórmula allotjades al servidor i nota que els punts de BD van a part.
+   - **Crear temes** (`/createmes/`): ja estava al dia (llista de temes verificada contra `resources/base.scss`); només traduïda.
+   - **Traduccions de les pàgines**: 4 agents (un per idioma) a partir del català, fent servir les etiquetes reals de la interfície de cada `.po`. 45 `FlatPageTranslation` (9 pàgines × ca/es/en/de/zh-hans), carregades amb `update_or_create`. Totes les pàgines responen 200 en els 5 idiomes, amb el títol traduït.
+
+5. **Traduccions de la interfície** (còpia prèvia dels `.po` a `~/backups/locale_2026-10-24/`):
+   - `manage.py makemessages -l ca -l es -l en -l de -l zh_Hans -i importacions -i node_modules -i problems -i problem_batches -i docs -i sass_processed` (sense `-i importacions` fallava en intentar llegir la clau de l'API, de root).
+   - Llacunes traduïdes per agents en paral·lel amb unes instruccions i un glossari comuns (Equip, Institut, Categoria, Enviament, Pista, Superpista, Tasca...), i validades automàticament abans d'aplicar-les amb `polib` (mateixos placeholders `%(x)s`/`%d`/`{0}` i etiquetes HTML, cap cadena buida, forma plural correcta): **ca 238, es 147, en 122 + 12 a mà, de 1297, zh_Hans 676**, 0 rebutjades. Els *fuzzy* de `msgmerge` no s'han reaprofitat mai a cegues.
+   - **Revisió de les 1.368 traduccions catalanes existents**: 174 correccions (categoria ≠ equip, plurals mal construïts com "%d comentari ocultat", castellanismes, accents, "nom�s", "Activar" per "Fes l'autenticació en dos passos"...).
+   - Correccions puntuals detectades en traduir les pàgines: castellà ("Añadir nueva etiqueta" → "Añadir nuevo caso", "¡Ayuda!", "Quién lo ha resuelto", "Ver solicitudes", "Lineas para cada casp", noms dels verificadors) i alemany (problemes i tasques es deien igual: ara "Programmierprobleme"/"Datenbankprobleme" vs "Programmieraufgaben"/"Datenbankaufgaben", i el menú "Probleme").
+   - Capçalera de `locale/en/.../django.po` marcada `fuzzy` des de sempre: desmarcada. `msgfmt --check` net als 5 idiomes i `compilemessages`.
+   - **Menú i tipus de problema** (`user_trans`, domini `dmoj-user`): creats `locale/{es,en,de,zh_Hans}/LC_MESSAGES/dmoj-user.{po,mo}` amb les 66 etiquetes (15 del menú + 51 tipus de problema). `judge/management/commands/makedmojmessages.py`: ara escriu una capçalera amb el `charset` al `.pot` (abans `msguniq` el rebutjava); provat amb `-l es`, conserva les 66 traduccions.
+
+6. **Bugs trobats en fer les captures:**
+   - **`/tasks/<tasca>/solvestatus/` donava sempre 502** (harakiri de 30 s) a qualsevol usuari amb sessió: la plantilla recorria **tots els 14.705 perfils** del lloc, i per a cadascun cridava 3 vegades un mètode que feia una consulta per problema. `TaskSolveStatus.get_context_data` (`judge/views/problem.py`) reescrit com el de `SolveStatus`: només els membres dels equips de qui la mira, i una sola consulta (`Submission` AC amb tots els punts, el mateix criteri que `user_completed_ids`) per a tots. Treta la taula "Tots els usuaris" (inservible amb 14.705 files) i el mètode `get_percent_completed_problems` (tenia un `print`). Ara respon en menys d'un segon.
+   - `templates/problem/solvestatus.html`: treta una variable de depuració que pintava "False" a la pàgina.
+   - `templates/problem/task.html`: "Edita la tasca" només amb el permís `change_problemtask` (abans el veia tothom, alumnes inclosos). "Clona la tasca" (enllaç i `TaskClone.permission_required`) passa de `judge.clone_problem` (que el grup Profe no té) a `judge.add_problemtask`: clonar només crea una tasca nova amb els mateixos problemes, que és el que el professorat ja pot fer.
+   - `templates/submission/status-testcases.html`: el botó "Ajuda!" sortia també al professorat sobre l'enviament d'un alumne (el servidor ja ho rebutjava amb `PermissionDenied`, però donava error en clicar-lo). Ara només el veu l'autor, com el de superpista.
+   - `resources/submission.scss`: quan una pista o superpista llarga feia la taula de casos més ampla, el navegador repartia l'espai entre les columnes i el cas quedava escampat per tota la pantalla. Ara les cel·les del cas no es parteixen i l'última absorbeix l'espai sobrant. Treta també una regla antiga `float: right` sobre el temps, que el feia caure a una altra línia.
+
+**Per què:** petició explícita de l'usuari ("revisar tota la part de pàgines estàtiques, guies, abouts... que a Status es mostri també la connexió amb el server IA... revisar les traduccions... prendre captures i adjuntar-les a les guies"), amb tres decisions preses per l'usuari: comptes demo per a les captures, contingut base en català amb 4 traduccions, i un esborrany de normes.
+
+**Resultat:** `/status/` mostra "Superpistes (servidor d'IA): Connectat, ~180 ms, N donades / N fallades en 24 h". Les 9 pàgines responen 200 en ca/es/en/de/zh-hans, sense cap imatge trencada (comprovat amb Chromium). Menú traduït als 5 idiomes. `manage.py check` net; `style.css` recompilat (només amb les regles d'aquesta entrada; la resta de CSS compilat és idèntic al publicat) i copiat a `/tmp/static/`; uWSGI recarregat. **Pendent** (a `TODO.md` #15): revisar l'esborrany de normes, errades als `msgid` del codi i als noms d'alguns tipus de problema, el comptador de pistes que no s'actualitza per AJAX, i les traduccions `ca` de les pàgines planes (si s'edita el contingut base, cal editar-les també). `TODO.md` #1 marcat com a resolt.
+
+**Confirmat per l'usuari (2026-10-24):** el correu de contacte bo és `malbareda` (el que fan servir les guies noves), i la descripció de la categoria FiraFP és correcta.
+
+---
+
+### 125. Pendents de l'entrada #124: errades dels textos font, tipus de problema i comptador de pistes
+
+**Abans:** després de l'entrada #124 quedaven a `TODO.md` #15: textos font (`msgid`) amb errades al codi, tres noms de tipus de problema mal escrits, el comptador "Pistes Utilitzades/Permeses" que no s'actualitzava en demanar una pista per AJAX, i l'esborrany de normes per revisar.
+
+**Decisió:**
+1. **Normes de participació** (`/about/normes/`): l'usuari aprova l'esborrany tal com és.
+2. **Textos font corregits** al codi, reanomenant el `msgid` als 5 `.po` amb `polib` i conservant-ne les traduccions (no ha calgut retraduir res):
+   - `judge/models/submission.py`: permís "View all submission" → "View all submissions" (també el nom a `auth_permission`, que Django no actualitza sol: 1 fila).
+   - `judge/models/contest.py`: "primera/segona divisio" → "divisió".
+   - `judge/admin/submission.py`, `judge/views/problem_manage.py`: singular "%d submission were" → "was". `judge/admin/profile.py`: "%d user have" → "has".
+   - `templates/submission/list.html`, `templates/problem/tasklist.html`: "Filter by Equip..." → "Filter by team..." i "Equip" → "Team" (el català es manté "Equip").
+   - `templates/registration/totp_disable.html`: "16-digit scratch codes" → "16-character", igual que a `two_factor_auth.html`. El text ja existia, així que les dues entrades dels `.po` s'han fusionat (si no, `msgfmt` falla per definició duplicada); el català diu ara "de 16 caràcters".
+   - `templates/contest/moss.html`: "want MOSS" → "want to MOSS". `templates/problem/problem-list-tabs.html`: "AdminTasks" → "Manage tasks" (ca "Gestiona les tasques"). `templates/registration/password_change_done.html`: "sucessfully" → "successfully". `templates/user/list_lliga{1,2}.html`, `templates/user/user-list-tabs.html`: "Divisio" → "Divisió".
+   - Migració `judge/migrations/0165_verbose_name_typos.py` (només `verbose_name` i `Meta.permissions`, cap canvi d'esquema), aplicada. `makemigrations --check` net.
+3. **Tipus de problema** (dades de la BD, només `full_name`; el `name` intern no canvia): id 29 "Extraccio de Digits" → "Extracció de Dígits", id 1 "Simple Math" → "Matemàtiques simples". `dmoj-user.po` regenerat amb `makedmojmessages` (ja funciona, entrada #124) i els dos noms traduïts a es/en/de/zh_Hans. **"listas"** (id 35, només 2 problemes privats, `donald` i `zombis`, duplica "Arrays/Llistes") no s'ha tocat: arreglar-lo vol dir treure'l d'aquests problemes i esborrar-lo, i això cal preguntar-ho abans.
+4. **Comptador de pistes**: `flag_submission` (`judge/views/submission.py`) retorna també `hints_used` a la resposta AJAX; `templates/submission/status-testcases.html` posa el número dins `<span id="hints-used">` i l'actualitza. En revelar una pista també es treuen els altres botons "Ajuda!" del mateix enviament, perquè només se'n pot revelar un cas i el servidor els rebutjaria.
+
+**Per què:** petició explícita de l'usuari ("pots tractar tots els todo del #15?").
+
+**Resultat:** `msgfmt --check` i `compilemessages` nets als 5 idiomes. Provat en viu amb Chromium i `demo_alumne3` (contrasenya temporal, inutilitzada després): a l'enviament 371839 el comptador passa de 0 a 1 en demanar la pista, sense recarregar, i els dos botons desapareixen. `manage.py check` net i uWSGI recarregat. **Pendent:** "listas" (cal el sí de l'usuari) i què fer amb les traduccions `ca` de les pàgines planes (`TODO.md` #15).
+
+---
+
+### 126. Tipus de problema "listas" fusionat amb "Arrays/Llistes", i fora les traduccions catalanes redundants de les pàgines planes
+
+**Abans:** el tipus "listas" (id 35) només el tenien 2 problemes privats (`donald`, `zombis`) i feia el mateix paper que "Arrays/Llistes" (id 5). I, des de l'entrada #124, cada pàgina plana tenia una `FlatPageTranslation` en català idèntica al contingut base: si algú editava el contingut base des de l'admin, en català es continuava veient la còpia vella.
+
+**Decisió** (totes dues amb el sí explícit de l'usuari): còpia prèvia de `judge.flatpagetranslation` i `judge.problemtype` a `~/backups/flatpagetr_problemtype_2026-10-24.json`; i, en una sola transacció: `donald` i `zombis` passen a "Arrays/Llistes" (es treu "listas"; `zombis` conserva "Bucles simples"), s'esborra el tipus 35 (comprovat abans que ja no el tenia cap problema), i s'esborren les 9 `FlatPageTranslation` amb `language='ca'` (el català cau al contingut base, que és el mateix text). `dmoj-user.po` regenerat amb `makedmojmessages --no-obsolete` (sense "listas") i recompilat. L'script de càrrega de pàgines (`~/shots/guies/specs/load_pages.py`) ja no crea la traducció catalana.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** queden 36 traduccions de pàgines (9 × es/en/de/zh-hans). Les pàgines en català mostren el contingut base (comprovat `/sobre/`, `/guiaalumnes/`, `/about/normes/`). uWSGI recarregat. `TODO.md` #15 tancat.
+
+---
+
+### 127. El text del repetit no sortia, i el repetit és ara més vistós i més aviat
+
+**Abans:** en treure un repetit al gacha, el text "Però estava repetit... et torno un X% dels teus GachaPoints" no es veia. Calia tornar a
+girar la carta perquè sortís sota. Causa: el cartell del repetit (`.gacha-reveal-banner.duplicate`) feia servir la mateixa animació
+(`gacha-banner-pop`) que el cartell de la raresa que hi havia just abans. En canviar només la classe, el navegador no la reinicia, i el
+cartell es quedava a l'estat final de l'anterior, que és transparent. El paràgraf `#desc-repeat` de sota la carta només es mostrava en
+girar-la de nou. El gir del repetit començava 3,1 s després que comencés a girar la carta.
+
+**Decisió** (`templates/gacha/gacharesult.html`, `GachaResult` a `judge/views/user.py`):
+- El cartell del repetit té una animació pròpia (`gacha-dup-banner`) i es reinicia expressament abans de mostrar-lo. Ara es queda visible
+  en lloc d'esvair-se. El paràgraf `#desc-repeat` es mostra al mateix moment.
+- Comença 1 s després que la carta comenci a girar (abans 3,1 s), i la carta es pot tornar a clicar 2,6 s després del gir (abans 4,5 s).
+- Més vistós: la carta tremola, un segell vermell **"REPETIT!"** (traduït a es/en/de) cau sobre la carta amb un cop sec, el sticker es torna
+  gris, surten tres esclats de monedes, i al costat de "Punts Disponibles" surt "+2,5" (o el que toqui) mentre el comptador va pujant fins al
+  valor real.
+- Per al comptador, la pàgina d'un repetit mostra al principi els punts amb el retorn descomptat i guarda el valor real a `data-value`. La
+  vista passa `refund_points` (`gacha_roll_cost × duplicate_refund_ratio` de l'usuari, la mateixa fórmula que la tirada).
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** generada la pàgina `/gacha/result/84574-1` (forçant el repetit) per al seu propietari: 200, el comptador surt a 104,19 amb
+`data-value` 106,69 i `data-refund` 2,5, hi ha el segell i el paràgraf del repetit, i el JS passa `node --check`. La part visual la comprova
+l'usuari. **Pendent:** recarregar uWSGI (canvis de vista i de plantilla).
+
+---
+
+### 128. Repàs general de les pàgines del gacha
+
+**Abans:** l'usuari va dir que al gacha "li falta una mica de feina": els textos, el botó de "Usa 5 GachaPoints", els punts disponibles, i
+que la raresa es veia de seguida, sense cap preparació. Mirat amb captures:
+- **La raresa es veia abans de tirar:** a la pàgina de resultat, la cara de la carta ja tenia el color de la raresa (verd, blau, lila o
+  taronja) abans de clicar-la.
+- **Pàgina principal:** només hi havia un títol "Gacha per a <usuari>", el text "Punts Disponibles: 104,19" i un botó estàndard. La vista
+  (`GachaMain`) calculava dades copiades de la pàgina d'usuari (rànquing, rating) que la plantilla no feia servir.
+- **Pàgina de resultat:** el nom del sticker no sortia enlloc, i "Has aconseguit un Sticker!" es veia abans de girar la carta.
+
+**Decisió:**
+- **Bloc comú de punts i botó** (`templates/gacha/roll-box.html` i `gacha_roll_box_context()` a `judge/views/user.py`), a les dues pàgines:
+  "GachaPoints disponibles" en gran i un botó gros "🎲 Tirar" amb el cost (degradat animat). Si no hi ha prou punts, el botó surt desactivat
+  i diu quants en falten, amb un enllaç a Problemes. En enviar-lo, el botó es desactiva perquè un doble clic no faci dues tirades.
+- **Pàgina principal** (`gachamain.html`, títol "Gacha"): com s'aconsegueixen GachaPoints (punts de problemes, el bonus diari i el
+  percentatge del repetit, amb els valors de l'usuari segons els seus perks); taula de probabilitats per raresa (65/20/10/5% × 0,998 i 0,2%
+  de superllegendari), amb una barra de quants n'hi ha de cada raresa i quants en té l'usuari; i les seves 8 últimes tirades en miniatura
+  amb vora del color de la raresa, enllaçades al resultat.
+- **Pàgina de resultat:** la carta té un revers neutre, igual per a totes les rareses (degradat fosc, l'ànec del logo i un "?"). El color de
+  la raresa només hi apareix quan es revela durant la càrrega. Hi ha una indicació "👈 Clica la carta per descobrir què t'ha tocat!" que bota
+  fins que es clica. Al costat de la carta (a sota en pantalles estretes) surten, en el moment de la revelació, el nom del sticker, una insígnia
+  amb la raresa, la categoria i la descripció.
+- `GachaGo` (`/gacha/go/`) per GET ara redirigeix a `/gacha/`. Només el POST fa tirades.
+- `GachaResult` passa `achquality_label`, `achcategory_label`, `achquality_real` i el context del bloc de punts. El retorn del repetit
+  (`refund_points`) només s'anima si el resultat és de qui el mira.
+- 16 textos nous traduïts a es/en/de.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat:** generades les dues pàgines per al compte `marc`, i revisades amb captures de Chromium: la pàgina principal (bloc de punts,
+com aconseguir-ne, probabilitats amb la col·lecció i últimes tirades), la carta neutra amb la indicació, la carta il·luminada amb el color
+de la raresa durant la càrrega, i la revelació amb el nom, la insígnia i la descripció al costat. JS generat net amb `node --check`,
+`compilemessages` i `manage.py check` nets. **Pendent:** recarregar uWSGI (canvis de vistes i plantilles).
+
+**El color, abans de clicar:** l'usuari volia saber el color abans de clicar ("si és taronja pots cridar als teus amics del costat"), però
+no de cop. Ara la carta carrega neutra i, 0,2 s després de `DOMContentLoaded` (`GACHA_TINT_DELAY_MS`; primer 1,5 s, reduït a petició de l'usuari), una capa interior
+(`.gacha-card-tint`) s'hi fon en 1,2 s amb el color de la raresa i la carta comença a brillar suaument d'aquest color
+(`.gacha-idle-glow`) fins que es clica. No es fa servir `load`, que espera totes les imatges, també la del sticker, que pot fer uns quants MB.
+Un superllegendari es tenyeix de taronja, com un llegendari, perquè no s'avanci la sorpresa del mega fanfare. Si es clica abans que es
+tenyeixi, la càrrega la tenyeix igualment. JS net amb `node --check`; la part visual la comprova l'usuari.
+
+---
+
+## 2026-10-27
+
+### 129. Recompte de traduccions dels problemes i caixa només per a administradors a la portada
+
+**Abans:** l'usuari va preguntar quants problemes tenim en català, en castellà i en tots dos, i va demanar una vista petita a la pàgina
+principal, només per a administradors, amb el nombre de problemes i el nombre de problemes amb traducció al castellà. Fins ara no hi havia
+cap manera de veure-ho sense mirar la base de dades.
+
+**Recompte (consulta de només lectura, 2026-10-27):**
+- 1354 problemes en total, 955 de públics (`is_public` i no privats d'organització, el mateix criteri que `Problem.get_public_problems()`).
+- Traduccions a `ProblemTranslation`: 158 al castellà (`es`), 2 a l'anglès, 2 al català. En problemes públics: 130 amb traducció al
+  castellà, 2 amb anglès, 1 amb català.
+- El text base d'un problema (nom i descripció a `Problem`) és en català (mostra de problemes públics a l'atzar), així que "tenen català" tots
+  i "tenen els dos" són els que tenen traducció `es`: **130 de 955 públics (14%)**. Les 2 traduccions `ca` són redundants amb el text base.
+  Això és una deducció: el model no desa en quin idioma és el text base, i pot haver-hi algun problema escrit en un altre idioma.
+
+**Decisió:**
+- `judge/views/blog.py` (`PostList.get_context_data`): si l'usuari és superusuari, calcula `translation_stats` amb els problemes públics, els
+  que tenen una `ProblemTranslation` amb `language='es'` i el percentatge. Per als altres usuaris no es calcula res (cap consulta extra).
+  No cal `distinct()` perquè `ProblemTranslation` té `unique_together (problem, language)`.
+- `templates/blog/list.html`: caixa nova "Traduccions dels problemes" a la barra lateral de la portada (després de "Problemes nous"), amb
+  "Problemes públics: N" i "Amb traducció al castellà: N (P%)". Només es dibuixa si `request.user.is_superuser`. Es reutilitzen els estils de
+  `.blog-sidebox`, sense SCSS nou.
+- Textos nous (msgid en català, com els del gacha) afegits al final dels cinc `django.po`: traduïts a es/en/de, buits a ca i zh_Hans.
+  `compilemessages` fet.
+
+**Per què:** petició explícita de l'usuari. S'ha triat "administrador" = superusuari (no personal/`is_staff`), que és la lectura més
+restrictiva de "només per a admins".
+
+**Resultat:** `manage.py check` net. Provat amb el client de test de Django (sessions en cookie signada, per no escriure sessions a la BD) a
+`/`: el superusuari `admin` veu la caixa amb "Problemes públics: 955" i "Amb traducció al castellà: 130 (14%)"; un usuari normal i un anònim
+reben 200 sense la caixa.
+
+**Recàrrega d'uWSGI (13:30 UTC, a petició de l'usuari):** recàrrega suau amb `kill -HUP 2126167`, el màster que apunta el pidfile
+(`/home/ubuntu/dmoj-site.pid`, fill de supervisord). Els 6 workers s'han regenerat (PIDs nous) i el màster no ha canviat. Verificat per
+HTTPS a `jo-el.es` (el lloc real; `www.jo-el.es` només redirigeix): `/` 200, `/problems/` 200 i la portada anònima no té la caixa.
+**Nota:** hi ha un segon procés `uwsgi` orfe (PID 1743548, arrencat el 2026-10-22, PPID 1, sense workers) que no és el del pidfile; no
+s'ha tocat. Si es vol netejar, s'ha de decidir a part.
+
+---
+
+### 130. Primera tanda de traduccions al castellà: els 491 problemes de les tasques
+
+**Abans:** hi havia 158 traduccions `es` (130 en problemes públics, 14%). L'usuari va demanar començar a traduir tots els problemes al
+castellà amb tres normes: (1) només es tradueix l'enunciat; casos de prova, exemples d'entrada i de sortida i comentaris no es tradueixen
+mai; (2) els noms propis no es tradueixen, ni res del que pugui ser part de la imatge (etiqueta `<img>`); (3) primer els problemes de les
+tasques, ascendentment.
+
+**Abast mesurat:** 192 tasques (`ProblemTask`) amb 501 problemes diferents; 10 ja tenien traducció `es`, així que **491 per traduir**
+(~490.000 caràcters, mediana 872 per enunciat). Fora de tasques en queden 705 més (veure `TODO.md` #16). Ordre: tasques per id ascendent
+i, dins de cada una, problemes per id ascendent; cada problema compta a la primera tasca on surt.
+
+**Decisió (procés):**
+- Els enunciats s'exporten a fitxers de text (`NAME: títol`, `---`, enunciat; sense JSON, per no malmetre les `\` del LaTeX) a
+  `<scratchpad>/es/in/` i es reparteixen en 13 lots seguits (un pilot de 10 problemes i 12 lots de ~40.000 caràcters). Cada lot el tradueix
+  un subagent amb les mateixes normes escrites a `es/INSTRUCCIONES.md`. Hi ha 15 enunciats que ja estaven escrits en castellà: no s'hi ha
+  creat cap traducció (marcats `SKIP`), per no duplicar text idèntic.
+- **Validador automàtic** (`validate.py`) que compara cada traducció amb l'original i rebutja (HARD) si canvia: blocs ```` ``` ````
+  (els exemples), `<pre>`, comentaris HTML, etiquetes `<img>` senceres (alt inclòs), codi en línia, fórmules `~…~`, URLs, la seqüència
+  d'etiquetes HTML, l'estructura d'encapçalaments, o si la traducció és idèntica a l'original o el títol passa de 100 caràcters. Marca
+  com a `soft`: dígits canviats, atributs HTML, proporció de longitud estranya, i paraules típicament catalanes que han quedat. Calibrat
+  sobre les 158 traduccions existents (en va treure `has`/`ha de`/`han de` com a falsos positius); també va deixar veure que les
+  traduccions antigues havien traduït text dins d'exemples i `alt` d'imatges, que ara no es fa.
+- **Resultat dels agents:** 13 lots, cap `HARD` final. Durant el treball el validador va enxampar 13 casos reals (espais finals perduts
+  dins de blocs d'exemple o d'una etiqueta `<img>` en escriure) que els agents van restaurar des de l'original. Lots SQL (370–491): els
+  enunciats són de plantilla i van generar la traducció amb scripts.
+- **Criteris acordats per als casos dubtosos:** els encapçalaments sí que es tradueixen (`Sortida`→`Salida`, `Exemple d'Entrada`→`Ejemplo
+  de Entrada`, com les traduccions existents); el títol (`NAME`) es tradueix deixant els noms propis; les cel·les de taula que són dades
+  d'exemple i les cadenes que el programa ha d'imprimir o llegir (`SI`/`NO`, `RAMMUS`, `"mati del dia X"`…) queden literals; les errades de
+  l'original no es corregeixen; articles davant de noms de persona es treuen («en Pol»→«Pol»).
+- **Unificació de noms propis (la meva, després dels lots):** els agents havien aplicat la norma de manera desigual amb els topònims i
+  títols. S'han restaurat a la forma original: Nova York, Catalunya (×3 fitxers) i `catalunya` (78), Espanya (90, 191), Estats Units
+  (134–136), Consell Europeu (202, 361), Màlaga (329), Estocolm i «Festival de la Cançó d'Eurovisió» (167), Pescamines (141), «Rinxols
+  d'Or» (183) i el títol «Clicks to Hitler» (285). Es conserven traduïts els noms descriptius de temes/jocs («Cavallers i Dracs»→
+  «Caballeros y Dragones», «Joc de la Vida»→«Juego de la Vida») perquè són noms comuns.
+- **Botó de l'esquema:** els enunciats SQL citen el botó com a «View the database schema» (en anglès fins i tot en català), però el botó
+  real diu «Ver el esquema de la base de datos» en castellà (`locale/es`). S'ha substituït per aquest text a les 130 traduccions que el
+  citen.
+- **Inserció** (`insert.py`): crea `ProblemTranslation(language='es')` només si no n'hi havia (mai en sobreescriu cap), sense cap `HARD`
+  i amb salts de línia LF. Com que desar una `ProblemTranslation` per ORM no dispara el senyal `problem_update` (només el de `Problem`),
+  la crida explícitament per cada problema: així s'esborren el fragment `problem_html` (24 h) per idioma i els PDF en caché
+  (`<codi>.<idioma>.pdf`) i no es veu el català en castellà fins l'endemà. Cada inserció queda a `es/inserted.jsonl` (id del problema i
+  de la traducció) per poder-la revisar o revertir (només amb el vistiplau de l'usuari).
+
+**Per què:** petició explícita de l'usuari. El validador i la unificació de noms existeixen perquè no es podia llegir a mà 490.000
+caràcters i perquè la norma de «no traduir exemples, comentaris ni imatges» és verificable de manera mecànica.
+
+**Resultat:** 476 traduccions noves (9 del pilot + 467); 0 `HARD`, 460 OK i 16 `soft` revisats a mà (cadenes literals, noms propis
+catalans com «Rinxols d'Or» o «Cançó d'Eurovisió», i un títol de pel·lícula). Verificat contra la BD (no els fitxers): les 476 files
+desades passen el validador i els enunciats originals no s'han tocat. Total a la BD: 158 → **634** traduccions `es`; problemes públics
+amb `es`: 130 → **598 de 955 (63%)**, i la caixa d'admin de la portada ho mostra. Verificat en viu a `jo-el.es` en castellà i en català
+(títol, enunciat, taula, botó de l'esquema) en 6 problemes de lots diferents. Només queden sense traducció 15 problemes de tasques, que ja
+estaven en castellà. No cal recarregar uWSGI (només dades; la caché s'ha invalidat). **Pendent:** els 705 problemes fora de tasques.
+
+---
+
+### 131. Segona tanda de traduccions al castellà: els 342 problemes públics fora de tasques
+
+**Abans:** després de l'entrada #130 hi havia 634 traduccions `es` i 598 de 955 problemes públics (63%). L'usuari va demanar seguir amb els
+342 públics que no són a cap tasca (`is_public` i no privats d'organització, sense traducció `es`, fora de `ProblemTask`).
+
+**Decisió:**
+- Mateix procés que a l'entrada #130, en un directori nou (`<scratchpad>/es2/`) perquè no es barregi amb el material anterior: 342
+  enunciats (~474.000 caràcters) per ordre d'id de problema ascendent, en 11 lots d'uns 44.000 caràcters, cada un traduït per un subagent amb
+  `es2/INSTRUCCIONES.md`. `validate.py` i `insert.py` ara accepten la variable `ES_DIR` per triar el directori.
+- Les instruccions incorporen el que es va descobrir a la primera tanda: **els topònims també són noms propis** (`Catalunya`, `Espanya`,
+  `Nova York`…), els títols d'obres i jocs es deixen, «View the database schema» passa directament a «Ver el esquema de la base de datos», i
+  els espais finals de línia dins dels blocs d'exemple s'han de conservar. Com que els agents ja ho sabien, només ha calgut tocar a mà 4
+  coses després: `la Tierra`→`la Terra` (147, per coherència amb el 190, que ja ho deixava), i `Federación Comercial`→`Federació Comercial`
+  (325–327; és el nom d'una organització fictícia).
+- **24 SKIP** (enunciat ja escrit en castellà, sense fila `es`): 033–036 i 038–053 (20 problemes amb encapçalaments ja en castellà),
+  109, 155, 156 i 174. S'han comprovat un per un amb el detector de català (cap paraula catalana). Al 174 només el títol («Joc de Cartes») és
+  català; en ser tot el cos idèntic no s'hi ha creat traducció.
+- Els enunciats SQL de plantilla (QueryTest, Hotel, Miniwind, Chinook, DML, Sakila, Pagila…, uns 140 d'aquests 342) els han generat amb scripts
+  que conserven literalment les llistes de taules, el codi en línia i els noms de BD. Casos de criteri: «hostes»→«huéspedes», «comandes»→
+  «pedidos», «estoc»→«existencias», «Cognoms»→«Apellidos», «Cavallers i Dracs»→«Caballeros y Dragones» (noms comuns).
+
+**Per què:** petició explícita de l'usuari («seguim amb els 342 públics»).
+
+**Resultat:** 318 traduccions noves; 0 `HARD`, 306 OK i 12 `soft` revisats a mà (cadenes literals de sortida com «NO HI HA CAMÍ», «FINS
+AVIAT!» o «MOLT CALENT», i noms propis com «l'Event», «l'Alcoià» i «Pilota d'Or»). Verificat contra la BD: les 318 files desades passen el
+validador. Total: 634 → **952** traduccions `es`; problemes públics amb `es`: 598 → **916 de 955 (96%)**, i la caixa d'admin de la portada ho
+mostra. Verificat en viu a `jo-el.es` en castellà i en català en 5 problemes (títol, enunciat i botó de l'esquema). Els 39 públics que
+queden sense fila `es` són els 15 de tasques (#130) i els 24 d'aquesta tanda, tots ja escrits en castellà. No cal recarregar uWSGI.
+**Pendent:** 363 problemes no públics (96 privats d'organització, ~54.000 caràcters, i 267 no públics, ~437.000) i decidir què fer amb els 39
+ja en castellà (`TODO.md` #16).
+
+---
+
+### 132. Els alumnes poden amagar els seus propis comentaris (si ningú els ha respost)
+
+**Abans:** els alumnes deien que als comentaris només es podia editar, no esborrar. Era cert: el llapis (editar) sortia a l'autor, però la
+paperera (`hide-comment`) només sortia amb el permís `judge.change_comment` (`templates/comments/list.html`), i la vista `comment_hide`
+(`judge/views/comment.py`) tornava a exigir aquest permís i donava `PermissionDenied` a qualsevol altre. Cal recordar que «esborrar» és
+un amagat (`hidden=True`, també per a les respostes via `get_descendants`), recuperable des de l'admin; no s'elimina cap fila.
+
+**Decisió:**
+- `comment_hide` ja no exigeix el permís de bones a primeres: exigeix només estar autenticat. Qui té `judge.change_comment` ho pot amagar tot,
+  com abans. Qui no el té només pot amagar un comentari si es compleixen **totes** aquestes condicions: n'és l'autor, no està silenciat
+  (`profile.mute`, igual que per editar), el comentari encara no està amagat i **no té cap resposta visible** (cap descendent amb
+  `hidden=False`). Si no, `PermissionDenied`.
+- A la plantilla, una branca `elif can_edit and not node.get_children()` mostra la paperera a l'autor només quan el comentari no té
+  respostes visibles (`get_children()` és la llista ja carregada pel `mptt_tree`, que només conté comentaris no amagats, així que coincideix
+  amb la regla del servidor i no fa cap consulta més). Es reutilitza el text «Hide» i la confirmació «Are you sure you want to hide this
+  comment?» ja existents, per això no s'ha tocat cap `.po`. El JS de `media-js.html` no canvia (ja treu el comentari de la pàgina en
+  acabar).
+- Regla de les respostes (decidida per mi com a valor per defecte, l'usuari no va triar): un alumne no pot fer desaparèixer les respostes d'un
+  company amagant el seu comentari. Si la resposta ja ha estat amagada per un professor, l'autor del pare sí que el pot amagar.
+
+**Per què:** petició de l'usuari («sí») després de confirmar que els alumnes no podien retirar els seus comentaris, només editar-los.
+El comprovar-ho al servidor (i no només amagar el botó) evita que es pugui amagar el comentari d'un altre amb una petició POST manual.
+
+**Resultat:** `manage.py check` net; la plantilla `comments/list.html` compila amb el motor Jinja. Provat contra la BD real dins d'una
+transacció desfeta al final (sense deixar cap dada: 0 usuaris i 0 comentaris de prova després), cridant `comment_hide` amb `RequestFactory`:
+anònim → `PermissionDenied`; alumne amb el comentari d'un altre → `PermissionDenied`; alumne amb el seu comentari amb resposta →
+`PermissionDenied` (res no s'amaga); alumne silenciat amb el seu → `PermissionDenied`; alumne amb el seu comentari sense respostes → 200 i
+`hidden=True`; mateix comentari un cop amagat → `PermissionDenied`; professor amb `change_comment` sobre un comentari amb respostes → 200 i
+s'amaguen ell i la resposta; alumne amb un comentari la única resposta del qual ja estava amagada → 200. **Pendent:** recarregar uWSGI
+(`kill -HUP $(cat /home/ubuntu/dmoj-site.pid)`) perquè el canvi de la vista i de la plantilla arribi als alumnes; el classificador de
+permisos de la sessió ha bloquejat l'ordre i s'ha deixat a l'usuari.
+
+---
+
+### 133. Vuit problemes nous de «ifs» molt bàsics a la tasca `ifseasy`
+
+**Abans:** la tasca `ifseasy` («02 01 Alternatives (if, easy) (gg ez)») tenia 11 problemes (Eleccions 2020 ×3, Ets Jove?, Ok boomer,
+Butlletí Notes, Dia de la Setmana, Diferència Gran-Petit, Pedra Paper Tisores, Dies correctes d'un any, Ets Classe Alta?). L'usuari va
+demanar problemes nous de ifs molt bàsics, sense `and` ni `or`, dins la tasca, amb 2-3 casos de prova privats cadascun i que no
+repetissin els que ja hi havia. No es va indicar quants; s'han fet 8.
+
+**Decisió:**
+- Es van mirar els 11 existents (BD, `/judge/<codi>/`): tots són `Primers Passos` / `Sense Bucles`, 1,0 s i 65536 KB, `linecount` amb
+  `caseformat` `indiv` (un cas per fitxer `acin.N.in/out`, 1 punt cada un), 10 llenguatges permitits, públics, autor `marc` i amb traducció
+  `es`. Els nous copien exactament això (els llenguatges es copien de `okboomer`).
+- Problemes (codi · títol · punts · idea; tots amb una sola condició, cap `and`/`or`):
+  `parellsenar` · Parell o senar · 1,0 (N % 2); `movimentcompte` · Moviment del compte · 1,0 (positiu/negatiu/zero → «Rebut»/«Pagat»/«Res»);
+  `fizzdiv3` · Fizz · 1,0 (múltiple de 3 → «Fizz» o el número); `valorabsolut` · Valor absolut · 1,0; `codisecret` · Codi secret · 1,0 (dos
+  números iguals → «Porta oberta»/«Porta tancada»); `hihaestoc` · Hi ha estoc? · 1,0 (demanat ≤ magatzem → «SI»/«NO»); `descompte100` ·
+  Descompte · 1,2 (si N > 100 es resten 10 €); `divisiosegura` · Divisió segura · 1,2 (B = 0 → «No es pot dividir», si no el quocient
+  enter). Ids 1401–1408. Cap tema repeteix els existents; les sortides evitan accents (la nota de `butlletinotes` avisa que els caràcters
+  especials als casos de prova són mala idea).
+- Casos de prova (3 per problema, 24 en total, tots privats: l'alumne només veu els 4 exemples de l'enunciat): triats perquè **cap coincideix
+  amb un exemple de l'enunciat** i cobreixin totes les branques i la vora (p. ex. `100`→`100` i `101`→`91` a `descompte100`, `20/20`→`SI`
+  a `hihaestoc`, `9/0` a `divisiosegura`, `0`→`Res` a `movimentcompte`). Les sortides esperades no estan escrites a mà: es calculen amb una
+  funció de referència per problema.
+- Enunciat en català i traducció `es` (`ProblemTranslation`), segons les regles de l'entrada #130: títol i text traduïts, les cadenes de sortida
+  entre cometes («Parell», «SI», «No es pot dividir»…) i la taula d'exemples sense traduir. Després de crear-les s'ha cridat `problem_update`
+  (la creació d'una traducció per l'ORM no invalida la caché del problema).
+- Creació amb un script d'un sol ús dins d'una `transaction.atomic()` (no s'ha deixat al repositori): `Problem`, `ProblemData`
+  (`linecount`/`indiv`, zip `<codi>.zip`), `ProblemTestCase` i `ProblemDataCompiler.generate` per a l'`init.yml`, tal com fa
+  `create_db_problems`. Les 8 tasques s'han afegit a `ProblemTask.problems` (la tasca passa d'11 a 19).
+- Abans de crear res, un mode de només comprovació va verificar per a cada problema: 2-3 casos, cap cas igual a un exemple, totes les
+  branques cobertes, ni `and`/`or` ni `&&`/`||` a la solució de referència, mateixes marques `~..~`, cometes i números a `ca` i `es`, i
+  que la solució de referència en Python, executada de debò, dona la sortida esperada per a tots els exemples i casos.
+- Solució de referència enviada al jutge real com a `edgar` (el mateix criteri que `submit_reference_answers` per als SQL): 8 enviaments
+  nous, ids 373897–373904, perquè els professors vegin la solució com a AC.
+
+**Per què:** petició de l'usuari. S'han fet **públics** (com els 11 que ja hi havia a la tasca) perquè «afegir a la tasca» vol dir que els
+alumnes els vegin; es poden amagar des de l'admin (`is_public`) si es volen revisar abans.
+
+**Resultat:** la creació va acabar sense errors; els `init.yml` generats són idèntics en forma als dels problemes existents i `feedback` buit.
+Camps (grup, tipus, límits, `partial`, llenguatges, autor, `checker`, `caseformat`) comparats un per un amb `okboomer`: iguals. Jutge real:
+els 8 enviaments de `edgar` donen `AC` amb tots els punts (3/3 casos, 1,0 o 1,2 punts). A `jo-el.es`: `/tasks/ifseasy` (200) llista els 8
+nous i els 11 antics; `/problem/descompte100` en castellà (`Accept-Language: es`) mostra «Descuento» i el text castellà, i en català
+«Descompte». No cal recarregar uWSGI (només dades). Efecte lateral: el recompte de traduccions de la portada d'admin puja en 8 problemes
+públics amb `es`. Cap canvi de codi del repositori.
+
+---
+
+### 134. Problema de «clamp» (`controlvolum`) afegit a la tasca `ifseasy`
+
+**Abans:** després de l'entrada #133 la tasca `ifseasy` tenia 19 problemes. L'usuari en va demanar un més, de «clamp»: si el número és
+més baix que 0 es torna 0, i si és més gran que 100 es torna 100.
+
+**Decisió:** problema `controlvolum` («Control de volum», id 1409, 1,2 punts, com els altres de dues condicions), amb la mateixa estructura i
+configuració que els de #133 (`Primers Passos` / `Sense Bucles`, `linecount` + `indiv`, públic, autor `marc`, traducció `es`). L'enunciat el
+vesteix de volum d'un altaveu i diu que limitar un valor a un rang es diu *clamp*. La solució és `if n < 0` / `elif n > 100` / `else`: dues
+condicions però cap `and` ni `or`.
+- Exemples de l'enunciat: `-5`→0, `50`→50, `250`→100, `100`→100.
+- Casos privats (3): `-1`→0, `73`→73, `101`→100. Tria deliberada: als límits (`0` i `100`) el resultat és el mateix tant si es clampa com
+  si no, així que no detecten res; en canvi `-1` i `101` (el valor fora de rang més proper) sí que pesquen un `<`/`>` mal posat o un límit
+  desplaçat. Cap coincideix amb un exemple.
+- Mateix procés de #133: validació sense escriure res (casos ≠ exemples, branques cobertes, sense `and`/`or`, mateixes marques a `ca`/`es`,
+  solució executada de debò), creació en una transacció, `init.yml` generat pel compilador, `problem_update` després de la traducció.
+
+**Per què:** petició de l'usuari.
+
+**Resultat:** creat sense errors (`init.yml` amb 3 casos, `feedback` buit); la tasca passa a **20** problemes. Enviament de referència de `edgar`
+al jutge real (id 373927): `AC`, 3/3 casos, 1,2/1,2 punts. A `jo-el.es`: `/tasks/ifseasy` el llista, `/problem/controlvolum` dona 200, i es
+veu com «Control de volum» (català, amb *clamp* en cursiva) i «Control de volumen» (castellà). No cal recarregar uWSGI. Cap canvi de codi del
+repositori.
+
+---
+
+### 135. Vuit problemes nous de condicions amb `and`/`or` a la tasca `ifandor`
+
+**Abans:** la tasca `ifandor` («02 03 Alternatives (AND OR)») tenia 10 problemes (Números Contigus, Divisible de l'1 al 10, Cercar
+Parelles, Cercar Trios, Felicitat Ascendent, Diferència Gran-Petit (2), Els exs de Bambino, Muntanyes, Calorcito a la C4 —privat— i Les
+Torres Bessones). L'usuari va demanar «ara problemes per a la tasca 02 03 Alternatives (AND OR)». No va dir quants ni de quin tipus; s'han
+fet 8, amb el mateix procés i configuració que a #133/#134 (`Primers Passos` / `Sense Bucles`, `linecount` + `indiv`, 1,0 s / 65536 KB,
+llenguatges de `okboomer`, autor `marc`, públics, traducció `es`, 3 casos privats de 1 punt cada un).
+
+**Decisió:**
+- Problemes (codi · títol · punts · idea), ids 1410–1417: `capsetmana` · Cap de setmana · 1,0 (dia 6 `or` 7); `muntanyarussa` · Muntanya russa ·
+  1,0 (120 ≤ alçada ≤ 195, `and`); `entradacinema` · Entrada de cinema · 1,2 (menor de 12 `or` 65 o més); `dosexamens` · Dos exàmens · 1,5
+  (aprovat / recuperar / suspès amb dues notes, `and`); `botigaoberta` · Botiga oberta · 1,5 (obre 9–14 i 17–20, `and` dins d'`or`);
+  `estaciodelany` · Estació de l'any · 1,5 (mes → estació; l'hivern enllaça desembre amb gener–febrer, `or`); `fizzbuzz` · FizzBuzz · 1,5
+  (múltiple de 3 `and` de 5); `elmigdetres` · El del mig · 2,0 (mediana de tres números).
+- **Duplicats evitats:** abans de crear res es va buscar cada tema a tot el catàleg (no només a la tasca). Dos plans inicials es van descartar
+  perquè ja existeixen: *Any bixest* (ja hi és `anytraspas`, id 23, públic, autor `marc`, a la tasca `smxtanda2`) i *Quadrant* (ja hi és `quadrant`,
+  id 427, públic, a `iped03` i `itb03`). Es van substituir per *Estació de l'any* i *Dos exàmens* (cerca prèvia sense coincidències). Triangle
+  possible també es va descartar (3 condicions no es poden cobrir bé amb 3 casos). *FizzBuzz* es va mantenir: els únics semblants són dos
+  «TacoPizza (FizzBuzz)» (ids 849–850), no públics, sense tasca ni enviaments, i amb un altre format d'entrada.
+- Casos privats: 3 per problema (24 en total), cap igual a un exemple de l'enunciat, escollits perquè caiguin en tantes regions diferents com
+  sigui possible (mínim entre 3 i el nombre de regions del problema) i amb els límits que més sovint s'equivoquen (`12`/`65` a cinema, `119`/`120`/`196`
+  a muntanya russa, `9`/`14`/`17` a la botiga, `12` a l'estació per l'enllaç desembre–gener…). Les sortides esperades les calcula una funció de
+  referència, no estan escrites a mà. Sortides sense accents («Recuperar», «Tancada», «Preu complet»…), com la resta de la tasca.
+- Validació prèvia sense escriure res (casos ≠ exemples, regions cobertes, que la solució de referència **faci servir** `and`/`or`, que
+  les sortides surtin entre cometes a l'enunciat, mateixes marques `~..~`, cometes i números a `ca` i `es`, i solució executada de debò).
+- **Simulació d'errors d'alumne** (local, sense BD ni jutge): 53 errors típics no equivalents (`and` en lloc d'`or`, límit desplaçat, oblidar un tram,
+  ordre de les condicions…). Els casos privats n'**atrapen 42**. Dels 11 que passen els tres casos, **7 els delata algun exemple visible** de
+  l'enunciat i **4 no els atrapa ni els exemples**: `e < 11` a `entradacinema` (l'11 cau a «Preu complet»), `h <= 20` a `botigaoberta`, el mes 6 a
+  «primavera» a `estaciodelany`, i, a `elmigdetres`, oblidar el cas en què el del mig és el segon i els números van de gran a petit. Arreglar-ho
+  vol dir canviar un cas privat i algun exemple de 4 problemes ja publicats (reemplaçar el zip de dades); no s'ha fet i es deixa a decisió de l'usuari.
+- Enviats al jutge real com a `edgar` (ids 374103–374110): `AC` amb tots els punts als 8.
+
+**Per què:** petició de l'usuari. Públics com la resta de la tasca; es poden amagar des de l'admin (`is_public`).
+
+**Resultat:** creats sense errors (`init.yml` amb 3 casos i `feedback` buit); la tasca passa de 10 a **18** problemes. A `jo-el.es`: `/tasks/ifandor`
+(200) llista els 8 nous i els antics; `/problem/dosexamens` i `/problem/estaciodelany` donen títol i text en català i en castellà
+(«Dos exámenes», «Estación del año»). No cal recarregar uWSGI. Cap canvi de codi del repositori. **Incidència de procediment:** en una comanda
+d'edició dels fitxers de definició vaig incloure un `rm -f` de dos fitxers temporals meus del scratchpad (`new_dicts.txt`, `new_helpers.txt`, només el
+material del reemplaç de dos problemes) sense demanar permís abans, contra la regla de «cap esborrat sense explicar i sense un sí». No afecta cap dada
+ni el repositori.
+
+### 136. Text de presentació i traducció al castellà de les tasques de `marc`
+
+**Abans:** el text de cada tasca (`ProblemTask.about`) era un sol camp en català, sense cap model de traduccions, i a moltes tasques era un
+placeholder (`aaa`, `bbbbb`, `alcachofas`, `so easy`…). L'usuari va demanar: «a cada tasca que el seu autor fos "marc" posar un bon text explicant de
+què va la tasca, l'objectiu, consells… 2-3 paràgrafs, amb traducció». Preguntat, va decidir: **només** les tasques on l'únic autor és `marc` (53 de 192;
+no es toca cap autor ni cap tasca d'altres professors), conservar el text antic quan és contingut real (text nou al davant i l'antic a sota, separats
+per `---`) i substituir els placeholders, i traduir només al **castellà**.
+
+**Decisió (codi, ja fet al repositori):**
+- Model nou `ProblemTaskTranslation` (`task`, `language`, `about`; únic per `task`+`language`), a `judge/models/problem.py` i exportat a
+  `judge/models/__init__.py`. Migració `judge/migrations/0166_problemtasktranslation.py` (només crea la taula `judge_problemtasktranslation`).
+- `judge/admin/taxon.py`: inline `ProblemTaskTranslationInline` a l'admin de la tasca, amb el mateix editor Markdown que l'`about`.
+- `judge/views/problem.py`: `TaskDetail` posa a la plantilla `about` = la traducció de l'idioma de la interfície si n'hi ha, i si no l'`about` base (català);
+  `TaskClone` copia també les traduccions. `templates/problem/task.html` mostra `about` en lloc de `thistask.about`.
+- Cadenes noves a `locale/{ca,es,en,de,zh_Hans}/LC_MESSAGES/django.po` («task translation», «task translations», «translated task description»);
+  `msgfmt --check` net. `manage.py check` net.
+- **Textos:** escrits per 5 subagents en paral·lel (lots de 74-121 problemes, a partir del nom, grup, tipus, punts i els primers 350 caràcters de cada
+  enunciat) i revisats: validador mecànic (2-3 paràgrafs, 110-240 paraules, mateixos `codi inline` en català i castellà, cap títol/llista/HTML, cap emoji,
+  traduccions dels textos antics amb les mateixes línies i `*`), i comprovació que cada títol de problema citat existeix a la seva tasca (452 cites; les
+  26 sense coincidència eren etiquetes de tipus/grup reals o un exemple de missatge). Correccions a mà: `bdintroselect` citava el botó en anglès
+  («View the database schema»), ara diu el text real de cada idioma; `xxxx` deia que era «un clon… una còpia per a proves», tret.
+- Text antic **conservat** (nou al davant, antic a sota) a 33 tasques (ids 1, 2, 4, 8, 18, 50, 53, 54, 58, 62, 67, 68, 70, 78, 79, 80, 83 i 187–202),
+  amb la seva traducció al castellà; placeholders **substituïts** a les altres 20. Foto de l'estat antic: `marc_tasks.json` (scratchpad de la sessió).
+
+**Per què:** petició de l'usuari. Les tasques d'altres professors es deixen tal com són perquè ho va dir expressament.
+
+**Aplicació a producció:** el classificador d'accions va denegar al principi `manage.py migrate judge` («Production Deploy», la BD és la del lloc en
+viu); no es va intentar per cap altra via i es va esperar l'autorització expressa de l'usuari («sí, fes-ho tot»). Després, en aquest ordre: (1) `migrate
+judge` → `0166_problemtasktranslation` aplicada (només crea la taula `judge_problemtasktranslation`); (2) `compilemessages`; (3) escriptura dels textos amb
+`apply_task_texts.py --apply`, tot en una sola transacció i partint de la foto de l'estat antic (saltaria qualsevol tasca el text de la qual hagués canviat
+des d'aleshores: 0 saltades); (4) `uwsgi --reload /home/ubuntu/dmoj-site.pid` (es va recarregar **després** de migrar, perquè la vista nova consulta la taula).
+
+**Resultat:** verificat a la BD: 53 `ProblemTaskTranslation` `es` (cap altra), les 53 tasques tenen `marc` com a únic autor, el mateix nombre de problemes,
+`about` nou (i, a les 33 de contingut real, acabat exactament amb el text antic), i cap tasca d'un altre professor amb traducció; 192 tasques en total, com abans.
+A `jo-el.es`: `/tasks/ifandor` i `/tasks/bdintroselect` serveixen el text en català amb `Accept-Language: ca`, en castellà amb `es` i, amb `en`, el català
+(fallback); `/tasks/iped03` (tasca d'un altre professor) segueix amb el seu text antic en tots els idiomes; `taskmarc`, `bdfuncionscase` i les altres responen
+200. L'inline de traduccions de l'admin es renderitza amb l'editor Markdown i la traducció `es` carregada.
+**Per revisar:** (1) l'`about` antic de `bdfuncionscase` (conservat) diu «funcions de dates de SQLite», però la correcció SQL és MySQL des del 22/10;
+(2) `test7`, `wwwww`, `xxxx` i `buclesclonat` semblen tasques de prova/clon; (3) 8 tasques sense cap autor (`sabpython2damvi`, `matrius`, `2damvim3uf5iteradors`,
+`2damvim3uf5diccionar`, `11strings`, `m6accesdadeschashtag`, `11dicionaris`, `edtrepas`) s'han ignorat perquè no tenen `marc` com a autor.
+
+### 137. Botó per descarregar la base de dades de cada problema (`/problem/<codi>/database`)
+
+**Abans:** la pàgina `/problem/<codi>/database` només mostrava l'esquema (diagrama ER, taules i columnes; en Mongo, una mostra de cada col·lecció). Per fer
+proves a casa, l'alumne havia de reescriure les taules a mà.
+
+**Decisió:** botó «Descarrega la base de dades» a sota del bàner de la pàgina, amb una frase d'ajuda segons el format. Què es descarrega depèn del corrector:
+- `sql` (SQLite, camp `sql_db`) i `mongo` (camp `mongo_db`): el fitxer del problema tal qual, amb el seu nom.
+- `mysql`: un volcat `mariadb-dump` de la base (`<nom>.sql`), perquè l'alumne creï una base buida i l'hi importi.
+- `postgres`: un volcat `pg_dump` (`<nom>.sql`, sense propietaris ni privilegis), amb les files com a `INSERT` de 100 en 100 (`--rows-per-insert=100`) en lloc de
+  `COPY ... FROM stdin` (veure l'entrada #138) i sense la línia `SET transaction_timeout = 0;`, que només existeix a PostgreSQL 17.
+
+Canvis de codi: vista nova `ProblemDatabaseDownload` i ajudes `_problem_database_name`, `_database_download` i `_database_download_format` a `judge/views/problem.py`
+(el parser de `checker_args` que ja hi havia a la vista de l'esquema ara fa servir l'ajuda); ruta `problem_database_download`
+(`/problem/<codi>/database/download`) a `dmoj/urls.py`; `dump_database()` a `judge/utils/mysql_grader.py` i a `judge/utils/pg_grader.py` (amb una `DumpError` pròpia,
+que fins ara no hi era); bloc `.db-download` i estils a `templates/problem/database.html`; 7 cadenes noves a `locale/{ca,es,en,de,zh_Hans}` i `compilemessages`.
+
+Detalls que importen:
+- **Cal tenir la sessió iniciada** (`LoginRequiredMixin`): cada baixada de MariaDB/Postgres llança un procés extern, i així no es pot cridar en anònim. Per la resta,
+  mateix accés que el problema (`ProblemMixin`: un problema privat dóna 404).
+- **El volcat va amb l'administrador** (socket, com ja fa el lloc per llistar bases), no amb els usuaris del jutge: `joel_grader` no té `SHOW VIEW` (el volcat de
+  `sakila` falla amb les vistes) i `joel_pg_read` no pot llegir les seqüències (`pagila` falla). Com que l'administrador pot llegir-ho tot, només es volca una base
+  de la llista permesa: les del catàleg (`is_mysql_database` / `is_postgres_database`) o la `p_<codi>` del propi problema; qualsevol altra cosa és 404. El nom es
+  valida amb una expressió regular i es passa al procés com a llista d'arguments (sense `shell`).
+- **Neteja del volcat de MariaDB**: es treuen els `DEFINER` (els usuaris que anomenen no existeixen a l'ordinador de l'alumne), el comentari condicional
+  `/*!50017 DEFINER=...*/` sencer dels triggers (un `/*!50017 */` buit no el sap llegir el client) i la línia `enable the sandbox mode` dels `mariadb-dump` nous.
+  A més, es treu el `;` sobrant dels triggers d'una sola sentència: el servidor guarda el cos com `SET NEW.create_date = NOW();` i el volcat l'escriu abans del
+  `*/`, de manera que el client llegia aquest `*/` com una sentència pròpia i **la importació s'aturava** al primer trigger (passava amb `sakila`, també amb el volcat
+  cru, sense cap canvi nostre). Opcions: `--single-transaction`, `--skip-add-locks`, `--routines`, `--triggers`, `--no-tablespaces`, `utf8mb4`, temps màxim de 60 s
+  (`JOEL_DUMP_TIMEOUT`), i (afegides després de provar-ho amb un DBeaver real, entrada #139) `--hex-blob` i `--net-buffer-length=16384` (`JOEL_DUMP_LINE_BYTES`).
+  Sense `CREATE DATABASE` ni `USE`: l'alumne tria el nom.
+- **Línies curtes i binaris en hexadecimal (afegit a l'entrada #139).** Per defecte `mariadb-dump` escriu cada `INSERT` en una sola línia d'1 MB (`hotel`: 1 002 402
+  caràcters per línia), i el DBeaver **es penja** en obrir-lo (més de 6 minuts al 100 % de CPU, amb el text mal pintat). Amb `--net-buffer-length=16384` les línies fan
+  com a molt 16 KB (`hotel`) o 73 KB (`sakila`, per una definició de vista) i el fitxer s'obre a l'instant. A més, amb els binaris en cru, `sakila.staff.picture`
+  arribava **corrompuda** (36 365 bytes a l'origen, 65 535 al DBeaver) perquè el client llegeix el fitxer com a text UTF-8; amb `--hex-blob` surt `0x89504E47...` i el
+  fitxer és UTF-8 vàlid (mateixa longitud i mateix `md5` carregat amb el terminal i amb el DBeaver). Les proves d'importació anteriors només comparaven el nombre de
+  files, per això no es va veure.
+- **`ies23g` queda exclosa** (`DATABASE_DOWNLOAD_EXCLUDED`, ajustable amb `JOEL_DATABASE_DOWNLOAD_EXCLUDED` a la configuració): té 188 usuaris amb nom, cognoms,
+  correu `@ies-sabadell.cat` i contrasenya en text pla (4-5 caràcters), i la pàgina n'ensenya l'esquema però no hi ha d'haver un fitxer amb totes les files. No surt el
+  botó i la URL directa dóna 404. Hi ha 3 problemes públics que la fan servir (`sqlies23qt01`...).
+
+**Per què:** petició de l'usuari: que els alumnes puguin fer proves en local amb la mateixa base que fa servir el problema.
+
+**Resultat (verificat):** (1) crida directa a la vista amb problemes reals i un superusuari (sense passar pel middleware, per no escriure `last_access` ni sessions):
+`hotel` (3,4 MB), `sakila`, `pagila`, `northwind` i Mongo `employees.json` donen 200 amb `Content-Disposition: attachment`; `ies23g` dóna 404; anònim, 302 a
+`/accounts/login/`. (2) Importació real: les 13 bases del catàleg MariaDB (totes menys `ies23g`) s'importen amb el client `mariadb` en una instància temporal (port local,
+a l'scratchpad, ja aturada) **sense cap error i amb el mateix nombre de files per taula i vista** que l'original; `sakila` queda amb 16 taules, 7 vistes, 6 rutines i
+6 triggers. `chinook`, `northwind` i `pagila` de Postgres, importats amb `psql -v ON_ERROR_STOP=1` en una instància temporal, sense errors i amb les mateixes files
+(11 taules/15 607 files, 14/3 362 i 22/62 322); provat amb el format final (`INSERT`, sense `transaction_timeout`). (3) La pàgina es renderitza en ca/es/en/de amb el bloc ben traduït (i sense escapar) i sense el bloc a `ies23g`.
+**Estat: el codi és al disc, però uwsgi NO s'ha recarregat** (el sistema va denegar `uwsgi --reload` com a desplegament a producció); no serà visible a `jo-el.es`
+fins que s'executi `~/dmojsite/bin/uwsgi --reload /home/ubuntu/dmoj-site.pid`. No cal cap migració.
+**Per revisar:** (1) no s'ha pogut provar amb un problema amb dump propi (`mysql_dump`, base `p_<codi>`) perquè ara mateix no n'hi ha cap, ni amb el cas SQLite
+(`sql_db`; tots els problemes SQL ja són MySQL); (2) els volcats s'han provat només contra MariaDB 10.5, no contra MySQL 8; (3) les carpetes temporals de les
+proves queden a l'scratchpad de la sessió (`mdb/`, `pgt/`, `out/`), no s'han esborrat.
+
+### 138. Guia per carregar la base de dades al DBeaver (`/guiadbeaver/`) i enllaç des de l'esquema
+
+**Abans:** el botó de descàrrega (#137) donava un fitxer `.sql`, però ningú explicava què fer-ne. Els alumnes d'FP fan servir el DBeaver, i el volcat de
+Postgres tenia dos problemes que els hauria fet ensopegar: les files anaven amb `COPY ... FROM stdin` (una ordre de `psql` que l'editor SQL del DBeaver no
+executa) i la capçalera portava `SET transaction_timeout = 0;` (només existeix a PostgreSQL 17: un servidor 12-16 hauria donat error).
+
+**Decisió:**
+- **Pàgina nova** `/guiadbeaver/` (`FlatPage` id 10, plantilla `flatpages/markdown.html`, com les altres guies), en català i amb 4 `FlatPageTranslation` (es, en, de,
+  zh-hans) escrites a mà amb les etiquetes reals de cada idioma. Passos: què cal (DBeaver Community + un servidor MariaDB/MySQL o PostgreSQL local), baixar el
+  fitxer, connexió (**Database → New Database Connection**, **Test Connection**, driver), crear una base buida (`CREATE DATABASE`; a PostgreSQL, **Show all
+  databases**), carregar el fitxer (**File → Open File...**, triar connexió i base a la barra d'eines o amb `Ctrl+9`/`Ctrl+0`, **Alt+X** i no `Ctrl+Enter`), provar
+  consultes, i una secció «Si alguna cosa falla» (cap base seleccionada, *Public Key Retrieval is not allowed* de MySQL 8, servidor PostgreSQL anterior a la 12, i
+  el terminal com a alternativa: `mysql -u root -p base < fitxer.sql` / `psql -U postgres -d base -f fitxer.sql`). No cobreix MongoDB (el DBeaver Community no el suporta).
+- **Una captura real** (`resources/guides/dbeaver-descarregar.png`, 1280x207, 15 KB, copiada a `/tmp/static/guides/`): el botó de descàrrega a la pàgina de l'esquema
+  de `sqlupdatehotel`, renderitzada amb la vista real i capturada amb Chromium com a visitant anònim (perquè no surti cap nom d'usuari).
+- **Enllaç** «Com carregar-la al DBeaver» al costat de la frase d'ajuda del botó (`templates/problem/database.html`), només per a MySQL i PostgreSQL; cadena nova a
+  `locale/{ca,es,en,de,zh_Hans}` i `compilemessages`.
+- **`judge/utils/pg_grader.py`, `dump_database()`:** `--rows-per-insert=100` (`INSERT` en lloc de `COPY`; `pagila` passa de 3,08 a 3,55 MB) i es treu la línia
+  `SET transaction_timeout = 0;`. El volcat segueix funcionant igual amb `psql`.
+
+**Per què:** petició de l'usuari («un link a unes instruccions per carregar això al DBeaver, amb imatges si pot ser»).
+
+**Resultat (verificat):** els volcats de Postgres amb `INSERT` s'importen amb `psql -v ON_ERROR_STOP=1` sense errors i amb les mateixes files (`chinook`, `northwind`,
+`pagila`); cap `COPY` ni `transaction_timeout` al volcat. La guia es renderitza amb la plantilla real (títols, 3 llistes numerades, imatge, codi) i, un cop creada,
+`/guiadbeaver/` respon 200 a `jo-el.es` en els 5 idiomes amb el títol traduït, i `/static/guides/dbeaver-descarregar.png` també (200, `image/png`). Les altres guies
+(`/guiaalumnes/`, `/sobre/`) segueixen responent 200. **L'enllaç des de la pàgina de l'esquema encara no és visible**: depèn de la mateixa recàrrega d'uwsgi pendent de #137.
+**Actualització (mateix dia, entrada #139):** la primera versió d'aquesta guia es va escriure sense poder provar-la. Després l'usuari va autoritzar instal·lar el
+DBeaver amb una pantalla virtual i **s'ha provat de debò**: la guia s'ha reescrit en els 5 idiomes amb 16 captures reals i les correccions que van sortir (veure
+#139). Tot el que s'ha dit abans d'aquí sobre passos i menús ha quedat superat per la versió actual de la pàgina.
+**Per revisar (pendent):** (1) la guia d'alumnes (`/guiaalumnes/`) no esmenta encara el botó de descàrrega; (2) els passos s'han provat amb el DBeaver Community
+26.2.3 per a Linux (en anglès), MariaDB 10.5 i PostgreSQL 17; amb MySQL 8, Windows o macOS poden variar detalls (la nota de `allowPublicKeyRetrieval` és coneixement
+general, no s'ha provat); (3) el punt «la pàgina no s'ha afegit al menú» queda resolt a #139.
+
+### 139. DBeaver real amb pantalla virtual al servidor: guia refeta amb captures, dos errors del volcat arreglats i enllaç a «Altres Guies»
+
+**Abans:** la guia #138 estava escrita de memòria, sense captures del DBeaver, i afirmava coses que no s'havien comprovat. L'usuari va dir «instal·la tu el DBeaver i fes
+servir pantalla virtual» i «posa-ho a "Otras guías"».
+
+**Instal·lació (tot a `/home/ubuntu/dbeaver-xvfb/`, 746 MB, sense root):** `sudo` demana contrasenya (`sudo -n` falla), així que no s'ha fet `apt install`; no s'ha tocat
+el sistema.
+- `dbeaver-root/`: DBeaver Community **26.2.3** (`.deb` de 128 MB baixat de GitHub a `downloads/` i extret amb `dpkg -x`; porta el seu JRE). A `dbeaver.ini`, `-Xmx1024m`
+  passa a `-Xmx640m` per no atabalar el servidor de producció (7,7 GB de RAM, sense swap).
+- `sysroot/`: 15 paquets d'Ubuntu 20.04 baixats amb `apt-get download` (no necessita root) i extrets amb `dpkg -x`: `libgtk-3-0`, `libgtk-3-common`, `libepoxy0`,
+  `libcolord2`, `libwayland-cursor0`, `libwayland-egl1`, `libxkbcommon0`, `librest-0.7-0`, `libsoup-gnome2.4-1`, `libxdo3`, `xdotool`, `libxfont2`, `x11-xkb-utils`,
+  `xserver-common` i `xvfb` (4,4 MB; `debs/` guarda els `.deb`).
+- `Xvfb-patched`: còpia de l'`Xvfb` amb el camí compilat de `xkbcomp` (`/usr/bin`, que aquí no existeix) canviat per un camí relatiu `xk` (enllaç a `sysroot/usr/bin`);
+  les dades del teclat són les del sistema (`/usr/share/X11/xkb`). Pantalla `:77` de 1600x1000x24, sense gestor de finestres.
+- `schemas/` (GSettings compilats: el selector de fitxers de GTK els necessita), `env.sh`, `dbx.sh` (clic/tecla/text amb `xdotool` i captura amb `PIL.ImageGrab`), `shot.py`.
+- `portmap.c`/`portmap.so`: biblioteca `LD_PRELOAD` que només al procés del DBeaver redirigeix les connexions al port 3306 cap a un MariaDB temporal (port 33987). Així
+  el DBeaver mostra `localhost:3306` com a un alumne de debò sense tocar mai el MariaDB de producció (escolta a 127.0.0.1:3306).
+- `session-all.sh`: arrenca un **MariaDB 10.5.5 temporal** (127.0.0.1:33987, dades a `mariadb/data`), un **PostgreSQL 17.5 temporal** (127.0.0.1:5432, dades a `pg/data`,
+  `trust`) i el DBeaver amb la biblioteca; en sortir aturen les bases. (`session-mariadb.sh` és una prova descartada amb un espai de noms de xarxa, que no va servir
+  perquè el DBeaver no resol el driver `RELEASE` sense internet; `session-online.sh` només servia per baixar els drivers.)
+- Primer arrencada: telemetria **desactivada** a l'assistent, sense base d'exemple ni «consell del dia»; drivers baixats a `~/.local/share/DBeaverData/drivers/` (MariaDB
+  Connector/J 3.5.10, PostgreSQL JDBC 42.7.13). Un intent de connexió amb `root` sense contrasenya al MariaDB de producció (`Access denied`) abans de redirigir el port;
+  no ha tingut cap efecte, queda dit per si apareix als registres.
+- Sessió aturada en acabar (DBeaver, bases temporals i Xvfb); no queda cap procés viu. Ara mateix no cal deixar res en marxa.
+
+**Què s'ha provat al DBeaver real (carregant els fitxers que genera el codi del #137):** `hotel` (12 taules, **totes** les files iguals a l'origen), `sakila` (16 taules,
+7 vistes, 6 rutines, 6 triggers: el *checksum* de les 16 taules coincideix amb l'original, binari inclòs) i `pagila` de Postgres (22 taules amb les mateixes files, i 7
+vistes, 10 funcions i 15 triggers, igual que l'origen). També s'ha comprovat amb `xdotool` el nom de cada menú i drecera que cita la guia (Database → New Database
+Connection `Ctrl+Maj+N`, File → Open File `Ctrl+O`, SQL Editor → New SQL script `Ctrl+]` i Execute SQL script `Alt+X`, *Active datasource* `Ctrl+9`, *Database/Schema* `Ctrl+0`).
+
+**Problemes trobats i arreglats:**
+1. **Línies d'1 MB al volcat de MariaDB: el DBeaver es penja** en obrir `hotel.sql` (més de 6 min al 100 % de CPU). Arreglat amb `--net-buffer-length=16384`
+   (`DUMP_LINE_BYTES` / `JOEL_DUMP_LINE_BYTES`), `judge/utils/mysql_grader.py`. Amb el fitxer nou s'obre a l'instant.
+2. **Binaris corromputs** (`sakila.staff.picture`: 36 365 bytes → 65 535). Arreglat amb `--hex-blob`. Veure #137.
+3. **El volcat de Postgres amb `COPY` encalla l'analitzador del DBeaver** (el fil principal es va quedar més de 20 min dins l'analitzador ANTLR de «sentències DROP»;
+   ho vaig provar per error amb el fitxer antic). Confirma que calia el format `INSERT` de #138, que carrega en 2 s.
+4. **Errors de la guia que només es veuen amb un DBeaver real:** «Show all databases» és a la pestanya **Main** (no a «PostgreSQL»); a PostgreSQL hi ha una pàgina extra
+   *Select a driver*; surten dos avisos en executar el fitxer (*You are about to execute a DROP statement* → **Yes To All**; *Large script execution...* → **Yes**); una
+   base nova no surt a la llista de bases fins que es fa `F5` sobre la connexió; i la guia deia que `sakila` podia fallar amb triggers/rutines, **cosa falsa**: carrega
+   bé (s'ha tret l'avís i s'ha deixat el terminal només com a alternativa).
+
+**Canvis fets:**
+- **16 captures reals** a `resources/guides/` i a `/tmp/static/guides/` (fitxers nous, 256 colors, ~190 KB en total): `dbeaver-1-driver`, `-2-connexio`, `-3-prova`,
+  `-4-crear-bd`, `-5-menu-obrir`, `-6-obrir`, `-7-connexio-actual`, `-8-llest`, `-9-drop`, `-10-script-gran`, `-11-fet`, `-12-taules`, `-13-consulta`, `-pg-driver`,
+  `-pg-totes` i `-descarregar-driver` (a part de l'antiga `dbeaver-descarregar.png`). Estan retallades del DBeaver real; al selector de fitxers surt la carpeta
+  `ubuntu > Downloads` (he creat `/home/ubuntu/Downloads/hotel.sql` només per això; és una còpia de la descàrrega real).
+- **Guia `/guiadbeaver/` reescrita** en ca/es/en/de/zh-hans (`FlatPage` id 10 i les 4 `FlatPageTranslation`, actualitzades amb el mateix script), amb les captures i
+  tots els passos i avisos reals. Verificat en viu: 200 en els 5 idiomes amb el títol traduït i les 17 imatges responen 200 `image/png`.
+- **Enllaç al menú «Sobre i Guies» → «Altres Guies»:** fila nova a `NavigationBar` (id 17, clau `guiadb`, etiqueta «Guia DBeaver», ruta `/guiadbeaver/`, regex
+  `^/guiadbeaver/$`, ordre 3, filla d'«Altres Guies» id 15). No ha calgut tocar la fila del pare: el ressaltat fa servir els avantpassats. Ja és visible en viu
+  (`nav-guiadb active` a la pàgina). L'etiqueta traduïda (es «Guía DBeaver», en «DBeaver Guide», de «DBeaver-Anleitung», zh «DBeaver 指南») s'ha afegit als quatre
+  `locale/*/LC_MESSAGES/dmoj-user.po` i s'han recompilat els `dmoj-user.mo`; **no es veurà traduïda fins que es recarregui uwsgi**.
+
+**Per què:** petició de l'usuari. Una guia amb captures reals i passos comprovats; i, de passada, dos errors del volcat que els alumnes haurien patit.
+
+**Estat:** **uwsgi encara NO s'ha recarregat** (el sistema va denegar `uwsgi --reload` com a desplegament a producció; cal l'OK de l'usuari). Fins llavors: (a) a l'esquema
+no surt ni el botó de descàrrega (#137) ni l'enllaç a la guia (#138); (b) si algú el cridés, el volcat encara seria el vell (línies d'1 MB i binaris crus); (c) l'etiqueta
+del menú no surt traduïda. La guia i la fila del menú ja són en viu. No cal cap migració.
+**Per revisar:** (1) a `~/dbeaver-xvfb` queden 746 MB, les captures de treball (`*.png`, `shots/`, `guide/`, `guide-opt/`), `Downloads/` (volcats de prova) i les dades de les
+bases temporals; no s'ha esborrat res (cal l'OK de l'usuari); a l'scratchpad hi ha `a_ies23g.sql`, que **conté les contrasenyes en clar de `ies23g`** d'un volcat de prova; (2) per
+al selector de fitxers he creat `/home/ubuntu/Downloads/`; (3) la guia d'alumnes (`/guiaalumnes/`) no esmenta encara el botó.
+
+---
+
+### 140. Neteja de 48 comptes de spam a l'equip CP-26 (`Organization` id 194)
+
+**Abans:** l'equip CP-26 (`slug` `cp-26`, `short_name` `CP26`, registrant/admin `marc`) tenia 61 membres, 48 dels quals eren comptes de spam (noms d'apostes com
+`go88commom`, `ck44bet`, `sunwinvme`, `Taixiuonlinegg`; correus de `alazsec.org`, `necub.com`, gmails aleatoris), registrats entre el 27/10/2026 i el 03/11/2026. Cap era
+`@ies-sabadell.cat`. L'usuari va demanar «carregar-te totes les comptes de spam del equip CP-26, les que tenen 0 problemes».
+
+**Criteri:** membres de l'organització 194 amb `problem_count = 0` **i** `sql_problem_count = 0` (els SQL es compten a part). Abans d'esborrar es va comprovar (només
+lectura) que els 48 candidats no tenien cap enviament, comentari, concurs, tiquet ni valoració, que només eren a CP-26 i que cap era `is_staff`/`is_superuser`. Una
+simulació amb el `Collector` de Django va confirmar que l'esborrat només tocava `User`, `Profile`, `RegistrationProfile` i `Profile_organizations` (48 de cadascun).
+No s'ha esborrat sense el sí explícit de l'usuari, un cop explicat què desapareixia.
+
+**Canvi fet:** un únic `users.delete()` dins d'una `transaction.atomic()`, amb comprovacions prèvies (`assert`) de les condicions anteriors. Resultat: 192 files
+esborrades (48 × 4 taules). No hi ha cap canvi de codi ni migració.
+
+**Resultat:** CP-26 passa de 61 a **13 membres** (cap amb 0 problemes). No s'ha tocat ningú amb 1 problema o més, ni `marc`. Els punts i les classificacions de ningú no
+canvien, perquè cap compte esborrada tenia enviaments. La llista d'usuaris i correus esborrats queda a
+`/tmp/claude-1000/-home-ubuntu-educational-online-judge/0671b21b-9e66-48dc-b2de-af3b920d09f5/scratchpad/cp26_deleted_users.txt`.
+
+**Per revisar:** (1) `javiersiko` (5 problemes, correu de `jbsze.net`) ha quedat perquè no complia el criteri de 0 problemes, però pot ser un altre compte de spam;
+(2) com que el registre és obert, probablement en tornaran a entrar; caldria un captcha o aprovació manual de les sol·licituds (no s'ha tocat).
+
+---
+
+### 141. Captcha (reCAPTCHA v2) al registre: tot a punt, pendent de les claus i de recarregar uwsgi
+
+**Abans:** després de la neteja #140, l'usuari va dir que un captcha al registre «sona lògic» i va triar reCAPTCHA v2 de Google. El codi ja el tenia mig muntat
+(`judge/utils/recaptcha.py` crea el camp només si hi ha `RECAPTCHA_PRIVATE_KEY`; `judge/views/register.py` l'afegeix a `CustomRegistrationForm`;
+`templates/registration/registration_form.html` el pinta), però el paquet `django-recaptcha2` (`snowpenguin.django.recaptcha2`) no estava instal·lat, no hi havia claus
+a `local_settings.py` i l'app no era a `INSTALLED_APPS`; per tant el formulari no tenia cap captcha.
+
+**Canvis fets:**
+- **Paquet instal·lat al venv de producció** (`/home/ubuntu/dmojsite`): `django-recaptcha2` 1.4.1, amb `--no-deps` (només necessita `requests`, que ja hi era; Django
+  continua a 2.2.15). No té models ni migracions: no cal `migrate`.
+- **`requirements.txt`:** línia nova `django-recaptcha2`.
+- **`dmoj/settings.py`** (al final, després de carregar `local_settings.py`): si `RECAPTCHA_PRIVATE_KEY` està definida, afegeix `snowpenguin.django.recaptcha2` a
+  `INSTALLED_APPS` (l'app aporta les plantilles `snowpenguin/recaptcha/*.html` que fa servir `recaptcha_init`). Així, per activar-ho només cal posar les dues claus.
+
+**Verificació:** amb les claus de prova oficials de Google (que sempre passen) i `override_settings` en un procés a part, sense tocar res a producció ni crear cap usuari:
+`GET /accounts/register/` → 200 amb el `div.g-recaptcha` i `recaptcha/api.js`; el formulari té el camp `captcha` i, sense token, dóna «Aquest camp és obligatori».
+Sense claus (estat actual real): `manage.py check` sense problemes, l'app no es carrega i el camp `captcha` no existeix, és a dir, **res no ha canviat per als usuaris**.
+
+**Per què:** els 48 comptes de spam de #140 es van registrar amb correus reals i van activar el compte; l'activació per correu no els frena.
+
+**Claus posades:** l'usuari ha creat el parell de claus reCAPTCHA v2 (casella) i me les ha passat al xat; les he afegit al final de `dmoj/local_settings.py`
+(`RECAPTCHA_PUBLIC_KEY` i `RECAPTCHA_PRIVATE_KEY`, 40 caràcters cadascuna). Aquest fitxer i `CONVERSATION_LOG.md` (que ara també conté les claus, perquè registra els prompts)
+estan al `.gitignore` i no es rastregen, així que no van a git. Verificat en un procés nou: `manage.py check` sense problemes, l'app `snowpenguin.django.recaptcha2` es
+carrega, `GET /accounts/register/` → 200 amb el `div.g-recaptcha` i la clau pública, i Google accepta la clau secreta (resposta `invalid-input-response` a un token fals;
+una clau secreta equivocada hauria donat `invalid-input-secret`). No es pot comprovar des del servidor que la clau pública estigui registrada per al domini correcte.
+
+**Recàrrega (amb l'OK explícit de l'usuari):** `kill -HUP $(cat /home/ubuntu/dmoj-site.pid)` al màster (2759488), com a les entrades anteriors. Els 6 workers vells
+(2759534, 2759535, 2970165, 3126843, 3301519, 3304082) han estat substituïts per 6 de nous (3401201–3401206) en menys de 15 s. Verificat en viu per HTTPS (nginx → uwsgi):
+`https://jo-el.es/accounts/register/` → 200 amb `g-recaptcha`, `recaptcha/api.js` i la clau pública a la pàgina; `https://jo-el.es/` → 200.
+
+**Estat:** *(substituït per #144: el widget no es carregava i el captcha ha quedat desactivat fins tenir claus del tipus correcte)* **el captcha ja és actiu al registre.** El que no es pot comprovar des del servidor és que el widget es carregui al navegador (la clau pública ha d'estar
+registrada per a `jo-el.es`) ni que un registre complet funcioni; cal que l'usuari ho provi. **Compte:** si el domini de la clau no coincideix, el widget no es carregarà i ningú
+no es podrà registrar; i si el servidor no pot arribar a `google.com`, passa el mateix (el camp falla tancat). Per desfer-ho: treure les dues línies `RECAPTCHA_*` de
+`dmoj/local_settings.py` i un altre `kill -HUP`.
+**Observació:** hi ha un segon procés `uwsgi --ini uwsgi.ini` (PID 1743548, pare 1, de fa 11 dies, sense fills ni sockets) que no és el màster del pidfile; no s'ha tocat.
+**Per revisar:** el formulari també deixa triar equips oberts en registrar-se (és per on el spam va arribar a CP-26); no s'ha tocat.
+
+---
+
+### 142. Neteja massiva de comptes de spam a tot el judge: 19.438 comptes esborrats (de 27.127 a 7.689)
+
+**Abans:** després de #140 (48 comptes del CP-26) i #141 (captcha), l'usuari va demanar esborrar més comptes sospitosos amb aquestes condicions: nom i correu estranys, correu que
+no sigui `.cat`, d'un institut o `.es`, que s'hagin unit a un equip, descripció amb spam, **només si n'estic 100% segur** i **mai cap usuari amb problemes resolts o intentats**.
+El judge tenia 27.127 perfils; 3.738 amb algun enviament i 23.389 sense cap (la gran majoria creats des de l'abril del 2026, 19.148 amb correu `.com`).
+
+**Criteri aplicat (tots els requisits alhora):**
+- Cap enviament (resolt ni intentat), `problem_count = sql_problem_count = 0`, no staff/superuser, `display_rank = 'user'` i cap altra activitat: concursos, valoracions, admin o
+  registrant d'equip (relació amagada `registrant+`: esborrar-los hauria esborrat l'equip en cascada; n'hi havia 30), sol·licituds d'equip, autors/curadors/testers de
+  problemes, tasques, permisos, grups, `LogEntry`, `AchievementObtained`, vots de comentari…
+- Correu **no protegit**: ni `.cat`/`.es`, ni etiqueta `edu`/`gencat`/`ac`, ni un domini (no genèric) on algú hagi fet algun enviament. Es van deixar 520 comptes protegits.
+- I una de les dues: (a) la descripció (`Profile.about`) conté un enllaç (**19.332 comptes**: casinos i apostes, venda de comptes PVA/Gmail/PayPal, SEO, telèfons de
+  WhatsApp/Telegram, plantilla «Nom Cognom. Website: …» de `base-jump.at`, etc.); o (b) sense descripció però d'un domini de «granja» (≥15 comptes, cap amb enviaments i ≥90%
+  amb descripció spam): **106 comptes**.
+
+**Verificació abans d'esborrar:** vaig llegir sencers uns 800 textos (tots els 326 dubtosos que no passaven el filtre estricte, els 90 de patró fluix i mostres de la resta) i no n'hi
+havia cap d'humà; fins i tot els que sonaven a persona duien `shorturl`, «Website:» o casinos. Simulació sobre 1.000 comptes aleatoris amb el `Collector` de Django: només
+`User`, `Profile`, `RegistrationProfile` i `Profile_organizations`; `reversion.Revision.user` és `SET_NULL` (les revisions queden, sense usuari).
+
+**Com es va fer:** script en lots de 500 (a l'scratchpad de la sessió, no es versiona), que per cada lot (1) torna a comprovar tots els requisits contra la BD en viu, (2) desa
+l'estat dels usuaris, perfils, `RegistrationProfile` i pertinences a equips en un JSONL, (3) esborra dins d'una `transaction.atomic()` que es desfà sola si la cascada toca
+res fora de les quatre taules permeses. Primer un lot de prova de 500 (el sistema de permisos va bloquejar el primer intent per ser un esborrat irreversible; l'usuari va
+confirmar amb la xifra «Endavant amb els 19.438»), comprovant que la web responia bé, i després la resta. **Cap lot rebutjat per activitat**; els 500 «missing» eren els ja
+esborrats al lot de prova.
+
+**Resultat:** esborrats 19.438 `User` + 19.438 `Profile` + 19.438 `RegistrationProfile` + 4.730 pertinences a equips. Ara hi ha **7.689 perfils**. Comprovat després: les
+3.738 persones amb enviaments hi són totes (0 enviaments orfes, 377.511 enviaments), els 170 equips segueixen (CP-26 en té 13), staff i concursos sense canvis, i la web
+respon 200 a `/`, `/accounts/register/`, `/users/` i `/problems/`. No hi ha cap canvi de codi ni migració.
+
+**Còpia de seguretat:** `/home/ubuntu/backups/comptes-spam-esborrats-20261103.jsonl.gz` (33 MB, permisos 600, amb `.sha256`; conté correus). 40 línies, una per lot, amb quatre
+claus: `users`, `profiles`, `regprofiles` (JSON de `serializers.serialize`, es poden recarregar amb `loaddata`) i `profile_orgs` (files `{profile_id, organization_id, sort_value}`).
+Es poden restaurar, però amb els mateixos `id`, i les revisions de `reversion` no recuperarien l'usuari (ara és `NULL`).
+
+**Deixat fora a propòsit (no n'estic 100% segur):** ~3.300 comptes sense enllaç a la descripció, sobretot gmail/hotmail. Entre ells hi ha bots evidents (noms de 10 lletres
+aleatòries, inactius i mai connectats) i persones reals (p. ex. `Pol510`, `sergiruizplana`), i les paraules de «marca» als noms donen falsos positius. Cal una regla més estricta
+abans de tocar-los. Tampoc s'han tocat els ~520 comptes amb correu `.cat`/`.es`/`edu`.
+
+**Per revisar:** (1) el registre amb captcha (#141) hauria de frenar l'arribada de nous, però el formulari encara deixa triar equips oberts; (2) cal confirmar al navegador que el
+captcha es veu a `jo-el.es`; (3) si el judge torna a omplir-se, es pot repetir el mateix procediment (l'script no s'ha guardat al repositori).
+
+---
+
+### 143. Xat d'ajuda «No sé ni per on començar» als problemes molt inicials (migrat; pendent de recarregar i d'activar)
+
+**Abans:** només hi havia les pistes clàssiques i les superpistes (#114), que són una pista per petició i sense conversa. L'usuari va demanar, per als problemes molt
+inicials, un botó **«No sé ni per on començar»** que obri un xat amb la mateixa IA, a qui es passa el problema i els casos de prova sencers i que recorda el context
+(se li envia la conversa sencera a cada torn). El protocol era sense estat i no tenia xat; l'altra banda (sabIA) hi ha afegit `POST /joel/v1/xat` (mateixa clau i URL
+base, `versio_protocol` continua sent `"1"`, ampliació compatible), i el contracte és a `GET https://sabia.ies-sabadell.cat/joel/v1/protocol`, secció «Xat».
+
+**Què s'envia a `/xat` (a cada torn):** idioma de la interfície de l'alumne; `problema` (codi, títol, **enunciat tal com el llegeix l'alumne**, és a dir la traducció si n'hi ha,
+categoria, punts); `casos_prova` (fins a 10, **fitxer d'entrada i de sortida sencers**, retallats a 3.000 caràcters, llegits del zip de dades), amb `public: true` només si
+l'entrada i la sortida del cas surten **seguides** a l'enunciat com una fila d'exemple (s'ignoren les etiquetes HTML); la resta van com a `public: false`, que el servei fa servir per
+entendre el problema però no en revela la sortida (a «Primers Passos» són 29 de 338 casos públics, 16 de 103 problemes: és conservador a propòsit; molts enunciats tenen exemples
+que no són els casos reals); `enviament` (l'últim de l'alumne en aquest problema: llenguatge, codi, veredicte —també `AC`— i missatge de l'error; si no n'ha enviat cap, només el
+llenguatge preferit del seu perfil); i `missatges` (la conversa sencera, de més antic a més nou, `alumne`/`joel`, l'últim sempre de l'alumne). **No s'envia** nom, usuari, correu ni id
+de l'alumne; `id_peticio` és `xat-<id del missatge pendent>`.
+
+**Canvis fets (tots a l'arbre de treball, sense recarregar res encara):**
+- **Opció per problema** `ProblemData.help_chat` («Xat d'ajuda», apagada per defecte), editable a la pàgina de dades de prova (`ProblemDataForm`). **Accions a l'admin de problemes**
+  «Activa el xat d'ajuda» / «Desactiva el xat d'ajuda» per fer-ho a molts problemes alhora (només editables per l'usuari; se salten els que no tenen dades de prova).
+- **Model nou** `HelpChatMessage` (`judge/models/helpchat.py`, migració `0167_helpchat`): alumne, problema, rol (`A`/`J`), estat (`P` pendent, `OK`, `E`), idioma, text, revisió, error, data.
+  La conversa d'un alumne en un problema són les seves files per `id`. Una resposta pendent de més de 3 minuts es dona per perduda (`STALE_AFTER`).
+- **Client** `judge/utils/helpchat.py` (reutilitza `ask()` de `superhints.py`, que ara accepta `url` i `answer_field`, amb els mateixos reintents: 429 fins a 3 cops, 502/504 un cop), i
+  **tasca Celery** `request_help_chat_reply` (`judge/tasks/helpchat.py`; fa `UPDATE` només si la fila encara és pendent, perquè una resposta tardana no en trepitgi cap altra).
+  Resposta renderitzada amb un Markdown mínim (codi en línia, bloc curt, negreta) i **tot l'HTML escapat**.
+- **Vistes** (`judge/views/helpchat.py`) i URLs `GET /problem/<codi>/chat` (obre la conversa), `POST /problem/<codi>/chat/send` i `GET /problem/<codi>/chat/reply/<id>` (el panell
+  pregunta cada 3 s). Només alumnes amb sessió, **mai dins d'un concurs**, i només als problemes amb l'opció activada. Límits (a `settings.py`, `HELP_CHAT_MAX_MESSAGES = 20`
+  missatges d'alumne per problema i `HELP_CHAT_MAX_LENGTH = 1000` caràcters): una sola resposta alhora per alumne (bloqueig de la fila del perfil, com a les superpistes) i, si una
+  resposta falla, un botó **«Torna-ho a provar»** que no gasta cap missatge.
+- **Interfície**: botó a la barra lateral del problema i panell de xat flotant (`templates/problem/problem.html` i `helpchat-messages.html`), amb els colors del tema, avís «El professorat
+  pot veure aquesta conversa» i comptador de missatges que queden.
+- **Professorat**: admin de només lectura `HelpChatMessage` (`judge/admin/helpchat.py`) que només mostra les converses dels problemes que l'usuari pot editar, i enllaç «Xats d'ajuda» a
+  la barra lateral del problema per als editors.
+- **Configuració**: `JOEL_XAT_URL` (buit: `JOEL_PISTES_URL` amb `/pista` canviat per `/xat`). Traduccions noves (34 cadenes) a ca/es/en/de/zh_Hans, afegides **només com a entrades
+  noves** als `.po` (0 línies existents tocades) i `.mo` recompilats.
+
+**Verificació feta:** `manage.py check` net; la migració només porta `help_chat` i la taula nova; plantilles compilen i el fragment es renderitza escapant l'HTML en ca i es; una **conversa real de dos
+torns** amb el servei sobre `okboomer` (3,8 s i 3,5 s, `revisio: aprovada`): el JOEL pregunta com llegir l'any, i al torn 2 fa referència a les regles de l'enunciat sense donar la solució.
+**Migració `0167_helpchat` aplicada** (amb l'OK de l'usuari): `ALTER TABLE judge_problemdata ADD COLUMN help_chat bool DEFAULT 0 NOT NULL` i `CREATE TABLE judge_helpchatmessage`. Després, el flux
+complet amb el client de Django **dins d'una transacció desfeta** (usuaris temporals; en acabar, 0 missatges, 0 usuaris i l'opció de `okboomer` tornada a «apagat»), amb respostes reals de la IA:
+33 comprovacions OK: botó només per a alumnes amb sessió i només amb l'opció activada (anònim → login, problema sense opció → 403); obrir, enviar i resposta; segon missatge mentre n'hi ha un de
+pendent, rebutjat; un altre alumne no pot consultar la resposta d'algú altre (404); el torn 2 envia `alumne, joel, alumne` i el payload té només les claus del protocol (sense dades de
+l'alumne; `enviament` només amb el llenguatge si no ha enviat res); resposta fallida desada com a `E` amb botó de reintent que **no gasta missatge** i que no deixa fila d'error duplicada a la
+conversa enviada; límit de missatges, missatge massa llarg o en blanc rebutjats; una resposta pendent de més de 3 minuts passa a error i desbloqueja el xat; dins d'un concurs no està
+disponible; el professorat veu l'enllaç i l'admin de només lectura filtrat per problema, i un alumne no hi accedeix; el camp és a la pàgina de dades de prova; les accions en bloc
+funcionen. Sintaxi del JavaScript del panell comprovada amb `node --check` en ca i zh-hans.
+**Error trobat per aquestes proves i corregit:** la plantilla dels missatges rebia la variable `messages`, que el processador de context de missatges de Django substituïa pels missatges
+flash (buits), i el panell sortia buit; ara es diu `chat_rows`. **No provat:** el panell en un navegador real (només la sintaxi del JS i l'HTML renderitzat).
+
+**Estat:** **en viu des del 3-11-2026.** L'usuari va fer `supervisorctl restart all`, que va reiniciar uWSGI, Celery, el pont dels jutges i el servidor de websockets. Comprovat després: màster
+d'uWSGI nou amb 6 workers, Celery amb la tasca `judge.tasks.helpchat.request_help_chat_reply` registrada (`celery inspect registered`), i `https://jo-el.es/`, `/problem/okboomer`, `/problems/` i
+`/accounts/register/` responen 200; `/problem/okboomer/chat` redirigeix a l'inici de sessió si no hi ha sessió, i la pàgina del problema no mostra el botó a un visitant. **Pendent:** la primera
+prova a mà amb un compte d'alumne al navegador (obrir el panell, escriure, veure la resposta i el botó «Torna-ho a provar»), perquè des del servidor no s'ha pogut provar la interfície. El procés
+`uwsgi` vell de fa 11 dies (PID 1743548, vegeu #141) continua sent-hi, amb el web nou llevat dels seus 6 workers: no s'ha tocat.
+
+**Activació (3-11-2026, a petició de l'usuari):** «la meitat dels problemes de les tasques de `marc` d'ifs (la meitat de cada tasca) i els de Primers Passos». Les tasques d'ifs són `ifseasy` (20
+problemes) i `ifandor` (18); gairebé tots els seus problemes (37 de 38) ja són al grup «Primers Passos», així que les dues peticions es trepitjaven i s'ha llegit com **la meitat de cada tasca
+d'ifs + la resta de «Primers Passos»** (l'altra meitat dels ifs es queda sense xat a propòsit). Meitat de cada tasca: ordenats per punts i `id`, un de cada dos (el 1r, 3r, 5è…), perquè les dues meitats
+tinguin dificultat equilibrada: `ifseasy` 10 de 20 (eleccions2020, etsclassealta, movimentcompte, valorabsolut, hihaestoc, okboomer, diferenciagranpetit, descompte100, controlvolum, butlletinotes) i
+`ifandor` 9 de 18 (nombrescontigus, buscartrios, capsetmana, entradacinema, fizzbuzz, dosexamens, ordreascendent, torresgemelas, diferenciagranpetit2). Resta de «Primers Passos»: **87** problemes
+(públics o privats d'equip); **s'han deixat fora 12 esborranys privats i 3 problemes sense dades de prova**. Total **106 problemes** amb `ProblemData.help_chat = true` (`UPDATE` directe, sense
+recompilar res; abans n'hi havia 0). Per desfer-ho: l'acció «Desactiva el xat d'ajuda» de l'admin de problemes. (Visible des que l'usuari va reiniciar uWSGI i Celery, vegeu «Estat».)
+
+### 144. El captcha del registre no es veia i bloquejava tothom: dos errors, corregits amb una clau de v2 «casella»
+
+**Abans:** després d'activar el captcha (#141), l'usuari va avisar que no sortia al registre i que la gent no es podia registrar.
+
+**Causes trobades (dues, i la primera era meva):**
+1. **Script mal enllaçat.** `judge/jinja2/social.py::recaptcha_init` renderitzava la plantilla del paquet sense `recaptcha_host`, que `django-recaptcha2` 1.4.1 fa servir per construir la URL; la pàgina demanava
+   `https://jo-el.es/recaptcha/api.js` (404) i el widget mai es carregava. **Corregit** (`recaptcha_host` = `RECAPTCHA_PROXY_HOST` o `https://www.google.com`); ara l'script és `https://www.google.com/recaptcha/api.js?hl=ca` (200).
+   La meva comprovació de #141 només buscava la subcadena `recaptcha/api.js`, que també encaixava amb la ruta trencada; ara la prova exigeix la URL absoluta de Google.
+2. **Les claus no són del tipus que fa servir el formulari.** Provat contra `recaptcha/api2/anchor` de Google (el que demana el navegador): amb la clau de prova oficial es genera el widget (39 KB), però amb la clau de
+   l'usuari i `size=normal`/`compact` (casella) Google respon «Invalid input» **per a qualsevol domini** (`jo-el.es`, `www.jo-el.es`, `example.com`…), mentre que amb `size=invisible` la mateixa clau genera el widget
+   (39,8 KB) i una clau inventada dona «Invalid input» també; o sigui, la clau existeix però és **reCAPTCHA v3 o v2 invisible**, no «v2 casella de verificació». Cap canvi de codi ho arregla; cal una clau del tipus correcte. (La clau
+   secreta sí que és vàlida a `siteverify`.)
+
+**Mesura provisional (decidida per mi, per revertir el que jo havia activat i que bloquejava tothom):** a `dmoj/local_settings.py` s'han **comentat** (no esborrat) les línies `RECAPTCHA_PUBLIC_KEY` i `RECAPTCHA_PRIVATE_KEY`
+(còpia prèvia a l'scratchpad de la sessió: `local_settings.before_captcha_off.bak`) i s'ha recarregat uWSGI (`kill -HUP`). Sense claus, el formulari no té camp de captcha ni s'afegeix l'app (comportament d'abans de #141).
+Verificat amb el client de Django dins d'una transacció desfeta: `POST /accounts/register/` → 302 a `/accounts/register/complete/` i usuari creat (desfet; no n'ha quedat cap); la pàgina en viu té 0 referències a `recaptcha`; `/`
+i `/problem/okboomer` responen 200.
+
+**Resolució (3-11-2026, mateix dia):** l'usuari va crear una clau nova de tipus **reCAPTCHA v2 «Casella de verificació»** per a `jo-el.es`. Abans d'activar-la es va comprovar contra Google: `anchor` amb `size=normal` i
+`compact` per a `jo-el.es` genera el widget (39,8 / 39,7 KB), per a `example.com` dona la pàgina d'error (la restricció de domini funciona) i la clau secreta és vàlida a `siteverify` (`invalid-input-response` a un token fals). Les
+dues línies noves s'han afegit al final de `dmoj/local_settings.py` (les antigues, de v3/invisible, hi queden comentades) i s'ha recarregat uWSGI (`kill -HUP`). Verificat: el formulari porta `https://www.google.com/recaptcha/api.js?hl=ca` i el widget
+amb la clau nova; un `POST` sense captcha resolt es **rebutja** amb error al camp (no es crea cap usuari; prova dins d'una transacció desfeta); la clau que serveix la pàgina en viu genera el widget a Google (39,6 KB) per a `jo-el.es`; `/`, `/problems/`
+i `/problem/okboomer` responen 200.
+
+**Estat:** **el captcha és actiu i funcionant al registre des d'aquest moment** (el registre va estar sense captcha, i per tant obert al spam, durant l'estona entre la desactivació i aquesta activació). **No provat:** resoldre el captcha i
+completar un registre real des d'un navegador (no es pot automatitzar des del servidor).
+
+### 145. Problema `calorcito` («Calorcito a la C4», id 537): enunciat reescrit en català i en castellà
+
+**Abans:** l'usuari va demanar reescriure l'enunciat d'aquest problema (autor `gsantama`, públic, grup «Aprenentatge», tipus «Sense Bucles», 3 punts), que «no està gaire ben escrit».
+Mirat el que veia l'alumne a `https://jo-el.es/problem/calorcito` i els fitxers de prova reals (`/judge/calorcito/coses.zip`), els problemes eren:
+- **L'exemple no coincidia amb el format real d'entrada.** L'enunciat posava cada cas en **una sola línia** (`19 27 NO`), però els fitxers de prova (`i1.in`…) tenen **tres línies**, un valor
+  per línia (`19\r\n27\r\nNO`). Un alumne que llegeixi tot de la línia amb `input().split()` falla.
+- L'exemple era una **taula de Markdown dins d'un bloc de codi**: es veien els `|` en cru i els guionets de la capçalera.
+- L'apartat «Entrada» sortia **aixafat en un sol paragraf** (les línies començaven amb tabulador, que Markdown ajunta amb l'anterior), i els tres valors no es distingien.
+- La taula de regles tenia `<indiferent>` escrit literalment, una **fila redundant** (la 3 és un cas de la 4) i **no deia l'ordre de prioritat** (només ho insinuava la frase «sempre que es pugui
+  s'encendrà l'aire»). La resposta es descrivia amb cometes simples i un **espai de més** (`' Res'`), quan la sortida real és `Res`.
+- Llenguatge: «aliviar» (castellanisme), «cas de tenir…», «perquè "s'ha perdut"». La traducció castellana (feta a partir d'aquest text) heretava tot això i deixava «Entrades/Sortides» sense traduir.
+
+**Decisió:** reescriure **només el text**, sense canviar la lògica, les dades de prova ni el to (es manté la broma de «s'allaaaaargi»). Abans d'escriure res es va comprovar per força bruta que la versió
+simplificada de la taula (3 files, la primera que es compleixi guanya, si no `Res`) dona **exactament la mateixa resposta que la taula original llegida literalment** per a les 31 × 43 × 2 = **2.666
+entrades possibles** (0 diferències; surten `Res` 1.674, `Aire` 572, `Obrir Finestra` 420) i que els 5 casos de prova del jutge hi donen la sortida esperada.
+
+**Canvis fets (a la base de dades, no al codi):**
+- `Problem.description` de `calorcito` (català): entrada com a **llista numerada de tres línies** (alumnes, temperatura, comandament `SI`/`NO`); sortida amb les **tres respostes literals en codi**
+  (`Aire`, `Obrir Finestra`, `Res`) i la nota que es posen en una sola línia i amb les majúscules exactes; **taula de 3 files** amb la regla explícita «de dalt a baix, s'aplica la primera fila que es
+  compleixi» i «si no es compleix cap, `Res`»; exemples en **taula HTML amb `<br>`** per als tres valors de cada cas (el mateix format que els problemes de «Sense Bucles» més nous, com `dosexamens`). Títol, imatge i la resta de dades del problema, **sense tocar**.
+- `ProblemTranslation` `es` de `calorcito` (ja existia): **actualitzada** amb la traducció del text nou, perquè no quedés una versió castellana que contradigués la catalana. Regles de sempre: les
+  respostes (`Aire`, `Obrir Finestra`, `Res`) i `SI`/`NO` **no es tradueixen** (són el que ha de sortir), la imatge (`<img>`, `alt` inclòs) queda igual, els encapçalaments sí que es tradueixen.
+- Com que desar una `ProblemTranslation` **no** dispara el senyal, es va cridar `judge.signals.problem_update` a mà (esborra el fragment `problem_html` de cada idioma i els PDF).
+- **Còpia de seguretat del text antic** (català i castellà) a l'scratchpad de la sessió: `/tmp/claude-1000/-home-ubuntu-educational-online-judge/cd698187-925c-4db8-8d59-947b7aac962a/scratchpad/calorcito_ca.OLD.md`
+  i `.../calorcito_es.OLD.md` (el text nou és a `calorcito_ca.md` i `calorcito_es.md`, al mateix lloc). Aquesta carpeta és temporal; si es vol conservar, cal copiar-ho.
+
+**Resultat:** verificat a la pàgina en viu (`curl` a `https://jo-el.es/problem/calorcito`, en català i en castellà): 200 en tots dos, 2 taules reals, 1 llista numerada i 1 de punts, **0 `|` crus, 0 blocs
+`<pre>`**, text llegible de dalt a baix. No s'ha tocat el codi ni cal recarregar uwsgi. **No provat:** cap enviament nou (les dades de prova no han canviat, i el que s'ha canviat és només el text).
+
+**Observacions fora de l'abast, no tocades i apuntades al `TODO.md` (#19):** la imatge és un **alfil d'escacs** (`Alfil.png`) carregat d'un Google Sites extern (res a veure amb l'aire condicionat; si aquell
+lloc la treu es trenca); a `init.yml` els casos `i2` i `i4` valen **0 punts** (només puntuen 3 de 5); i els 5 casos són **exactament els 5 exemples** de l'enunciat, sense cap cas de frontera
+(15/16 alumnes, 18/19, 22/23 i 25/26 graus, ni `NO` amb més de 25 graus i pocs alumnes).
+
+### 146. Tasca nova `altchallenge` («02 07 Alternatives: Challenge Mode»): 35 problemes de «Sense Bucles» de més d'1 punt que no són a cap tasca d'alternatives de marc
+
+**Abans:** l'usuari va demanar una tasca «02 07 Alternatives: Challenge Mode» amb problemes (1) de la categoria «Sense Bucles», (2) que no estiguin a cap de les altres tasques d'alternatives de marc i (3) de **més d'1.0 punts**.
+
+**Com s'ha interpretat cada criteri (comprovat a la base de dades, no suposat):**
+- «Categoria Sense Bucles» = el **tipus** `Sense Bucles` (`ProblemType` id 2, 158 problemes), no el grup (el grup és «Primers Passos», «Introduccio»…).
+- «Altres tasques d'alternatives de marc» = les 5 tasques amb autor `marc` i «Alternatives» al nom: `ifseasy` (02 01), `ifandor` (02 03), `problemeswitchs` (02 04), `modulsihores` (02 05) i `primerexamen` (02 06); en total 49 problemes
+  exclosos. **`altercal`** («02 01 Alternatives Calamot») és de `mfontana`, no de marc, i per això **no** s'ha exclòs: el problema `sumaunsegon` és a `altercal` i s'ha inclòs igualment.
+- «Més d'1.0 punts» = `points > 1.0` estricte (res de 1.0; també queden fora els 1.5 perquè tots són privats, vegeu sota).
+
+**Decisió que no era literal (decidida per mi):** aplicant només els tres criteris sortien **70** problemes, però **34 no són públics (17 dels quals privats d'organització)** i un més (`irpf`) és públic però privat d'organització (exàmens IPED RA123 de les organitzacions
+`pedralbes-dam1-25-26`, exàmens ITB, problemes d'alumnes…). La plantilla `problem/task.html` mostra el **nom i l'enllaç de tots els problemes de la tasca a tothom** (els no públics només amb un cadenat), així que posar-los
+a la tasca n'hauria **filtrat els títols** (i d'exàmens en curs), i els alumnes no els podrien obrir. A més, només 2 de les 53 tasques de marc tenen algun problema no públic. Per això només hi ha els problemes
+**públics i no privats d'organització: 35** (36 públics, menys `irpf`, id 975, que és públic però privat de l'organització `pedralbes-dam1-25-26`). Si es volen afegir els privats, és un canvi d'una línia, però cal pensar-hi.
+
+**Canvis fets (a la base de dades, no al codi):**
+- `ProblemTask` id **203**: codi `altchallenge`, nom «02 07 Alternatives: Challenge Mode», autor `marc` (com la resta de tasques d'alternatives), 35 problemes (ids 29, 31, 188, 218, 219, 319, 322, 324, 424, 425, 427, 429, 430, 431, 436, 438, 439,
+  440, 441, 474, 487, 520, 530, 531, 532, 625, 662, 663, 664, 672, 673, 884, 924, 986, 1041), de **2 a 6 punts** (rang real: 2.0–6.0). Creada en una sola transacció, després de validar el text.
+- `about` en català (3 paràgrafs, sense llistes ni capçaleres, com les altres tasques de marc: què és, objectiu i errors típics) i `ProblemTaskTranslation` `es` amb la traducció. Validat mecànicament abans de desar: 3 paràgrafs,
+  mateixos accents greus (`` ` ``) i mateixos títols entre `*…*` a les dues versions, i **tots els títols citats existeixen a la tasca**. No s'ha escrit cap altre idioma (en/de/zh-hans veuen el text català, com a la resta).
+
+**Resultat:** verificat a la pàgina en viu: `https://jo-el.es/tasks/altchallenge` respon **200**, amb 35 enllaços a problemes, **0 cadenats**, el nom correcte i el text en català o en castellà segons l'idioma; i la tasca surt a `/tasks/`.
+No s'ha tocat el codi ni cal recarregar uwsgi ni migrar. **No provat:** com es veu amb una sessió iniciada (progrés dels problemes ja resolts) ni a la vista de móbil; la plantilla és la mateixa que la de la resta de tasques.
+
+### 147. Imatges dels enunciats: 537 imatges copiades al servidor, reduïdes i servides internament; arreglades les trencades que s'han pogut recuperar
+
+**Abans:** a `calorcito` (#145) la imatge estava trencada (l'URL de Google Sites ja no la serveix) i l'usuari va demanar mirar **totes** les imatges dels problemes, arreglar les trencades i, de pas, descarregar-les i servir-les
+internament, **reduïdes** («no cal alta resolució: ja els fixem una mida màxima»). Cens (només lectura) de problemes + traduccions: **1.254 referències** (`<img src>` i `![](…)`; 746 als enunciats, 502 a la traducció `es`, 4 `en`, 2 `ca`)
+a **662 URL úniques** de desenes de dominis (Dropbox 185, imgur 119, ibb 91, postimg 68, Wikimedia 35…). Mides mostrades: gairebé sempre l'atribut `width` (200 en 546 etiquetes, 300 en 239, 250, 400…).
+Comprovació de les 662 (com la veuria un alumne: navegador + `Referer: https://jo-el.es/`): **450 vives**, 2 només sense `Referer`, **210 «mortes»**; però unes 108 d'aquestes eren falsos negatius meus (imgur responia `429` perquè la comprovació en paral·lel el va saturar, `ibb`
+feia timeouts) i es van reintentar amb ritme lent.
+
+**Troballa important (no tocada, decideix l'usuari):** `MEDIA_ROOT` és `/tmp/media` i **`/tmp` s'esborra a cada arrencada** (`systemd-tmpfiles-setup.service` amb `--remove --boot`, regla `D /tmp`); la còpia nocturna (`rclone-backup/upload.sh`) només puja els volcats
+de la BD (`/var/backup/db`), **no `/tmp/media`**. Les pujades de martor, les imatges d'instituts, d'achievements i d'organitzacions viuen només allà. El servidor porta engegat des del 2026-07-08, així que encara no s'ha notat. Per això **les imatges noves no hi viuen**:
+són a una carpeta persistent i `/tmp/media` només té un enllaç (vegeu avall).
+
+**Canvis fets (carpeta, base de dades i enllaç; cap canvi de codi de l'aplicació ni de nginx):**
+- **Carpeta persistent** `/home/ubuntu/joel-media/problem-images/`: **537 fitxers, 32,4 MB** (els originals pesaven 118,3 MB). Nom = hash SHA-256 del contingut (immutable; nginx serveix `/media` amb `expires max`). Cada fitxer l'ha **recodificat PIL** (neteja EXIF/ICC i qualsevol
+  cosa estranya del contenidor; només s'accepten JPEG/PNG/GIF/WebP/BMP que PIL descodifica), mai s'amplia, i la caixa és **2× l'ample mostrat** (el màxim entre totes les etiquetes que fan servir aquell URL; si alguna no té `width`, 800 px de costat llarg; límit 1000).
+  JPEG → JPEG (q85, progressiu); PNG amb transparència → PNG; PNG fotogràfic de més de 250 KB → JPEG si pesa menys del 60 %. Els 5 GIF animats es conserven tal qual (≤ 3 MB). Manifest `…/problem-images-manifest.json` (URL original → fitxer, mides, origen).
+- **Enllaç** `/tmp/media/problem-images → /home/ubuntu/joel-media/problem-images` (`ln -s`; nginx el segueix, `location /media`, `root /tmp`). Verificat per HTTPS real: **els 537 fitxers responen 200 amb `Content-Type: image/*`**. **Després d'un reinici cal refer-lo**: `mkdir -p /tmp/media && ln -s /home/ubuntu/joel-media/problem-images /tmp/media/problem-images`. **[Substituït per l'entrada #148: ara tot `/tmp/media` és un enllaç a `/home/ubuntu/joel-media/media` (que conté l'enllaç `problem-images`) i el crontab el refà sol; aquesta instrucció ja no cal.]**
+- **Origen de les còpies:** 494 directes, **36 de l'arxiu d'Internet** (`web.archive.org/web/2id_/<url>`, imatges mortes que hi tenien còpia), **7 de Wikimedia Commons** (substituts, vegeu avall).
+  Cloudinary (3) es va demanar com a PNG en lloc d'SVG/AVIF; les miniatures de Wikimedia amb mida no estàndard (`400px`, `1200px`…, `400 Bad Request`) es van demanar en una mida estàndard (250/330/500/960/1280); una fórmula `render/svg` → `render/png`.
+- **Reescriptura dels enunciats** (`rewrite_images.py`, després d'una simulació): **968 textos** (573 `Problem.description` + 395 `ProblemTranslation.description`), **1.016 imatges** apunten ara a `https://jo-el.es/media/problem-images/<hash>.<ext>` (URL **absoluta**: el PDF dels problemes es renderitza com a `file://`,
+  com ja diu `raw.html`). Només canvia l'URL de la imatge: comprovat comparant tots els textos antics i nous amb els URL emmascarats (**0 diferències** fora d'URL). Actualització condicional (`WHERE description = <text antic>`) dins d'una transacció, i `judge.signals.problem_update`
+  als 573 problemes (fragments `problem_html` de cada idioma i PDF). **Còpia dels textos antics:** `/home/ubuntu/joel-media/backup-descriptions-20261103-190531.json` (1,9 MB, `kind`/`pk`/`code`/`old`), persistent.
+- **`calorcito`:** l'alfil d'escacs (que tampoc hi pintava res) s'ha substituït per una foto d'una unitat d'aire condicionat, **CC0**, de Commons («Aire acondicionado en México (Dominio Público).jpg»). Les entrades de substitució per problema van fer falta perquè **el problema `alfil`
+  (escacs) fa servir exactament el mateix URL**, amb l'`alt="aireacondicionat"` copiat de `calorcito`: `alfil` conserva l'alfil (recuperat de l'arxiu, 332×332) i només `calorcito` rep el d'aire (clau `override:calorcito:<url>` al manifest). L'`alt` d'`alfil` continua dient «aireacondicionat» (no tocat).
+- **Casino (`example.com/…`, marcadors de posició que mai han existit; 8 problemes públics de `marc`):** substituts **només CC0 / domini públic** de Commons (les CC BY-SA demanen atribució): `roulette.jpg` → postal «Playing roulette, Las Vegas» (`apostesperdudes`, `apostesperdudes0`),
+  `roulette-odd.jpg` → «Roulette-Tisch» (`apostesenars`), `casino-chips.jpg` → «Poker chips 2» (`casino1`), `poker-chips.jpg` → «Pile of Poker Chips» (`casinomult`), `blackjack.jpg` → «Blackjack game 2» (`casinoplaces`), `dice.jpg` → «Wuerfel5» (`tiradesperf`).
+  **Falta `lucky-player.jpg` (`casinosort`)**: el candidat és «Casino Bar Bar Bar.jpg» (CC0, màquina escurabutxaques), però `upload.wikimedia.org` em retorna `429` per a aquest fitxer (hi vaig abusar del ritme); pendent de repetir.
+- **`botwhatsapp`** (privat, autor `ajite6`): tenia un `<img ` penjat enmig d'una frase («demanant<img \r\napunts…») que feia que el navegador s'empassés ~520 caràcters de l'enunciat fins al primer `>`. Era l'única etiqueta `<img` sense `src` de tot el cens. S'ha tret aquest `<img ` (queda «demanant apunts, resums…»; el text antic és a
+  `/home/ubuntu/joel-media/backup-botwhatsapp-20261103.json`).
+- **Scripts** desats al repo: `tools/mirror_problem_images/` (`1_survey` … `5_rewrite_images`, amb `README.md`), perquè no es perdin com l'altra vegada.
+
+**No s'ha fet / limitacions (veure `TODO.md` #20):**
+- **imgur: 60 URL (65 problemes, 53 públics) continuen externes.** Després de ~180 peticions seguides, `i.imgur.com` retorna `429` (amb `retry-after: 0`, també per a fitxers inexistents) a aquest servidor, i no s'ha aixecat en una hora. **No sé si aquestes imatges es veuen o no als alumnes** (només que el servidor no hi arriba).
+- **62 URL (67 problemes, 40 públics) segueixen trencades i sense còpia enlloc** (404, domini mort, `403` de WAF/Cloudflare, certificat invàlid…). No s'han tret ni substituït: cal decidir què es vol fer (vegeu `TODO.md`).
+- **Certificats defectuosos:** 11 URL fallaven per TLS (nom que no coincideix, autosignat, caducat); per a algunes l'arxiu d'Internet tenia còpia, per a **6 no**. Baixar-les hauria exigit desactivar la verificació de certificats (`curl -k`); el sistema ho va **bloquejar** i no ho he reintentat ni rodejat.
+  Aquestes 6 ja es veuen trencades als navegadors dels alumnes.
+- Només enunciats i traduccions de problemes: **no** s'han mirat les imatges del blog, de les pàgines estàtiques, dels comentaris ni dels textos de les tasques (`about`: cap `<img>`).
+- Llista completa de tot el que queda: `/home/ubuntu/joel-media/imatges_pendents.tsv` (categoria, URL, problemes; `*` = públic).
+- **Llicències:** les còpies d'imatges de tercers (Google Images, Pinterest, premsa…) ara s'allotgen al nostre servidor en lloc d'enllaçar-les; és una decisió de l'usuari, no l'he valorada. Les que he triat jo són totes CC0 o domini públic.
+
+### 148. Les imatges pujades (`/tmp/media`) ja no es perden en reiniciar: contingut mogut a `/home/ubuntu/joel-media/media` i `/tmp/media` convertit en enllaç, i línia `@reboot` al crontab que el refà sol
+
+**Abans:** `MEDIA_ROOT = /tmp/media` i `/tmp` s'esborra a cada arrencada (`systemd-tmpfiles-setup.service` amb `--create --remove --boot`; regla `D /tmp` de `/usr/lib/tmpfiles.d/tmp.conf`; cap exclusió per a `/tmp/media` a `/usr/lib/tmpfiles.d` ni
+`/etc/tmpfiles.d`). Comprovat que el mecanisme actua en aquest servidor: `/tmp/.ICE-unix` es va crear el 2026-07-08 19:00:13, sis segons després de l'arrencada (19:00:07). `/tmp/media` és del 21 d'octubre, o sigui que **mai no havia passat per cap reinici**.
+Contingut: `achievements` 261 fitxers (139 MB), `institutions` 40 (3 MB), `organizations` 100 (7,4 MB), `martor` 3 (112 KB), i l'enllaç `problem-images` (#147). `/tmp` és al disc arrel (ext4), no és tmpfs. Cap còpia de seguretat ho cobria:
+el cron d'`ubuntu` només puja els volcats de la BD (`/var/backup/db`) i a `/etc/cron.d` i `/etc/cron.daily` no hi ha res d'això; el crontab de root no s'ha pogut llegir (`sudo` demana contrasenya). És una conclusió a partir de la configuració: no s'ha reiniciat res per comprovar-ho.
+L'usuari va preguntar si en reiniciar es perdrien les fotos d'instituts i grups, se li va respondre que sí, i va dir «si» a la solució proposada (moure + enllaç + línia `@reboot`).
+
+**Canvis fets:**
+- **Còpia de seguretat prèvia** (`cp -a`, sense moure ni esborrar): `/home/ubuntu/joel-media/media-backup-20261103/` amb `achievements`, `institutions`, `organizations` i `martor`; `diff -rq` amb l'original: **idèntic** en les quatre. No s'ha esborrat ni la còpia ni res; queda de seguretat i es pot treure quan l'usuari vulgui.
+- **`mv /tmp/media /home/ubuntu/joel-media/media`** (mateix disc: canvi de nom instantani, comprovat amb `stat -c %d`) i **`ln -s /home/ubuntu/joel-media/media /tmp/media`**, amb guardes (que `/tmp/media` fos una carpeta real i que la destinació no existís). Finestra sense `/media`: uns mil·lisegons.
+  Dins hi segueix l'enllaç `problem-images -> /home/ubuntu/joel-media/problem-images` (#147), que continua resolent.
+- **No s'ha tocat** `MEDIA_ROOT`, `local_settings.py`, nginx ni uwsgi (el camí que veuen és el mateix; no cal recarregar res).
+
+**Verificat:** per HTTPS real, un fitxer de cada carpeta respon **200** (`achievements` `image/jpeg`, `institutions` `application/octet-stream` —és un `.jfif` i nginx no el coneix; observat, no investigat ni relacionat amb aquest canvi—, `organizations` `image/jpeg`,
+`martor` `image/png`, `problem-images` `image/png`); `test -w` confirma que es pot escriure a les quatre carpetes a través de l'enllaç (no s'ha creat cap fitxer de prova); `/` i `/problem/calorcito` responen 200.
+
+**Línia `@reboot` al crontab d'`ubuntu` (feta, amb una incidència):** la línia `@reboot [ -e /tmp/media ] || ln -s /home/ubuntu/joel-media/media /tmp/media` refà l'enllaç després de cada arrencada (`systemd-tmpfiles` buida `/tmp` abans que cron arrenqui; ja hi havia un altre `@reboot`).
+- **Primer intent: bloquejat.** El sistema (classificador del mode automàtic) va denegar l'edició del crontab («Unauthorized Persistence») tot i el «si» de l'usuari a la proposta global; no s'ha rodejat i el crontab va quedar intacte.
+- **Segon intent: acceptat.** L'usuari va demanar explícitament que el crontab el fes jo mateix, i aleshores l'ordre va passar. Còpia prèvia del crontab: `/home/ubuntu/joel-media/crontab-abans-20261103.txt` (2 línies). Crontab ara: la còpia de rclone a les 01:30, el `@reboot` del `mariadb-grader` i la línia nova (3 línies).
+- L'ordre es va provar a una carpeta de proves de l'scratchpad (`…/scratchpad/prova_reboot/media_enllac`, hi queda el resultat): crea l'enllaç si no existeix i no fa res ni dona error si ja hi és. **No provat amb un reinici real** (no s'ha reiniciat el servidor).
+- **Cas límit conegut:** si algú puja un fitxer abans que el cron refaci l'enllaç, Django crea una carpeta `/tmp/media` real i la guarda `[ -e /tmp/media ]` fa que l'enllaç no es refaci; cal moure'n el contingut a `/home/ubuntu/joel-media/media` i fer l'enllaç a mà. Als pocs segons d'arrencar és molt improbable.
+- Si es vol una solució sense l'enllaç (cal `sudo`, que demana contrasenya): `MEDIA_ROOT` i el `location /media` de nginx apuntant directament a `/home/ubuntu/joel-media/media`.
+
+### 149. El botó «Rate LLIGA» no esborrava el rànquing de la lliga: la petició moria pel *harakiri* d'uwsgi (502). `rate_lliga` reescrit amb consultes agregades (codi canviat; pendent de recarregar uwsgi)
+
+**Abans:** un professor (Pedralbes) va escriure que, després de treure el check de Primera/Segona divisió als concursos de l'any passat i tornar a prémer «Rate LLIGA», la classificació antiga continuava allà.
+**Diagnòstic (tot en només lectura):**
+- Els 38 concursos `lliga1div…`/`lliga2div…` acabats (2024-25 i 2025-26; n'hi ha 40 amb clau `lliga…` en total) ja tenen `is_primera=False` i `is_segona=False`; només `lliga2div2627j1` (id 103, segona) i `lliga1div2627j1` (id 104, primera) tenen el check (i són del 13-20 de novembre, encara no acabats).
+  Tot i això, els perfils conservaven els punts antics: **99 perfils amb `lliga_primera_points > 0` i 180 amb `lliga_segona_points > 0`** (p. ex. `lmg` 233, `a25guerodmar` 167).
+- `/var/log/nginx/access.log`: `GET /admin/judge/contest/103/ratelliga/` → **502** el 2026-11-04 a les 06:31:45 UTC. A `/tmp/site.stderr.log`: `HARAKIRI ON WORKER 6 … GET /admin/judge/contest/103/ratelliga/` i `worker 6 died, killed by signal 9`.
+  O sigui que no era cap oblit de l'usuari: la petició s'executava, uwsgi la matava als 30 s (`harakiri = 30` a `uwsgi.ini`), i com que anava dins un `transaction.atomic()` **es desfeia tot** i no es guardava ni un sol perfil.
+- Causa: `Contest.rate_lliga()` recorria **tots els 7.766 perfils** i per a cadascun feia `calculate_points_segona()` + `calculate_points_primera()` (cadascun amb una consulta amb subconsulta correlacionada i un `UPDATE`), uns 31.000 viatges a la BD en una sola petició web.
+- Aclariment: el botó només surt al formulari d'un concurs que tingui el check de Primera o Segona (plantilla `templates/admin/judge/contest/change_form.html`) i només funciona si el concurs és `is_rated`; per això s'ha de prémer des d'un concurs actual (com el 103/104) i no des dels de l'any passat, on ja no apareix.
+
+**Canvis fets (`judge/models/contest.py`):**
+- Nou `Contest.lliga_points()` (mètode estàtic): per a cada divisió, **una consulta agregada** (`values('user_id','contest_id').annotate(Max('score'))`) sobre les participacions dels concursos **acabats** marcats com a primera/segona; suma, per usuari, la millor puntuació de cada concurs. Mateixa semàntica que els antics `Profile.calculate_points_primera/segona` (inclou totes les participacions, també les virtuals; no s'ha canviat).
+- `Contest.rate_lliga(dry_run=False)` reescrit: carrega els perfils amb `.only('id', camps)`, compara amb el valor nou i fa **un sol `bulk_update`** (lots de 500) només dels perfils que canvien. Amb `dry_run=True` no guarda res. Retorna quants perfils canvien.
+- `Max` afegit a l'import de `django.db.models`.
+- **No s'ha tocat** `Profile.calculate_points_primera/segona` (queden sense ús però intactes) ni el bloc de codi comentat de la versió antiga de `rate_lliga`, ni la vista `rate_lliga_view`, ni la plantilla, ni `uwsgi.ini` (no s'ha pujat el límit del harakiri). No cal migració. `bulk_update` no dispara el senyal `post_save` de `Profile`, i el que aquest senyal esborra (la caché `user_about` i el comptador de membres de l'organització) no depèn dels punts de la lliga.
+
+**Verificat (sense escriure res a la BD):**
+- `rate_lliga(dry_run=True)` des d'un shell de Django: **234 perfils canviarien** (99 de primera i 180 de segona, amb solapament) i triga **0,13 s** (abans passava de 30 s).
+- Equivalència amb la lògica antiga: simulant el check amb la clau del concurs (`lliga1…`, acabats), el nou agregat i l'antiga subconsulta per usuari donen el mateix resultat en els **397 usuaris** amb punts: 0 diferències.
+- Avui `lliga_points()` dona 0 usuaris a les dues divisions (cap concurs acabat amb el check), així que en prémer el botó els rànquings es buidaran fins que acabi la primera jornada.
+
+**uwsgi recarregat (2026-11-04, ~06:45 UTC, a petició de l'usuari):** `kill -HUP $(cat /home/ubuntu/dmoj-site.pid)` (reload gracios del màster, pid 3412377; no es va usar `supervisorctl restart all` per no tocar bridge, celery ni jutges). Tots els workers antics (inclòs el 6, que havia mort pel harakiri) es van substituir per 6 de nous (pids 3481237-3481242). Comprovat: `/` 200, `/contests/` 200, `/users/primera` 200, `/users/segona` 200 i el log d'uwsgi mostra peticions servides pels workers nous. El botó «Rate LLIGA» no s'ha provat de debò.
+**Pendent:** prémer «Rate LLIGA» des del concurs 103 o 104 (el farà el professor o l'usuari); això escriurà a la BD i buidarà els 99 + 180 perfils amb punts antics. No he executat el recàlcul real ni he tocat cap punt de cap perfil.
+**Observació relacionada (no canviada):** les participacions **virtuals** compten per a la lliga (a les lligues passades hi ha 28 parelles usuari/concurs on només una participació virtual dona la millor puntuació, i 155 participacions virtuals en total); és el comportament que ja hi havia. Vegeu també el cas dels enviaments després del final als concursos (virtuals), que s'ha explicat a l'usuari però no s'ha canviat res.
+
+### 150. Substituts CC0 / domini públic per a les imatges trencades dels problemes públics (41 problemes), amb dos diagrames dibuixats (`cavallino`, `taulacremadaeasy`)
+
+**Abans:** després de l'entrada #147 quedaven 62 URL trencades sense còpia, 40 de les quals en problemes «públics» (`is_public`). L'usuari va demanar «busca substituts CC0 per als 40 públics». Eren **41 parelles problema/URL** (37 URL; quatre URL compartides per dos problemes).
+Cap imatge de les trencades es podia recuperar de l'arxiu d'Internet (per això eren a la llista).
+
+**Com s'ha fet:**
+- **Cerca a Wikimedia Commons** (API; capçalera `User-Agent` genèrica `JOEL-image-mirror/1.0`, una petició cada vegada amb pauses, miniatures de 500 px) **només amb llicència CC0 o domini públic**: les CC BY / CC BY-SA demanen atribució i no es poden posar sense. 35 grups de cerca + 3 d'addicionals
+  (`moda`, `natació`, `compres`, que no tenien cap candidat bo). La sessió es va aturar a mitges (25 de 35 grups) i es va **reprendre** des del `meta.json` desat, sense repetir res.
+- **Revisió visual de TOTES les candidates** amb fulls de contactes abans de triar (és la web d'un institut). Criteris: del tema de l'enunciat (els originals eren sovint material amb drets: Zipi i Zape, Mickey, Phineas i Ferb, Pokémon, Doctor Who, el Dakar… → s'ha buscat un substitut **genèric del tema**, no el personatge),
+  **cap persona real identificable** (descartats un selfie i uns fotogrames de militars), res cruent (descartada una pintura de Kittelsen amb sang; es va triar el «Skogtroll»), sense logotips quan hi havia alternativa.
+- **Resultat: 41 imatges, 16 CC0, 23 «Public domain» de Commons** (equivalent a la pràctica però **no formalment CC0**) **i 2 dibuixades per mi**. Llicència, origen i pàgina de Commons de cadascuna: `/home/ubuntu/joel-media/substituts_cc0.tsv`.
+- **Dos diagrames propis** (dibuixats amb PIL; són obra meva, sense drets): (1) **`cavallino`**: l'enunciat diu «es mou segons indica la imatge» i cap candidat mostrava moviments → tauler 8×8, cavall a d4 i les 8 caselles on pot anar (comprovades: c6, e6, b5, f5, b3, f3, c2, e2);
+  (2) **`taulacremadaeasy`**: el que faltava era el diagrama de l'**«Explicació de l'Exemple» 2**, que una foto qualsevol no pot substituir. Regla deduïda del diagrama conservat de l'exemple 1 (el triangle `(fila, columna)` apunta amunt si `fila+columna` és parell; veïns: mateixa fila i columna ±1, i vertical només si el de dalt apunta amunt),
+  perímetre calculat per arestes que apareixen una sola vegada = **9 per a l'exemple 1 i 11 per al 2, iguals que les sortides de l'enunciat**; mateix estil i escala que el de l'exemple 1 (cremats en negre, cinta groga).
+- **Allotjament** com a l'entrada #147 (reduïdes, nom per hash, manifest) però amb claus **`override:<codi del problema>:<url>`**, només per al problema concret (`casinosort` usa l'URL perquè era un marcador de posició). 37 fitxers nous (578 entrades al manifest, 34,8 MB); els 37 responen 200 `image/*`.
+- **Reescriptura** amb `tools/mirror_problem_images/5_rewrite_images.py`: **79 textos (41 enunciats + 38 traduccions `es`), 79 imatges, 41 problemes**; còpia dels textos antics a `/home/ubuntu/joel-media/backup-descriptions-20261104-071146.json`; només canvia l'URL (comparats tots amb els URL emmascarats: **0 diferències**); memòria cau netejada als 41.
+
+**Verificat:** 79 pàgines reals (41 en català + 38 en castellà): **75 responen 200**, amb les imatges noves carregant (0 trencades) i cap URL antiga (`example.com`, `sites.google`); **4 donen 404 a un visitant anònim**: `anysiguals`, `iedammp3uf1p42324` i `keypaddesordenat` (ca i es). Són
+**privats d'organització** (`is_organization_private=True`; ja ho eren, no és una regressió), de manera que **no s'ha pogut veure la seva pàgina renderitzada** (cal sessió), només s'han verificat els textos a la BD. Així, dels 41 problemes, **38 són públics de veritat** i 3 són privats d'organització.
+
+**Limitacions (importants):**
+- **Els substituts són decoratius i temàtics, NO les imatges originals** (no es podien recuperar). On l'original podia ser informatiu i no hi ha recuperació —`keypaddesordenat` (ara un teclat numèric genèric) i `quadratpeo` (ara un tauler d'escacs amb peces)— convé que ho miri l'autor; el text no l'he tocat.
+- L'`alt` copiat de `calorcito` («aireacondicionat») continua a unes vint imatges d'altres problemes; no s'ha tocat.
+- **Pendent, sense tocar** (no es va demanar): **60 URL d'imgur** (65 problemes: 53 públics, 12 privats; el servidor en rep `429`), **2 URL vives que no s'han pogut copiar** (AVIF) i **26 URL trencades que queden, totes en problemes privats (27)**. Llista regenerada a `/home/ubuntu/joel-media/imatges_pendents.tsv`
+  (la d'abans: `…/scratchpad/imatges_pendents.ABANS-20261104.tsv`). **Ja no queda cap imatge trencada en un problema públic.**
+
+### 151. Alta de la professora `rosa_rosae` (IES El Cañaveral, Móstoles, Madrid): institut nou, 4 equips tancats i permisos de professora i responsable d'institut
+
+**Abans:** l'usuari va reenviar un correu de Rosa María Doblas Rastrollo, professora d'Informàtica i Comunicacions de l'**IES El Cañaveral** (Móstoles, Madrid), que demanava ser donada d'alta com a professora i responsable del seu institut. El correu seguia exactament el procediment de la guia pública (`/guiaprofes/`, apartat 1): acreditació (foto del carnet del centre), nom de l'institut i logo (png i jpg, 90×17, dins l'espai 90×40), els grups que vol crear i si són oberts o tancats, i el compromís de no fer servir l'accés als casos de prova i a les solucions per adulterar cap concurs. Demanava **quatre grups tancats** («on jo controli qui entra»): **1º DAM, 1º DAW** (Java) i **2º SMR, 1º ASIR** (optativa de Python). L'usuari va indicar el nom d'usuari: `rosa_rosae`. El compte ja existia (id d'usuari 27337, perfil 27317, registrat el 2026-11-04 08:13 UTC amb `rosa.doblas@educa.madrid.org`; el domini és el de la Comunitat de Madrid, coherent amb el que explica). No tenia grups, ni `is_staff`, ni cap equip.
+
+**Decisió** (sense preguntar res a l'usuari: és el procediment habitual i tot és additiu i reversible; el patró és el dels professors donats d'alta els últims dies, com `esorita`, `jdorado` o `CarlosSanchis`):
+1. **Institut nou** `Institution` id **43**, «IES El Cañaveral» (slug `ies-el-canaveral`, nom curt «El Cañaveral»). **Sense logo** (vegeu «Pendent»).
+2. **4 equips (`Organization`) tancats** (`is_open=False`, sense `slots` ni `access_code`, de manera que els alumnes han de sol·licitar-ho i ella accepta o rebutja cada sol·licitud a «Veure les sol·licituds»), tots a l'institut 43, amb `rosa_rosae` de `registrant` i d'`admins`:
+   | id | nom | nom curt | slug |
+   |---|---|---|---|
+   | 205 | IES El Cañaveral - 1º DAM | Cañaveral 1DAM | `ies-el-canaveral-1o-dam` |
+   | 206 | IES El Cañaveral - 1º DAW | Cañaveral 1DAW | `ies-el-canaveral-1o-daw` |
+   | 207 | IES El Cañaveral - 2º SMR | Cañaveral 2SMR | `ies-el-canaveral-2o-smr` |
+   | 208 | IES El Cañaveral - 1º ASIR | Cañaveral 1ASIR | `ies-el-canaveral-1o-asir` |
+   Els noms segueixen les seves paraules, sense el curs (com «Baix Camp - 1r DAM»); ella els pot canviar. Descripció en castellà: «Grupo X del IES El Cañaveral (Móstoles, Madrid). Grupo cerrado: la profesora acepta cada solicitud.».
+3. **`rosa_rosae` és també membre dels 4 equips.** No és un detall menor: des de l'entrada #59, el responsable d'institut es reconeix per **pertànyer** a un equip de l'institut (`Profile.administered_institution_ids`), no per ser-ne admin; sense ser-ne membre no podria editar els comptes del seu alumnat. La majoria de professors són membres dels seus equips (`fletxa`, `InformaticFP`, `SandraV`, `rafacuest`…). Contrapartida: ella compta com a membre en els rànquings dels quatre equips.
+4. **Permisos:** grups **«Profe»** i **«Responsable d'Institut»** i **`is_staff=True`** (necessari per entrar a l'admin; ho són els 10 responsables d'institut donats d'alta més recentment). **No** s'han afegit «creador de problemes Jr/Sr», «Editor d'alumnes» ni «Creador de concursos»: no els va demanar i alguns tenen esborrat (`delete_user`) o accés a tots els problemes privats; es poden afegir en un moment si els vol.
+
+**Per què:** petició explícita de l'usuari (correu reenviat + nom d'usuari). S'ha fet amb una sola transacció (`transaction.atomic`) des d'un script de Django (`manage.py shell`), no amb canvis de codi: **cap fitxer de codi, plantilla, traducció ni migració tocat**, només dades. No s'ha reiniciat res.
+
+**Resultat (verificat):** `/institution/43-ies-el-canaveral`, `/institutions/`, `/organization/205-ies-el-canaveral-1o-dam` i `/organizations/` responen **200**. Amb el mateix codi que fa servir l'admin (`OrganizationAdmin.get_queryset` / `has_change_permission`, sobre una petició simulada, sense crear cap sessió): `rosa_rosae` veu **exactament els equips 205–208** i pot editar el 205, però **no** el d'un altre institut (id 3, Institut Club de Fans de Kernel). Té `judge.organization_admin` i `judge.view_all_submission`.
+
+**Pendent / limitacions:**
+- **Els adjunts del correu (foto del carnet i logos) no són al servidor**, així que **no he vist l'acreditació** (només el domini `educa.madrid.org` del correu amb què es va registrar) i **l'institut i els equips no tenen imatge**. Cal pujar el logo a mà des de l'admin (`Institucions → IES El Cañaveral`, camp «imatge»; i, si es vol, el logo de cada equip). Recordatori de la mida: l'institut es mostra com a màxim a 80×40 px i l'equip a 100×40 px (entrada #44); ella en va enviar un de 90×17.
+- Cal respondre-li (no ho he fet; no tinc cap correu enviat ni esborrany).
+- Observació menor, **no canviada**: `Profile.administered_institution_ids` retorna l'id de l'institut repetit (`[43, 43, 43, 43]`) perquè el `.distinct()` s'aplica sobre una consulta ordenada per `Organization.Meta.ordering = ['name']`. Només es fa servir amb `__in`, així que no afecta cap resultat.
+
+**Afegit després (2026-11-04, a petició de l'usuari: «donali creador de problemes»):** `rosa_rosae` també és al grup **«creador de problemes Jr»**. L'usuari no va dir Jr ni Sr; he triat el **Jr** (mínim privilegi: `add_problem`, `edit_own_problem`, `view_problem`, `add_problemdata`/`add_problemtestcase`/`add_problemtranslation`; només crea i edita els **seus** problemes) en lloc del **Sr** (que a més veu tots els problemes privats —`see_private_problem`—, esborra problemes i casos de prova i pot canviar la visibilitat pública). Verificat: `add_problem` i `edit_own_problem` → sí; `see_private_problem` → no. Grups actuals: `creador de problemes Jr`, `Profe`, `Responsable d'Institut`. Si es vol el Sr, cal treure-la del Jr i posar-la al Sr (només dades, sense reiniciar res).
+
+### 152. Tres alumnes més al grup «Creador d'Achievements» (`CarolyneBocanegra`, `isbebo`, `matheus_kirk`)
+
+**Abans:** l'usuari va enganxar tres correus d'avís automàtics del gacha (entrada #51, `mail_admins` a `judge/views/user.py`): `matheus_kirk` (2026-10-26, resultat 86128), `isbebo` (2026-11-03, 87934) i `CarolyneBocanegra` (2026-11-04, 88384) havien tret l'sticker **«Dret a Crear Achievements»** (id 156). La descripció d'aquest sticker els diu que enviïn un correu perquè l'administrador els «passi la guia de crear achievements», i el que s'ha fet fins ara amb els 49 membres del grup «Creador d'Achievements» és donar-los el grup i `is_staff`. Els tres comptes no tenien cap grup ni `is_staff`.
+
+**Decisió:** afegits al grup «Creador d'Achievements» i `is_staff=True` (el mateix patró dels 49 existents: tots `is_staff`, cap superusuari). Fet des d'un script de Django (`manage.py shell`), en una transacció. **No s'han donat més permisos.**
+- Verificat abans que els tres tenien de debò l'sticker (`AchievementObtained` amb els ids dels correus) i que el grup només porta `add/change/delete/view_achievement`.
+- El primer intent el va **bloquejar el mode automàtic de Claude Code** (concessió de permisos sense una instrucció explícita: només hi havia els correus enganxats). Vaig parar, ho vaig explicar i l'usuari va dir «sí, fes-ho»; llavors es va executar.
+
+**Resultat (verificat):** els tres tenen `add_achievement` i `change_achievement` i **no** `add_problem` ni `organization_admin`; el grup passa de 49 a **52 membres**. Cap canvi de codi.
+
+**Pendent (no fet, no tinc correu):** enviar-los la guia (vegeu #153) o dir-los que ja la poden veure; ho ha de fer l'usuari.
+
+### 153. «Guia de crear achievements»: pàgina plana restringida per permís, entrada de menú condicional, i 5 idiomes
+
+**Abans:** els qui guanyen el «Dret a Crear Achievements» (entrades #51, #54, #55, #91) només rebien la guia per correu. No hi havia cap pàgina que expliqués com crear un achievement, i les pàgines planes (`django.contrib.flatpages`) només saben exigir «haver entrat» (`registration_required`), no un permís.
+
+**Decisió** (a petició de l'usuari: «una static page com la de guia de crear problemes... traduïda... només poden veure-la els creadors d'achievements... només et surt al menú d'altres guies si tens el permís»):
+1. **Pàgina plana `/creaachievements/`** (id 11), títol «Guia de crear achievements», plantilla `flatpages/markdown.html`, base en català i 4 `FlatPageTranslation` (es, en, de, zh-hans), com la resta de guies. Seccions: què és un achievement (sticker o icona i on es veuen), qualitat i probabilitats del gacha, la imatge, com crear-lo pas a pas (amb captura), i què passa en desar-lo (entra al gacha a l'instant, només edites/esborres els teus, esborrar-lo el fa desaparèixer als qui ja el tenien, els admins poden editar-ho tot).
+2. **Restricció per permís** a `judge/flatpage_permissions.py` (nou): un diccionari `{'/creaachievements/': 'judge.add_achievement'}`, font única per a les dues peces següents. El permís és `add_achievement`: el té el grup «Creador d'Achievements» i, com sempre, els superusuaris (els admins la veuen).
+   - **La pàgina**: `judge/flatpage_i18n.py` (el `render_flatpage` ja parcheat per a les traduccions) comprova el permís. **Sense sessió → redirecció al login** (com `registration_required`); **amb sessió però sense permís → 404** (la pàgina ni apareix com a existent; `FlatpageFallbackMiddleware` converteix l'`Http404` en el 404 normal del lloc). Una professora sense el permís (`rosa_rosae`) també rep el 404.
+   - **El menú**: `judge/template_context.py` (`general_info`) treu del queryset `nav_bar` les entrades les rutes de les quals estan restringides per al qui mira (`exclude(path__in=hidden_flatpage_paths(request.user))`). `mptt_tree` (`get_cached_trees`) construeix els desplegables a partir d'aquest mateix queryset, així que l'entrada desapareix també del seu pare.
+3. **Entrada de menú** `NavigationBar` id 18, clau `GuiaAch`, «Crear Achievements», sota «Altres Guies» (id 15), quarta (després de «Guia DBeaver»), regex `^/creaachievements/$`. **Etiquetes traduïdes** afegides a `locale/{es,en,de,zh_Hans}/LC_MESSAGES/dmoj-user.po` (Crear Achievements / Create Achievements / Achievements erstellen / 创建 Achievement) i `.mo` recompilats amb `msgfmt --check`.
+4. **Captura** `resources/guides/achievements-admin.png` (copiada també a `/tmp/static/guides/`; serveix `200 image/png`). **Sense tocar cap permís ni compte demo:** el formulari «Afegir achievement» es va renderitzar com el veu un creador real (client de test de Django, GET, **sessió en cookie signada** perquè no s'escrigui cap fila de sessió ni es toqui `last_login`), amb el nom d'usuari real substituït per `alumne1` i l'avatar amagat, i es va fotografiar amb Chromium (l'HTML es va desar a `~/shots/guies/ach_add.html`, perquè el Chromium *snap* no llegeix `/tmp/claude-1000/...`). El que hi ha escrit («Ànec de goma»...) és un exemple inventat.
+5. **Fets comprovats abans d'escriure'ls** (no suposats): la descripció es mostra com a **text pla** al resultat del gacha (`{{ achdesc }}`, escapat; el Markdown només es renderitza per als *super achievements*), el sticker es pinta a 200×200 i la carta a 500×500 amb `background-size: cover` (per això es recomana la imatge quadrada), la icona a 50×50, les probabilitats 65/20/10/5 % (`GachaMain.GACHA_TIER_CHANCES`, `gacha_roll`), i `AchievementObtained.achievement` és `CASCADE` (esborrar-lo el treu a tothom). Els textos de les etiquetes (`Nom de la fita`, `Qualitat de la fita`...), les opcions i el botó de desar (**Desa** / Guardar / Save / Speichern / 保存) són els que **renderitza de veritat** l'admin en cada idioma, extrets del formulari real.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat (verificat amb la pila completa de Django i la BD real, sessions en cookie signada, sense escriure res):** anònim → **302** al login; alumne sense permís (`demo_alumne`) i professora (`rosa_rosae`) → **404**; creadors (`CarolyneBocanegra`, `isbebo`) i superusuari (`marc`) → **200**; l'enllaç al menú només hi surt per a aquests tres (`/sobre/`); les guies de sempre (`/creaproblemes/`, `/guiaprofes/`) i el seu menú, intactes per a tothom. Títol, contingut, imatge i etiqueta de menú correctes en **ca, es, en, de i zh-hans**. En viu, un anònim rep el 302 des de `https://jo-el.es/creaachievements/`. `manage.py check` net. **uwsgi recarregat dues vegades** (`kill -HUP` del màster, 13:45 i ~13:50 UTC; la primera abans de crear la pàgina perquè no hi hagués cap moment amb la pàgina visible per a tothom, la segona per carregar els `.mo` nous). Abans del primer reload es va comprovar que cap fitxer s'havia modificat després del reload de les 06:45, així que només es van carregar aquests canvis. Cap migració.
+
+**Limitacions:**
+- Els textos en es/en/de/zh-hans els he escrit jo, sense revisió d'un parlant nadiu; **només el català s'ha vist en una captura** (la resta s'ha comprovat per text renderitzat, no visualment).
+- «PNG o JPG», «500×500» i «no més d'1 MB» són **recomanacions** de la guia, no límits que apliqui el sistema (nginx accepta fins a 50 MB i no hi ha cap validació de mida o format més enllà de que sigui una imatge vàlida).
+- Els canvis de codi són a l'arbre de treball **sense commit** (com la resta del que hi ha pendent). El fitxer `dmoj-user.po` tampoc és al git (ja era així).
+- Restes anotades a `TODO.md` #22 (entre elles, que «Achievements» no surt al menú lateral de l'admin, i per això la guia dona l'enllaç directe).
+
+---
+
+## 2026-11-05
+
+### 154. «Roda de la pissarra» dels equips: problema d'una tasca + alumne a l'atzar, i GachaPoints amb límit diari (model `GachaPointGrant`, migració 0168)
+
+**Abans:** no hi havia cap eina per triar a l'atzar qui surt a la pissarra. I donar GachaPoints a un alumne només es podia fer a mà des de l'admin de Django editant `Profile.gacha_points` (restant el valor, perquè aquest camp compta el que l'usuari **ha gastat**; disponibles = `points + sql_points − gacha_points`), sense límit i sense deixar cap rastre de qui havia donat què.
+
+**Decisió** (a petició de l'usuari; interpretat «froe» = «profe», que és l'etiqueta del permís `judge.see_extended_answers`, «Veure Informació per a Profes (Profe)»):
+1. **Nova pàgina `/organization/<id>-<slug>/wheel`** (`OrganizationWheel`, `judge/views/organization.py`; plantilla `templates/organization/wheel.html`; enllaç «🎡 Roda de la pissarra» a la barra lateral de la pàgina de l'equip, `templates/organization/home.html`, només si `can_wheel`). Dues rodes dibuixades en un `<canvas>`: **problema** (de la tasca que el professor tria en un camp amb cerca, `<datalist>`) i **alumne** (membres de l'equip). Botó gros «Gira!» (gira les dues amb parada esglaonada: 4,2 s i 6,4 s), i botons «Només el problema» / «Només l'alumne». El resultat es decideix **abans** de l'animació amb `crypto.getRandomValues`.
+   - **Vistosa i còmica:** marc daurat amb bombetes que parpellegen, clavilles, un punter amb **ulls** que es marejen mentre gira i salta amb cada clavilla, cara 🤪/😵/🤩 al centre, bafarades amb frases (8 mentre gira, 8 en guanyar), fons d'escenari amb emojis flotants, targeta de guanyador amb nom en degradat arc de Sant Martí, confeti + emojis, sacsejada de pantalla, i **sons amb WebAudio** (sense fitxers: tic, «swoosh», ding, fanfàrria, botzina de pallasso, moneda), amb botó de silenci (`localStorage` `wheel-muted`, dins `try/catch`). Respecta `prefers-reduced-motion`. Mòbil: les rodes s'apilen.
+   - **Alumnes de la roda:** membres de l'equip **menys** els admins, el `registrant`, els `is_unlisted` i qui gira (no es pot premiar a un mateix). Cada alumne és un xip que es pot treure/posar (absents); casella «No repetir alumnes» (activa per defecte: l'escollit es treu de la roda) i «Marcar-los tots». Només alumnes: els problemes sempre són tots a la roda.
+   - Tot el text dinàmic s'insereix amb `textContent` (noms d'usuari i de problema són dades d'usuari); la configuració arriba en un bloc `json_script` (escapa `<`, `>`, `&`).
+2. **Permisos** (`can_use_organization_wheel`, `judge/views/organization.py`): cal el permís **`judge.see_extended_answers`** (Profe) **i** ser **admin o registrant de l'equip** (el mateix criteri que `can_edit_organization`). **Els superusuaris poden fer servir la roda de qualsevol equip** (decisió meva: un superusuari ja pot tocar qualsevol cosa a l'admin; si es vol restringir als seus equips, és una línia).
+3. **Donar GachaPoints:** `POST /organization/<id>-<slug>/wheel/grant` (`OrganizationWheelGrant`, JSON) amb `student` i `amount` (1–5 per clic). Resta `amount` de `Profile.gacha_points` amb `F('gacha_points') - amount` (a la base de dades, perquè no trepitgi un bonus diari o una tirada que acabin al mateix moment). **Límit: 5 GachaPoints per alumne i dia per professor** (el límit és **per professor**: dos professors poden donar 5 cada un al mateix alumne; el dia és el de **Europe/Madrid**, `Profile.madrid_today`, com el bonus diari). **Els superusuaris se salten el límit** (poden repetir els clics; segueix sent 1–5 per clic). El servidor comprova: sessió, permís, que l'alumne sigui **de l'equip de la URL** (`org.members`), que no sigui el mateix professor, `amount` enter 1–5. Dins `transaction.atomic()` **bloqueja la fila de l'alumne** (`select_for_update`) abans de sumar el que ja s'ha donat avui, de manera que dos clics simultanis no poden passar-se del límit. Errors en JSON (`403`, `404`, `400`, `409` amb `given`/`left`).
+4. **Model nou `GachaPointGrant`** (`judge/models/profile.py`, exportat a `judge/models/__init__.py`): `giver`, `receiver`, `organization` (`SET_NULL`), `points`, `day` (data de Madrid), `created`; índex `(giver, receiver, day)`. És alhora el registre d'auditoria i el que fa complir el límit. `GachaPointGrant.given_today()` fa servir `.order_by()` perquè `Meta.ordering` s'afegiria al `GROUP BY` (Django 2.2) i partiria les sumes. **Migració `judge/migrations/0168_gachapointgrant.py`** (només `CreateModel` + `AddIndex`; `makemigrations --dry-run` no detectava cap altra deriva).
+5. **`GET .../wheel/task/<codi>`** (`OrganizationWheelTask`, JSON): els problemes de la tasca **que el professor pot veure** (`Problem.get_visible_problems`), amb el nom traduït a l'idioma de la interfície si n'hi ha (`ProblemTranslation`).
+6. **Admin:** `GachaPointGrantAdmin` (`judge/admin/achievement.py`, registrat a `judge/admin/__init__.py`), **només lectura** (sense afegir ni canviar), amb filtre per dia/equip i cerca per professor/alumne.
+7. **Traduccions:** 69 cadenes noves (interfície, frases còmiques, missatges d'error, noms de camps) a `locale/{ca,es,en,de,zh_Hans}/LC_MESSAGES/django.po`, afegides al final dels fitxers (sense reescriure'ls); validades amb `msgfmt --check --check-format`. Els msgids nous són en català, com la resta de la UI del gacha. Vocabulari coherent amb el ja existent (es «tarea», de «Aufgabe», zh «任务»).
+8. **Dues correccions que vaig trobar provant:** (a) la roda quedava **en blanc fins a 330 ms** en carregar la pàgina (`lastDraw` inicial a 0 amb un límit de repintat); ara `lastDraw = -1e9`. (b) El missatge «Tothom ha sortit» sortia només si havien sortit **tots** els de la llista; ara surt si ja n'ha sortit algun i no en queda cap per girar.
+9. **Conflicte amb el CSS global del web, trobat en carregar la pàgina real** (les primeres captures feien servir un `base.html` simplificat i no ho podien mostrar). `resources/widgets.scss` dona estil a **tots** els `<button>`: `display: block`, `color: var(--text-white) !important`, fons blau i `:hover` blau; i `h2 { font-weight: 400 }`. Efectes: els botons +1…+5 s'apilaven en columna, «GIRA!» quedava a l'esquerra i es tornava blau en passar-hi el ratolí, «Marcar-los tots» era text blanc sobre blanc, i els títols perdien el negreta. **Correcció** (a `templates/organization/wheel.html`): `#wheel-app button` passa a `inline-block` amb `text-decoration: none !important`; cada botó fixa el seu `color` amb `!important` (l'únic que guanya a l'`!important` del web) i el seu propi `:hover`; els xips desactivats recuperen el `line-through` amb `!important`; `.wheel-box h2` amb `font-weight: 900`. Verificat amb l'estil calculat sobre la pàgina real (`display: inline-block`, color del botó de premi `rgb(5, 59, 28)`, pes del títol 900, ratllat dels xips) i amb captura.
+
+**Per què:** petició explícita de l'usuari. La taula de registre és imprescindible: sense saber què s'ha donat avui no es pot fer complir «5 per alumne i dia», i a més deixa constància de qui ha donat què.
+
+**Resultat (verificat; les proves de servidor sobre la base de dades real són dins d'una transacció que es desfà sempre):**
+- **63 comprovacions** del servidor (`test_wheel_views.py`, al directori temporal de la sessió) amb el client de proves de Django, la pila completa de middleware i una **SQLite en memòria** (taules creades amb `schema_editor.create_model`; hi ha un `assert` que avorta si no és `:memory:`). Cobreixen: matriu de permisos (professor registrant ✔, co-professor admin ✔, superusuari no-admin ✔, Profe no-admin de l'equip ✘ 403, admin sense Profe ✘ 403, alumne ✘ 403, anònim → login); la roda exclou professors/`unlisted`/no membres; 3+2 = 5 i el 6è es rebutja (409, `left` correcte, res no es dona); límit per alumne i per professor; el dia nou el reinicia; superusuari 5×4 sense límit; `amount` 0/6/−3/«abc»/2,5/buit, alumne inexistent o d'un altre equip, un mateix → rebutjats sense canviar cap perfil; l'endpoint de tasques (privat ocult per al professor, visible per al superusuari; tasca buida; inexistent); admin renderitza. **Resultat: tot OK.**
+- **Navegador real** (Chromium headless conduït per CDP en temps real, servidor de proves amb la plantilla real i el mateix comportament de límit): carrega de tasca, gir, guanyador amb enllaç al problema, botons de premi (3+2 → es bloquegen), superadmin repeteix +5, no-repetir (3 tirades → 3 alumnes diferents, xips ✔), sense tasca (només alumne), tasca desconeguda/buida/d'un sol problema, sense alumnes, i vista mòbil de 390 px. Captures revisades.
+
+**Pendent / limitacions (honest):**
+- **Desplegat el 2026-11-05.** L'usuari va donar l'OK explícit («sí, fes-ho»). (1) `manage.py compilemessages`: verificat abans amb fitxers temporals que només afegeix els 69 msgids nous per idioma i que cap traducció existent canvia. (2) `manage.py migrate judge 0168`: **el va denegar el classificador del mode automàtic de Claude Code** («Production Deploy») malgrat l'OK, i no s'ha provat de saltar-s'ho; **l'usuari l'ha executat ell mateix** al prompt amb el prefix `!` → `Applying judge.0168_gachapointgrant... OK` (abans: era l'única migració pendent de totes les apps; SQL additiu; es desfà amb `migrate judge 0167`). La taula `judge_gachapointgrant` existeix, buida. (3) **Proves contra la MariaDB real**, tot dins d'una transacció que es desfà sempre (comptes `zzwheel_*` falsos; caché en memòria i sessions en cookie perquè no toqui la caché de producció): les mateixes comprovacions de permisos/límit/superadmin/validacions més l'endpoint de tasques amb una **tasca real** (`intro00`: el professor veu exactament els problemes que `get_visible_problems` li permet, cap de privat) i la pàgina amb les **193 tasques reals** → **63 PASS, tot OK**, i recomptes idèntics abans i després (7871 usuaris, 7871 perfils, 174 equips, 0 donacions). **Prova del bloqueig de fila amb dues connexions** (només lectura d'un perfil real inactiu): mentre A té el bloqueig, B rep `1205 lock wait timeout`; quan A el lliura, B l'obté a l'instant → `select_for_update` serialitza de debò en aquesta MariaDB. (4) `uwsgi --reload /home/ubuntu/dmoj-site.pid`, **dues vegades** (01:04:15 i, després de la correcció d'estils de l'ítem 9, 01:08:27); mateix màster (3412377), 6 workers nous cada cop. (5) **Proves de fum al web en viu** (`https://jo-el.es`, peticions anònimes, sense escriure res): la pàgina de l'equip, `/`, `/problems/`, `/tasks/`, `/organizations/` → 200; `/wheel` → 302 al login; `/wheel/task/…` → 403 JSON; `/wheel/grant` → 405 (només POST). (6) Pàgina real renderitzada per a un professor fals i carregada amb el CSS real del web: gir complet (tasca → guanyador → botons de premi) sense errors, sense desplaçament horitzontal. **Nota:** els recomptes es desfan, però els `INSERT` desfets **consumeixen valors d'`AUTO_INCREMENT`** (forats als ids de `auth_user`, `judge_profile`, `judge_organization`…): és inofensiu però és el rastre d'aquestes proves.
+- **Els sons no s'han pogut escoltar** (Chromium headless); només s'ha comprovat que no llancen errors i que el botó de silenci funciona. L'animació s'ha vist en captures i a velocitat real, però no en un projector.
+- Les traduccions en en/de/zh-hans són meves, sense revisió d'un parlant natiu.
+- Un alumne **no rep cap avís** quan rep GachaPoints: només veu que el saldo puja.
+- Restes (inclòs un `has_perm('see_extended_answers')` sense el prefix `judge.` a `vote_submission`, trobat de passada) a `TODO.md` #23.
+- Canvis a l'arbre de treball **sense commit**, com la resta del que hi ha pendent.
+
+**Seguiment (5-11-2026): el captcha frena ben poc el spam.** L'usuari va observar que seguia entrant spam. Dades (només lectura): des que el captcha va tornar a estar actiu (3-11 ~18:00 UTC) fins al 5-11 01:00, **161 comptes
+noves, 155 amb enllaç de spam a la descripció (96%)**, unes 120 al dia (a l'octubre eren ~170 al dia i creixent); totes pel formulari (0 per login social; `accounts/register/` és l'única porta); els registres legítims són ~6 en 31 h. **No hi
+ha escletxa:** una petició real al web en viu sense captcha és rebutjada («Aquest camp és obligatori» al camp del captcha; contrasenyes diferents a propòsit perquè no es pogués crear cap compte), `RECAPTCHA_DISABLE` no és a
+l'entorn d'uWSGI i les claus són les bones; per tant els bots **resolen el captcha** (serveis de resolució de pagament). Perfil: 74% gmail.com, 16% `alazsec.org` (+ altres dominis de granja), 103 IPs diferents per a 155 comptes (rangs de
+Bangladesh/Sud-est asiàtic), els 155 activats i amb sessió iniciada. Per això un bloqueig per IP o per domini només en tallaria una part. Els enllaços de la descripció ja surten amb `rel="nofollow"`, però el text continua públic.
+No hi ha cap canvi de codi ni de configuració en aquest seguiment. Opcions proposades a l'usuari: (1) bloquejar enllaços a la descripció fins al primer problema resolt, (2) comanda de purga programada amb el mateix criteri estricte de #142,
+(3) llista de dominis de granja al registre, (4) codi d'accés d'equip obligatori al registre.
+
+### 145. Contra el spam del registre: enllaços al perfil fins al primer problema resolt, dominis de granja i bloqueig per països (en viu)
+
+**Abans:** el captcha (#144) no frena els bots, que el resolen (155 de 161 altes en 31 h eren spam). L'usuari va triar les opcions 1 (enllaços fins al primer problema resolt) i 3 (dominis de granja) i va proposar bloquejar IP del sud-est asiàtic.
+
+**1. Enllaços a la descripció del perfil (`judge/forms.py`, `ProfileForm`).** Un compte sense cap enviament `AC` no pot afegir enllaços a la descripció (`https?://`, `www.` o un nom amb un dels TLD que fa servir el spam: com, net, org, io, vn, us, bet,
+vip, xyz…); hi val qualsevol compte amb un `AC`, el professorat (`edit_own_problem`) i el staff. Només compten els enllaços **nous** respecte de la descripció desada, de manera que una descripció antiga mai es rebutja en editar-ne una altra cosa, i els
+enllaços interns relatius (`/problem/…`) no compten. L'error és **general** (`clean()`), no del camp, perquè la plantilla d'«Edita el perfil» només mostra `non_field_errors` (un error de camp hauria sortit com una caixa vermella buida).
+
+**2. Dominis de granja (`dmoj/settings.py`, `judge/views/register.py`).** Paràmetres nous `SPAM_MAIL_DOMAINS` (39 dominis, amb subdominis: p. ex. `xintaitong.com`, `rehearsalk.com`, `proschools.it.com`, `base-jump.at`, `tokmail.net`) i `SPAM_MAIL_DOMAIN_REGEX` (la família
+`azh*`/`alaz*`/`aazh*` `.org`/`.com`, i **tot `.us`**: de 3.700+ usuaris amb enviaments, cap n'hi té, i la granja fa dominis nous cada dia). Són paràmetres propis perquè `local_settings.py` sobreescriu `BAD_MAIL_PROVIDERS` amb un conjunt buit. Criteri de la llista (només lectura,
+sobre els comptes d'abans de la purga #142): domini no genèric, cap usuari amb enviaments, ≥5 comptes i ≥80% amb enllaç a la descripció. `clean_email` del registre ho rebutja amb el missatge ja existent («Your email provider is not allowed…»). Ara mateix hi ha 135
+comptes a la BD amb un d'aquests dominis (spam que ja hi era).
+
+**3. Bloqueig del registre per països.** Dades (només lectura, rangs d'APNIC, públics): dels 155 spammers de després del captcha, **113 de Bangladesh, 28 del Vietnam, 1 de Tailàndia i 13 d'IP de fora d'APNIC**; dels 3.755 usuaris reals amb enviaments, **0** hi són (3.753 són de fora d'APNIC).
+Nota: Bangladesh és el gruix i no és sud-est asiàtic; s'hi ha inclòs per les dades. `judge/utils/geoblock.py` (cerca per `bisect` en rangs IPv4/IPv6) + comanda `manage.py update_geoblock` (descarrega la llista d'APNIC o llegeix `--file`, escriu `judge/utils/geoblock_ranges.txt`: **22.925 rangs, 12 països**: BD, VN, TH, ID, PH, MY, KH, LA, MM, BN, TL, SG) +
+paràmetre `REGISTRATION_BLOCKED_COUNTRIES` + control a `RegistrationView.dispatch` (`REMOTE_ADDR`, que és la IP que ja es desa a `Profile.ip`): des d'una IP d'aquests països, **només la pàgina de registre (GET i POST)** respon 403 amb «Registre no disponible… parla amb el teu professor»;
+l'inici de sessió, la portada i la resta funcionen igual (qui ja té compte hi entra des de qualsevol lloc). Cobertura sobre els spammers actuals: **142 de 155 (92%)**; usuaris reals que es bloquejarien: **0 de 3.756**. Per apagar-ho: `REGISTRATION_BLOCKED_COUNTRIES = ()`; treure un país del paràmetre aixeca el bloqueig a l'acte; afegir-ne un demana tornar a executar `update_geoblock`.
+**Límits honestos:** és fàcil de saltar-se amb un proxy d'un altre país (no cobreix les 13 IP de fora d'APNIC ni els gmail europeus), així que l'efecte real caldrà mesurar-lo; la mesura 1 és la que els treu el motiu.
+
+**Verificació (dins de transaccions desfetes, sense deixar cap fila):** 33/33 comprovacions de dominis i enllaços (22 dominis bloquejats/permesos, 0 dels 3.743 usuaris reals amb enviaments afectats; enllaç refusat a un compte nou, text net acceptat, descripció antiga amb enllaç acceptada, enllaç nou refusat, alumne amb `AC` i professorat acceptats; cap rastre després);
+bloqueig per països: IPv4 i IPv6 correctes, GET/POST des de Bangladesh 403 amb el missatge, des d'Espanya 200 amb captcha, inici de sessió i portada des de Bangladesh 200, i apagar-ho per paràmetre funciona. (Un control del meu test fallava per una línia de capçalera mal llegida; refet a part amb un rang IPv6 real: OK.)
+Traduccions: 3 cadenes noves a ca/es/en/de/zh_Hans, afegides com a entrades noves (0 línies existents tocades) i `.mo` recompilats. `manage.py check` net; no hi ha migracions.
+
+**Estat:** **en viu** (5-11-2026). El primer intent de `kill -HUP` va ser bloquejat pel sistema de permisos com a desplegament a producció; l'usuari va demanar després que el fes jo, i es va fer just després de la purga de #146. Comprovat en viu:
+`/`, `/accounts/register/`, `/accounts/login/`, `/problem/okboomer`, `/problems/` i `/users/` responen 200; el registre porta el captcha; una petició real amb contrasenyes diferents (no pot crear cap compte) i correu `@alazsec.org` o `@ghkali.us` és
+**rebutjada** amb «El teu proveïdor de correu electrònic no està permès…», i amb `@gmail.com` el domini s'accepta. **No provat en viu:** el bloqueig per països (`REMOTE_ADDR` no es pot falsejar des de fora; provat amb el client de Django) ni la regla dels enllaços del perfil
+(cal una sessió); tots dos validats a les proves de transacció desfeta.
+
+### 146. Segona purga de comptes de spam: 2.241 esborrats (de 7.871 a 5.631 perfils)
+
+**Abans:** després de #142 (19.438) el spam continuava entrant (#144/#145). L'usuari va demanar «una bona netejada» amb aquests criteris: nom aleatori, descripció de spam, IP del sud-est asiàtic, cap enviament ni permís, no haver tornat mai després de la primera vegada
+i correu «spammy»; i **mai** esborrar qui tingui enviaments, permisos o correu `.cat`, `.es` o d'institut.
+
+**Anàlisi (només lectura):** dels 4.115 comptes sense cap enviament, 3.380 eren elegibles (descartats: 196 amb staff/permisos/altra activitat i 616 amb correu protegit; 2 més per ser d'un equip tancat). Senyals calculats per compte: descripció amb enllaç; nom aleatori (model de bigrames de lletres entrenat amb els
+noms d'usuari reals; marca el 96% dels noms de bot coneguts i l'1% dels reals, i **només compta si a més ningú no ha iniciat mai sessió**); IP de Bangladesh/sud-est asiàtic (rangs d'APNIC); correu de domini de granja (`SPAM_MAIL_DOMAINS`/regex de #145); «no ha tornat» (cap inici de sessió, o última visita dins del dia del registre).
+Es va llegir a mà el que quedava fora de la regla de #142: el grup més gran són comptes amb nom de 10 lletres aleatòries i **correus recollits** de gent i empreses angloparlants (EUA, Regne Unit, Canadà) que o no s'han activat mai o s'han «activat» sols (els filtres antispam dels correus d'empresa cliquen l'enllaç) i no han iniciat mai sessió.
+
+**Regla aplicada (tots els requisits «durs» i, a més, almenys un grup):** cap enviament, punts ni problemes resolts; no staff i rang `user`; cap altra activitat (concursos, valoracions, admin/registrant d'equip, sol·licituds, problemes com a autor, xats d'ajuda…); correu no `.cat`/`.es`/`edu`/`gencat`/`ac` ni d'un domini genèric on algú hagi fet enviaments;
+no ser d'un equip tancat; i un d'aquests grups: **A** descripció amb enllaç (157); **N** nom aleatori + ningú ha iniciat mai sessió + fa 8 dies o més (1.989; 1.881 no activats mai); **E** domini de granja + no ha tornat (118); **S** IP de Bangladesh/sud-est asiàtic + no ha tornat + nom d'aspecte spam (151). Els grups es solapen: **2.241 comptes únics**.
+**Deixats a propòsit (1.137 elegibles):** uns 689 no activats mai amb nom d'aspecte humà (poden ser persones reals que no van activar el correu) i uns 8 amb IP de Bangladesh/Vietnam però nom normal (p. ex. `almahamudkhan`).
+
+**Com es va fer:** script en lots de 400 (a l'scratchpad de la sessió, no es versiona) que per cada lot torna a comprovar contra la BD en viu totes les condicions anteriors i que algun grup encara es compleix, desa còpia (JSONL) i esborra dins una transacció que es desfà si la cascada toca res fora de `User`/`Profile`/`RegistrationProfile`/`Profile_organizations`.
+Simulació prèvia sobre els 2.241: 0 rebutjats i cascada només a aquestes quatre taules. L'usuari va confirmar amb la xifra davant («si»).
+
+**Resultat:** esborrats 2.241 `User` + 2.241 `Profile` + 2.241 `RegistrationProfile` + 94 pertinències a equips (les revisions de `reversion` només perden l'usuari, `SET_NULL`). Perfils: 7.871 → **5.631** (un d'aquests és una alta nova arribada entremig). Comprovat després: les **3.756 persones amb enviaments hi són totes**, 0 enviaments orfes (378.918), 174 equips,
+446 staff i 11 superusuaris, 3.879 participacions de concurs, 1.992 comentaris, i 2.747 perfils amb correu `.cat`/`.es` intactes. Cap rebutjat per activitat en cap lot.
+**Còpia de seguretat:** `/home/ubuntu/backups/comptes-spam-esborrats2-20261105.jsonl.gz` (620 KB, permisos 600, amb `.sha256`), 6 línies (una per lot) amb `users`, `profiles`, `regprofiles` (restaurables amb `loaddata`), `profile_orgs` i `tiers` (el grup de cada compte). Es restauraria amb els mateixos `id`; l'usuari de les revisions no es recuperaria.
+
+**Per revisar:** els 689 mai activats de nom humà es podrien netejar amb la comanda estàndard `cleanupregistration` de django-registration (esborra els no activats amb clau caducada), però no s'ha fet perquè no es va demanar; el registre ara té captcha, dominis i països bloquejats (#145) i el perfil no admet enllaços fins al primer problema resolt.
+
+### 155. Slider «Over-the-top» a la roda de la pissarra: de «Mode biblioteca» (0) a «SUPERLLEGENDARI» (10)
+
+**Abans:** la celebració en guanyar era sempre la mateixa (fanfàrria, botzina, 2 canons de confeti, pluja, sacsejada de l'escenari) i la roda sempre girava el mateix temps.
+
+**Decisió** (a petició de l'usuari: «un slider de over-the-top; com més a la dreta, més exagerada l'animació, com en el superllegendari»). Fitxers: `templates/organization/wheel.html`, `judge/views/organization.py` (`get_js_strings`: `otNames` ×11 i `otLegend`), `locale/{ca,es,en,de,zh_Hans}/LC_MESSAGES/django.po` (15 msgids nous per idioma).
+1. **El slider:** `<input type="range">` 0–10 a l'escenari, amb el nom del nivell en gran (creix amb el nivell; al 10 es torna arc de Sant Martí i tremola), i un botó «🎉 Prova» que fa la celebració sense girar. **Per defecte 5 = l'aspecte d'abans** (comprovat: confeti `18·L` = 90 per costat, potència `800+60·L` = 1100, pluja `14·L` = 70, que són els números antics). Es guarda a `localStorage` (`wheel-ot`, dins `try/catch`). Noms: 0 Mode biblioteca · 1 Sobri · 2 Discret · 3 Festiu · 4 Animat · 5 Festa major · 6 Exagerat · 7 Boig · 8 Caos · 9 Apocalipsi · 10 SUPERLLEGENDARI.
+2. **Mentre gira:** durada ×(0,8+0,04·L) fins al 5 i ×(1+0,12·(L−5)) a partir d'aquí (al 10, ×1,6); des del 6, la roda **passa de llarg i torna enrere** (rebot de 0,3+0,25·(L−6) segments, màxim 0,9 rad; el resultat ja estava decidit, és només teatre) i hi ha **redoble de tambor** (1,4 s + «bum», programat amb el rellotge d'àudio); des del 7, l'escenari **tremola** (`--rumble`).
+3. **En guanyar** (cada nivell afegeix efectes als de sota): ≥1 fanfàrria · ≥2 botzina · confeti i pluja escalats · ≥3 sacsejada (amplitud `L/5`, durada `0,5+0,12·L` s) · ≥6 flaix + **raigs** · ≥7 els colors de la roda giren pel cercle cromàtic, **ànecs** marxant (el `icons/duck.svg` del logo, passat a la plantilla per `data-duck`) i resplendor a la targeta · ≥8 **focs artificials**, **trompetes** amb notes, **onada d'arc de Sant Martí** a tota la pàgina i una segona fanfàrria · ≥9 **títol gegant** «nom!!!» + «És una llegenda!», sirena, segon flaix i sacsejada de **tota la pàgina** (`#wheel-app.quake`) · 10 «SUPERLLEGENDARI 🦆🌈», botzina i dues onades més de confeti/fanfàrria a +1,4 s i +2,8 s. És la mateixa escalada del gacha (`mega fanfare`: onada d'arc de Sant Martí, desfilada d'ànecs, focs, trompetes, títol).
+4. **Accessibilitat:** amb `prefers-reduced-motion` el nivell efectiu **mai passa del 2**; els flaixos són suaus (opacitat ≤0,4, 0,9 s cada un) i com a màxim 4 en 3 s (≤1,4 Hz, per sota del límit de 3/s).
+5. **Estructura:** els efectes de pantalla completa (`#wheel-fx`: flaix, raigs, onada, ànecs, trompetes, títol) i el canvas del confeti van **fora de `#wheel-app`**: una animació de `transform` en un ancestre converteix `position: fixed` en relatiu a ell, i la sacsejada de pàgina els hauria desplaçat.
+6. **Rendiment** (va caldre; mesurat al Chromium sense GPU, que és pessimista): al principi el nivell 10 anava a **~6 fps** (9: 11, 8: 15; el 5: ~50). Canvis: emojis del confeti com a **sprites** en caché (abans `fillText` d'emoji per partícula i fotograma), `setTransform` en lloc de `save/translate/rotate/restore`, límit de **1800 partícules**, sense animar `box-shadow` (resplendor de la targeta = pseudo-element que només canvia d'opacitat), sense `filter: hue-rotate` a l'escenari (ara gira el matís de la paleta de la roda al canvas), sense `mask-image` als raigs (capa de 125vmax, que cobreix la diagonal), onada sense `mix-blend-mode` ni `background-position` (només opacitat i `transform`), text del títol sense animar, menys ànecs i `will-change`. Resultat: **nivell 10 ~17 fps, 9 ~15, 8 ~21–23, 6 ~34, 5 ~50** (a una GPU real hauria d'anar fluid). A més, un **governador**: si la mitjana de fotograma passa de ~45 ms, ànecs, focs, notes i onades deixen de generar-se (així un ordinador just no es penja).
+7. **Robustesa durant el desplegament:** les plantilles es llegeixen del disc però el Python viu és vell fins al reload; amb la plantilla nova i el diccionari vell (sense `otNames`) el JS petava en pintar el slider. Ara els textos del slider són opcionals (`otName()` torna el número) i s'ha **provat simulant exactament aquest estat** (sense errors, la roda es pinta i gira).
+
+**Per què:** petició explícita de l'usuari; el 5 per defecte perquè la versió anterior ja li agradava.
+
+**Resultat (verificat):** regressió de servidor a SQLite en memòria (**63 OK**); Chromium conduït per CDP en temps real: nivells 0, 3, 5, 6, 7, 8, 9 i 10 (durades de gir, tremolor, efectes presents, **neteja total** al final: 0 ànecs, 0 trompetes, classes eliminades, canvas buit), botó «Prova», `prefers-reduced-motion` (nivell 10 → sense ànecs ni títol ni raigs, 61 fps), vista mòbil de 390 px, i la **pàgina real amb el CSS real del web** (slider, capes fixes per sobre de la barra del web, sense desplaçament horitzontal). `compilemessages` fet (els 15 msgids nous als 5 idiomes; de passada ha agafat «Registre no disponible», que **no he afegit jo**: algú altre l'ha afegit als `.po` mentrestant).
+
+**Pendent / limitacions:**
+- **Falta el `uwsgi --reload /home/ubuntu/dmoj-site.pid`**: el classificador del mode automàtic **el va denegar** («Production Deploy»; les recàrregues anteriors passaven perquè l'usuari havia dit «sí, fes-ho» al desplegament, aquest cop només havia demanat el slider). Fins al reload els workers continuen amb el Python vell: la plantilla nova ja funciona (punt 7) però el slider mostrarà números en lloc de noms i la lletra «És una llegenda!» no hi serà.
+- **No s'ha vist amb una GPU real ni en un projector**, ni s'han **escoltat** els sons dels nivells alts (sirena, trompetes, botzina): només s'ha comprovat que no donen errors. La seguretat dels flaixos es valora per números, no amb una prova amb gent.
+- Els noms dels nivells en en/de/zh són meus, sense revisió d'un parlant natiu.
+- Per error vaig deixar una còpia de la plantilla a **`/tmp/wheel.live.copy.html`** (havia d'anar al directori temporal de la sessió). No l'he esborrada: cal el teu sí.
+- Canvis a l'arbre de treball **sense commit**.
+
+### 156. «Imatge del problema»: un camp per pujar la imatge de l'enunciat, que es mostra sola a la dreta (model `Problem.image`, migració 0169)
+
+**Abans:** cada enunciat que té imatge porta escrit a mà un `<img src="..." style="float:right" width="200">` (683 de 1.371 enunciats tenen imatge; uns 620 d'aquests, ~91 %, fan servir `float:right`, però amb mides i marges diferents: 200 px, 300 px, 150 px, `margin:5px`, `margin-left:30px`...). Per pujar-la calia l'editor Markdown: si l'autor és *staff* va al nostre `/media/martor/`, si no, **a imgur** (`martor_image_uploader`), que és d'on venen la majoria de les 60 URL d'imgur de l'entrada #150 i el problema de les imatges que desapareixen.
+
+**Decisió** (a petició de l'usuari: «poder posar, quan crees un problema, un "carregar imatge del problema" amb un upload d'imatge on poses la imatge i automàticament ja et fa el float right etc sense que t'hagis de preocupar»). Fitxers: `judge/models/problem.py`, `judge/migrations/0169_problem_image.py`, `judge/utils/problem_image.py` (nou), `judge/admin/problem.py`, `templates/problem/problem.html`, `templates/problem/raw.html`, `locale/{ca,es}/LC_MESSAGES/django.po` (+ `.mo` recompilats; els `.mo` no van a git).
+1. **Model:** `Problem.image = ImageField(upload_to='problem-images/', max_length=150, blank=True, null=True)`. És **del problema, no de la traducció**: es veu igual en català, castellà, anglès... i al PDF. Es desa a `MEDIA_ROOT/problem-images/`, la mateixa carpeta que el mirall de l'entrada #147 (ja és persistent, #148).
+2. **Migració 0169:** només un `AddField` nul·lable (comprovat amb `makemigrations --dry-run` que no arrossega cap altre canvi). És compatible amb el Python vell que corre ara: un `INSERT` del codi vell simplement deixa la columna a NULL.
+3. **Reducció en pujar-la** (`shrink_problem_image`, cridada des de `ProblemForm.clean_image`): costat llarg **màxim 600 px** (el doble del que es mostra, per a pantalles denses; mai s'amplia), s'aplica la rotació EXIF i **s'esborren totes les metadades** (GPS, càmera), es queda amb el **més petit de PNG i JPEG** (PNG per a diagrames/transparència, JPEG per a fotos), el nom passa a ser un hash (`sha256[:20]`), no el de l'ordinador de l'autor. Els GIF animats es deixen tal qual (re-codificar-los matava l'animació) però amb límit de 2 MB. Es rebutja: fitxer >12 MB, no-imatge, i formats que no siguin JPEG/PNG/GIF/WebP (inclosos SVG i BMP).
+4. **Admin:** camp «Imatge del problema» a la fitxa, just abans del text; amb el *clear* de Django per treure-la. Qualsevol autor amb permís d'edició la pot pujar.
+5. **Es mostra sola, sense tocar el text:** a `problem.html`, dins del bloc de caché `problem_html` (la caché ja s'esborra en desar el problema: `problem_update`), un `<img class="problem-image" style="float:right; max-width:min(300px, 45%); max-height:300px; height:auto; margin:0 0 10px 20px">` abans del text. El `min(300px, 45%)` fa que en mòbil no ocupi més de la meitat de l'amplada. S'usa `style` en línia (com ja feien els enunciats) perquè **no cal reconstruir l'SCSS ni fer `collectstatic`**. A `raw.html` (el PDF, que es renderitza com a fitxer local) va amb **URL absoluta** (`urljoin(url, image.url)`) i mides fixes, sense `min()`, que el motor del PDF no entén.
+6. **Traduccions:** 6 msgids nous (nom del camp, ajuda i 4 missatges d'error) en **català i castellà**; en/de/zh en surten en anglès.
+
+**Per què:** el 91 % dels enunciats amb imatge fan el mateix; així l'autor només puja el fitxer, la mida i el lloc són uniformes (adéu a les 15 variants de `style`) i, de passada, les imatges noves **ja no van a imgur**.
+
+**Resultat (verificat, sense tocar la base de dades real ni la carpeta de mitjans real):** 26 comprovacions contra SQLite en memòria i un `MEDIA_ROOT` temporal, **26 OK**: foto de 2400×1800 → 600×450 JPEG; RGBA transparent petit es manté PNG i no s'amplia; diagrama pla → PNG; rotació EXIF aplicada i metadades fora; GIF animat intacte; es rebutgen un fitxer de text, un BMP i un de 13 MB; WebP acceptat; el camp és al formulari d'admin abans de `description`; `clean_image` encongeix una pujada nova i deixa en pace `None`, «esborra» i el fitxer ja desat; el PDF (`raw.html`) porta `src="https://jo-el.es/media/problem-images/..."` i `float:right`, i sense imatge no surt cap `<img>`; la **pàgina real `/problem/<codi>`** (vista de debò, visitant anònim) mostra la imatge **abans** del text i, sense imatge, cap `<img>`. Les traduccions es carreguen (`ca`: «Imatge del problema»).
+
+**Pendent / limitacions:**
+- **Migració 0169 aplicada el 2026-11-05 (~01:43)**: la va executar l'usuari amb `!` (el classificador del mode automàtic la va tornar a denegar quan li la vaig intentar córrer jo, tot i que m'ho va demanar; no es va esquivar). Només hi havia aquesta pendent; SQL: `ALTER TABLE judge_problem ADD COLUMN image varchar(150) NULL`. **Prova a la base real** (cache `locmem` i `MEDIA_ROOT` temporal, tot en una transacció desfeta): **11 OK** (columna creada, cap dels 1.371 problemes té imatge, desar la imatge a `calorcito`, `/problem/calorcito` en català i castellà la mostra a la dreta, l'admin de canvi i d'alta de problema tenen el camp de pujada `multipart`, tot desfet després: `calorcito` sense imatge, 1.371 problemes, `/tmp/media/problem-images` sense fitxers nous, 574).
+- **uwsgi recarregat el 2026-11-05 (01:44:25)**: l'usuari va executar `! ~/dmojsite/bin/uwsgi --reload /home/ubuntu/dmoj-site.pid`. Els workers nous (arrencats després del canvi de codi) responen: `/`, `/problems/`, `/problem/calorcito`, `/problem/buscamines` i `/admin/login/` donen 200. **Encara ningú ha pujat una imatge real des de l'admin** ni s'ha vist el resultat en un navegador/PDF/mòbil (vegeu TODO #24).
+- **Cap enunciat existent ha canviat:** els que tenen `<img>` a mà segueixen igual. Si un enunciat té la imatge als dos llocs, en sortiran dues. No hi ha cap conversió automàtica dels ~620 (vegeu TODO #24).
+- Només **una imatge** per problema i **una mida fixa** (màx. 300 px d'ample i d'alt); els que volien 400 px centrats (p. ex. `quadrant`) han de seguir amb l'`<img>` a mà.
+- La **previsualització en viu de l'editor Markdown** no mostra la imatge (només renderitza el text); es veu en desar.
+- **No l'he vist en un navegador real** (ni en mòbil): només el HTML generat i el raonament sobre el CSS. Tampoc he provat la pàgina d'un problema dins d'un concurs (usa la mateixa plantilla).
+- En clonar un problema (`ProblemClone`) la còpia apunta **al mateix fitxer** d'imatge; no es duplica el fitxer.
+- Canvis a l'arbre de treball **sense commit**.
+
+### 157. Prova de la «Imatge del problema» amb 3 enunciats reals: `aireacondicionat`, `abusdemarxandatge`, `afinantlarpa` (dades; sense canvis de codi)
+
+**Abans:** els tres enunciats duien la imatge escrita a mà al principi del text (`<img ... style="float:right" width="200">` i variants), en català i en la traducció al castellà.
+
+**Decisió** (a petició de l'usuari: «aplica el canvi a 3 o així i provo», després de l'entrada #156). Tres casos de mida diferents per veure la diferència: `aireacondicionat` (`width=200`), `abusdemarxandatge` (`margin:5px`, imatge de 600×400) i `afinantlarpa` (sense `width` a l'atribut, imatge alta de 460×676). Script a la carpeta temporal de la sessió (`conv_apply.py`, no es desa al repo: és d'un sol ús).
+1. Per cada problema (públic i no privat d'organització, sense imatge al camp, amb **una sola** `<img>` al text i **al principi**, de `https://jo-el.es/media/problem-images/...` i amb el fitxer ja al disc): s'escriu al camp `Problem.image` el camí `problem-images/<fitxer>` (**el fitxer ja era a la carpeta del mirall, no se'n copia cap ni se'n mou cap**) i es treu l'etiqueta `<img>` del començament del text.
+2. **Les traduccions al castellà** que tenien exactament la mateixa imatge al principi, també (6 textos en total: 3 problemes + 3 traduccions). Si una traducció tenia una altra imatge o cap, es deixava (no ha passat).
+3. Còpia de seguretat dels textos antics i de què s'ha escrit a cada camp: `/home/ubuntu/joel-media/backup-descriptions-imatgecamp-20261105-014546.json` (16 KB). Les actualitzacions són condicionals (`update(... description=<text antic>)`, dins una transacció): si el text hagués canviat entremig, no s'hauria tocat res. Després, `problem_update` per esborrar la caché del fragment i els PDF.
+4. **El que es perd:** l'`alt` que tenien (`aireacondicionat`, el nom del problema...; el nou és buit, imatge decorativa) i la mida pròpia: ara tots surten **a la dreta, màxim 300 px d'ample i 300 d'alt** (l'original de `aireacondicionat`, a 200 px, queda una mica més gran: el fitxer és de 398×299).
+
+**Per què:** que l'usuari pugui comprovar el resultat real abans de decidir si es converteixen la resta.
+
+**Resultat (verificat):** les tres pàgines responen 200 i porten `<img class="problem-image" ... float:right ...>` amb el fitxer correcte, que serveix 200; l'enunciat té **una sola** imatge en català i en castellà (a `aireacondicionat` surten més `<img>` a la pàgina, però són els avatars i una imatge d'un comentari, no de l'enunciat); el PDF de `aireacondicionat` es genera (200, 51 KB, PDF vàlid). **No l'he vist amb els ulls** (ni la pàgina ni el PDF renderitzats): ho comprova l'usuari.
+
+**Pendent / limitacions:**
+- Amb aquesta mateixa regla en queden **357 problemes públics** convertibles (i molts privats, més els que tenen altres formes de la imatge: dues imatges, imatge enmig del text, `float:none`, etc.). No s'ha fet res amb ells: depèn de què digui l'usuari després de provar.
+- **Per desfer-ho:** restaurar els 6 textos de la còpia de seguretat i posar `image` a NULL dels 3 problemes (cal el teu sí abans, com sempre).
+- Canvis a la base de dades; cap canvi de codi nou. **Sense commit.**
+
+### 158. Final de la tirada aleatori i còmic: la roda es passa, es queda curta, fa molla, falsa parada o rebobina (més caos com més «over-the-top»)
+
+**Abans:** a partir del nivell 6 el «rebot» era sempre el mateix (es passava una mica i tornava enrere), amb una amplitud que només depenia del nivell.
+
+**Decisió** (a petició de l'usuari: «que sigui més random: de vegades torna més enrere, menys, no ho fa, torna endavant en comptes d'enrere, ho fa de forma molt còmica; més probabilitat de caos com més over-the-top»). Fitxers: `templates/organization/wheel.html` (bloc `@finale-start`…`@finale-end`), `judge/views/organization.py` (`get_js_strings`: `finaleCreep/Fake/Wobble/Rewind`), `locale/*/django.po` (8 msgids ×5 idiomes).
+1. **El guanyador segueix decidit abans de girar** i el camí acaba **sempre exactament al guanyador**; l'«epíleg» només decideix com s'hi arriba. Des del nivell 6 (el 5 i menys no en tenen: com abans). Tipus i pesos (`k = (L−6)/4`): **res** (35% → 5%), **rebot** (es passa i torna enrere; 30% → 16%), **creep** (s'atura *curt*, batec de cor, i avança *endavant* lentament; 18%), **molla** (oscil·la 3–5 cops, cada cop menys; 9% → 25%), **falsa parada** (s'atura curt ≥0,65 s en silenci, fa «wah-wah» de trombó, i arrenca de cop *endavant* passant-se; 5% → 20%), **rebobina** (es passa molt, pausa, i marxa enrere amb so de cinta; 3% → 15%). L'amplitud també és aleatòria (0,35–1,0 × `1+1,2k`), així que «de vegades més, de vegades menys».
+2. **Teatre addicional:** cada tipus té el seu so (`sndBoing`, `sndHeartbeat`, `sndWah`, `sndLurch`, `sndRewind`), canvia la **cara del centre** (🤪 😬 🤨 😱 🙃) i diu una **frase còmica** a la bafarada (p. ex. «Ja s'ha aturat?... NO! 😱», «Marxa enrere! ⏪», «Aquesta roda té massa molla! 🌀»). El punter ara també reacciona quan la roda va **enrere** (la clavilla l'empeny per l'altre costat). El redoble de tambor fa el «bum» quan acaba el gir i després comença el número còmic.
+3. **Estructura:** `makeFinale(L, r)`, `buildPath(...)` i `pathAngle(...)` són **funcions pures** (sense DOM ni so; l'aleatorietat s'injecta) perquè es puguin provar a part; la roda només les crida. Els desplaçaments es limiten a ±1,3 rad; l'arrencada de la falsa parada té la velocitat limitada (0,03 rad/ms) perquè en rodes de 2–3 segments no fes un salt sec (ho va detectar la prova: 150° en 260 ms).
+4. Les frases noves són **opcionals** al JS (`say()` ignora una llista absent): amb el Python vell no es trenca res.
+
+**Per què:** petició explícita de l'usuari.
+
+**Resultat (verificat):** prova de Node de la lògica pura amb **100.000 tirades** (nivells 6–10, 1–40 segments): acaba **exactament** a `from+delta`, el segment sota el punter és **sempre** el guanyador, cap desplaçament passa de ±1,3 rad, sense salts (pas màxim 0,34 rad per 8 ms, que és la velocitat natural d'arrencada del gir), continuïtat a la unió; i cada tipus fa el que diu (creep només endavant des de curt; rebot i rebobina només enrere; la molla creua el guanyador ≥2 cops; la falsa parada es queda quieta ≥0,6 s i després se'n passa). **Les distribucions pugen i baixen amb el nivell** (50.000 tirades per nivell: «res» 34,5% → 5,1%; caos molla+falsa+rebobina 17% → 61%). Al navegador (CDP, temps real): nivell 10 en 6 tirades seguides → totes amb epíleg i la seva frase (10,5–12,3 s); nivell 6 → barreja d'epílegs i tirades sense (7,4–10,1 s); nivell 5 → 6,6 s i cap epíleg, com abans; 0 errors de JS. Regressió de servidor: **63 OK** (SQLite en memòria) i la plantilla real es renderitza amb la BD real (200, transacció desfeta, sense deixar res). Traduccions als 5 idiomes validades amb `msgfmt --check` i `compilemessages` fet.
+
+**Pendent / limitacions:**
+- **Falta el `uwsgi --reload /home/ubuntu/dmoj-site.pid`** per veure-ho al web en viu (els workers que ja han compilat la plantilla no la rellegiran; els que no, la llegiran nova amb Python vell, i funciona: frases opcionals). No s'ha pogut fer sense l'OK explícit de l'usuari (el classificador ho denega si només s'ha demanat la funcionalitat).
+- **No s'ha vist ni sentit un epíleg concret a ull**: la lògica està provada per números i pels esdeveniments (so/cara/frase) disparats al navegador, però no s'ha fet cap captura enmig d'una falsa parada, ni s'han escoltat els sons nous (`wah`, `rewind`, `boing`, batec) ni s'ha vist la cara del centre canviar.
+- Les 8 frases en en/de/zh són meves, sense revisió d'un parlant natiu.
+- Segueixen pendents els dos fitxers meus: `/tmp/wheel.live.copy.html` (error meu, havia d'anar al directori de la sessió) i `~/snap/chromium/common/wheel-test/`: cal el teu sí per esborrar-los.
+- Canvis a l'arbre de treball **sense commit**.
+
+### 159. Conversió en massa: 355 enunciats públics passen la imatge del principi al camp «Imatge del problema» (dades; sense canvis de codi)
+
+**Abans:** la imatge de cada enunciat era una etiqueta `<img style="float:right" ...>` escrita a mà al principi del text (entrada #157 = prova amb 3 problemes; #156 = el camp).
+
+**Decisió** (a petició de l'usuari, després de provar els 3: «convertix els 357 que queden»). Script d'un sol ús a la carpeta temporal de la sessió (`conv_all.py`; simulació primer, després `--apply`). **Regla (la mateixa de la prova):** problema **públic i no privat d'organització**, camp d'imatge buit, **una sola** `<img>` al text i **al principi**, amb `src` de `https://jo-el.es/media/problem-images/...` (fitxer existent al disc) i `float:right` dins l'etiqueta. Es treu l'etiqueta del text i s'escriu `problem-images/<fitxer>` al camp (cap fitxer copiat ni mogut: ja eren al mirall).
+1. **Traduccions:** una traducció que comença amb la mateixa imatge, també se li treu (346 textos). Si en una traducció hi hagués una altra imatge, el problema **no es converteix** (en sortiria dues): n'hi ha **2** (`pozojubilat`, `professorasubstituta`, traducció `es` amb una altra imatge) i s'han deixat tal qual.
+2. **Volum:** **355 problemes, 701 textos** (355 + 346). Còpia de seguretat de tots els textos antics i de quin fitxer s'ha escrit a cada camp: `/home/ubuntu/joel-media/backup-descriptions-imatgecamp-todos-20261105-014909.json` (1,3 MB). Actualitzacions **condicionals** dins una transacció (`update(... description=<text antic>)`: si un text hagués canviat entremig, hauria parat tot sense deixar res a mitges) i `problem_update` per esborrar la caché del fragment i els PDF de cada problema. Llista dels codis convertits: `/home/ubuntu/joel-media/imatgecamp-codis-convertits.json`.
+3. **El que es perd** (igual que a la prova): l'`alt` que tenia cada imatge (el nou és buit) i la mida pròpia: ara totes surten a la dreta, **màxim 300 px d'ample i 300 d'alt**. Compte amb els que tenien `width=150`: el fitxer guardat és el doble del que es mostrava (300 px) i ara es veu a 300, o sigui **més gran que abans**.
+
+**Per què:** l'usuari va validar el resultat de la prova i va demanar convertir-ho tot; així tots els enunciats tenen la mateixa imatge, amb la mateixa mida i posició.
+
+**Resultat (verificat):** les **358 pàgines** (355 + 3 de la prova) responen **200** i porten **exactament una** `<img class="problem-image">`; els **331 fitxers distints** d'imatge es serveixen amb 200. Recompte final a la base de dades: públics amb camp d'imatge = 358.
+
+**Pendent / limitacions:**
+- **Sense convertir** (no s'ha tocat per no sortir de la regla): **84 problemes públics** amb una `<img>` al text que no compleix la regla (imatge enmig del text, `float:none`, amb imatge d'imgur, la d'una URL externa, etc.), **13 públics** amb 2 o més imatges, els 2 saltats i **tots els no públics** (224 amb una imatge + 4 amb dues); els **privats** els vaig deixar perquè l'usuari va parlar dels 357 públics.
+- **No l'he vist amb els ulls** en un navegador: només el HTML i els codis de resposta. L'usuari va veure la prova de 3.
+- **Per desfer-ho:** restaurar els 701 textos de la còpia de seguretat i posar `image` a NULL dels 355 problemes (cal el teu sí abans).
+- Canvis a la base de dades. **Sense commit.**
+
+---
+
+### 160. «Guia per a crear problemes» (`/creaproblemes/`): punt nou sobre el camp «Imatge del problema», en 5 idiomes
+
+**Abans:** la guia explicava els camps del formulari de l'admin (Codi, Nom, Creadors, Descripció...) però no deia res de les imatges.
+
+**Decisió** (a petició de l'usuari: «quan acabis, converteix la guia de crear problemes també»). Un punt nou **«Imatge del problema»**, just abans de «Descripció» (és l'ordre del formulari des de l'entrada #156): puja una il·lustració (JPEG, PNG, GIF o WebP, fins a 12 MB), es mostra **sola a la dreta**, igual en tots els idiomes i al PDF, **no cal escriure cap `<img>`**, es redueix sola i es veu com a màxim a 300 px; només una per problema.
+1. **Pàgina base en català** (`FlatPage`) i les 4 traduccions (`FlatPageTranslation`: es, en, de, zh-hans), amb el nom del camp tal com surt a l'admin de cada idioma: *Imatge del problema*, *Imagen del problema*, *Problem image*, *Problembild*, *题目图片*. Actualitzacions condicionals dins una transacció. Còpia de seguretat dels textos antics: `/home/ubuntu/joel-media/backup-guia-creaproblemes-20261105-015045.json`.
+2. **`locale/{de,zh_Hans}/LC_MESSAGES/django.po`:** els 6 msgids del camp (entrada #156) ja eren en ca/es; ara també en **alemany i xinès** (els he escrit jo, sense revisió d'un parlant natiu) i `.mo` recompilats; així l'etiqueta de l'admin coincideix amb la de la guia. Efectiu amb el **proper `uwsgi --reload`** (els catàlegs es carreguen en arrencar).
+
+**Resultat (verificat):** `/creaproblemes/` respon 200 i mostra el punt en català i en castellà; `msgfmt --check` correcte per a de i zh_Hans (1.771 i 1.751 missatges traduïts).
+
+**Pendent / limitacions:**
+- **La captura `problemes-admin.png` no mostra el camp nou** (és d'abans). Com que el punt el descriu en text no es contradiu, però es pot tornar a fer (el procediment és a la memòria del projecte: GET de la pàgina d'admin amb el client de proves i una sessió signada, i fer-ne la foto).
+- Els textos en alemany i xinès de la guia són meus, sense revisió.
+- Canvis a la base de dades i a `.po`/`.mo` (els `.mo` no van a git). **Sense commit.**
+
+### 161. Conversió en massa dels enunciats NO públics: 145 problemes passen la imatge del principi al camp «Imatge del problema» (dades; sense canvis de codi)
+
+**Abans:** després de l'entrada #159 (358 públics), els problemes privats i els privats d'organització seguien amb l'`<img>` escrita a mà.
+
+**Decisió** (a petició de l'usuari: «si, fes també els no públics»). Mateix script i **mateixa regla** que a #159 canviant només el filtre: `is_public = False` **o** `is_organization_private = True`. Una sola `<img>` al principi del text, de `https://jo-el.es/media/problem-images/...` (fitxer al disc) i amb `float:right`; la traducció que comença amb la mateixa imatge també se la treu; si en una traducció hi hagués una altra imatge, es saltaria el problema (no ha passat mai: **0 saltats**).
+1. **Volum:** **145 problemes, 170 textos** (145 + 25 traduccions). Còpia de seguretat: `/home/ubuntu/joel-media/backup-descriptions-imatgecamp-nopublics-20261105-095214.json` (360 KB); codis: `/home/ubuntu/joel-media/imatgecamp-codis-convertits-nopublics.json`. Actualitzacions condicionals dins una transacció i `problem_update` (caché i PDF) per a cadascun.
+2. **El que es perd:** igual que a #159 (l'`alt`, i la mida pròpia: ara màx. 300×300 a la dreta; els de `width=150` es veuen més grans).
+
+**Per què:** que tot el que té la forma estàndard quedi uniforme, també els problemes en preparació dels professors.
+
+**Resultat (verificat):** com que un visitant anònim veu un 404 als no públics, he carregat **les 145 pàgines dins del servidor amb un superusuari** (client de proves, **caché en memòria** perquè no es toqui la real, i **transacció desfeta**): totes **200** amb **exactament una** `<img class="problem-image">` amb la URL del camp; els **120 fitxers distints** existeixen al disc. Cap dels 145 és públic (0). Recompte total de problemes amb camp d'imatge: **503** (358 públics + 145 no públics). `/tmp/media/problem-images` continua amb 574 fitxers.
+
+**Pendent / limitacions:**
+- **Sense convertir:** **84 públics** i **79 no públics** amb una `<img>` d'una altra forma (enmig del text, `float:none`, URL externa/imgur, etc.) i **13 públics + 4 no públics** amb 2 o més imatges. Cal fer-ho a mà o amb una regla nova (TODO #24).
+- **No vist en un navegador** (només HTML i codis de resposta; l'usuari va validar la prova de 3).
+- **Per desfer-ho:** restaurar els 170 textos de la còpia i posar `image` a NULL dels 145 problemes (cal el teu sí abans).
+- Canvis a la base de dades. **Sense commit.**
+
+### 162. «Protecció contra la mala sort» oculta per al superllegendari del gacha (codi + migració 0170; **activa des del 2026-11-06 11:03**)
+
+**Abans:** el superllegendari era una tirada a part amb un **0,2 % fix** (`Achievement.SUPERLEGENDARY_CHANCE = 1/500`), sense cap compensació per la mala sort. Dades reals (només lectura) abans de decidir: **6 superllegendaris** i només **36 obtencions** entre **2.006 usuaris** amb alguna tirada (26 són «Dret a Crear Achievements», amb pocs rolls al darrere: sembla que es van obtenir quan encara no era super, o a mà; no verificat); tirades per usuari: mediana 24, p90 105, p99 232, màxim 545, només 33 usuaris en tenen 200 o més. Amb el 0,2 % fix, un alumne amb 100 tirades només té un **18 %** de probabilitat d'haver vist algun super, i la cua és il·limitada (p99 = **2.301** tirades).
+
+**Decisió** (a petició de l'usuari: «sistema de bad luck protection… en secret», i després «comença amb la teva proposta del 0,005pp. Potser pujar-ho a partir de 100+ i 200+?»). Cada tirada que **no** és superllegendari en puja la probabilitat i en **baixa** la del llegendari normal en la mateixa quantitat; en sortir un, el comptador torna a 0.
+1. **`judge/gacha_pity.py` (nou):** lògica pura i única «maneta» `SUPERLEGENDARY_PITY_STEPS = ((0, 0.00005), (100, 0.0001), (200, 0.0002))`: **+0,005 pp per tirada fins a la 100, +0,01 pp de la 100 a la 200 i +0,02 pp a partir de la 200** (el pendent es duplica cada 100 tirades seques). Topall: el «sòl especial» superllegendari + llegendari (**5,19 %**) es conserva sempre, així el llegendari arriba exactament a **0 %** a la tirada **375** i la resta (comú, rar, èpic) **no es mou mai** en valor absolut. Valors: 0,20 % (0 tirades), 0,70 % (100), 1,70 % (200), 3,70 % (300), 5,19 % (375 o més).
+2. **`Profile.gacha_pity`** (`PositiveIntegerField`, per defecte 0) i **migració `0170_profile_gacha_pity`** (generada amb `makemigrations`; conté només aquest camp). **No s'ha afegit a l'administració de perfils** a propòsit: els responsables d'institut la poden obrir i se'n filtraria el secret.
+3. **`GachaGo.gacha_roll`:** ara calcula primer els superllegendaris que falten (una consulta per tirada; abans només quan sortia el 0,2 %). Si en falta algun, tira amb la probabilitat de la ratxa; si no surt, el sorteig normal usa els pesos de la ratxa. **Qui ja té tots els supers** no té protecció: tirada normal 65/20/10/5 exacta i el comptador no es toca (si no, el llegendari li aniria a 0 % per sempre). El comptador es desa amb el `profile.save()` de sempre: +1 per tirada sense super (només si en pot sortir un), 0 en sortir-ne un. Els 0,65/0,85/0,95 escrits a mà a la vista passen a les constants de `gacha_pity.py`.
+4. **`GachaMain` (pàgina del gacha):** continua mostrant les **probabilitats base** (0,2 % / 4,99 % / …); `GACHA_TIER_CHANCES` ara és un àlies de `NORMAL_TIER_CHANCES`.
+
+**Per què:** el pendent és el que decideix l'efecte, no el 5 % final. Una rampa cada tirada, plana, de +0,005 pp dona mediana **132** tirades; amb els trams 100+/200+ la mediana és **129** i la cua es redueix (p90 266 → **233**, p99 390 → **306**), perquè afecten sobretot els qui ja n'han fet moltes. Per a un alumne casual (24 tirades) el canvi és de pocs punts percentuals: els supers segueixen sent rars, però ja no existeix la mala ratxa de més de 400 tirades. Taula (probabilitat d'haver-ne vist un a les 100 / 200 / 300 tirades): abans **18 / 33 / 45 %**, ara **36 / 81 / 99 %**; tirades fins al primer: mitjana 500 → **133**, mediana 347 → **129**, p90 1.151 → **233**, p99 2.301 → **306**.
+
+**Resultat (verificat, sense tocar producció):**
+- Lògica pura (`manage.py shell`, sense escriure res): corba exacta als 6 punts, tope a la 375, monotonia, suma de probabilitats = 1 i llegendari = sòl − super a 11 ratxes, comú/rar/èpic idèntics a la ratxa 0, la ratxa 0 reprodueix **exactament** les probabilitats d'abans i `None` (qui ho té tot) dona 65/20/10/5; el sorteig coincideix amb les freqüències teòriques en 400.000 mostres per cas (desviació màxima 0,0011), i una simulació de 100.000 jugadors dona mitjana 133 / mediana 130 / p90 233 / p99 307 (anàlisi: 133 / 129 / 233 / 306).
+- **La vista real `gacha_roll`** contra una **SQLite en memòria** (afirmat `:memory:`, caché i correu en memòria; totes les taules creades): comptador +1 per tirada sense super i 0 després d'un super (400 tirades), en el topall **5,25 %** de supers i **0** llegendaris amb comú/rar/èpic = 65,2 / 19,9 / 9,7 % (4.000 tirades), qui té tots els supers: **0** supers, llegendari 5,35 %, comú/rar/èpic 64,6 / 19,6 / 10,5 % i el comptador no es mou; la pàgina segueix llistant 65/20/10/5 i la primera tirada costa 5 punts. `manage.py check` sense problemes.
+
+**Pendent / limitacions:**
+- **Desplegat el 2026-11-06 (l'usuari, amb `!`: el classificador em va denegar la migració com a «Production Deploy»):** `migrate judge` va aplicar la `0170` i el `uwsgi --reload` va deixar 6 workers nous a les 11:03:58. L'ordre importava (migrar abans de recarregar). Detall: la columna és `int(10) unsigned NOT NULL` **sense valor per defecte a la base de dades** (Django el treu després d'afegir-la) i el MySQL és `STRICT_TRANS_TABLES`; per això, entre la migració i el reload, el codi antic no hauria pogut crear cap perfil nou (una alta). Va quedar en uns segons.
+- **Verificació en producció:** la columna existeix, **0 de 5.716 perfils** tenen el comptador diferent de 0, portada/problemes/usuaris responen 200, `/gacha/` 302 (login) i el registre del web no té cap error. Prova real amb un **usuari fals i transacció desfeta** (caché i correu en memòria perquè un super amb fanfàrria no enviï cap correu real): `POST /gacha/go/` → 302 a la pàgina de resultat (que respon 200), ratxa desada (1 després d'una tirada comuna; +1 a cada tirada i 0 després d'un super), 5 punts de cost; forçant la ratxa al topall mentre encara es podia treure un super: **0 llegendaris en 137 tirades** i 6 supers (4,4 %); en tenir els **6 superllegendaris** (n'hi ha exactament 6 a la base de dades) passa a ser exempt: **0 supers i 20 llegendaris en 463 tirades (4,3 %)**, com cal. Un primer intent va semblar un error (14 llegendaris): era l'exempció, no un defecte. Comptadors idèntics abans i després (5.716 / 5.716 / 84.492) i cap usuari de prova a la base de dades.
+- **Tothom comença a 0**, també els 33 usuaris amb 200 o més tirades; es podria inicialitzar amb les tirades des del seu últim super (un «regal» que no s'ha decidit).
+- **Efectes col·laterals que cal vigilar:** els superllegendaris porten avantatges (Descompte al Gacha, Pista Extra, Bonus diari doble, Assegurança Antirepetits), que es repartiran molt més; i si «Dret a Crear Achievements» és un dels 6, uns ~230 alumnes amb més de 100 tirades poden generar una trentena de correus i de permisos per donar a mà.
+- El «secret» és **«no anunciat»**: el repositori és públic a GitHub (`malbareda/JOEL-web`).
+- Tot ajustable des de `SUPERLEGENDARY_PITY_STEPS`; per mesurar-ho caldria comptar quantes tirades portava cadascú en obtenir un super (no es guarda).
+- Canvis al codi i una migració **aplicada**. **Sense commit.**
+
+### 163. Protecció contra la mala sort per a qui ja portava més de 100 tirades sense cap superllegendari (dades; sense canvis de codi)
+
+**Abans:** després de l'entrada #162 el comptador `Profile.gacha_pity` començava a 0 per a tothom, també per als alumnes que ja portaven moltes tirades sense cap super.
+
+**Decisió** (a petició de l'usuari: «posa protecció als alumnes amb més de 100 tirades sense cap dels 6 superllegendaris»). A cada alumne amb **més de 100 tirades** (files d'`AchievementObtained`; el codi només en crea a la tirada del gacha) i **cap dels 6 superllegendaris** se li posa `gacha_pity` = **les tirades que porta**, com si la protecció hagués existit des del principi. «Més de 100» és estricte (3 alumnes amb exactament 100 queden fora) i els que ja tenen algun super també (11), tal com es va demanar.
+1. **Volum:** **219 alumnes** (230 tenen més de 100 tirades; 11 excloses). Tirades: mínim 101, mediana 130, màxim 545. Probabilitat de super per tirada just després: 144 alumnes entre 0,71 i 1,20 %, 43 entre 1,21 i 1,70 %, 24 entre 1,72 i 3,70 %, 4 entre 3,72 i 5,19 % i **4 ja al topall (5,19 %)**.
+2. **Com:** una sola transacció, una actualització per perfil condicionada a `gacha_pity = 0` (si algú tirava entremig, es saltava; **0 saltats**). Només s'ha tocat aquesta columna.
+3. **Còpia de seguretat:** `/home/ubuntu/joel-media/gacha-pity-seed-20261106-110910.json` (valors anteriors, tots 0, i valors nous).
+
+**Per què:** són els alumnes a qui la mala sort ha afectat més i, com que la protecció és progressiva, a la majoria no els canvia la vida (la mediana puja només al 0,9 % per tirada), però els que superen les 300 tirades ja es troben a prop del topall.
+
+**Resultat (verificat):** 219 actualitzats, 0 saltats; els valors coincideixen amb les tirades de cadascú; **cap dels que tenen un super** ha rebut comptador. Hi ha un perfil més amb comptador (id 19828): un alumne real amb 74 tirades que va tirar a les 11:06 (després del reload) i ha passat de 0 a 1, o sigui que **el comptador ja funciona en producció amb un alumne real**.
+
+**Per desfer-ho:** posar `gacha_pity = 0` als perfils de la clau `previous` del JSON (cal el teu sí abans).
+
+**Pendent / limitacions:**
+- Les files d'`AchievementObtained` inclouen els regals fets a mà des de l'administració (no es poden distingir), així que alguns comptadors poden ser lleugerament alts.
+- Els alumnes que ja tenen algun super però no tots (11 amb més de 100 tirades) comencen a 0; si es vol, es pot posar la protecció també a ells.
+- Canvi a la base de dades. **Sense commit.**
 
 ---
 
