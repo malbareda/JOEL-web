@@ -4029,7 +4029,7 @@ Cap imatge de les trencades es podia recuperar de l'arxiu d'Internet (per això 
 
 ### 151. Alta de la professora `rosa_rosae` (IES El Cañaveral, Móstoles, Madrid): institut nou, 4 equips tancats i permisos de professora i responsable d'institut
 
-**Abans:** l'usuari va reenviar un correu de Rosa María Doblas Rastrollo, professora d'Informàtica i Comunicacions de l'**IES El Cañaveral** (Móstoles, Madrid), que demanava ser donada d'alta com a professora i responsable del seu institut. El correu seguia exactament el procediment de la guia pública (`/guiaprofes/`, apartat 1): acreditació (foto del carnet del centre), nom de l'institut i logo (png i jpg, 90×17, dins l'espai 90×40), els grups que vol crear i si són oberts o tancats, i el compromís de no fer servir l'accés als casos de prova i a les solucions per adulterar cap concurs. Demanava **quatre grups tancats** («on jo controli qui entra»): **1º DAM, 1º DAW** (Java) i **2º SMR, 1º ASIR** (optativa de Python). L'usuari va indicar el nom d'usuari: `rosa_rosae`. El compte ja existia (id d'usuari 27337, perfil 27317, registrat el 2026-11-04 08:13 UTC amb `rosa.doblas@educa.madrid.org`; el domini és el de la Comunitat de Madrid, coherent amb el que explica). No tenia grups, ni `is_staff`, ni cap equip.
+**Abans:** l'usuari va reenviar un correu de Rosa María Doblas Rastrollo, professora d'Informàtica i Comunicacions de l'**IES El Cañaveral** (Móstoles, Madrid), que demanava ser donada d'alta com a professora i responsable del seu institut. El correu seguia exactament el procediment de la guia pública (`/guiaprofes/`, apartat 1): acreditació (foto del carnet del centre), nom de l'institut i logo (png i jpg, 90×17, dins l'espai 90×40), els grups que vol crear i si són oberts o tancats, i el compromís de no fer servir l'accés als casos de prova i a les solucions per adulterar cap concurs. Demanava **quatre grups tancats** («on jo controli qui entra»): **1º DAM, 1º DAW** (Java) i **2º SMR, 1º ASIR** (optativa de Python). L'usuari va indicar el nom d'usuari: `rosa_rosae`. El compte ja existia (id d'usuari 27337, perfil 27317, registrat el 2026-11-04 08:13 UTC amb correu del domini `educa.madrid.org`; el domini és el de la Comunitat de Madrid, coherent amb el que explica). No tenia grups, ni `is_staff`, ni cap equip.
 
 **Decisió** (sense preguntar res a l'usuari: és el procediment habitual i tot és additiu i reversible; el patró és el dels professors donats d'alta els últims dies, com `esorita`, `jdorado` o `CarlosSanchis`):
 1. **Institut nou** `Institution` id **43**, «IES El Cañaveral» (slug `ies-el-canaveral`, nom curt «El Cañaveral»). **Sense logo** (vegeu «Pendent»).
@@ -4372,6 +4372,198 @@ Simulació prèvia sobre els 2.241: 0 rebutjats i cascada només a aquestes quat
 - Les files d'`AchievementObtained` inclouen els regals fets a mà des de l'administració (no es poden distingir), així que alguns comptadors poden ser lleugerament alts.
 - Els alumnes que ja tenen algun super però no tots (11 amb més de 100 tirades) comencen a 0; si es vol, es pot posar la protecció també a ells.
 - Canvi a la base de dades. **Sense commit.**
+
+### 164. Recuperades 3 animacions que el mirall d'imatges havia deixat en una imatge fixa (`travolta`, `jocvida`, `magradalosu`)
+
+**Què va passar:** a l'entrada #147 (còpia local de les imatges dels enunciats) vaig tornar a codificar les imatges amb Pillow, i això deixa **només el primer fotograma**. L'script ja conservava els GIF animats tal qual, però amb **dues excepcions que vaig deixar sense animació**: (1) un GIF animat de **més de 3 MB** es convertia en imatge fixa («massa gran, faig servir el primer fotograma») i (2) només es reconeixia el **GIF**, no el **WebP animat**. L'usuari ho va veure: «hem perdut algunes animacions com la del joc de la vida i la del travolta».
+
+**Abast** (comprovat mirant els 533 originals descarregats que encara tinc a la carpeta temporal de la sessió; els altres 48 URL del manifest són els substituts que vaig triar jo i els exemples del `casinosort`, tots fixos): **exactament 3** imatges animades havien perdut l'animació, 5 GIF animats s'havien conservat bé.
+1. **`travolta`** (públic): GIF de `c.tenor.com`, 498×483, **74 fotogrames, 4,1 MB** (superava els 3 MB).
+2. **`jocvida`** (públic): «Game_of_life_animated_glider_2.gif» de wikia, que en realitat és un **WebP animat** (336×336, 14 fotogrames, **2 KB**).
+3. **`magradalosu`** (**no públic**): GIF de gfycat, 444×250, **457 fotogrames, 4,5 MB**.
+
+**Decisió i canvis:**
+1. Els tres **originals, byte per byte, sense tornar-los a codificar**, copiats a `/home/ubuntu/joel-media/problem-images/` amb **noms nous** (hash del contingut): `2218e7214f0f70460685.gif`, `e32bc6df206f8bcc31df.webp`, `684d1c468817c4b45712.gif`. **Nom nou perquè nginx serveix `/media` amb `expires max`**: si hagués canviat el contingut d'una URL ja existent, els navegadors que ja havien vist la imatge fixa l'haurien guardada per sempre.
+2. **Base de dades** (canvis només de la ruta de la imatge, amb actualització condicional dins d'una transacció): `Problem.image` de `travolta` i `jocvida` (ja estaven al camp de l'entrada #159) i el `src` de la imatge dins la descripció de `magradalosu` (no havia estat convertida). Després, `problem_update` de cada problema (caché i PDF).
+3. **Manifest** (`problem-images-manifest.json`) actualitzat amb les 3 entrades noves (`src` = `GIF(animated)` / `WEBP(animated)`).
+4. **Script del repositori** `tools/mirror_problem_images/4_convert_images.py` **corregit**: ara conserva sense tocar qualsevol animació (**GIF, WebP animat i APNG**) fins a **8 MB** i, si en superés, **avisa i no la converteix** (mai més la deixa en un sol fotograma).
+5. **Còpies de seguretat:** manifest anterior `/home/ubuntu/joel-media/problem-images-manifest.ABANS-animats-20261110-122818.json` i `/home/ubuntu/joel-media/backup-animats-20261110-122818.json` (quin camp tenia quin fitxer abans).
+
+**Resultat (verificat):** els tres fitxers es serveixen amb 200 i el tipus correcte (`image/gif`, `image/webp`, `image/gif`) i, **descarregats pel web**, tenen **74, 14 i 457 fotogrames**; les pàgines `/problem/travolta` i `/problem/jocvida` apunten als fitxers nous. `magradalosu` és no públic: he comprovat el fitxer i la base de dades, no la pàgina renderitzada. **No les he vist moure's en un navegador.**
+
+**Pendent / limitacions:**
+- **Pesen 4,1 i 4,5 MB** (igual que abans a tenor i gfycat). Es podrien aprimar redimensionant els fotogrames, però aquí no hi ha `gifsicle` ni `ffmpeg` i Pillow 7.2 no compon bé tots els GIF; no ho he fet per no arriscar-me a trencar-los.
+- **Els tres fitxers fixos antics queden al disc** (`85d8958f49c7b5705e8f.png`, `ab22fa360b3af465f9e9.png`, `3a2ced43976dbe23623e.png`), sense cap referència; no els he esborrat (cal el teu sí).
+- ~~El nou camp «Imatge del problema» només acceptava GIF animats de fins a 2 MB~~ **Resolt**: l'entrada #165 puja el límit a 8 MB (cal el `uwsgi --reload` perquè tingui efecte).
+- Canvis a la base de dades i a fitxers. **Sense commit.**
+
+### 165. «Imatge del problema»: el límit dels GIF/WebP animats puja de 2 MB a 8 MB
+
+**Abans:** `judge/utils/problem_image.py` rebutjava qualsevol imatge animada de més de 2 MB (`MAX_ANIMATED_BYTES = 2 * 1024 * 1024`), de manera que un GIF com el del Travolta (4,1 MB, entrada #164) no es podia pujar des de l'admin.
+
+**Decisió** (a petició de l'usuari: «apuja el límit a 8 MB»). Una sola línia: `MAX_ANIMATED_BYTES = 8 * 1024 * 1024`. El límit general d'una pujada (qualsevol imatge) **no canvia: 12 MB**. Les animades es continuen guardant **sense tornar-les a codificar** (si es re-codifiquessin es perdria l'animació) i el missatge d'error ja treu el número del límit, així que ara diu «8 MB». Coherent amb el límit de 8 MB que he posat a l'script del mirall (`4_convert_images.py`, entrada #164).
+
+**Resultat (verificat, directament contra la funció, sense tocar la base de dades ni els fitxers reals):** un GIF animat de **7,8 MB** s'accepta, amb els **80 fotogrames** i els **bytes idèntics**; un de **10,8 MB** (entre 8 i 12) es rebutja amb «La imatge animada és massa gran (8 MB com a màxim).».
+
+**Pendent / limitacions:**
+- **Falta `! ~/dmojsite/bin/uwsgi --reload /home/ubuntu/dmoj-site.pid`**: els workers actuals tenen carregat el mòdul amb el límit antic (2 MB). Fins aleshores l'admin segueix rebutjant els GIF de més de 2 MB.
+- Una animació de 8 MB és molt pesada per a una pàgina de problema (tothom l'ha de baixar); el límit és només una xarxa de seguretat.
+- Canvi de codi. **Sense commit.**
+
+---
+
+## 2026-11-10
+
+### 166. «Eclipsi Solar (Sense Bucles de Veritat)» (`eclipsitest`, id 651): fora el bucle de casos de prova de l'entrada i de les dades (dades; sense canvis de codi)
+
+**Abans:** el problema `eclispisolar` (id 625, «Eclipsi Solar») és del tipus «Sense Bucles», però el seu enunciat deia «La primera línia indica els casos de prova a considerar» i cada fitxer de dades començava amb un nombre de casos seguit d'una línia per cas; és a dir, l'alumne havia de fer un bucle per llegir l'entrada. L'usuari en va fer una còpia, `eclipsitest` (id 651, grup `Codejam`, tipus «Sense Bucles», autor `marc`, 8 llenguatges), perquè hi apliqués la correcció. Aquesta còpia tenia `ProblemData(checker='linecount', caseformat='standard')`, el zip `/judge/eclipsitest/casos-20240509T102003Z-001.zip` (amb `casos/1.in/.out` = 4 casos i `casos/2.in/.out` = 8 casos, més un `casos/eclipsi.zip` niat que hi sobrava) i 2 `ProblemTestCase` de 5 punts cadascun (`casos/1.in`, `casos/2.in`).
+
+**Decisió** (a petició de l'usuari: «editis el problema i casos de prova per a eliminar el bucle de casos de prova»). Només s'ha tocat el 651; **el 625 original no s'ha tocat** (té 212 trameses). Script a l'àrea de treball de la sessió, amb mode simulació (`--apply` per escriure) i validació prèvia:
+- **Dades:** cada un dels 12 valors (4 + 8) passa a ser un cas independent. Zip nou `/judge/eclipsitest/eclipsitest.zip` amb `acin.N.in/out` (N = 1..12), un sol número per fitxer, LF i salt de línia final, i `caseformat='indiv'`, com el patró dels problemes bàsics (`parellsenar`…). Els 2 `ProblemTestCase` existents es reutilitzen (es canvia el nom del fitxer, els punts passen a 1 i el `checker` del cas a buit perquè hereti el del problema) i se'n creen 10 de nous; `ProblemDataCompiler.generate` ha regenerat `init.yml` (12 casos, `checker: linecount`). Ordre: els 4 de l'exemple de l'enunciat primer, després els 8 de l'antic segon fitxer.
+- **Enunciat:** a `## Entrada`, «La primera línia indica els casos de prova a considerar. Cada cas és una línia amb 1 número que representa…» passa a «L’entrada és una única línia amb 1 número que representa…» (la resta del text, igual). Els blocs «Exemple d'Entrada/Sortida» (amb el «4» inicial) se substitueixen per `## Exemples` amb una taula HTML de 4 files (365, 8220, 183, 57500), el mateix format dels altres problemes «Sense Bucles». `## Sortida` ja parlava d'una sola línia i no es toca.
+- **Sortides recalculades, no copiades:** amb una funció de referència amb enters exactes (`d % 548 == 0` → `TOTAL 0`; `d % 183 == 0` → `PARCIAL 0`; si no, el més proper de `183 - d % 183` i `548 - d % 548`). Abans d'escriure res he comprovat que reprodueix les 12 sortides esperades antigues.
+
+**Per què:** un problema «Sense Bucles» no pot demanar un bucle de lectura, i el bucle de casos era justament el que l'enunciat i les dades imposaven.
+
+**Resultat:**
+- Verificat amb el jutge real: una solució Python de 8 línies, sense cap bucle, enviada com a `edgar` (tramesa **382559**, PY3), dóna **AC amb 2,0/2,0 punts, 12/12 casos AC, 0,68 s**.
+- **Una sola sortida esperada ha canviat de valor:** el cas `32156467897546413` esperava `NO 132 TOTAL` i ara espera **`NO 131 TOTAL`**. Aquest nombre supera 2^53, de manera que un `double` l'arrodoneix a `…412`, que és el que donava 132; amb enters exactes (`32156467897546413 mod 548 = 417`) falten 131 dies. Amb l'antic valor, una solució amb enters exactes (`long` de Java/C++, `int` de Python) hauria fallat un cas correcte. Les altres 11 sortides coincideixen amb les antigues. Si es volgués conservar el valor antic, és editar `acin.6.out` al zip.
+- Les 3 trameses que hi havia al 651 (totes de `marc`, JAVA11: AC, AC, WA, del 2024-05-09) **no s'han tornat a jutjar**: conserven el veredicte antic i el seu codi llegia el nombre de casos de la primera línia.
+- No s'ha esborrat res: **el zip antic `/judge/eclipsitest/casos-20240509T102003Z-001.zip` queda al disc**, sense cap referència (cal el teu sí per esborrar-lo). La tramesa 382559 d'`edgar` també queda (els 2,0 punts compten al seu perfil, com amb els altres problemes de referència).
+- Pendent: el 651 no té traducció `es` (el 625 sí; es podria copiar). Canvi a la base de dades i a fitxers. **Sense commit.**
+
+### 167. «Les croquetes de la mama» (`lescroquetesdelamama`, id 441): enunciat reescrit en català i castellà; es fixa la regla de l'empat (dades; sense canvis de codi ni de casos de prova)
+
+**Abans:** l'usuari va avisar que l'enunciat era molt confús i que a l'exemple apareixien «croquetes grans» que no sortien enlloc del text. Revisat el problema (grup `Primers Passos`, tipus «Sense Bucles», autors `gemma` i `orejasm`, 119 trameses, `linecount`, 6 casos de prova d'1 punt):
+- L'enunciat deia que hi ha croquetes «**normals**» (4 g) i «petites» (2.5 g), però la sortida esperada (els 6 `.out` i els exemples) diu `croquetes **grans**`. El mot «grans» no sortia mai al text.
+- `## Sortida` només parlava de «el número de croquetes… de la paella», sense dir el format exacte de les 3 línies ni que hi ha una tercera línia amb la carn que sobra (que només s'insinuava a «També volem saber si sobra carn o no»), ni que va amb un decimal (`0.0`, `1.5`…), ni que `croquetes` va sempre en plural (el cas de prova 4 espera `1 croquetes petites`), ni els 4 noms exactes de paella.
+- «Com ens agraden els números rodons no utilitzarem grams de carn amb decimals» semblava contradir les croquetes de 2.5 g i la sortida `0.5`; en realitat només volia dir que l'entrada és un enter.
+- L'objectiu «aquella mida que sobri menys carn picada» no deia què fer **en cas d'empat**. Comprovat amb una funció exacta: amb 3..1999 g hi ha empat en **297 de 1997** valors (≈15 %; tots els residus 0, 1 i 2 mòdul 20: 20, 21, 22, 40, 41, 42…). Els 6 casos de prova no en tenen cap, i de les **25 solucions amb AC** (Java 8/11/25, Kotlin, Python) unes quantes fan grans en cas d'empat (`grans <= petites`, `petites < grans`…) i unes altres petites (`petites <= grans`, `grans < petites`…): un AC no deia res sobre els empats.
+
+**Decisió** (l'usuari va triar la regla i que no s'afegissin casos de prova). Només s'ha canviat el text; script a l'àrea de treball de la sessió, amb simulació prèvia:
+- `Problem.description` (ca) i `ProblemTranslation` `es` reescrits, mantenint l'estructura (`## Entrada`, `## Sortida`, `## Exemples`): mides amb nom (**croquetes grans** 4 g, **croquetes petites** 2.5 g, ja no «normals»), regla de la mida (la de menys carn sobrant, i **si empaten, croquetes grans**), llista de paelles amb rangs explícits (fins a 9 / de 10 a 18 / de 19 a 36 / més de 36), entrada (un enter, mínim 3 g perquè es pugui fer almenys una croqueta), sortida de **3 línies** amb el format exacte de cada una (plural fix, `.5` possible, un decimal) i, sota l'exemple, una **explicació pas a pas dels 3 exemples** (grans i petites, carn que sobra, tria i paella). A la versió `es`, el text és en castellà però avisa que **les paraules de la sortida s'escriuen en català**, tal com surten als exemples, i hi ha la traducció entre parèntesis. La taula d'exemples es manté (només s'ha tret un espai sobrant a la cel·la del primer exemple).
+- Abans d'escriure, el script comprova que la regla escrita a l'enunciat (grans guanyen els empats) **reprodueix els 6 casos de prova** tal com els espera el jutge, i que els números de l'explicació (7 → 1 gran/3 g i 2 petites/2 g; 239 → 59/3 g i 95/1.5 g; 68 → 17/0 g i 27/0.5 g) són correctes.
+- Després de desar, `judge.signals.problem_update` per buidar la memòria cau del problema (`problem_html`, PDFs).
+- Textos antics guardats: `/tmp/claude-1000/-home-ubuntu-educational-online-judge/c68a0bb9-6b92-402b-b306-4e9cca3acc05/scratchpad/croquetes_old_ca.md` i `croquetes_old_es.md`.
+
+**Per què:** l'enunciat havia de descriure el que el jutge realment espera, amb els mateixos noms que la sortida i sense deixar cap decisió amagada.
+
+**Resultat (verificat amb la pàgina real `https://jo-el.es/problem/lescroquetesdelamama`, en català i en castellà):** surt el text nou, ja no hi ha «normals», les llistes, els `code` i la taula es veuen bé. **Els casos de prova, les dades i les 119 trameses no s'han tocat.**
+
+**Pendent / limitacions:**
+- La regla de l'empat (grans) **només és al text, no la fa complir cap cas de prova**: les solucions amb AC que fan petites en cas d'empat continuen amb AC. Si es volgués fer complir, calen casos nous amb empat (p. ex. 20 g → `5 croquetes grans`, `paella petita`, `0.0`; i 41 g), i llavors aquestes solucions passarien a WA si es rejutgessin. L'usuari ha decidit de moment no fer-ho.
+- `1 croquetes petites` (plural fix) és una rareza heretada del cas de prova 4; ara està explicada al text, no s'ha canviat.
+- Canvi a la base de dades. **Sense commit.**
+
+### 168. Botó «No sé ni per on començar» (`ProblemData.help_chat`): fora dels 21 problemes privats i activat a 21 problemes públics d'«Iniciació als bucles» (dades; sense canvis de codi)
+
+**Abans:** hi havia **106** problemes amb el xat d'ajuda activat: 85 públics i **21 privats d'organització** (els exàmens IPED, `diesanyampliat` i `maies1`). Dels problemes públics de tipus «Bucles simples» amb poques punts, només els 9 del grup `Primers Passos` el tenien (`silencisala`, `platanbanana`, `compteenrere`, `casino1`, `casinoplaces`, `comptaasteriscs`, `apostesenars`, `casinosort`, `interval`); `elmeuprimerbucle` (1,9 punts) i els seus companys, no.
+
+**Decisió** (a petició de l'usuari: «treulo de tots els privats i posa'l a tots els de bucles simples que compten pocs punts, com els de "el meu primer bucle"»). Un únic script (mode simulació amb comprovació de recomptes i `--apply`), en una transacció, amb `ProblemData.objects.filter(pk__in=…).update(help_chat=…)`, la mateixa operació que l'acció d'admin «Activa/Desactiva el xat d'ajuda» (`judge/admin/problem.py`); el camp es llegeix directament de la BD a cada petició (`judge/utils/helpchat.py`), per això no cal buidar cap memòria cau.
+- **Desactivat (21, tots els que no són públics):** `diesanyampliat`, `maies1`, `ipedm3uf1ex1a`, `ipedm3uf1ex1b`, `ipedm3uf1ex1d`, `ipedm3uf1ex2d`, `ipedm3ra123a1`, `ipedm3ra123a2`, `ipedm3ra123a3`, `ipedm3ra123b1`, `ipedm3ra123b2`, `ipedm3ra123b3`, `ipedm3ra123c1`, `ipedm3ra123c3`, `ipedm3ra123d1`, `ipedm3ra123d2`, `ipedm3ra123d3`, `ipedm3extra123a1`, `ipedm3extra123a2`, `ipedm3extra123b1`, `ipedm3extra123b2`.
+- **Activat (21):** els problemes **públics**, del tipus «Bucles simples», amb **≤ 2,5 punts**, dels grups `Introduccio` i `Primers Passos` que encara no el tenien: `elmeuprimerbucle`, `elmeuprimerbuclewhil`, `apostesperdudes`, `apostesperdudes0`, `tiradesperf`, `miprima`, `casinomult`, `numerospositius`, `productenumeros`, `nota10`, `senarsparells`, `positiusnegatius`, `presidentpatata`, `vectors1`, `top50`, `jordiwhile`, `jordiwhile2`, `fafred`, `diguespatata`, `harrisonfor`, `laserlunar`. El llindar de 2,5 inclou el 2,3 d'`interval`, que ja el tenia.
+- Les dues llistes queden a `/tmp/claude-1000/-home-ubuntu-educational-online-judge/c68a0bb9-6b92-402b-b306-4e9cca3acc05/scratchpad/helpchat_changes.json`.
+
+**Per què:** el botó és per als problemes molt inicials (diu «pensat per als problemes molt inicials; no surt dins d'un concurs»): no té sentit a exàmens ni a problemes privats, i sí als primers problemes de bucles.
+
+**Resultat (verificat contra la BD):** **106** problemes amb el botó, **0 privats** i 106 públics. Surt sense cap reinici.
+
+**Pendent / limitacions:**
+- **No he inclòs 29 problemes públics de «Bucles simples» amb ≤ 2,5 punts d'altres grups**, per si no són per a això: exàmens (`ex3examenbucles`, `ex4examenbucles`, `dam1mp3uf1pr1a`, `dam1mp3uf1pr1b`, `iedammp3uf1p12324`, `iedammp3uf1p22324`, `iedammp3uf1p32324`), Lliga de Programació FP (`estalvipaula`, `sequenciamisteriosa`, `taxacioimmobiliaria`, `animesperdudes`), Codejam/FiraFP (`majmin`, `case`, `silencialasala`), fets per alumnes (`fusta`, `donpollo`, `farmaciarobotica`, `rendimentalumnes`) i `tresiguales`, `sumapatates0`. Si es volen, és una acció d'admin o una línia d'script.
+- Tots els «Bucles simples» de 3,0 punts o més (uns 150 de públics) queden sense el botó.
+- Canvi a la base de dades. **Sense commit.**
+
+### 169. Botó «No sé ni per on començar» activat a totes les tasques `ifseasy`, `ifandor` i `initbucles` (dades; sense canvis de codi)
+
+**Abans:** després de l'entrada #168 hi havia 106 problemes amb el botó. A les tres tasques només el tenien 10 dels 20 problemes d'`ifseasy`, 9 dels 18 d'`ifandor` i 17 dels 27 d'`initbucles`.
+
+**Decisió** (a petició de l'usuari: «posa'l també a tots els ifseasy/ifandor i initbucles»). Mateixa mecànica que a #168 (`ProblemData.objects.filter(pk__in=…).update(help_chat=True)`, en una transacció), sobre els problemes de les tasques `ifseasy` (`02 01 Alternatives (if, easy) (gg ez)`), `ifandor` (`02 03 Alternatives (AND OR)`) i `initbucles` (`03 00 Iniciació als Bucles`). Mantinc la regla de #168 (només problemes públics; les tres tasques són 100 % públiques, no se n'ha saltat cap). **29 activats:**
+- `ifseasy` (10): `eleccions20202`, `eleccions20203`, `etsjove`, `diasetmana`, `pedrapaper`, `diesany`, `parellsenar`, `fizzdiv3`, `codisecret`, `divisiosegura`.
+- `ifandor` (9): `divisible110`, `buscarparelles`, `exsbambino`, `muntanyes`, `calorcito`, `muntanyarussa`, `botigaoberta`, `estaciodelany`, `elmigdetres`.
+- `initbucles` (10): `sumapatates`, `mesgranpetit`, `donutsamelia`, `lavenda`, `doblebucle`, `momentobanana`, `doblebuclemes`, `trespercinc`, `sumapatates0`, `elmeusegonbucle`.
+- Aquesta tanda inclou els 8 problemes dels lots recents d'`ifseasy`/`ifandor` que no el tenien (vegeu la nota de #168). La llista de la tanda és a `/tmp/claude-1000/-home-ubuntu-educational-online-judge/c68a0bb9-6b92-402b-b306-4e9cca3acc05/scratchpad/helpchat_tasks_changes.json`.
+
+**Per què:** són els problemes d'iniciació (alternatives i primers bucles) on l'alumne més necessita l'ajuda per començar.
+
+**Resultat (verificat contra la BD):** `ifseasy` 20/20, `ifandor` 18/18 i `initbucles` 27/27 amb el botó; **135** problemes amb el botó en total i **0 privats**. Surt sense cap reinici.
+
+**Pendent / limitacions:** els problemes que no són de cap d'aquestes tasques (p. ex. els 29 públics d'altres grups llistats a #168) continuen sense el botó. Canvi a la base de dades. **Sense commit.**
+
+### 170. Versions «Easy» (sense sentinella) de 5 problemes d'`initbucles`: `nota10easy`, `tiradesperf0`, `mesgranpetit0`, `elmeuprimerwhile0`, `casinosort0` (problemes nous, ids 1424–1428; dades; sense canvis de codi)
+
+**Abans:** a `initbucles` (27 problemes) 6 llegien l'entrada amb un bucle amb sentinella (acaba en `0` o `-1`): `nota10`, `tiradesperf`, `mesgranpetit`, `elmeuprimerbuclewhil`, `apostesperdudes` i `casinosort`. Només un tenia una versió sense sentinella: `apostesperdudes0` («Apostes perdudes (Easy)», 5 línies fixes). Després de l'anàlisi de l'entrada de la tasca, l'usuari va acceptar la proposta de fer les altres cinc.
+
+**Decisió:** cinc problemes nous, **públics**, a la tasca `initbucles`, que copien del problema original el grup, els tipus, els 9 llenguatges, el límit 1,0 s/65536 KB, els **punts** i el flag `partial`, amb nom `<nom original> (Easy)`, autor `marc`, traducció `es` (nom + « (Easy)»), el botó d'ajuda (`help_chat`, `allowed_tips` com l'original) i `ProblemData(checker='linecount', caseformat='indiv')` amb zip `/judge/<codi>/<codi>.zip` (`acin.N.in/out`, un cas per fitxer, 1 punt cada un, `init.yml` generat per `ProblemDataCompiler.generate`). L'enunciat és el de l'original amb **només el canvi d'entrada** (en català i castellà): «L'entrada consta de N línies…», fora la frase del sentinella i la línia del sentinella a l'exemple (el número de línies s'escriu amb lletres i en majúscula, com a `apostesperdudes0`). L'exemple i la seva sortida són els de l'original.
+- `nota10easy` (id **1424**, ← `nota10`, 2,0 punts, no parcial): **7** notes; exemple `4 5 10 7 8 10 12` → `TOTAL NOTES: 6 NOTES10: 2`. 4 casos: `0 10 11 -1 5 9 10` (fronteres 0/10/11/-1) → 5/2; `12 -4 23 60 -7 100 11` → 0/0; set deus → 7/7; `8 6 2 3 7 9 5` → 7/0.
+- `tiradesperf0` (id **1425**, ← `tiradesperf`, 1,9, no parcial): **6** tirades, compta els 6; títol `# Tirades perfectes (Easy)`. 4 casos: cap sis, tots sisos, sis al principi i al final, tres sisos.
+- `mesgranpetit0` (id **1426**, ← `mesgranpetit`, 3,5, no parcial): **6** números, escriu `màxim mínim`; exemple `10 5 6 -3 -7 1` → `10 -7` (l'original tenia 11 números i dava `10 -8`). 5 casos: tots negatius, tots positius, tots iguals, `-5 0 -3 -8 -2 -9` → `0 -9`, creixent.
+- `elmeuprimerwhile0` (id **1427**, ← `elmeuprimerbuclewhil`, 1,9, parcial): **4** línies, cada una més un; exemple `3 1 99 -2`. 3 casos amb 0 i valors grans (`0 -1 5 -6`, `100000 -100000 7 999`, `-1 0 1 2`). Al text he canviat també «Per cada cas de prova caldrà respondre:» per «Per cada número, cal escriure en una línia…», que era una frase que sobrava.
+- `casinosort0` (id **1428**, ← `casinosort`, 2,0, parcial): **7** guanys, escriu el màxim; títol `# Jugadors amb sort (Easy)`. 4 casos: tots negatius, màxim al principi, màxim al final, màxim repetit.
+- **Codis:** els tres de mida normal segueixen el criteri `0` d'`apostesperdudes0` (`tiradesperf0`, `mesgranpetit0`, `casinosort0`); `nota10easy` no porta `0` (`nota100` es confondria amb una nota) i `elmeuprimerwhile0` s'ha escurçat perquè el codi d'un problema té com a màxim 20 caràcters (`elmeuprimerbuclewhil` ja en fa 20) i només admet `a-z0-9`.
+- **Els casos NO són còpia de l'original:** com que ara hi ha un nombre fix de línies i el 0 (o el -1) deixa de ser un final, he escrit casos nous. Cap cas privat és igual a l'exemple. Les sortides es calculen amb una funció de referència, no a mà.
+
+**Per què:** el bucle amb sentinella és més difícil que un bucle de nombre fix; amb una versió «Easy» l'alumne pot començar pel bucle simple, com ja passava a `apostesperdudes0`.
+
+**Resultat (verificat):** (1) **validació abans d'escriure**: l'exemple de cada enunciat dona la sortida que s'hi diu; una comprovació amb errors típics d'alumnes (variable inicialitzada a 0, saltar-se el primer o l'últim, límits 0/10 mal posats, confondre `>=` amb `==`, aturar-se en un 0 per costum del sentinella, etc.): **cap supera tots els casos**; (2) **jutge real**: una solució Python de referència per problema, enviada com a `edgar`, dona **AC amb tots els punts** (trameses 382606–382610: `nota10easy` 2,0/2,0, `tiradesperf0` 1,9/1,9, `mesgranpetit0` 3,5/3,5, `elmeuprimerwhile0` 1,9/1,9, `casinosort0` 2,0/2,0); (3) les pàgines `https://jo-el.es/problem/<codi>` surten en català i en castellà amb l'entrada nova, sense cap resta del sentinella, i els cinc problemes surten a `https://jo-el.es/tasks/initbucles` (32 problemes). La llista de comprovació és l'script de la sessió.
+
+**Pendent / limitacions:**
+- **`elmeuprimerwhile0` s'assembla molt a `elmeuprimerbucle`** (id 223), que ja és el mateix exercici (cada número més un) amb el nombre de casos a la primera línia; la diferència és que aquí no hi ha cap línia de recompte. Si es considera redundant, es pot amagar (`is_public`) sense tocar res més.
+- Els punts són els dels originals (p. ex. `mesgranpetit0` dona 3,5 igual que `mesgranpetit`, tot i ser «Easy»); es poden abaixar des de l'admin.
+- Els enunciats de `tiradesperf0` i `casinosort0` porten el mateix `<img>` que l'original; el títol de l'enunciat de `apostesperdudes0` continua sense «(Easy)» (no s'ha tocat).
+- Les 5 trameses d'`edgar` queden (els punts compten al seu perfil). Canvi a la base de dades i a fitxers. **Sense commit.**
+
+### 171. Els 6 problemes «Easy» d'`initbucles` passen a **1,88 punts** perquè surtin abans que els originals en ordenar per punts (dades; sense canvis de codi)
+
+**Abans:** `apostesperdudes0` (1,9), `nota10easy` (2,0), `tiradesperf0` (1,9), `mesgranpetit0` (3,5), `elmeuprimerwhile0` (1,9) i `casinosort0` (2,0) tenien els punts del seu original (entrada #170), de manera que en ordenar per punts quedaven barrejats amb ell (o empatats: 1,9 amb 1,9).
+
+**Decisió** (a petició de l'usuari: «pots fer que els easy siguin de 1.88 punts? perquè quedin abans si ordenes per punts»). Els sis passen a `points = 1.88`. **No he fet servir l'admin ni `rescore_problem`**, perquè aquest arrodoneix els punts de cada tramesa a **1 decimal** (`judge/tasks/submission.py:46`) i 1,88 quedaria a 1,9; el web considera «resolt» una tramesa amb `points == problem.points` exacte (`judge/utils/problems.py`, `judge/views/problem.py`), de manera que **tots els alumnes que ja el tenien resolt haurien passat a «no resolt»**. En lloc d'això, un script, en una transacció, amb la fórmula del jutge (`judge/bridge/judge_handler.py:405`): `round(case_points / case_total * problem.points, 3)`, i `0` si el problema no és parcial i no s'ha fet tot. Només es toquen les trameses ja jutjades (`status='D'`) i només si el valor canvia: **`apostesperdudes0` 120 trameses** (de 167; 159 jutjades) de 109 alumnes, i **1 tramesa d'`edgar` per cada un dels altres cinc**. No he cridat `update_contest()` perquè els punts dins d'un concurs són els del `ContestProblem`, no els del problema. Després, `Profile.calculate_points()` dels 109 + 1 usuaris afectats, esborrant `user_complete:<id>` i `user_attempted:<id>` (com fa `rescore_problem`), i `Problem.update_stats()` de cada problema (`user_count`, `ac_rate`; el `save()` buida també la memòria cau del problema).
+
+**Per què:** l'ordre per punts és la manera de posar la versió fàcil abans que la difícil.
+
+**Resultat (verificat contra la BD i el web):**
+- Sis problemes a 1,88; **els alumnes que el tenien resolt, el segueixen tenint resolt** (`apostesperdudes0`: 108 usuaris amb AC, 108 amb `points == problem.points`, abans i després; `user_count` 108, `ac_rate` 64,7 %).
+- **Efecte en els punts dels alumnes:** a cadascun dels 108 que tenien `apostesperdudes0` resolt els baixa **0,02 punts** (1,9 → 1,88) en el total; els 5 problemes nous només tenen la tramesa d'`edgar`.
+- Ordenat per punts, `initbucles` comença així: `apostesperdudes0`, `nota10easy`, `tiradesperf0`, `mesgranpetit0`, `elmeuprimerwhile0`, `casinosort0` (1,88), després `elmeuprimerbucle`, `compteenrere`, `elmeuprimerbuclewhil`, `casino1`, `apostesperdudes`, `tiradesperf` (1,9)…
+- **Els tres «Easy» de la resta del catàleg no s'han tocat:** `patatacalienteeasy` (id 226, 5,0 punts, privat, grup `Experimental`, sense trameses), `taulacremadaeasy` (id 701, «Easy Mode», 12,0) i els originals.
+
+**Pendent / limitacions:**
+- **El web mostra els punts amb `floatformat`, així que 1,88 es veu «1,9»** (`templates/problem/list.html:310`; comprovat a la pàgina de `nota10easy` i d'`apostesperdudes0`). L'ordre sí que usa el valor real. Es pot mostrar amb 2 decimals.
+- **Si algú desa aquests problemes des de l'admin o els marca públics/privats, `rescore_problem` els arrodonirà a 1 decimal i els alumnes en perdran l'estat de «resolt».** Mateix risc ja existent a `casinoplaces` (1,95). No s'ha tocat el codi; està a `TODO.md` #26 (arreglament: `, 1` → `, 3`; cal reiniciar Celery).
+- `mesgranpetit0` passa de 3,5 a 1,88 (el comentari de #170 queda resolt). Canvi a la base de dades. **Sense commit.**
+
+### 172. Tres exercicis d'acumulador passen d'`initbucles` a «03 03 Bucles amb acumulador» (`acumulador`) (dades; sense canvis de codi)
+
+**Abans:** `initbucles` («03 00 Iniciació als Bucles») tenia 32 problemes i `acumulador` («03 03 Bucles amb acumulador») 10 (`productenumeros`, `senarsparells`, `positiusnegatius`, `ambrosio`, `compteambelveri`, `piramidecartes`, `explosionarcana1`, `ambrosiotriangular`, `cargols`, `jordiwhile2`). L'usuari va preguntar quants exercicis d'acumulador hi havia a `initbucles` i, si n'hi havia, va demanar de portar-los a la tasca d'acumulador **en comptes d'`initbucles`**.
+
+**Decisió:** he llegit l'enunciat, la sortida i el primer cas de prova dels 32 problemes. Criteri: la descripció de la tasca destí diu «una suma, un producte, un recompte… sumes i productes de nombres naturals», però els recomptes i els màxims/mínims ja tenen la seva tasca (`comptadors`, «Bucles amb comptador»), així que només he mogut els que **sumen** o multipliquen al llarg del bucle. **3 problemes**, treient-los d'`initbucles` i afegint-los a `acumulador` (`ProblemTask.problems`, en una transacció); **les altres tasques on ja eren es mantenen**:
+- `sumapatates` (id 44, 3,0 punts): suma les patates de `k` camions; abans a `initbucles` i `nadal`, ara a `acumulador` i `nadal`.
+- `sumapatates0` (id 717, 2,0): el mateix en la versió original; abans només a `initbucles`, ara a `acumulador`.
+- `miprima` (id 927, 2,1): suma només els sous de 8000 o més (suma condicional); abans a `initbucles` i `20230300calamot`, ara a `acumulador` i `20230300calamot`.
+- **No he mogut, per decisió de criteri** (llistes a l'altra banda, a la resposta a l'usuari): els **recomptes** (`numerospositius`, `nota10`/`nota10easy`, `tiradesperf`/`tiradesperf0`, `apostesperdudes`/`apostesperdudes0`), els **màxims** (`mesgranpetit`/`mesgranpetit0`, `casinosort`/`casinosort0`), `donutsamelia` (mínim comú múltiple), `casinomult` (taula de multiplicar: `N x P = TOTAL` sense acumular), `harrisonfor` (comptar de milió en milió, on es podria fer amb acumulador però el natural és un comptador), `doblebucle`/`doblebuclemes` (bucles dobles), els comptes enrere i intervals, i `trespercinc`.
+
+**Per què:** els tres sumen al llarg del bucle, que és la definició de la tasca d'acumuladors.
+
+**Resultat (verificat contra la BD i el web):** `initbucles` passa de 32 a **29** problemes i `acumulador` de 10 a **13**. A `https://jo-el.es/tasks/acumulador` surten els tres problemes i a `https://jo-el.es/tasks/initbucles` ja no. No he tocat els problemes en si (punts, estat, botó d'ajuda, etc.).
+
+**Pendent / limitacions:** el criteri és meu: si l'usuari vol que `harrisonfor`, `casinomult` o algun recompte també vagin a `acumulador`, és un canvi d'una línia. Canvi a la base de dades. **Sense commit.**
+
+### 173. Alta de la professora `nuria_tort` (Institut Castellet): institut nou, equip tancat de 1r DAM, permisos i logo
+
+**Abans:** l'usuari va reenviar un correu de la **Núria Tort** (correu del domini `inscastellet.cat`), professora de l'**Institut Castellet**, que volia participar a la lliga amb l'alumnat de **1r de DAM** i demanava donar d'alta l'institut «adjuntant el logo». El compte `nuria_tort` (id d'usuari 27723) ja existia (registrat l'11-11-2026 amb aquest mateix correu), sense grups ni permisos; l'institut i l'equip no existien. L'usuari va dir **«sí, fes-ho, conec a la Nuria»** i va passar el logo per Drive.
+
+**Decisió** (el mateix procediment que amb `rosa_rosae`, entrada #151; el classificador va bloquejar el primer intent, fet sense instrucció explícita, i va deixar passar el segon després del sí):
+1. **Institut nou** `Institution` id **44**, «Institut Castellet» (slug `institut-castellet`, nom curt «Castellet»), amb el patró dels altres instituts catalans («Institut El Calamot», «INS Poblenou»).
+2. **Equip tancat** `Organization` id **222**, «Institut Castellet - 1r DAM» (nom curt «Castellet 1r DAM», slug `institut-castellet-1r-dam`): `is_open=False`, sense `slots` ni `access_code`, de manera que els alumnes sol·liciten entrar i ella accepta. Ella n'és `registrant`, administradora **i membre** (cal ser-ne membre perquè se la reconegui com a responsable d'institut, entrada #59). Ella no va dir si el grup era obert o tancat: he triat **tancat**, el més prudent; ho pot canviar.
+3. **Permisos:** grups **«Profe»** i **«Responsable d'Institut»** i `is_staff=True`. **No** s'hi ha afegit «creador de problemes» ni «Editor d'alumnes» (no ho va demanar).
+4. **Logo:** `logo_castellet.jpg` de Drive (JPEG, 340×224, 20.379 bytes) a `Institution.image` pel camí normal (emmagatzematge de Django): `/media/institutions/institut_castellet.jpg`. Es mostra tal com el va enviar, com els altres instituts (n'hi ha de 966×227, 828×221...); les plantilles el posen a una mida quadrada fixa (30×30 al llistat i 36×36 a la pàgina de l'institut), així que un logo apaïsat surt comprimit com els altres.
+
+**Resultat (verificat):** `/institutions/`, `/institution/44-institut-castellet` i `/organization/222-institut-castellet-1r-dam` responen **200**; el logo es serveix amb 200 `image/jpeg` (20.379 bytes) i surt a la pàgina de l'institut i al llistat. Amb el codi de l'admin sobre una petició simulada (sense crear cap sessió): `nuria_tort` veu **exactament l'equip 222**, el pot editar i **no** el d'un altre institut (id 3); té `judge.organization_admin` i `judge.view_all_submission`; `administered_institution_ids` = [44]. Només dades: cap fitxer de codi, plantilla ni migració tocat; no s'ha reiniciat res.
+
+**Pendent / limitacions:**
+- **No s'ha vist l'acreditació** (carnet del centre) **ni el compromís** de no fer servir els casos de prova i les solucions per fer trampes que demana `/guiaprofes/`: el correu no els portava. L'usuari coneix la professora i va decidir fer l'alta igualment.
+- **Cal respondre-li** (no ho he fet; no hi ha cap correu enviat ni esborrany).
+- El logo no s'ha posat a l'equip (`logo_override_image`), només a l'institut.
+- Canvis a la base de dades i un fitxer a `/media`. **Sense commit.**
 
 ---
 
