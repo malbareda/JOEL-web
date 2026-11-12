@@ -4,6 +4,7 @@ usage: python -I convert_images.py <img_rows.json> <out_dir> <manifest.json> <dl
 
 * Only files PIL itself can decode are accepted; the output is always freshly encoded by PIL
   (so EXIF/ICC/comments and anything odd inside the container are dropped).
+* Animated GIF / WebP / APNG are copied unchanged (re-encoding would drop the animation).
 * Never upscales. Target box = 2x the widest width the problem statements display it at
   (width="..." attribute or style width in px); if some use has no width, long side <= 800.
 * Names are <sha256(bytes)[:20]>.<ext> -> immutable (nginx serves /media with `expires max`).
@@ -83,19 +84,22 @@ for dl in dl_files:
             if src_fmt not in ('JPEG', 'PNG', 'GIF', 'WEBP', 'BMP'):
                 raise ValueError('format ' + str(src_fmt))
             animated = getattr(im, 'n_frames', 1) > 1
-            if animated and src_fmt == 'GIF':
-                # keep animated GIFs byte-for-byte (verified decodable below), if small enough
-                if len(raw) > 3_000_000:
-                    im.seek(0); animated = False      # too big: use first frame as a still
-                else:
-                    im.verify()
-                    name = hashlib.sha256(raw).hexdigest()[:20] + '.gif'
-                    with open(os.path.join(out_dir, name), 'wb') as f:
-                        f.write(raw)
-                    manifest[url] = {'file': name, 'w': im.size[0], 'h': im.size[1], 'bytes': len(raw),
-                                     'orig_bytes': len(raw), 'src': 'GIF(animated)', 'from': rec['final']}
-                    report['ok'] += 1
-                    continue
+            if animated and src_fmt in ('GIF', 'WEBP', 'PNG'):
+                # Animations (GIF, animated WebP, APNG) are kept byte-for-byte: re-encoding with PIL
+                # would silently leave only the first frame. (Before 2026-11-10 only GIFs <= 3 MB were
+                # kept and animated WebP was flattened: "joc de la vida" and "travolta" lost their
+                # animation.) Limit 8 MB; bigger ones are reported and skipped, never flattened.
+                if len(raw) > 8_000_000:
+                    raise ValueError('animated image too big (%d bytes): decide by hand' % len(raw))
+                im.verify()
+                ext = {'GIF': 'gif', 'WEBP': 'webp', 'PNG': 'png'}[src_fmt]
+                name = hashlib.sha256(raw).hexdigest()[:20] + '.' + ext
+                with open(os.path.join(out_dir, name), 'wb') as f:
+                    f.write(raw)
+                manifest[url] = {'file': name, 'w': im.size[0], 'h': im.size[1], 'bytes': len(raw),
+                                 'orig_bytes': len(raw), 'src': src_fmt + '(animated)', 'from': rec['final']}
+                report['ok'] += 1
+                continue
             im.load()
             im = ImageOps.exif_transpose(im)
             if im.size[0] < 8 or im.size[1] < 8:

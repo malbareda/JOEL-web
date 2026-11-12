@@ -21,7 +21,7 @@ __all__ = ['shrink_problem_image', 'MAX_SIDE']
 
 MAX_SIDE = 600
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
-MAX_ANIMATED_BYTES = 2 * 1024 * 1024
+MAX_ANIMATED_BYTES = 8 * 1024 * 1024
 ALLOWED_FORMATS = {'JPEG', 'PNG', 'GIF', 'WEBP'}
 
 

@@ -20,4 +20,6 @@ Fet el 2026-11-03 (entrada #147 de `CANVIS_I_MILLORES.md`). **Els scripts depene
 `/home/ubuntu/joel-media/media`, que conté l'enllaç `problem-images -> /home/ubuntu/joel-media/problem-images` (entrada #148). **`/tmp` s'esborra a cada arrencada** (`systemd-tmpfiles --remove --boot`):
 els fitxers no es perden i l'enllaç `/tmp/media` el refà sol una línia `@reboot` del crontab d'`ubuntu` (`ln -s /home/ubuntu/joel-media/media /tmp/media`; veure `TODO.md` #20).
 
+**Animacions:** el pas 4 conserva sense tocar els GIF, WebP animats i APNG (fins a 8 MB); mai els torna a codificar (en fa un sol fotograma). Entrada #164 del `CANVIS_I_MILLORES.md`.
+
 **Pendents:** imgur (`429` des del servidor; torna-ho a provar amb pauses llargues) i la llista de `/home/ubuntu/joel-media/imatges_pendents.tsv`.
